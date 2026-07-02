@@ -7,6 +7,7 @@ const renderer = fs.readFileSync(path.join(rootDir, "src", "renderer", "renderer
 const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js"), "utf8");
 const migration = fs.readFileSync(path.join(rootDir, "supabase", "017_normalized_scheduler_storage.sql"), "utf8");
 const mergeMigration = fs.readFileSync(path.join(rootDir, "supabase", "022_rename_settings_and_merge_schedule_entries.sql"), "utf8");
+const scheduleEntryRpcMigration = fs.readFileSync(path.join(rootDir, "supabase", "024_schedule_entries_rpc.sql"), "utf8");
 
 assert(webApi.includes('restSelect("set_departments"'), "loadState should read set_departments table");
 assert(webApi.includes('restSelect("set_employee"'), "loadState should read set_employee table");
@@ -16,6 +17,7 @@ assert(webApi.includes('restSelect("set_overtime"'), "loadState should read set_
 assert(webApi.includes('restSelect("schedule_entries"'), "loadState should read schedule_entries table");
 assert(webApi.includes('restInsert("set_departments"'), "saveState should write set_departments table");
 assert(webApi.includes('restInsert("schedule_entries"'), "saveState should write schedule_entries table");
+assert(webApi.includes('restRpc("save_schedule_entries_bulk"'), "schedule entry writes should use the bulk RPC");
 assert(!webApi.includes('restSelect("schedule_months"') && !webApi.includes('restInsert("schedule_months"'), "web api should not use schedule_months");
 assert(!webApi.includes("schedule_month_id"), "web api should not depend on schedule_month_id");
 assert(webApi.includes('onConflict: "member_id,work_date"'), "schedule entries should upsert by member and work date");
@@ -49,6 +51,9 @@ assert(migration.includes("array_to_string(key_parts[1:part_count - 3], '_')"), 
 assert(mergeMigration.includes("drop table if exists public.leave_requests cascade"), "merge migration should remove old leave_requests table");
 assert(mergeMigration.includes("drop table if exists public.overtime_requests cascade"), "merge migration should remove old overtime_requests table");
 assert(mergeMigration.includes("create or replace function public.get_public_schedule_requests()"), "merge migration should rebuild public request RPC from schedule_entries");
+assert(scheduleEntryRpcMigration.includes("create or replace function public.save_schedule_entries_bulk(entries jsonb)"), "schedule entry RPC migration should create the bulk save function");
+assert(scheduleEntryRpcMigration.includes("on conflict (member_id, work_date)"), "schedule entry RPC should upsert by member and work date");
+assert(scheduleEntryRpcMigration.includes("grant execute on function public.save_schedule_entries_bulk(jsonb) to authenticated"), "schedule entry RPC should be executable by authenticated users");
 assert(migration.includes("from public.schedule_documents"), "migration should backfill from legacy JSON once");
 
 console.log("normalized storage checks passed");

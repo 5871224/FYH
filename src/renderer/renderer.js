@@ -1450,17 +1450,27 @@ function renderScheduleCell(memberId, dateString) {
 }
 
 async function persistScheduleCell(memberId, dateString) {
-  const member = state.members.find((item) => item.id === memberId);
-  if (!member) {
-    return;
-  }
-  const key = getScheduleKeyForDateString(memberId, dateString);
-  await window.schedulerApi.saveScheduleCell({
-    memberId,
-    memberCode: member.code || "",
-    dateString,
-    slot: key ? state.schedule[key] || null : null
+  await persistScheduleCells([{ memberId, dateString }]);
+}
+
+async function persistScheduleCells(cells) {
+  const payloads = [];
+  (Array.isArray(cells) ? cells : []).forEach(({ memberId, dateString }) => {
+    const member = state.members.find((item) => item.id === memberId);
+    if (!member) {
+      return;
+    }
+    const key = getScheduleKeyForDateString(memberId, dateString);
+    payloads.push({
+      memberId,
+      memberCode: member.code || "",
+      dateString,
+      slot: key ? state.schedule[key] || null : null
+    });
   });
+  if (payloads.length) {
+    await window.schedulerApi.saveScheduleCells(payloads);
+  }
 }
 
 async function finishScheduleCellMutation(memberId, dateString) {
@@ -1515,9 +1525,7 @@ async function clearSelectedScheduleCells() {
     pruneEmptySchedule();
     changedCells.forEach(({ memberId, dateString }) => renderScheduleCell(memberId, dateString));
     syncScheduleRangeSelectionUi();
-    for (const { memberId, dateString } of changedCells) {
-      await persistScheduleCell(memberId, dateString);
-    }
+    await persistScheduleCells(changedCells);
   }
   return changed;
 }
@@ -1543,9 +1551,7 @@ async function pasteScheduleClipboard() {
       pruneEmptySchedule();
       changedCells.forEach(({ memberId, dateString }) => renderScheduleCell(memberId, dateString));
       syncScheduleRangeSelectionUi();
-      for (const { memberId, dateString } of changedCells) {
-        await persistScheduleCell(memberId, dateString);
-      }
+      await persistScheduleCells(changedCells);
     }
     return changed;
   }
@@ -1570,9 +1576,7 @@ async function pasteScheduleClipboard() {
     pruneEmptySchedule();
     changedCells.forEach(({ memberId, dateString }) => renderScheduleCell(memberId, dateString));
     syncScheduleRangeSelectionUi();
-    for (const { memberId, dateString } of changedCells) {
-      await persistScheduleCell(memberId, dateString);
-    }
+    await persistScheduleCells(changedCells);
   }
   return changed;
 }
@@ -6926,6 +6930,4 @@ async function refreshScheduleRequestsAfterInitialRender() {
 }
 
 loadApp();
-
-
 

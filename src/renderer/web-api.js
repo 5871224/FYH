@@ -1152,28 +1152,19 @@
         overtime_reason: slot.overtimeMeta?.reason || null
       };
     }).filter((row) => row && (row.shift_type_id || row.leave_type_id || row.overtime_type_id));
-    if (scheduleRows.length) {
-      await restInsert("schedule_entries", scheduleRows, {
-        auth: true,
-        onConflict: "member_id,work_date",
-        prefer: "resolution=merge-duplicates,return=minimal"
-      });
-    }
     const savedScheduleKeys = new Set(scheduleRows.map((row) => makeScheduleEntryKey(row.member_id, row.work_date)));
     const existingScheduleRows = await restSelect("schedule_entries", {
       select: "id,member_id,work_date",
       auth: true
     });
-    const obsoleteScheduleRowIds = (existingScheduleRows || [])
+    const obsoleteScheduleRows = (existingScheduleRows || [])
       .filter((row) => row?.id && !savedScheduleKeys.has(makeScheduleEntryKey(row.member_id, row.work_date)))
-      .map((row) => row.id);
-    if (obsoleteScheduleRowIds.length) {
-      await restDelete("schedule_entries", {
-        id: buildInFilter(obsoleteScheduleRowIds)
-      }, {
-        auth: true
-      });
-    }
+      .map((row) => ({
+        member_id: row.member_id,
+        work_date: row.work_date,
+        delete_entry: true
+      }));
+    await saveScheduleEntryRows([...scheduleRows, ...obsoleteScheduleRows]);
 
     await syncLeaveAndOvertimeCatalogs(state);
     return { ok: true, savedAt: new Date().toISOString() };
@@ -1308,57 +1299,79 @@
     }
   }
 
-  async function saveScheduleCell(payload) {
+  async function saveScheduleEntryRows(rows) {
+    const entries = (Array.isArray(rows) ? rows : [])
+      .filter((row) => row?.member_id && row?.work_date);
+    if (!entries.length) {
+      return [];
+    }
+    return await restRpc("save_schedule_entries_bulk", { entries }, { auth: true }) || [];
+  }
+
+  async function saveScheduleCells(payloads) {
     ensureManager();
-    const profileMemberId = await resolveManagerMemberProfileId(payload.memberId, payload.memberCode);
-    const workDate = nullableDate(payload.dateString || payload.workDate);
-    if (!profileMemberId || !workDate) {
-      throw new Error("找不到班表格子的員工或日期");
-    }
-    const slot = payload.slot || {};
-    const [shiftType, leaveType, overtimeType] = await Promise.all([
-      fetchSchedulerRowByItemId("set_shift", slot.shift),
-      fetchSchedulerRowByItemId("set_leave", slot.leave),
-      fetchSchedulerRowByItemId("set_overtime", slot.overtime)
-    ]);
-
-    if (!shiftType?.id && !leaveType?.id && !overtimeType?.id) {
-      await restDelete("schedule_entries", {
-        member_id: `eq.${profileMemberId}`,
-        work_date: `eq.${workDate}`
-      }, {
-        auth: true
-      });
-      return { ok: true, row: null };
-    }
-
-    const leaveAllDay = slot.leaveMeta?.allDay !== false;
-    const row = {
-      member_id: profileMemberId,
-      work_date: workDate,
-      shift_type_id: shiftType?.id || null,
-      leave_type_id: leaveType?.id || null,
-      leave_all_day: leaveAllDay,
-      leave_start_time: leaveType?.id && !leaveAllDay ? nullableTime(slot.leaveMeta?.startTime) : null,
-      leave_end_time: leaveType?.id && !leaveAllDay ? nullableTime(slot.leaveMeta?.endTime) : null,
-      leave_reason: leaveType?.id ? slot.leaveMeta?.reason || null : null,
-      overtime_type_id: overtimeType?.id || null,
-      overtime_start_time: overtimeType?.id ? nullableTime(slot.overtimeMeta?.startTime) : null,
-      overtime_end_time: overtimeType?.id ? nullableTime(slot.overtimeMeta?.endTime) : null,
-      overtime_use_rest_1: overtimeType?.id ? Boolean(slot.overtimeMeta?.useRest1) : false,
-      overtime_rest_1_start_time: overtimeType?.id && slot.overtimeMeta?.useRest1 ? nullableTime(slot.overtimeMeta?.rest1StartTime) : null,
-      overtime_rest_1_end_time: overtimeType?.id && slot.overtimeMeta?.useRest1 ? nullableTime(slot.overtimeMeta?.rest1EndTime) : null,
-      overtime_use_rest_2: overtimeType?.id ? Boolean(slot.overtimeMeta?.useRest2) : false,
-      overtime_rest_2_start_time: overtimeType?.id && slot.overtimeMeta?.useRest2 ? nullableTime(slot.overtimeMeta?.rest2StartTime) : null,
-      overtime_rest_2_end_time: overtimeType?.id && slot.overtimeMeta?.useRest2 ? nullableTime(slot.overtimeMeta?.rest2EndTime) : null,
-      overtime_reason: overtimeType?.id ? slot.overtimeMeta?.reason || null : null
+    const rowCache = new Map();
+    const resolveSchedulerRow = async (table, schedulerItemId) => {
+      const itemId = String(schedulerItemId || "").trim();
+      if (!itemId) {
+        return null;
+      }
+      const cacheKey = `${table}:${itemId}`;
+      if (!rowCache.has(cacheKey)) {
+        rowCache.set(cacheKey, fetchSchedulerRowByItemId(table, itemId));
+      }
+      return await rowCache.get(cacheKey);
     };
-    const rows = await restInsert("schedule_entries", [row], {
-      auth: true,
-      onConflict: "member_id,work_date",
-      prefer: "resolution=merge-duplicates,return=representation"
-    });
-    return { ok: true, row: rows?.[0] || null };
+    const rows = [];
+    for (const payload of Array.isArray(payloads) ? payloads : []) {
+      const profileMemberId = await resolveManagerMemberProfileId(payload.memberId, payload.memberCode);
+      const workDate = nullableDate(payload.dateString || payload.workDate);
+      if (!profileMemberId || !workDate) {
+        throw new Error("schedule cell member and date are required");
+      }
+      const slot = payload.slot || {};
+      const [shiftType, leaveType, overtimeType] = await Promise.all([
+        resolveSchedulerRow("set_shift", slot.shift),
+        resolveSchedulerRow("set_leave", slot.leave),
+        resolveSchedulerRow("set_overtime", slot.overtime)
+      ]);
+      if (!shiftType?.id && !leaveType?.id && !overtimeType?.id) {
+        rows.push({
+          member_id: profileMemberId,
+          work_date: workDate,
+          delete_entry: true
+        });
+        continue;
+      }
+      const leaveAllDay = slot.leaveMeta?.allDay !== false;
+      rows.push({
+        member_id: profileMemberId,
+        work_date: workDate,
+        shift_type_id: shiftType?.id || null,
+        leave_type_id: leaveType?.id || null,
+        leave_all_day: leaveAllDay,
+        leave_start_time: leaveType?.id && !leaveAllDay ? nullableTime(slot.leaveMeta?.startTime) : null,
+        leave_end_time: leaveType?.id && !leaveAllDay ? nullableTime(slot.leaveMeta?.endTime) : null,
+        leave_reason: leaveType?.id ? slot.leaveMeta?.reason || null : null,
+        overtime_type_id: overtimeType?.id || null,
+        overtime_start_time: overtimeType?.id ? nullableTime(slot.overtimeMeta?.startTime) : null,
+        overtime_end_time: overtimeType?.id ? nullableTime(slot.overtimeMeta?.endTime) : null,
+        overtime_use_rest_1: overtimeType?.id ? Boolean(slot.overtimeMeta?.useRest1) : false,
+        overtime_rest_1_start_time: overtimeType?.id && slot.overtimeMeta?.useRest1 ? nullableTime(slot.overtimeMeta?.rest1StartTime) : null,
+        overtime_rest_1_end_time: overtimeType?.id && slot.overtimeMeta?.useRest1 ? nullableTime(slot.overtimeMeta?.rest1EndTime) : null,
+        overtime_use_rest_2: overtimeType?.id ? Boolean(slot.overtimeMeta?.useRest2) : false,
+        overtime_rest_2_start_time: overtimeType?.id && slot.overtimeMeta?.useRest2 ? nullableTime(slot.overtimeMeta?.rest2StartTime) : null,
+        overtime_rest_2_end_time: overtimeType?.id && slot.overtimeMeta?.useRest2 ? nullableTime(slot.overtimeMeta?.rest2EndTime) : null,
+        overtime_reason: overtimeType?.id ? slot.overtimeMeta?.reason || null : null
+      });
+    }
+    const savedRows = await saveScheduleEntryRows(rows);
+    return { ok: true, rows: savedRows };
+  }
+
+  async function saveScheduleCell(payload) {
+    const result = await saveScheduleCells([payload]);
+    return { ok: true, row: result.rows?.[0] || null };
   }
 
   async function createManagerLeaveRequest(payload) {
@@ -1824,6 +1837,7 @@
     loadState,
     saveState,
     syncCatalogs,
+    saveScheduleCells,
     saveScheduleCell,
     syncMemberProfile,
     resetMemberPassword,
