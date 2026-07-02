@@ -324,15 +324,10 @@ function syncStickyHeaderLayout() {
 function syncStickyHeaderScroll() {
   const tableWrap = document.getElementById("tableWrap");
   const container = document.getElementById("tableStickyHeaderDays");
-  const headerLeft = document.querySelector(".table-sticky-header-left");
   if (!tableWrap || !container) {
     return;
   }
-  const scrollLeft = tableWrap.scrollLeft;
-  container.style.transform = `translateX(${-scrollLeft}px)`;
-  if (headerLeft) {
-    headerLeft.style.transform = `translateX(${scrollLeft}px)`;
-  }
+  container.style.transform = `translateX(${-tableWrap.scrollLeft}px)`;
 }
 
 function scrollScheduleHorizontallyFromHeader(event) {

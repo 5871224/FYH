@@ -626,7 +626,6 @@ button {
   flex-shrink: 0;
   background: var(--schedule-header-bg);
   border-top-left-radius: var(--schedule-radius);
-  will-change: transform;
 }
 
 .table-sticky-header-left::after {
