@@ -144,11 +144,6 @@ let departmentSettingsView = "department";
 let currentSession = null;
 let currentProfile = null;
 let currentMember = null;
-let leaveRequestRecords = [];
-let overtimeRequestRecords = [];
-let leaveOverlayRecords = [];
-let overtimeOverlayRecords = [];
-let requestOverlaySourceLoaded = false;
 let memberSettingsFilters = {
   name: "",
   department: "all",
@@ -1062,8 +1057,6 @@ function cleanupScheduleEntries(schedule, merged) {
       shift: validShiftIds.has(slot?.shift) ? slot.shift : null,
       leave: validLeaveIds.has(slot?.leave) ? slot.leave : null,
       overtime: overtimeId,
-      leaveRequestId: validLeaveIds.has(slot?.leave) ? slot?.leaveRequestId || null : null,
-      overtimeRequestId: overtimeId ? slot?.overtimeRequestId || null : null,
       leaveMeta: validLeaveIds.has(slot?.leave) && slot?.leaveMeta && typeof slot.leaveMeta === "object"
         ? {
           leaveCode: slot.leaveMeta.leaveCode || "",
@@ -1389,14 +1382,12 @@ async function applyClipboardSlotToScheduleCell(memberId, dateString, clipboardS
   const nextShiftId = clipboardSlot?.shift || null;
   slot.shift = nextShiftId;
   slot.leave = clipboardSlot?.leave || null;
-  delete slot.leaveRequestId;
   if (clipboardSlot?.leaveMeta) {
     slot.leaveMeta = { ...clipboardSlot.leaveMeta };
   } else {
     delete slot.leaveMeta;
   }
   slot.overtime = clipboardSlot?.overtime || null;
-  delete slot.overtimeRequestId;
   if (clipboardSlot?.overtimeMeta) {
     slot.overtimeMeta = { ...clipboardSlot.overtimeMeta };
   } else {
@@ -1689,7 +1680,6 @@ function markAutoLeave(scheduleMap, member, dateString, leave, preview, reason) 
     return false;
   }
   slot.leave = leave.id;
-  slot.leaveRequestId = null;
   slot.leaveMeta = {
     leaveCode: leave.code || "",
     displayName: leave.name,
@@ -2079,7 +2069,6 @@ async function generateAutoSchedulePreviewFromModal() {
     return;
   }
   closeModal();
-  await refreshRequestData();
   autoSchedulePreview = buildAutoSchedulePreview(dates);
   renderAll();
   const changeCount = Object.keys(autoSchedulePreview.slots || {}).length;
@@ -2102,8 +2091,6 @@ async function applyAutoSchedulePreview() {
     state.schedule[key] = deepClone(slot);
   });
   autoSchedulePreview = null;
-  await refreshRequestData();
-  syncManagerEntriesToSchedule();
   pruneEmptySchedule();
   renderAll();
   await forceSave();
@@ -2309,44 +2296,14 @@ function hasDateRangeOverlap(startDate, endDate, otherStartDate, otherEndDate) {
   return otherStartDate <= endDate && otherEndDate >= startDate;
 }
 
-function getRequestRecordsByKind(kind) {
-  return kind === "leave" ? leaveRequestRecords : overtimeRequestRecords;
-}
-
-function getRequestRecordById(kind, requestId = "") {
-  return getRequestRecordsByKind(kind).find((record) => record.id === requestId) || null;
-}
-
-function isManagerSlotRequest(slot, category) {
-  return category === "leave"
-    ? Boolean(slot?.leaveRequestId)
-    : Boolean(slot?.overtimeRequestId);
-}
-
-function findEffectiveLeaveRequestConflict(memberId, memberCode, startDate, endDate, excludeRequestId = "") {
-  return leaveRequestRecords.find((record) => (
-    record.id !== excludeRequestId
-    && requestMatchesMember(record, memberId, memberCode)
-    && hasDateRangeOverlap(startDate, endDate, record.startDate || "", record.endDate || record.startDate || "")
-  )) || null;
-}
-
 function findDirectLeaveScheduleConflict(scheduleMemberId, startDate, endDate) {
   if (!scheduleMemberId || !startDate || !endDate) {
     return "";
   }
   return enumerateDateRange(startDate, endDate).find((dateString) => {
     const slot = getScheduleSlotByDateString(scheduleMemberId, dateString);
-    return Boolean(slot?.leave && !slot?.leaveRequestId);
+    return Boolean(slot?.leave);
   }) || "";
-}
-
-function findEffectiveOvertimeRequestConflict(memberId, memberCode, workDate, excludeRequestId = "") {
-  return overtimeRequestRecords.find((record) => (
-    record.id !== excludeRequestId
-    && requestMatchesMember(record, memberId, memberCode)
-    && record.workDate === workDate
-  )) || null;
 }
 
 function hasDirectOvertimeScheduleConflict(scheduleMemberId, workDate) {
@@ -2354,7 +2311,7 @@ function hasDirectOvertimeScheduleConflict(scheduleMemberId, workDate) {
     return false;
   }
   const slot = getScheduleSlotByDateString(scheduleMemberId, workDate);
-  return Boolean(slot?.overtime && !slot?.overtimeRequestId);
+  return Boolean(slot?.overtime);
 }
 
 function formatRequestDateText(startDate, endDate) {
@@ -3330,7 +3287,6 @@ function clearLegacyLeaveFromSlot(slot) {
   }
   slot.leave = null;
   slot.leaveMeta = null;
-  slot.leaveRequestId = null;
 }
 
 function clearLegacyOvertimeFromSlot(slot) {
@@ -3339,89 +3295,6 @@ function clearLegacyOvertimeFromSlot(slot) {
   }
   slot.overtime = null;
   slot.overtimeMeta = null;
-  slot.overtimeRequestId = null;
-}
-
-async function refreshScheduleFromManagerEntries(saveSchedule = false) {
-  await refreshRequestData();
-  syncManagerEntriesToSchedule();
-  renderAll();
-  if (saveSchedule) {
-    await forceSave();
-  }
-}
-
-async function upsertManagerLeaveEntry(payload) {
-  const member = state.members.find((item) => item.id === payload.memberId);
-  const leave = getItem("leave", payload.leaveId);
-  if (!member || !leave) {
-    throw new Error("找不到請假資料");
-  }
-  if (!payload.isAllDay && !isValidTimeRange(payload.startTime, payload.endTime)) {
-    throw new Error("請確認開始時間與結束時間");
-  }
-  const dateString = normalizeScheduleDateInput(payload.dateString || payload.day);
-  const requestPayload = {
-    id: payload.requestId || "",
-    memberId: member.id,
-    memberCode: member.code,
-    leaveItemId: leave.id,
-    leaveCode: leave.code,
-    startDate: dateString,
-    endDate: dateString,
-    isAllDay: payload.isAllDay,
-    startTime: payload.isAllDay ? "" : payload.startTime || "",
-    endTime: payload.isAllDay ? "" : payload.endTime || "",
-    reason: payload.reason || ""
-  };
-  if (payload.requestId) {
-    await window.schedulerApi.updateManagerLeaveRequest(requestPayload);
-    return;
-  }
-  await window.schedulerApi.createManagerLeaveRequest(requestPayload);
-}
-
-async function upsertManagerOvertimeEntry(payload) {
-  const member = state.members.find((item) => item.id === payload.memberId);
-  const overtime = getItem("overtime", payload.overtimeId) || state.overtime[0];
-  if (!member || !overtime) {
-    throw new Error("找不到加班資料");
-  }
-  const dateString = normalizeScheduleDateInput(payload.dateString || payload.day);
-  const requestPayload = {
-    id: payload.requestId || "",
-    memberId: member.id,
-    memberCode: member.code,
-    overtimeItemId: overtime.id,
-    overtimeName: overtime.name,
-    overtimeColor: overtime.color || "",
-    overtimeTextColor: overtime.textColor || "",
-    overtimeAutoTextColor: overtime.autoTextColor !== false,
-    overtimeHiddenFromToolbar: Boolean(overtime.hiddenFromToolbar),
-    defaultStartTime: overtime.startTime || "",
-    defaultEndTime: overtime.endTime || "",
-    defaultUseRest1: Boolean(overtime.useRest1),
-    defaultRest1StartTime: overtime.rest1StartTime || "",
-    defaultRest1EndTime: overtime.rest1EndTime || "",
-    defaultUseRest2: Boolean(overtime.useRest2),
-    defaultRest2StartTime: overtime.rest2StartTime || "",
-    defaultRest2EndTime: overtime.rest2EndTime || "",
-    workDate: dateString,
-    startTime: payload.startTime || "",
-    endTime: payload.endTime || "",
-    useRest1: Boolean(payload.useRest1),
-    rest1StartTime: payload.useRest1 ? payload.rest1StartTime || "" : "",
-    rest1EndTime: payload.useRest1 ? payload.rest1EndTime || "" : "",
-    useRest2: Boolean(payload.useRest2),
-    rest2StartTime: payload.useRest2 ? payload.rest2StartTime || "" : "",
-    rest2EndTime: payload.useRest2 ? payload.rest2EndTime || "" : "",
-    reason: payload.reason || ""
-  };
-  if (payload.requestId) {
-    await window.schedulerApi.updateManagerOvertimeRequest(requestPayload);
-    return;
-  }
-  await window.schedulerApi.createManagerOvertimeRequest(requestPayload);
 }
 
 async function applySelectionToCell(memberId, day) {
@@ -3456,7 +3329,6 @@ async function applySelectionToCell(memberId, day) {
         return;
       } else {
         slot.leave = id;
-        delete slot.leaveRequestId;
         slot.leaveMeta = {
           allDay: defaultLeaveIsAllDay(leave),
           startTime: "",
@@ -3486,7 +3358,6 @@ async function applySelectionToCell(memberId, day) {
       if (nextOvertimeId) {
         const overtime = getItem("overtime", nextOvertimeId) || state.overtime[0];
         slot.overtime = nextOvertimeId;
-        delete slot.overtimeRequestId;
         slot.overtimeMeta = {
           startTime: slot.overtimeMeta?.startTime || overtime?.startTime || "",
           endTime: slot.overtimeMeta?.endTime || overtime?.endTime || "",
@@ -3688,8 +3559,7 @@ function openLeaveAssignmentModal(memberId, day, leaveId) {
     category: "leave-assignment",
     memberId,
     day: dateString,
-    leaveId,
-    requestId: isManagerSlotRequest(slot, "leave") ? slot.leaveRequestId || "" : ""
+    leaveId
   };
   openEntityListModal({
     title: "休假明細",
@@ -3732,7 +3602,7 @@ function openLeaveAssignmentModal(memberId, day, leaveId) {
 }
 
 async function saveLeaveAssignmentFromModal() {
-  const { memberId, day, leaveId, requestId } = modalContext;
+  const { memberId, day, leaveId } = modalContext;
   const allDay = document.getElementById("leaveAssignmentAllDay")?.checked !== false;
   const reasonEnabled = Boolean(document.getElementById("leaveAssignmentReasonEnabled")?.checked);
   const startTime = readTimeInputValue("leaveAssignmentStartTime");
@@ -3743,18 +3613,27 @@ async function saveLeaveAssignmentFromModal() {
   }
 
   try {
-    await upsertManagerLeaveEntry({
-      requestId,
-      memberId,
-      dateString: normalizeScheduleDateInput(day),
-      leaveId,
-      isAllDay: allDay,
-      startTime,
-      endTime,
+    const dateString = normalizeScheduleDateInput(day);
+    const slot = ensureScheduleSlot(memberId, dateString);
+    const leave = getItem("leave", leaveId);
+    if (!slot || !leave) {
+      throw new Error("找不到班表格子或假別");
+    }
+    slot.leave = leaveId;
+    slot.leaveMeta = {
+      leaveCode: leave.code || "",
+      displayName: leave.name,
+      displayColor: leave.color || "",
+      displayTextColor: getItemTextColor(leave, leave.color),
+      allDay,
+      startTime: allDay ? "" : startTime,
+      endTime: allDay ? "" : endTime,
+      reasonEnabled,
       reason: reasonEnabled ? (document.getElementById("leaveAssignmentReason")?.value.trim() || "") : ""
-    });
+    };
     closeModal();
-    await refreshScheduleFromManagerEntries(true);
+    renderScheduleCell(memberId, dateString);
+    await persistScheduleCell(memberId, dateString);
   } catch (error) {
     reportValidationError(`儲存休假失敗：${formatSchedulerError(error, "儲存失敗")}`);
   }
@@ -3771,8 +3650,7 @@ function openOvertimeAssignmentModal(memberId, day) {
   modalContext = {
     category: "overtime-assignment",
     memberId,
-    day: dateString,
-    requestId: isManagerSlotRequest(slot, "overtime") ? slot.overtimeRequestId || "" : ""
+    day: dateString
   };
   openEntityListModal({
     title: "修改加班",
@@ -3835,7 +3713,7 @@ function openOvertimeAssignmentModal(memberId, day) {
 }
 
 async function saveOvertimeAssignmentFromModal() {
-  const { memberId, day, requestId } = modalContext;
+  const { memberId, day } = modalContext;
   const startTime = readTimeInputValue("scheduleOvertimeStartTime");
   const endTime = readTimeInputValue("scheduleOvertimeEndTime");
   const useRest1 = Boolean(document.getElementById("scheduleOvertimeUseRest1")?.checked);
@@ -3861,22 +3739,30 @@ async function saveOvertimeAssignmentFromModal() {
     return;
   }
   try {
-    await upsertManagerOvertimeEntry({
-      requestId,
-      memberId,
-      dateString: normalizeScheduleDateInput(day),
-      overtimeId: state.overtime[0]?.id || "",
+    const dateString = normalizeScheduleDateInput(day);
+    const slot = getSlot(memberId, dateString);
+    const overtime = getItem("overtime", slot?.overtime) || state.overtime[0];
+    if (!slot || !overtime) {
+      throw new Error("找不到班表格子或加班類型");
+    }
+    slot.overtime = overtime.id;
+    slot.overtimeMeta = {
+      displayName: overtime.name || "加班",
+      displayColor: overtime.color || "#D85A30",
+      displayTextColor: getItemTextColor(overtime, overtime.color || "#D85A30"),
       startTime,
       endTime,
       useRest1,
-      rest1StartTime,
-      rest1EndTime,
+      rest1StartTime: useRest1 ? rest1StartTime : "",
+      rest1EndTime: useRest1 ? rest1EndTime : "",
       useRest2,
-      rest2StartTime,
-      rest2EndTime
-    });
+      rest2StartTime: useRest2 ? rest2StartTime : "",
+      rest2EndTime: useRest2 ? rest2EndTime : "",
+      reason: slot.overtimeMeta?.reason || ""
+    };
     closeModal();
-    await refreshScheduleFromManagerEntries(true);
+    renderScheduleCell(memberId, dateString);
+    await persistScheduleCell(memberId, dateString);
   } catch (error) {
     reportValidationError(`儲存加班失敗：${formatSchedulerError(error, "儲存失敗")}`);
   }
@@ -5302,430 +5188,6 @@ async function resetMemberPasswordFromModal(employeeCode) {
   }
 }
 
-async function refreshRequestData() {
-  if (!isManager()) {
-    try {
-      const publicRequests = await window.schedulerApi.listPublicScheduleRequests();
-      leaveRequestRecords = publicRequests.leaveRequests || [];
-      overtimeRequestRecords = publicRequests.overtimeRequests || [];
-      leaveOverlayRecords = leaveRequestRecords;
-      overtimeOverlayRecords = overtimeRequestRecords;
-      requestOverlaySourceLoaded = true;
-    } catch {
-      requestOverlaySourceLoaded = false;
-      leaveRequestRecords = [];
-      overtimeRequestRecords = [];
-      leaveOverlayRecords = [];
-      overtimeOverlayRecords = [];
-    }
-    return;
-  }
-  const [leaveRequests, overtimeRequests] = await Promise.all([
-    window.schedulerApi.listLeaveRequests({ manager: isManager() }),
-    window.schedulerApi.listOvertimeRequests({ manager: isManager() })
-  ]);
-  leaveRequestRecords = leaveRequests || [];
-  overtimeRequestRecords = overtimeRequests || [];
-  leaveOverlayRecords = leaveRequestRecords;
-  overtimeOverlayRecords = overtimeRequestRecords;
-  requestOverlaySourceLoaded = true;
-}
-
-function collectLegacyScheduleRequestEntries() {
-  const leaveEntries = [];
-  const overtimeEntries = [];
-  Object.entries(state.schedule || {}).forEach(([key, slot]) => {
-    if (!slot) {
-      return;
-    }
-    const keyParts = key.split("_");
-    const memberId = keyParts.slice(0, -3).join("_");
-    const [yearText, monthText, dayText] = keyParts.slice(-3);
-    const year = Number(yearText);
-    const month = Number(monthText);
-    const day = Number(dayText);
-    if (!memberId || !Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
-      return;
-    }
-    const member = state.members.find((item) => item.id === memberId);
-    if (!member) {
-      return;
-    }
-    const dateString = toDateString(year, month, day);
-    if (slot.leave && !slot.leaveRequestId) {
-      const leave = getItem("leave", slot.leave);
-      if (leave) {
-        leaveEntries.push({
-          key,
-          slot,
-          member,
-          leave,
-          dateString
-        });
-      }
-    }
-    if (slot.overtime && !slot.overtimeRequestId) {
-      const overtime = getItem("overtime", slot.overtime) || state.overtime[0];
-      if (overtime) {
-        overtimeEntries.push({
-          key,
-          slot,
-          member,
-          overtime,
-          dateString
-        });
-      }
-    }
-  });
-  return { leaveEntries, overtimeEntries };
-}
-
-async function migrateLegacyScheduleRequests() {
-  if (!isManager()) {
-    return;
-  }
-  const { leaveEntries, overtimeEntries } = collectLegacyScheduleRequestEntries();
-  if (!leaveEntries.length && !overtimeEntries.length) {
-    return;
-  }
-  let migrated = 0;
-  let replaced = 0;
-  let failed = 0;
-
-  for (const entry of leaveEntries) {
-    const conflict = findEffectiveLeaveRequestConflict(entry.member.id, entry.member.code || "", entry.dateString, entry.dateString);
-    if (conflict) {
-      clearLegacyLeaveFromSlot(entry.slot);
-      replaced += 1;
-      continue;
-    }
-    try {
-      await window.schedulerApi.createManagerLeaveRequest({
-        memberId: entry.member.id,
-        memberCode: entry.member.code,
-        leaveItemId: entry.leave.id,
-        leaveCode: entry.leave.code,
-        startDate: entry.dateString,
-        endDate: entry.dateString,
-        isAllDay: entry.slot.leaveMeta?.allDay !== false,
-        startTime: entry.slot.leaveMeta?.allDay === false ? (entry.slot.leaveMeta?.startTime || "") : "",
-        endTime: entry.slot.leaveMeta?.allDay === false ? (entry.slot.leaveMeta?.endTime || "") : "",
-        reason: entry.slot.leaveMeta?.reason || ""
-      });
-      clearLegacyLeaveFromSlot(entry.slot);
-      migrated += 1;
-    } catch {
-      failed += 1;
-    }
-  }
-
-  for (const entry of overtimeEntries) {
-    const conflict = findEffectiveOvertimeRequestConflict(entry.member.id, entry.member.code || "", entry.dateString);
-    if (conflict) {
-      clearLegacyOvertimeFromSlot(entry.slot);
-      replaced += 1;
-      continue;
-    }
-    try {
-      await window.schedulerApi.createManagerOvertimeRequest({
-        memberId: entry.member.id,
-        memberCode: entry.member.code,
-        overtimeItemId: entry.overtime.id,
-        overtimeName: entry.overtime.name,
-        overtimeColor: entry.overtime.color || "",
-        overtimeTextColor: entry.overtime.textColor || "",
-        overtimeAutoTextColor: entry.overtime.autoTextColor !== false,
-        overtimeHiddenFromToolbar: Boolean(entry.overtime.hiddenFromToolbar),
-        defaultStartTime: entry.overtime.startTime || "",
-        defaultEndTime: entry.overtime.endTime || "",
-        defaultUseRest1: Boolean(entry.overtime.useRest1),
-        defaultRest1StartTime: entry.overtime.rest1StartTime || "",
-        defaultRest1EndTime: entry.overtime.rest1EndTime || "",
-        defaultUseRest2: Boolean(entry.overtime.useRest2),
-        defaultRest2StartTime: entry.overtime.rest2StartTime || "",
-        defaultRest2EndTime: entry.overtime.rest2EndTime || "",
-        workDate: entry.dateString,
-        startTime: entry.slot.overtimeMeta?.startTime || entry.overtime.startTime || "",
-        endTime: entry.slot.overtimeMeta?.endTime || entry.overtime.endTime || "",
-        useRest1: entry.slot.overtimeMeta?.useRest1 ?? Boolean(entry.overtime.useRest1),
-        rest1StartTime: entry.slot.overtimeMeta?.rest1StartTime || entry.overtime.rest1StartTime || "",
-        rest1EndTime: entry.slot.overtimeMeta?.rest1EndTime || entry.overtime.rest1EndTime || "",
-        useRest2: entry.slot.overtimeMeta?.useRest2 ?? Boolean(entry.overtime.useRest2),
-        rest2StartTime: entry.slot.overtimeMeta?.rest2StartTime || entry.overtime.rest2StartTime || "",
-        rest2EndTime: entry.slot.overtimeMeta?.rest2EndTime || entry.overtime.rest2EndTime || "",
-        reason: entry.slot.overtimeMeta?.reason || ""
-      });
-      clearLegacyOvertimeFromSlot(entry.slot);
-      migrated += 1;
-    } catch {
-      failed += 1;
-    }
-  }
-
-  if (migrated || replaced) {
-    pruneEmptySchedule();
-    await refreshRequestData();
-  }
-  if (migrated || replaced || failed) {
-    setSaveStatus(`已整理主管請假/加班資料：搬移 ${migrated} 筆，沿用既有申請 ${replaced} 筆${failed ? `，保留未搬移 ${failed} 筆` : ""}`);
-  }
-}
-
-async function exportDepartmentsFromSettings() {
-  try {
-    await window.schedulerApi.exportDepartments({ state });
-  } catch (error) {
-    setSaveStatus(`匯出失敗：${error.message}`);
-  }
-}
-
-async function importDepartmentsFromSettings() {
-  try {
-    const result = await window.schedulerApi.importDepartments();
-    if (result.canceled) {
-      return;
-    }
-    const existingNames = new Set(state.departments.map((item) => item.name.trim()));
-    const importedNames = new Set();
-    let imported = 0;
-    let skipped = 0;
-
-    for (const row of result.rows || []) {
-      const name = String(row.name || "").trim();
-      if (!name || existingNames.has(name) || importedNames.has(name)) {
-        skipped += 1;
-        continue;
-      }
-      if (row.startDate && row.endDate && !isValidDateRange(row.startDate, row.endDate)) {
-        skipped += 1;
-        continue;
-      }
-      state.departments.push({
-        id: uid("d"),
-        name,
-        startDate: row.startDate || "",
-        endDate: row.endDate || "",
-        hiddenFromLeave: Boolean(row.hiddenFromLeave)
-      });
-      importedNames.add(name);
-      imported += 1;
-    }
-
-    renderAll();
-    openDepartmentSettings();
-    queueSave();
-    showInfoMessage(`匯入完成：新增 ${imported} 筆，略過 ${skipped} 筆`);
-  } catch (error) {
-    setSaveStatus(`匯入失敗：${error.message}`);
-  }
-}
-
-async function exportListSettings(category) {
-  try {
-    if (category === "shift") {
-      await window.schedulerApi.exportShifts({ state });
-      return;
-    }
-    if (category === "leave") {
-      await window.schedulerApi.exportLeaveSettings({ state });
-      return;
-    }
-    await window.schedulerApi.exportOvertimeSettings({ state });
-  } catch (error) {
-    setSaveStatus(`匯出失敗：${error.message}`);
-  }
-}
-
-async function importShiftSettings() {
-  try {
-    const result = await window.schedulerApi.importShifts();
-    if (result.canceled) {
-      return;
-    }
-    const departmentMap = new Map(state.departments.map((item) => [item.name.trim(), item.id]));
-    const existingKeys = new Set(state.shifts.map((item) => `${item.name.trim()}|${getDepartmentSummary(item.applicableDeptIds).trim()}`));
-    const importedKeys = new Set();
-    let imported = 0;
-    let skipped = 0;
-
-    for (const row of result.rows || []) {
-      const name = String(row.name || "").trim();
-      const departmentName = String(row.departmentName || "").trim();
-      const deptId = departmentMap.get(departmentName);
-      const key = `${name}|${departmentName}`;
-      if (!name || !deptId || existingKeys.has(key) || importedKeys.has(key) || !isValidTimeRange(row.startTime, row.endTime)) {
-        skipped += 1;
-        continue;
-      }
-      state.shifts.push({
-        id: uid("s"),
-        name,
-        color: row.color || COLORS[state.shifts.length % COLORS.length].hex,
-        textColor: row.textColor || autoLeaveTextColor(row.color || COLORS[state.shifts.length % COLORS.length].hex),
-        autoTextColor: row.autoTextColor !== false,
-        startTime: row.startTime || "",
-        endTime: row.endTime || "",
-        hiddenFromToolbar: Boolean(row.hiddenFromToolbar),
-        requiredStaffCount: Math.max(0, Number(row.requiredStaffCount) || 0),
-        applicableDeptIds: [deptId],
-        positionRequirements: []
-      });
-      importedKeys.add(key);
-      imported += 1;
-    }
-
-    renderAll();
-    openListSettings("shift");
-    queueSave();
-    showInfoMessage(`匯入完成：新增 ${imported} 筆，略過 ${skipped} 筆`);
-  } catch (error) {
-    setSaveStatus(`匯入失敗：${error.message}`);
-  }
-}
-
-async function importLeaveSettings() {
-  try {
-    const payload = await window.schedulerApi.importLeaveSettings();
-    if (payload.canceled) {
-      return;
-    }
-    const result = payload.result || { items: [] };
-    const existingCodes = new Set(state.leaves.map((item) => item.code));
-    const importedCodes = new Set();
-    let imported = 0;
-    let skipped = 0;
-
-    for (const row of result.items || []) {
-      const code = String(row.code || "").trim();
-      if (!code || existingCodes.has(code) || importedCodes.has(code)) {
-        skipped += 1;
-        continue;
-      }
-      const catalogEntry = LEAVE_CATALOG.find((entry) => entry.code === code);
-      if (!catalogEntry) {
-        skipped += 1;
-        continue;
-      }
-      const color = row.color || COLORS[state.leaves.length % COLORS.length].hex;
-      state.leaves.push({
-        id: uid("l"),
-        code,
-        name: String(row.name || "").trim() || catalogEntry.name,
-        color,
-        textColor: row.textColor || autoLeaveTextColor(color),
-        autoTextColor: row.autoTextColor !== false,
-        hiddenFromToolbar: Boolean(row.hiddenFromToolbar),
-        defaultAllDay: Boolean(row.defaultAllDay),
-        requireReason: Boolean(row.requireReason)
-      });
-      importedCodes.add(code);
-      imported += 1;
-    }
-
-    renderAll();
-    openListSettings("leave");
-    queueSave();
-    await syncScheduleCatalogs();
-    showInfoMessage(`匯入完成：新增 ${imported} 筆，略過 ${skipped} 筆`);
-  } catch (error) {
-    setSaveStatus(`匯入失敗：${error.message}`);
-  }
-}
-
-async function importOvertimeSettings() {
-  try {
-    const payload = await window.schedulerApi.importOvertimeSettings();
-    if (payload.canceled) {
-      return;
-    }
-    const result = payload.result || { items: [] };
-    const existingNames = new Set(state.overtime.map((item) => item.name.trim()));
-    const importedNames = new Set();
-    let imported = 0;
-    let skipped = 0;
-
-    for (const row of result.items || []) {
-      const name = String(row.name || "").trim();
-      if (!name || existingNames.has(name) || importedNames.has(name) || !isValidTimeRange(row.startTime, row.endTime)) {
-        skipped += 1;
-        continue;
-      }
-      if (row.useRest1 && !isValidTimeRange(row.rest1StartTime, row.rest1EndTime)) {
-        skipped += 1;
-        continue;
-      }
-      if (row.useRest2 && !isValidTimeRange(row.rest2StartTime, row.rest2EndTime)) {
-        skipped += 1;
-        continue;
-      }
-      const color = row.color || COLORS[state.overtime.length % COLORS.length].hex;
-      state.overtime.push({
-        id: uid("o"),
-        name,
-        color,
-        textColor: row.textColor || autoLeaveTextColor(color),
-        autoTextColor: row.autoTextColor !== false,
-        hiddenFromToolbar: Boolean(row.hiddenFromToolbar),
-        startTime: row.startTime || "",
-        endTime: row.endTime || "",
-        useRest1: Boolean(row.useRest1),
-        rest1StartTime: row.useRest1 ? row.rest1StartTime || "" : "",
-        rest1EndTime: row.useRest1 ? row.rest1EndTime || "" : "",
-        useRest2: Boolean(row.useRest2),
-        rest2StartTime: row.useRest2 ? row.rest2StartTime || "" : "",
-        rest2EndTime: row.useRest2 ? row.rest2EndTime || "" : ""
-      });
-      importedNames.add(name);
-      imported += 1;
-    }
-
-    renderAll();
-    openListSettings("overtime");
-    queueSave();
-    await syncScheduleCatalogs();
-    showInfoMessage(`匯入完成：新增 ${imported} 筆，略過 ${skipped} 筆`);
-  } catch (error) {
-    setSaveStatus(`匯入失敗：${error.message}`);
-  }
-}
-
-async function importListSettings(category) {
-  if (category === "shift") {
-    await importShiftSettings();
-    return;
-  }
-  if (category === "leave") {
-    await importLeaveSettings();
-    return;
-  }
-  await importOvertimeSettings();
-}
-
-function syncManagerEntriesToSchedule() {
-  if (!requestOverlaySourceLoaded) {
-    return;
-  }
-  Object.values(state.schedule).forEach((slot) => {
-    if (slot?.leaveRequestId) {
-      slot.leave = null;
-      slot.leaveMeta = null;
-      slot.leaveRequestId = null;
-    }
-    if (slot?.overtimeRequestId) {
-      slot.overtime = null;
-      slot.overtimeRequestId = null;
-      slot.overtimeMeta = null;
-    }
-  });
-  leaveOverlayRecords.forEach((record) => {
-    applyManagerLeaveEntryToSchedule(record);
-  });
-  overtimeOverlayRecords.forEach((record) => {
-    applyManagerOvertimeEntryToSchedule(record);
-  });
-  pruneEmptySchedule();
-}
-
 async function syncScheduleCatalogs() {
   if (!isManager()) {
     return;
@@ -5979,90 +5441,6 @@ function syncScheduleOvertimeFormUi() {
   setTimeInputDisabled("scheduleOvertimeRest2EndTime", !useRest2);
 }
 
-function clearScheduleLeaveByRequestId(requestId) {
-  Object.values(state.schedule).forEach((slot) => {
-    if (slot?.leaveRequestId === requestId) {
-      slot.leave = null;
-      slot.leaveMeta = null;
-      slot.leaveRequestId = null;
-    }
-  });
-}
-
-function clearScheduleOvertimeByRequestId(requestId) {
-  Object.values(state.schedule).forEach((slot) => {
-    if (slot?.overtimeRequestId === requestId) {
-      slot.overtime = null;
-      slot.overtimeRequestId = null;
-      slot.overtimeMeta = null;
-    }
-  });
-}
-
-function applyManagerLeaveEntryToSchedule(record) {
-  clearScheduleLeaveByRequestId(record.id);
-  const member = state.members.find((item) => item.id === record.memberId)
-    || state.members.find((item) => item.code === record.memberCode);
-  const leave = getLeaveStyleForRecord(record);
-  if (!member || !leave) {
-    return;
-  }
-  enumerateDateRange(record.startDate, record.endDate).forEach((dateString) => {
-    const [year, month, day] = dateString.split("-").map(Number);
-    const slotKey = scheduleKey(member.id, year, month - 1, day);
-    const slot = state.schedule[slotKey] || { shift: null, leave: null, overtime: null };
-    slot.leave = leave.id;
-    slot.leaveMeta = {
-      leaveCode: record.leaveCode,
-      displayName: record.leaveName || leave.name,
-      displayColor: leave.color || "",
-      displayTextColor: getItemTextColor(leave, leave.color),
-      allDay: record.isAllDay !== false,
-      startTime: record.isAllDay !== false ? "" : record.startTime || "",
-      endTime: record.isAllDay !== false ? "" : record.endTime || "",
-      reasonEnabled: Boolean(record.reason),
-      reason: record.reason || ""
-    };
-    slot.leaveRequestId = record.id;
-    state.schedule[slotKey] = slot;
-  });
-  pruneEmptySchedule();
-}
-
-function applyManagerOvertimeEntryToSchedule(record) {
-  clearScheduleOvertimeByRequestId(record.id);
-  const member = state.members.find((item) => item.id === record.memberId)
-    || state.members.find((item) => item.code === record.memberCode);
-  const overtime = state.overtime.find((item) => item.id === record.overtimeItemId)
-    || state.overtime.find((item) => item.name === record.overtimeName)
-    || state.overtime[0];
-  if (!member || !overtime || !record.workDate) {
-    return;
-  }
-  const [year, month, day] = record.workDate.split("-").map(Number);
-  const slotKey = scheduleKey(member.id, year, month - 1, day);
-  const slot = state.schedule[slotKey] || { shift: null, leave: null, overtime: null };
-  slot.overtime = overtime.id;
-  const color = overtime?.color || "#D85A30";
-  slot.overtimeMeta = {
-    displayName: record.overtimeName || overtime.name || "加班",
-    displayColor: color,
-    displayTextColor: getItemTextColor(overtime, color),
-    startTime: record.startTime || "",
-    endTime: record.endTime || "",
-    useRest1: Boolean(record.useRest1),
-    rest1StartTime: record.useRest1 ? (record.rest1StartTime || "") : "",
-    rest1EndTime: record.useRest1 ? (record.rest1EndTime || "") : "",
-    useRest2: Boolean(record.useRest2),
-    rest2StartTime: record.useRest2 ? (record.rest2StartTime || "") : "",
-    rest2EndTime: record.useRest2 ? (record.rest2EndTime || "") : "",
-    reason: record.reason || ""
-  };
-  slot.overtimeRequestId = record.id;
-  state.schedule[slotKey] = slot;
-  pruneEmptySchedule();
-}
-
 async function handleSignIn() {
   const loginAccount = document.getElementById("loginAccount")?.value.trim() || "";
   const password = document.getElementById("loginPassword")?.value || "";
@@ -6090,10 +5468,6 @@ async function handleSignOut() {
   currentSession = null;
   currentProfile = null;
   currentMember = null;
-  leaveRequestRecords = [];
-  overtimeRequestRecords = [];
-  leaveOverlayRecords = [];
-  overtimeOverlayRecords = [];
   appInfo = null;
   closeModal();
   closeCoreActionsMenu();
@@ -6857,11 +6231,6 @@ async function loadApp() {
     currentSession = null;
     currentProfile = null;
     currentMember = null;
-    leaveRequestRecords = [];
-    overtimeRequestRecords = [];
-    leaveOverlayRecords = [];
-    overtimeOverlayRecords = [];
-    requestOverlaySourceLoaded = false;
     appInfo = null;
     renderAll();
     syncCoreActionsMenu();
@@ -6870,36 +6239,17 @@ async function loadApp() {
 
   renderAll();
   syncCoreActionsMenu();
-  void refreshScheduleRequestsAfterInitialRender();
+  void refreshScheduleCatalogsAfterInitialRender();
 }
 
-async function refreshScheduleRequestsAfterInitialRender() {
-  if (isManager()) {
-    try {
-      await syncScheduleCatalogs();
-    } catch (error) {
-      setSaveStatus(`部分同步失敗：${error.message}`);
-    }
+async function refreshScheduleCatalogsAfterInitialRender() {
+  if (!isManager()) {
+    return;
   }
-
   try {
-    await refreshRequestData();
-    syncManagerEntriesToSchedule();
-    renderTable();
+    await syncScheduleCatalogs();
   } catch (error) {
-    setSaveStatus(`部分同步失敗：${error.message}`);
-  }
-
-  if (isManager()) {
-    try {
-      await migrateLegacyScheduleRequests();
-      await refreshRequestData();
-      syncManagerEntriesToSchedule();
-      await forceSave();
-      renderTable();
-    } catch (error) {
-      setSaveStatus(`部分同步失敗：${error.message}`);
-    }
+    setSaveStatus(`同步設定失敗：${error.message}`);
   }
 }
 

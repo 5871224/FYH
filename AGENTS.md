@@ -1,36 +1,44 @@
 # Repo Notes For Agents
 
-這個 repo 是排班系統。
+This repo is the scheduler system.
 
-## 先看哪裡
+## Start Here
 
-- 前端來源：`src/renderer/`
-- GitHub Pages 輸出：`docs/`
-- Supabase SQL / migration：`supabase/`
-- 腳本：`scripts/`
+- Frontend source: `src/renderer/`
+- GitHub Pages output: `docs/`
+- Supabase SQL / migrations: `supabase/`
+- Scripts: `scripts/`
 
-## 必守規則
+## Required Rules
 
-1. 任何有改到網頁畫面、互動、樣式、前端資料流程的工作，完成前都要執行：
+1. If a task changes webpage UI, interactions, styling, or frontend data flow, run:
 
 ```bash
 npm run web:publish
 ```
 
-2. GitHub Pages 是看 `docs/`，不是看 `src/renderer/`。如果沒更新 `docs/`，使用者會以為沒改到。
+2. GitHub Pages uses `docs/`, not `src/renderer/`. If `docs/` is stale, the published site is stale.
 
-3. 如果這次工作有改到前端，而且使用者沒有明確說不要，預設要把更新提交並推到 `main`，避免 GitHub Pages 停在舊版。
+3. If frontend code changed and the user did not explicitly say not to, commit and push to `main` so GitHub Pages updates.
 
-4. 回覆使用者時，若已改前端，應明確說明是否已：
+4. In the final reply, say whether `docs/` was updated and whether `main` was pushed.
 
-- 更新 `docs/`
-- 推送到 GitHub Pages 對應分支 / `main`
+## Schedule Storage
 
-## 自動排班目前狀態
+- `schedule_entries` is the only active schedule-cell table.
+- One row is one member/date cell: `member_id + work_date`.
+- Shift, leave, and overtime are columns on the same row.
+- Old employee request objects are retired:
+  - `leave_requests`
+  - `overtime_requests`
+  - `request_status`
+  - `request_type`
+  - `get_public_schedule_requests()`
+- Schedule cell writes should use the bulk RPC in `supabase/024_schedule_entries_rpc.sql`.
 
-目前只有先做好基礎設定，還沒有正式自動排班演算法。
+## Auto-Schedule Status
 
-已存在的前置欄位 / 設定：
+The auto-schedule feature has foundation settings and a preview/apply flow. Treat these fields as active:
 
 - `rules.weekStart`
 - `rules.monthStartDay`
@@ -38,42 +46,37 @@ npm run web:publish
 - `member.scheduleDeptIds`
 - `member.monthlyRestDays`
 
-對應用途：
+Current rule assumptions unless the user changes them:
 
-- `weekStart`：每週起算
-- `monthStartDay`：每月起算
-- `requiredStaffCount`：班別需求人數
-- `scheduleDeptIds`：人員可排單位，陣列順序代表優先度，第 1 個是主要單位
-- `monthlyRestDays`：該月例假 + 休息日目標天數
+- One member can have at most one shift per day.
+- Prefer the member's own department, then support other departments.
+- Manually assigned shifts/leaves are locked input.
+- Monthly rest days are fixed targets.
+- Existing regular/rest leave counts toward monthly rest days.
+- Leave empty cells if demand cannot be filled.
+- If a department has multiple shift shortages on the same day, fill in shift order.
 
-## 自動排班規則草稿
+## Rest Compliance
 
-除非使用者另改規則，先以這些方向理解：
+Current checks:
 
-- 一人一天最多一班
-- 優先本單位，不足再支援外單位
-- 手動指定的班 / 假視為鎖定
-- 月休天數是固定目標值
-- 已指定的例假 / 休息日要計入月休天數
-- 排不滿可留空，不要硬塞
-- 同日同單位多班缺額時，依班別順序補
+- At least 1 regular holiday in every 7 days.
+- At least 1 rest day in every 7 days.
+- Consecutive work days must not exceed 6.
 
-## 例休檢查提醒
+The consecutive-work check is sliding and includes the previous-month carryover.
 
-目前例休檢查重點：
+## SQL / Sync Reminders
 
-- 每 7 天至少 1 天例假
-- 每 7 天至少 1 天休息日
-- 連續出勤不得超過 6 天
-
-其中連續出勤檢查是任意滑動，不限單週，並包含上個月銜接資料。
-
-## SQL / 同步提醒
-
-如果工作牽涉到自動排班基礎設定欄位，留意：
+If a task touches auto-schedule foundation fields, check:
 
 - `supabase/015_auto_schedule_settings.sql`
 - `supabase/functions/member-auth-admin/index.ts`
 - `src/renderer/web-api.js`
 
-不要只改前端欄位名稱，漏掉同步層與資料庫欄位。
+If a task touches schedule cell persistence, check:
+
+- `supabase/024_schedule_entries_rpc.sql`
+- `supabase/025_remove_legacy_request_artifacts.sql`
+- `src/renderer/web-api.js`
+- `scripts/check-normalized-storage.js`

@@ -8,6 +8,7 @@ const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js
 const migration = fs.readFileSync(path.join(rootDir, "supabase", "017_normalized_scheduler_storage.sql"), "utf8");
 const mergeMigration = fs.readFileSync(path.join(rootDir, "supabase", "022_rename_settings_and_merge_schedule_entries.sql"), "utf8");
 const scheduleEntryRpcMigration = fs.readFileSync(path.join(rootDir, "supabase", "024_schedule_entries_rpc.sql"), "utf8");
+const legacyRequestCleanupMigration = fs.readFileSync(path.join(rootDir, "supabase", "025_remove_legacy_request_artifacts.sql"), "utf8");
 
 assert(webApi.includes('restSelect("set_departments"'), "loadState should read set_departments table");
 assert(webApi.includes('restSelect("set_employee"'), "loadState should read set_employee table");
@@ -16,11 +17,9 @@ assert(webApi.includes('restSelect("set_leave"'), "loadState should read set_lea
 assert(webApi.includes('restSelect("set_overtime"'), "loadState should read set_overtime table");
 assert(webApi.includes('restSelect("schedule_entries"'), "loadState should read schedule_entries table");
 assert(webApi.includes('restInsert("set_departments"'), "saveState should write set_departments table");
-assert(webApi.includes('restInsert("schedule_entries"'), "saveState should write schedule_entries table");
 assert(webApi.includes('restRpc("save_schedule_entries_bulk"'), "schedule entry writes should use the bulk RPC");
 assert(!webApi.includes('restSelect("schedule_months"') && !webApi.includes('restInsert("schedule_months"'), "web api should not use schedule_months");
 assert(!webApi.includes("schedule_month_id"), "web api should not depend on schedule_month_id");
-assert(webApi.includes('onConflict: "member_id,work_date"'), "schedule entries should upsert by member and work date");
 assert(webApi.includes("async function saveScheduleCell(payload)") && webApi.includes("shift_type_id: shiftType?.id || null"), "single cell edits should save shift, leave, and overtime together");
 assert(webApi.includes("function makeScheduleEntryKey(memberId, workDate)"), "schedule entry cleanup should compare by member and work date");
 assert(!webApi.includes("savedScheduleRows"), "schedule entry cleanup should not depend on upsert return rows");
@@ -31,12 +30,9 @@ assert(!webApi.includes('deleteRowsByForeignIds("leave_requests"'), "web api sho
 assert(!webApi.includes('deleteRowsByForeignIds("overtime_requests"'), "web api should not write old overtime_requests table");
 assert(webApi.includes('clearScheduleEntriesByForeignIds("leave_type_id"'), "deleting leave settings should clear schedule entry leave references before deleting leave types");
 assert(webApi.includes('clearScheduleEntriesByForeignIds("overtime_type_id"'), "deleting overtime settings should clear schedule entry overtime references before deleting overtime types");
-assert(webApi.includes("async function getOvertimeTypeByReference(payload = {})"), "manager overtime entries should resolve set_overtime by scheduler item id");
-assert(webApi.includes("scheduler_item_id: `eq.${overtimeItemId}`"), "manager overtime entries should use overtime item ids instead of name-only lookup");
 assert(!renderer.includes("merged.overtime = merged.overtime.length ? [merged.overtime[0]] : [];"), "overtime settings should keep every overtime type from storage");
-assert(renderer.includes("state.overtime.find((item) => item.id === record.overtimeItemId)"), "manager overtime overlays should resolve the matching overtime item id");
-assert(!renderer.includes("leave: slot.leaveRequestId ? null") && !renderer.includes("overtime: slot.overtimeRequestId ? null"), "merged manager leave and overtime should persist through schedule_entries");
-assert(webApi.includes("overtimeItemId: overtimeTypeMap.get(item.overtime_type_id)?.scheduler_item_id"), "manager overtime list should include scheduler overtime item ids");
+assert(!renderer.includes("leaveRequestId") && !renderer.includes("overtimeRequestId"), "schedule state should not keep legacy request ids");
+assert(!webApi.includes("getOvertimeTypeByReference") && !webApi.includes("listOvertimeRequests"), "web api should not expose legacy request wrappers");
 assert(!webApi.includes("requestLeaveCatalog"), "deleted leave settings should not be preserved by the removed request catalog");
 assert(webApi.includes("function isLegacyRequestCatalogRow(row)") && webApi.includes("!isLegacyRequestCatalogRow(row)"), "legacy catalog leave rows should not load as active leave settings");
 assert(webApi.includes("!String(id).startsWith(\"catalog:\")"), "legacy catalog leave ids should not be preserved during save");
@@ -50,10 +46,12 @@ assert(migration.includes("insert into public.set_employee"), "migration should 
 assert(migration.includes("array_to_string(key_parts[1:part_count - 3], '_')"), "migration should keep scheduler member ids containing underscores");
 assert(mergeMigration.includes("drop table if exists public.leave_requests cascade"), "merge migration should remove old leave_requests table");
 assert(mergeMigration.includes("drop table if exists public.overtime_requests cascade"), "merge migration should remove old overtime_requests table");
-assert(mergeMigration.includes("create or replace function public.get_public_schedule_requests()"), "merge migration should rebuild public request RPC from schedule_entries");
 assert(scheduleEntryRpcMigration.includes("create or replace function public.save_schedule_entries_bulk(entries jsonb)"), "schedule entry RPC migration should create the bulk save function");
 assert(scheduleEntryRpcMigration.includes("on conflict (member_id, work_date)"), "schedule entry RPC should upsert by member and work date");
 assert(scheduleEntryRpcMigration.includes("grant execute on function public.save_schedule_entries_bulk(jsonb) to authenticated"), "schedule entry RPC should be executable by authenticated users");
+assert(legacyRequestCleanupMigration.includes("drop function if exists public.get_public_schedule_requests()"), "legacy request cleanup should remove the public request RPC");
+assert(legacyRequestCleanupMigration.includes("drop table if exists public.leave_requests cascade"), "legacy request cleanup should drop leave_requests");
+assert(legacyRequestCleanupMigration.includes("drop table if exists public.overtime_requests cascade"), "legacy request cleanup should drop overtime_requests");
 assert(migration.includes("from public.schedule_documents"), "migration should backfill from legacy JSON once");
 
 console.log("normalized storage checks passed");

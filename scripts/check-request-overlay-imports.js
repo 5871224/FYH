@@ -10,6 +10,7 @@ const initialSql = fs.readFileSync(path.join(rootDir, "supabase", "001_initial_s
 const cleanupSql = fs.readFileSync(path.join(rootDir, "supabase", "016_manager_schedule_entries_cleanup.sql"), "utf8");
 const unusedSql = fs.readFileSync(path.join(rootDir, "supabase", "018_drop_unused_tables.sql"), "utf8");
 const mergeSql = fs.readFileSync(path.join(rootDir, "supabase", "022_rename_settings_and_merge_schedule_entries.sql"), "utf8");
+const finalCleanupSql = fs.readFileSync(path.join(rootDir, "supabase", "025_remove_legacy_request_artifacts.sql"), "utf8");
 
 assert(
   !renderer.includes('data-open-leave-request="true"') &&
@@ -30,11 +31,10 @@ assert(
   "renderer should not depend on request approval/source fields"
 );
 assert(
-  renderer.includes("void refreshScheduleRequestsAfterInitialRender();") &&
-    renderer.includes("async function refreshScheduleRequestsAfterInitialRender()") &&
-    renderer.includes("syncManagerEntriesToSchedule();") &&
+  !renderer.includes("refreshScheduleRequestsAfterInitialRender") &&
+    !renderer.includes("syncManagerEntriesToSchedule") &&
     !renderer.includes("syncApprovedRequestsToSchedule"),
-  "schedule should render before slower request sync runs"
+  "schedule should not run removed request overlay sync"
 );
 assert(
   renderer.includes("const canEditScheduleOrder = canEditSchedule();") &&
@@ -50,6 +50,15 @@ assert(
     !webApi.includes("async function updateOvertimeRequest(payload)") &&
     !webApi.includes("async function deleteLeaveRequest") &&
     !webApi.includes("async function deleteOvertimeRequest") &&
+    !webApi.includes("async function createManagerLeaveRequest") &&
+    !webApi.includes("async function updateManagerLeaveRequest") &&
+    !webApi.includes("async function deleteManagerLeaveRequest") &&
+    !webApi.includes("async function createManagerOvertimeRequest") &&
+    !webApi.includes("async function updateManagerOvertimeRequest") &&
+    !webApi.includes("async function deleteManagerOvertimeRequest") &&
+    !webApi.includes("async function listLeaveRequests") &&
+    !webApi.includes("async function listOvertimeRequests") &&
+    !webApi.includes("async function listPublicScheduleRequests") &&
     !webApi.includes("status: \"approved\"") &&
     !webApi.includes("source: \"manager\"") &&
     !webApi.includes("manager_note") &&
@@ -58,32 +67,16 @@ assert(
   "web api should not expose employee request, approval, or source helpers"
 );
 assert(
-  webApi.includes("async function createManagerLeaveRequest(payload)") &&
-    webApi.includes("async function updateManagerLeaveRequest(payload)") &&
-    webApi.includes("async function deleteManagerLeaveRequest(requestId)") &&
-    webApi.includes("async function createManagerOvertimeRequest(payload)") &&
-    webApi.includes("async function updateManagerOvertimeRequest(payload)") &&
-    webApi.includes("async function deleteManagerOvertimeRequest(requestId)") &&
-    webApi.includes("const overtimeType = await getOvertimeTypeByReference(payload);") &&
-    renderer.includes("overtimeItemId: overtime.id"),
-  "web api should expose manager-side leave and overtime helpers"
+  !renderer.includes("leaveRequestId") &&
+    !renderer.includes("overtimeRequestId") &&
+    !renderer.includes("leaveRequestRecords") &&
+    !renderer.includes("overtimeRequestRecords"),
+  "renderer should not keep legacy request ids or record caches"
 );
 assert(
-  renderer.includes("const member = state.members.find((item) => item.id === record.memberId)\r\n    || state.members.find((item) => item.code === record.memberCode);")
-    || renderer.includes("const member = state.members.find((item) => item.id === record.memberId)\n    || state.members.find((item) => item.code === record.memberCode);"),
-  "manager overlays should match members by memberId first and fall back to memberCode"
-);
-assert(
-  renderer.includes("function findEffectiveLeaveRequestConflict(") &&
-    renderer.includes("function findEffectiveOvertimeRequestConflict(") &&
-    renderer.includes("function findDirectLeaveScheduleConflict(") &&
+  renderer.includes("function findDirectLeaveScheduleConflict(") &&
     renderer.includes("function hasDirectOvertimeScheduleConflict("),
-  "renderer should keep duplicate manager leave and overtime guards"
-);
-assert(
-  renderer.includes("function migrateLegacyScheduleRequests()") &&
-    renderer.includes("function buildPersistedState()"),
-  "renderer should keep migrating legacy schedule leave/overtime into manager tables"
+  "renderer should keep direct schedule conflict guards"
 );
 assert(
   !renderer.includes("function clearManagerEntriesFromSlot") &&
@@ -184,12 +177,12 @@ assert(
   "unused-table cleanup should keep attendance tables for the next feature"
 );
 assert(
-  mergeSql.includes("from public.schedule_entries se") &&
-    mergeSql.includes("where se.leave_type_id is not null") &&
-    mergeSql.includes("where se.overtime_type_id is not null") &&
-    !mergeSql.includes("r.status in") &&
-    !mergeSql.includes("source text"),
-  "supabase public RPC should read merged schedule entries and not depend on approval status/source"
+  finalCleanupSql.includes("drop function if exists public.get_public_schedule_requests()") &&
+    finalCleanupSql.includes("drop table if exists public.leave_requests cascade") &&
+    finalCleanupSql.includes("drop table if exists public.overtime_requests cascade") &&
+    finalCleanupSql.includes("drop type if exists public.request_status cascade") &&
+    finalCleanupSql.includes("drop type if exists public.request_type cascade"),
+  "final cleanup should remove legacy request RPC, tables, and types"
 );
 
 console.log("manager schedule entry cleanup and settings import/export checks passed");

@@ -1,48 +1,63 @@
 # Supabase Schema
 
-排班系統目前以 Supabase 資料表作為唯一正式資料來源，不再使用 `schedule_documents.payload` JSON 作為正式讀寫來源。
+This folder contains the database migrations for the scheduler.
 
-## 單一資料來源原則
+## Current Model
 
-- 前端不得讀寫 `schedule_documents.payload`。
-- 班表格子以 `schedule_entries` 為唯一來源。
-- `schedule_entries` 以 `member_id + work_date` 作為唯一格子。
-- 班別、假別、加班分別存在 `schedule_entries` 的不同欄位。
-- `scheduler_settings` 目前仍有使用，用來保存目前年月、畫面篩選、檢視模式、週起算、月起算、8 週起點等設定。
+- `schedule_entries` is the single source of truth for schedule cells.
+- A schedule cell is unique by `member_id + work_date`.
+- Shift, leave, and overtime are columns on the same `schedule_entries` row.
+- Employee leave/overtime request tables are no longer part of the active model.
+- Bulk cell writes go through `public.save_schedule_entries_bulk(entries jsonb)`.
 
-## 主要資料表
+## Active Tables
 
-- `scheduler_settings`：畫面狀態與排班規則設定。
-- `set_departments`：設定單位。
-- `set_employee`：設定人員。
-- `set_employee_departments`：設定人員可排單位與優先順序。
-- `set_shift`：設定班別。
-- `set_leave`：設定假別。
-- `set_overtime`：設定加班。
-- `holidays`：設定假日。
-- `schedule_entries`：班表資料，以人員 + 日期作為唯一格子。
-- `clock_locations` / `attendance_logs`：保留給下一階段打卡功能。
+- `scheduler_settings`: global scheduler settings.
+- `set_departments`: departments/locations.
+- `set_employee`: scheduler members and roles.
+- `set_employee_departments`: member department priority/order.
+- `set_shift`: shift catalog.
+- `set_leave`: leave catalog.
+- `set_overtime`: overtime catalog.
+- `holidays`: holiday catalog.
+- `schedule_entries`: schedule cells by member and date.
+- `clock_locations` / `attendance_logs`: reserved for attendance features.
 
-## 已淘汰或待清理資料表
+## Removed Legacy Objects
 
-- `manager_departments`：舊版主管多單位關聯，目前不用。
-- `schedule_documents`：舊 JSON 回填來源，完成正規化 migration 後可刪。
-- `schedule_months`：已移除，班表不再以月份主檔作為依賴。
-- `leave_requests` / `overtime_requests`：已合併到 `schedule_entries`，主管設定請假與加班不再獨立成申請表。
-- `request_status` / `request_type`：舊請假/加班申請流程使用，目前不用。
+These are legacy artifacts from the old employee request workflow and should not be used by new code:
 
-## Migration 順序
+- `leave_requests`
+- `overtime_requests`
+- `request_status`
+- `request_type`
+- `public.get_public_schedule_requests()`
 
-1. `001_initial_schema.sql`：初始 schema。
-2. `002_data_api_grants.sql`：API 權限。
-3. `006_login_by_employee_code.sql`：以員工編號登入的 RPC。
-4. `008_overtime_request_details.sql`：舊加班明細相容處理。
-5. `015_auto_schedule_settings.sql`：自動排班基礎設定欄位。
-6. `016_manager_schedule_entries_cleanup.sql`：移除員工申請/核准流程，保留主管設定請假與主管設定加班。
-7. `017_normalized_scheduler_storage.sql`：將舊 JSON 回填到正規化資料表。
-8. `018_drop_unused_tables.sql`：刪除已不用資料表，保留打卡相關資料表。
-9. `019_public_overtime_item_id.sql`：公開班表同步加班項目 ID。
-10. `020_cleanup_demo_test_data.sql`：清除明確測試單位資料。
-11. `021_remove_schedule_months.sql`：移除 `schedule_months`，改以 `schedule_entries(member_id, work_date)` 作為班表唯一格子。
-12. `022_rename_settings_and_merge_schedule_entries.sql`：基本設定表改名為 `set_*`，並將主管設定請假/加班合併進 `schedule_entries`。
-13. `023_fix_login_employee_table.sql`：重建工號登入 RPC，改查 `set_employee`。
+Migration `025_remove_legacy_request_artifacts.sql` is the final cleanup for these objects.
+
+## Migration Order
+
+1. `001_initial_schema.sql`: original base schema.
+2. `002_data_api_grants.sql`: API grants.
+3. `006_login_by_employee_code.sql`: employee-code login RPC.
+4. `008_overtime_request_details.sql`: historical overtime request fields.
+5. `015_auto_schedule_settings.sql`: auto-schedule settings.
+6. `016_manager_schedule_entries_cleanup.sql`: historical request-flow cleanup.
+7. `017_normalized_scheduler_storage.sql`: normalized storage migration from legacy JSON.
+8. `018_drop_unused_tables.sql`: unused table cleanup.
+9. `019_public_overtime_item_id.sql`: historical public request RPC adjustment.
+10. `020_cleanup_demo_test_data.sql`: demo/test data cleanup.
+11. `021_remove_schedule_months.sql`: remove `schedule_months`; schedule cells become unique by `member_id + work_date`.
+12. `022_rename_settings_and_merge_schedule_entries.sql`: rename setting tables to `set_*` and merge leave/overtime into `schedule_entries`.
+13. `023_fix_login_employee_table.sql`: login RPC fix for `set_employee`.
+14. `024_schedule_entries_rpc.sql`: bulk RPC for schedule cell writes.
+15. `025_remove_legacy_request_artifacts.sql`: final removal of old request RPC/tables/types.
+
+## Notes For Changes
+
+- Do not add new leave/overtime request tables. Use `schedule_entries`.
+- If a frontend change writes schedule cells, keep `docs/` updated with `npm run web:publish`.
+- If schedule cell columns change, update:
+  - `024_schedule_entries_rpc.sql`
+  - `src/renderer/web-api.js`
+  - `scripts/check-normalized-storage.js`
