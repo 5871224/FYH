@@ -322,28 +322,24 @@ function syncStickyHeaderLayout() {
 }
 
 function syncStickyHeaderScroll() {
+  const tableWrap = document.getElementById("tableWrap");
   const container = document.getElementById("tableStickyHeaderDays");
-  const stickyHeader = document.getElementById("tableStickyHeader");
-  const calendarNav = document.querySelector(".calendar-nav");
-  const scrollLeft = window.scrollX || 0;
-  if (!container) {
+  if (!tableWrap || !container) {
     return;
   }
-  container.style.transform = `translateX(${-scrollLeft}px)`;
-  if (stickyHeader) {
-    stickyHeader.style.transform = `translateX(${scrollLeft}px)`;
-  }
-  if (calendarNav) {
-    calendarNav.style.transform = `translateX(${scrollLeft}px)`;
-  }
+  container.style.transform = `translateX(${-tableWrap.scrollLeft}px)`;
 }
 
 function scrollScheduleHorizontallyFromHeader(event) {
+  const tableWrap = document.getElementById("tableWrap");
+  if (!tableWrap) {
+    return;
+  }
   if (!event.deltaY && !event.deltaX) {
     return;
   }
   event.preventDefault();
-  window.scrollBy({
+  tableWrap.scrollBy({
     left: event.deltaX || event.deltaY,
     top: 0,
     behavior: "auto"
@@ -5667,7 +5663,6 @@ function bindEvents() {
   if (tableStickyHeader) {
     tableStickyHeader.addEventListener("wheel", scrollScheduleHorizontallyFromHeader, { passive: false });
   }
-  window.addEventListener("scroll", syncStickyHeaderScroll, { passive: true });
   window.addEventListener("resize", () => {
     syncScheduleColumnWidths();
     syncStickyHeaderLayout();

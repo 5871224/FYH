@@ -527,17 +527,13 @@ button {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  min-width: calc(100vw - 40px);
-  width: max-content;
+  min-width: 0;
+  width: 100%;
   padding-left: 12px;
   padding-right: 12px;
 }
 
 .calendar-nav {
-  position: -webkit-sticky;
-  position: sticky;
-  top: 0;
-  z-index: 28;
   width: max-content;
   max-width: none;
   flex-wrap: nowrap;
@@ -545,9 +541,6 @@ button {
   align-self: flex-start;
   gap: 12px;
   margin-bottom: 14px;
-  padding: 8px 0;
-  background: var(--panel);
-  will-change: transform;
 }
 
 .calendar-nav-left {
@@ -594,20 +587,19 @@ button {
 .table-sticky-header {
   position: -webkit-sticky;
   position: sticky;
-  top: 54px;
+  top: 0;
   z-index: 24;
   isolation: isolate;
   display: flex;
   align-items: stretch;
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
   border: 1px solid transparent;
   border-bottom: none;
   border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;
   background: var(--schedule-header-bg);
-  overflow: visible;
+  overflow: hidden;
   box-shadow: 0 8px 18px rgba(72, 52, 31, 0.08);
-  will-change: transform;
 }
 
 .table-sticky-header::after,
@@ -651,7 +643,7 @@ button {
 .table-sticky-header-scroll {
   flex: 1;
   min-width: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .table-sticky-header-days {
@@ -791,14 +783,16 @@ button {
 .table-wrap {
   position: relative;
   isolation: isolate;
-  overflow-x: visible;
+  overflow-x: auto;
   overflow-y: visible;
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
   border-radius: 0 0 var(--schedule-radius) var(--schedule-radius);
   border: 1px solid transparent;
   border-top: none;
   background: #fff;
+  scrollbar-color: #cdbb9f #fbf8f1;
+  scrollbar-width: thin;
 }
 
 .table-wrap::after {
@@ -2370,7 +2364,7 @@ thead th.today,
   }
 
   .table-sticky-header {
-    top: 50px;
+    top: 8px;
   }
 
   .calendar-card {
