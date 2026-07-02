@@ -2115,7 +2115,11 @@ function beginScheduleRangeSelection(event) {
     return;
   }
   const point = getScheduleCellPoint(cell);
-  setScheduleRangeSelection(point);
+  if (event.shiftKey && isValidScheduleCellPoint(scheduleRangeSelection?.anchor)) {
+    setScheduleRangeSelection(scheduleRangeSelection.anchor, point);
+  } else {
+    setScheduleRangeSelection(point);
+  }
   scheduleDragSelecting = true;
   scheduleSuppressNextCellClick = true;
   event.preventDefault();
