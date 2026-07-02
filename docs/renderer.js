@@ -1377,20 +1377,6 @@ function serializeScheduleSlotForClipboard(slot) {
   };
 }
 
-async function clearManagerEntriesFromSlot(slot, options = {}) {
-  if (!slot) {
-    return;
-  }
-  const clearLeave = options.leave !== false;
-  const clearOvertime = options.overtime !== false;
-  if (clearLeave && slot.leaveRequestId) {
-    await deleteManagerScheduleEntry("leave", slot.leaveRequestId);
-  }
-  if (clearOvertime && slot.overtimeRequestId) {
-    await deleteManagerScheduleEntry("overtime", slot.overtimeRequestId);
-  }
-}
-
 async function applyClipboardSlotToScheduleCell(memberId, dateString, clipboardSlot) {
   const member = state.members.find((item) => item.id === memberId);
   if (!member || !isMemberActiveOnDateString(member, dateString)) {
@@ -1400,7 +1386,6 @@ async function applyClipboardSlotToScheduleCell(memberId, dateString, clipboardS
   if (!slot) {
     return false;
   }
-  await clearManagerEntriesFromSlot(slot);
   const nextShiftId = clipboardSlot?.shift || null;
   slot.shift = nextShiftId;
   slot.leave = clipboardSlot?.leave || null;
@@ -3437,17 +3422,6 @@ async function upsertManagerOvertimeEntry(payload) {
     return;
   }
   await window.schedulerApi.createManagerOvertimeRequest(requestPayload);
-}
-
-async function deleteManagerScheduleEntry(category, requestId) {
-  if (!requestId) {
-    return;
-  }
-  if (category === "leave") {
-    await window.schedulerApi.deleteManagerLeaveRequest(requestId);
-    return;
-  }
-  await window.schedulerApi.deleteManagerOvertimeRequest(requestId);
 }
 
 async function applySelectionToCell(memberId, day) {
@@ -6930,4 +6904,3 @@ async function refreshScheduleRequestsAfterInitialRender() {
 }
 
 loadApp();
-
