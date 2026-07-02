@@ -5,6 +5,7 @@ const path = require("path");
 const rootDir = path.resolve(__dirname, "..");
 const renderer = fs.readFileSync(path.join(rootDir, "src", "renderer", "renderer.js"), "utf8");
 const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js"), "utf8");
+const exporter = fs.readFileSync(path.join(rootDir, "src", "renderer", "browser-exporter.js"), "utf8");
 const schema = fs.readFileSync(path.join(rootDir, "supabase", "001_current_schema.sql"), "utf8");
 const scheduleEntryRpcMigration = fs.readFileSync(path.join(rootDir, "supabase", "024_schedule_entries_rpc.sql"), "utf8");
 
@@ -30,10 +31,39 @@ assert(webApi.includes('clearScheduleEntriesByForeignIds("leave_type_id"'), "del
 assert(webApi.includes('clearScheduleEntriesByForeignIds("overtime_type_id"'), "deleting overtime settings should clear schedule entry overtime references before deleting overtime types");
 assert(!renderer.includes("merged.overtime = merged.overtime.length ? [merged.overtime[0]] : [];"), "overtime settings should keep every overtime type from storage");
 assert(!renderer.includes("leaveRequestId") && !renderer.includes("overtimeRequestId"), "schedule state should not keep legacy request ids");
+assert(
+  !renderer.includes('data-open-leave-request="true"') &&
+    !renderer.includes('data-open-overtime-request="true"') &&
+    !renderer.includes("openLeaveRequestModal") &&
+    !renderer.includes("openOvertimeRequestModal") &&
+    !renderer.includes("openLeaveApprovalModal") &&
+    !renderer.includes("openOvertimeApprovalModal"),
+  "renderer should not keep removed request UI"
+);
+assert(
+  !renderer.includes("refreshScheduleRequestsAfterInitialRender") &&
+    !renderer.includes("syncManagerEntriesToSchedule") &&
+    !renderer.includes("syncApprovedRequestsToSchedule"),
+  "schedule should not run removed request overlay sync"
+);
+assert(
+  !webApi.includes("async function createLeaveRequest") &&
+    !webApi.includes("async function createOvertimeRequest") &&
+    !webApi.includes("async function listLeaveRequests") &&
+    !webApi.includes("async function listOvertimeRequests") &&
+    !webApi.includes("async function listPublicScheduleRequests"),
+  "web api should not expose removed request helpers"
+);
 assert(!webApi.includes("getOvertimeTypeByReference") && !webApi.includes("listOvertimeRequests"), "web api should not expose legacy request wrappers");
 assert(!webApi.includes("requestLeaveCatalog"), "deleted leave settings should not be preserved by the removed request catalog");
 assert(webApi.includes("function isLegacyRequestCatalogRow(row)") && webApi.includes("!isLegacyRequestCatalogRow(row)"), "legacy catalog leave rows should not load as active leave settings");
 assert(webApi.includes("!String(id).startsWith(\"catalog:\")"), "legacy catalog leave ids should not be preserved during save");
+assert(
+  !exporter.includes("請假申請預覽") &&
+    !exporter.includes("加班申請預覽") &&
+    !exporter.includes("requestStyles"),
+  "settings workbooks should not keep removed request preview sheets"
+);
 
 assert(schema.includes("create table if not exists public.scheduler_settings"), "schema should create scheduler_settings");
 assert(schema.includes("create table if not exists public.schedule_entries"), "schema should create schedule_entries");
@@ -42,6 +72,7 @@ assert(schema.includes("create table if not exists public.holidays"), "schema sh
 assert(schema.includes("create table if not exists public.set_employee"), "schema should create set_employee");
 assert(schema.includes("create table if not exists public.set_employee_departments"), "schema should create member department priorities");
 assert(!schema.includes("leave_requests") && !schema.includes("overtime_requests"), "current schema should not recreate legacy request tables");
+assert(!schema.includes("request_status") && !schema.includes("request_type"), "current schema should not recreate legacy request types");
 assert(scheduleEntryRpcMigration.includes("create or replace function public.save_schedule_entries_bulk(entries jsonb)"), "schedule entry RPC migration should create the bulk save function");
 assert(scheduleEntryRpcMigration.includes("on conflict (member_id, work_date)"), "schedule entry RPC should upsert by member and work date");
 assert(scheduleEntryRpcMigration.includes("grant execute on function public.save_schedule_entries_bulk(jsonb) to authenticated"), "schedule entry RPC should be executable by authenticated users");

@@ -77,7 +77,6 @@ npm run web:publish
 node --check src/renderer/renderer.js
 node --check src/renderer/web-api.js
 node scripts/check-normalized-storage.js
-node scripts/check-request-overlay-imports.js
 node scripts/check-settings-lists.js
 npm run web:publish
 ```
