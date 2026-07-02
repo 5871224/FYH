@@ -1254,7 +1254,7 @@ function getScheduleCellFromEvent(event) {
   if (!(cell instanceof HTMLElement)) {
     return null;
   }
-  if (!canEditSchedule() || state.tableView !== "member" || state.selected.type || cell.dataset.readonly || cell.classList.contains("inactive-cell")) {
+  if (!canEditSchedule() || state.tableView !== "member" || state.selected.type || cell.dataset.readonly) {
     return null;
   }
   if (!cell.dataset.memberId || !cell.dataset.date) {
@@ -1308,7 +1308,7 @@ function syncScheduleRangeSelectionUi() {
     return;
   }
   document.querySelectorAll("#mainTable .cell[data-member-id][data-date]").forEach((cell) => {
-    if (!(cell instanceof HTMLElement) || cell.classList.contains("inactive-cell")) {
+    if (!(cell instanceof HTMLElement)) {
       return;
     }
     const row = Number(cell.dataset.rowIndex);
@@ -3186,7 +3186,7 @@ function renderTable() {
             const active = isMemberActiveOnDateString(member, dateString);
             const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, dateIndex, days);
             if (!active) {
-              html += `<td class="cell inactive-cell ${weekBoundaryClass}" data-disabled="true" data-row-index="${rowIndex}" data-col-index="${dateIndex}"><div class="cell-inner"></div></td>`;
+              html += `<td class="cell inactive-cell ${weekBoundaryClass}" data-disabled="true" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}"><div class="cell-inner"></div></td>`;
               return;
             }
             const key = getScheduleKeyForDateString(member.id, dateString);

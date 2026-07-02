@@ -1032,7 +1032,7 @@ thead th.today,
 
 .cell.inactive-cell {
   background: #9b9b9b;
-  cursor: not-allowed;
+  cursor: cell;
 }
 
 .cell.inactive-cell:hover {
