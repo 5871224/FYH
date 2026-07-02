@@ -613,6 +613,7 @@ button {
 
 .table-sticky-header::after {
   border: 1px solid var(--line);
+  border-right: none;
   border-bottom: none;
   border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;
 }
@@ -836,6 +837,7 @@ button {
 
 .table-wrap::after {
   border: 1px solid var(--line);
+  border-right: none;
   border-top: none;
   border-radius: 0 0 var(--schedule-radius) var(--schedule-radius);
 }
@@ -1140,6 +1142,10 @@ thead th.today,
 
 .seg-label-large {
   font-size: 1.2em;
+}
+
+.seg-label-xlarge {
+  font-size: 1.45em;
 }
 
 .seg-pending {

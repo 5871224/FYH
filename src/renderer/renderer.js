@@ -3081,6 +3081,9 @@ function getScheduleSegmentTextLength(text) {
 
 function getScheduleSegmentSizeClass(segment, segmentCount) {
   const textLength = getScheduleSegmentTextLength(segment.name);
+  if (segmentCount === 1 && textLength > 0 && textLength < 2) {
+    return "seg-label-xlarge";
+  }
   if (segmentCount < 3 && textLength > 0 && textLength < 3) {
     return "seg-label-large";
   }
