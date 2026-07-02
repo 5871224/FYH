@@ -332,7 +332,7 @@ function syncStickyHeaderScroll() {
   if (!tableWrap || !container) {
     return;
   }
-  container.style.transform = `translateX(${-tableWrap.scrollLeft}px)`;
+  container.style.transform = `translateX(${-Math.round(tableWrap.scrollLeft)}px)`;
 }
 
 function scrollScheduleHorizontallyFromHeader(event) {
@@ -344,11 +344,7 @@ function scrollScheduleHorizontallyFromHeader(event) {
     return;
   }
   event.preventDefault();
-  tableWrap.scrollBy({
-    left: event.deltaX || event.deltaY,
-    top: 0,
-    behavior: "auto"
-  });
+  tableWrap.scrollLeft = Math.round(tableWrap.scrollLeft + (event.deltaX || event.deltaY));
   syncStickyHeaderScroll();
 }
 
