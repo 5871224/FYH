@@ -621,11 +621,12 @@ button {
   position: -webkit-sticky;
   position: sticky;
   left: 0;
-  z-index: 8;
+  z-index: 12;
   display: flex;
   flex-shrink: 0;
   background: var(--schedule-header-bg);
   border-top-left-radius: var(--schedule-radius);
+  will-change: transform;
 }
 
 .table-sticky-header-left::after {
