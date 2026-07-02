@@ -4544,6 +4544,11 @@ function clearDragPreviewState() {
     dragPreviewElement.classList.remove("schedule-order-insert-before");
     dragPreviewElement.classList.remove("schedule-order-insert-after");
   }
+  document.querySelectorAll(".drag-preview-active, .schedule-order-insert-before, .schedule-order-insert-after").forEach((element) => {
+    element.classList.remove("drag-preview-active");
+    element.classList.remove("schedule-order-insert-before");
+    element.classList.remove("schedule-order-insert-after");
+  });
   dragPreviewElement = null;
 }
 

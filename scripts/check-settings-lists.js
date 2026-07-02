@@ -35,6 +35,7 @@ assert(!renderer.includes('data-open-overtime-request="true"'), "floating toolba
 assert(renderer.includes("function previewSortableSettingsItem"), "sortable settings rows should preview insertion position while dragging");
 assert(renderer.includes("function commitSortedListFromDom"), "sortable settings rows should commit the live drag order");
 assert(renderer.includes("function commitDepartmentMemberOrderFromDom"), "department member drag order should commit from the live DOM order");
+assert(renderer.includes('document.querySelectorAll(".drag-preview-active, .schedule-order-insert-before, .schedule-order-insert-after")'), "drag preview cleanup should remove stale classes even when an item is dropped in place");
 assert(renderer.includes("restoreSettingsScroll(returnTo);"), "drag reorder should restore modal scroll position after rerender");
 assert(renderer.includes("function isDepartmentVisibleInScheduleRange"), "department hidden flag should be part of schedule table visibility");
 assert(renderer.includes(".filter((department) => isDepartmentVisibleInScheduleRange(department))"), "hidden departments should be excluded from schedule table groups and filters");
