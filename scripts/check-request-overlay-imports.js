@@ -6,11 +6,7 @@ const rootDir = path.resolve(__dirname, "..");
 const renderer = fs.readFileSync(path.join(rootDir, "src", "renderer", "renderer.js"), "utf8");
 const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js"), "utf8");
 const exporter = fs.readFileSync(path.join(rootDir, "src", "renderer", "browser-exporter.js"), "utf8");
-const initialSql = fs.readFileSync(path.join(rootDir, "supabase", "001_initial_schema.sql"), "utf8");
-const cleanupSql = fs.readFileSync(path.join(rootDir, "supabase", "016_manager_schedule_entries_cleanup.sql"), "utf8");
-const unusedSql = fs.readFileSync(path.join(rootDir, "supabase", "018_drop_unused_tables.sql"), "utf8");
-const mergeSql = fs.readFileSync(path.join(rootDir, "supabase", "022_rename_settings_and_merge_schedule_entries.sql"), "utf8");
-const finalCleanupSql = fs.readFileSync(path.join(rootDir, "supabase", "025_remove_legacy_request_artifacts.sql"), "utf8");
+const schema = fs.readFileSync(path.join(rootDir, "supabase", "001_current_schema.sql"), "utf8");
 
 assert(
   !renderer.includes('data-open-leave-request="true"') &&
@@ -134,55 +130,25 @@ assert(
   "settings workbooks should not keep removed request preview sheets"
 );
 assert(
-  !initialSql.includes("request_status") &&
-    !initialSql.includes("request_type") &&
-    !initialSql.includes("approved_by") &&
-    !initialSql.includes("approved_at") &&
-    !initialSql.includes("manager_note") &&
-    !initialSql.includes("employees_can_insert_own_leave_requests") &&
-    !initialSql.includes("employees_can_insert_own_overtime_requests") &&
-    initialSql.includes("create table public.clock_locations") &&
-    initialSql.includes("create table public.attendance_logs"),
-  "initial schema should not recreate removed employee request approval fields"
+  !schema.includes("request_status") &&
+    !schema.includes("request_type") &&
+    !schema.includes("approved_by") &&
+    !schema.includes("approved_at") &&
+    !schema.includes("manager_note") &&
+    !schema.includes("leave_requests") &&
+    !schema.includes("overtime_requests") &&
+    schema.includes("create table if not exists public.clock_locations") &&
+    schema.includes("create table if not exists public.attendance_logs"),
+  "current schema should not recreate removed employee request approval fields"
 );
 assert(
-  cleanupSql.includes('drop policy if exists "employees_can_insert_own_leave_requests"') &&
-    cleanupSql.includes('drop policy if exists "employees_can_update_own_leave_requests"') &&
-    cleanupSql.includes('drop policy if exists "employees_can_delete_own_pending_leave_requests"') &&
-    cleanupSql.includes('drop policy if exists "employees_can_insert_own_overtime_requests"') &&
-    cleanupSql.includes('drop policy if exists "employees_can_update_own_overtime_requests"') &&
-    cleanupSql.includes('drop policy if exists "employees_can_delete_own_pending_overtime_requests"') &&
-    cleanupSql.includes("drop column if exists source cascade") &&
-    cleanupSql.includes("drop column if exists status cascade") &&
-    cleanupSql.includes("drop column if exists approved_by cascade") &&
-    cleanupSql.includes("drop column if exists approved_at cascade") &&
-    cleanupSql.includes("drop column if exists manager_note cascade") &&
-    mergeSql.includes("drop table if exists public.leave_requests cascade") &&
-    mergeSql.includes("drop table if exists public.overtime_requests cascade") &&
-    cleanupSql.includes("drop type if exists public.request_type") &&
-    !cleanupSql.includes("drop table if exists public.attendance_logs") &&
-    !cleanupSql.includes("drop table if exists public.clock_locations") &&
-    !cleanupSql.includes("drop table if exists public.schedule_entries") &&
-    !mergeSql.includes("drop table if exists public.set_shift") &&
-    !mergeSql.includes("drop table if exists public.set_employee_departments"),
-  "supabase migration should remove employee request and approval columns"
-);
-assert(
-  unusedSql.includes("drop table if exists public.manager_departments") &&
-    unusedSql.includes("drop table if exists public.schedule_documents") &&
-    unusedSql.includes("drop table if exists public.schedule_months cascade") &&
-    unusedSql.includes("drop type if exists public.request_type") &&
-    !unusedSql.includes("drop table if exists public.attendance_logs") &&
-    !unusedSql.includes("drop table if exists public.clock_locations"),
-  "unused-table cleanup should keep attendance tables for the next feature"
-);
-assert(
-  finalCleanupSql.includes("drop function if exists public.get_public_schedule_requests()") &&
-    finalCleanupSql.includes("drop table if exists public.leave_requests cascade") &&
-    finalCleanupSql.includes("drop table if exists public.overtime_requests cascade") &&
-    finalCleanupSql.includes("drop type if exists public.request_status cascade") &&
-    finalCleanupSql.includes("drop type if exists public.request_type cascade"),
-  "final cleanup should remove legacy request RPC, tables, and types"
+  schema.includes("create table if not exists public.schedule_entries") &&
+    schema.includes("shift_type_id") &&
+    schema.includes("leave_type_id") &&
+    schema.includes("overtime_type_id") &&
+    !schema.includes("schedule_documents") &&
+    !schema.includes("schedule_months"),
+  "current schema should use schedule_entries only for schedule cell storage"
 );
 
 console.log("manager schedule entry cleanup and settings import/export checks passed");

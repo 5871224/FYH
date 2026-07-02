@@ -6,7 +6,7 @@ This repo is the scheduler system.
 
 - Frontend source: `src/renderer/`
 - GitHub Pages output: `docs/`
-- Supabase SQL / migrations: `supabase/`
+- Supabase current schema / RPC: `supabase/`
 - Scripts: `scripts/`
 
 ## Encoding
@@ -75,13 +75,13 @@ The consecutive-work check is sliding and includes the previous-month carryover.
 
 If a task touches auto-schedule foundation fields, check:
 
-- `supabase/015_auto_schedule_settings.sql`
+- `supabase/001_current_schema.sql`
 - `supabase/functions/member-auth-admin/index.ts`
 - `src/renderer/web-api.js`
 
 If a task touches schedule cell persistence, check:
 
+- `supabase/001_current_schema.sql`
 - `supabase/024_schedule_entries_rpc.sql`
-- `supabase/025_remove_legacy_request_artifacts.sql`
 - `src/renderer/web-api.js`
 - `scripts/check-normalized-storage.js`

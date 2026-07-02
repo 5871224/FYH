@@ -5,10 +5,8 @@ const path = require("path");
 const rootDir = path.resolve(__dirname, "..");
 const renderer = fs.readFileSync(path.join(rootDir, "src", "renderer", "renderer.js"), "utf8");
 const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js"), "utf8");
-const migration = fs.readFileSync(path.join(rootDir, "supabase", "017_normalized_scheduler_storage.sql"), "utf8");
-const mergeMigration = fs.readFileSync(path.join(rootDir, "supabase", "022_rename_settings_and_merge_schedule_entries.sql"), "utf8");
+const schema = fs.readFileSync(path.join(rootDir, "supabase", "001_current_schema.sql"), "utf8");
 const scheduleEntryRpcMigration = fs.readFileSync(path.join(rootDir, "supabase", "024_schedule_entries_rpc.sql"), "utf8");
-const legacyRequestCleanupMigration = fs.readFileSync(path.join(rootDir, "supabase", "025_remove_legacy_request_artifacts.sql"), "utf8");
 
 assert(webApi.includes('restSelect("set_departments"'), "loadState should read set_departments table");
 assert(webApi.includes('restSelect("set_employee"'), "loadState should read set_employee table");
@@ -37,21 +35,16 @@ assert(!webApi.includes("requestLeaveCatalog"), "deleted leave settings should n
 assert(webApi.includes("function isLegacyRequestCatalogRow(row)") && webApi.includes("!isLegacyRequestCatalogRow(row)"), "legacy catalog leave rows should not load as active leave settings");
 assert(webApi.includes("!String(id).startsWith(\"catalog:\")"), "legacy catalog leave ids should not be preserved during save");
 
-assert(migration.includes("create table if not exists public.scheduler_settings"), "migration should create scheduler_settings");
-assert(migration.includes("create table if not exists public.schedule_entries"), "migration should create schedule_entries");
-assert(!migration.includes("create table if not exists public.schedule_months"), "normalized storage should not create schedule_months");
-assert(migration.includes("create table if not exists public.holidays"), "migration should create holidays");
-assert(migration.includes("drop constraint if exists set_employee_id_fkey"), "set_employee should store scheduler members without requiring auth users");
-assert(migration.includes("insert into public.set_employee"), "migration should backfill legacy members into set_employee");
-assert(migration.includes("array_to_string(key_parts[1:part_count - 3], '_')"), "migration should keep scheduler member ids containing underscores");
-assert(mergeMigration.includes("drop table if exists public.leave_requests cascade"), "merge migration should remove old leave_requests table");
-assert(mergeMigration.includes("drop table if exists public.overtime_requests cascade"), "merge migration should remove old overtime_requests table");
+assert(schema.includes("create table if not exists public.scheduler_settings"), "schema should create scheduler_settings");
+assert(schema.includes("create table if not exists public.schedule_entries"), "schema should create schedule_entries");
+assert(!schema.includes("schedule_months"), "current schema should not create schedule_months");
+assert(schema.includes("create table if not exists public.holidays"), "schema should create holidays");
+assert(schema.includes("create table if not exists public.set_employee"), "schema should create set_employee");
+assert(schema.includes("create table if not exists public.set_employee_departments"), "schema should create member department priorities");
+assert(!schema.includes("leave_requests") && !schema.includes("overtime_requests"), "current schema should not recreate legacy request tables");
 assert(scheduleEntryRpcMigration.includes("create or replace function public.save_schedule_entries_bulk(entries jsonb)"), "schedule entry RPC migration should create the bulk save function");
 assert(scheduleEntryRpcMigration.includes("on conflict (member_id, work_date)"), "schedule entry RPC should upsert by member and work date");
 assert(scheduleEntryRpcMigration.includes("grant execute on function public.save_schedule_entries_bulk(jsonb) to authenticated"), "schedule entry RPC should be executable by authenticated users");
-assert(legacyRequestCleanupMigration.includes("drop function if exists public.get_public_schedule_requests()"), "legacy request cleanup should remove the public request RPC");
-assert(legacyRequestCleanupMigration.includes("drop table if exists public.leave_requests cascade"), "legacy request cleanup should drop leave_requests");
-assert(legacyRequestCleanupMigration.includes("drop table if exists public.overtime_requests cascade"), "legacy request cleanup should drop overtime_requests");
-assert(migration.includes("from public.schedule_documents"), "migration should backfill from legacy JSON once");
+assert(!schema.includes("schedule_documents"), "current schema should not recreate legacy JSON storage");
 
 console.log("normalized storage checks passed");
