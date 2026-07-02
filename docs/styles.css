@@ -769,6 +769,46 @@ button {
   font-weight: 500;
 }
 
+.table-week-jump {
+  position: absolute;
+  top: 0;
+  z-index: 22;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--day-col-width);
+  height: 100%;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(43, 36, 28, 0.34);
+}
+
+.table-week-jump:hover,
+.table-week-jump:focus-visible {
+  color: rgba(43, 36, 28, 0.72);
+}
+
+.table-week-jump svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.table-week-jump-prev {
+  left: calc(var(--dept-col-width) + var(--person-col-width) + var(--stats-col-width));
+}
+
+.table-week-jump-next {
+  right: 0;
+}
+
 .table-header-settings-btn {
   width: 24px;
   height: 24px;

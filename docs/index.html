@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>班表</title>
-  <link rel="stylesheet" href="./styles.css?v=20260703000716">
+  <link rel="stylesheet" href="./styles.css?v=20260703002104">
 </head>
 <body>
   <div class="app-shell">
@@ -108,6 +108,16 @@
         <div class="table-sticky-header-scroll">
           <div class="table-sticky-header-days" id="tableStickyHeaderDays"></div>
         </div>
+        <button class="table-week-jump table-week-jump-prev" id="tablePrevWeekButton" type="button" aria-label="前一週" title="前一週">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 6l-6 6 6 6"></path>
+          </svg>
+        </button>
+        <button class="table-week-jump table-week-jump-next" id="tableNextWeekButton" type="button" aria-label="後一週" title="後一週">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 6l6 6-6 6"></path>
+          </svg>
+        </button>
       </div>
 
       <div class="table-wrap" id="tableWrap">
@@ -120,10 +130,10 @@
   <div id="authRoot"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-  <script src="./app-config.js?v=20260703000716"></script>
-  <script src="./browser-exporter.js?v=20260703000716"></script>
-  <script src="./rest-compliance.js?v=20260703000716"></script>
-  <script src="./web-api.js?v=20260703000716"></script>
-  <script src="./renderer.js?v=20260703000716"></script>
+  <script src="./app-config.js?v=20260703002104"></script>
+  <script src="./browser-exporter.js?v=20260703002104"></script>
+  <script src="./rest-compliance.js?v=20260703002104"></script>
+  <script src="./web-api.js?v=20260703002104"></script>
+  <script src="./renderer.js?v=20260703002104"></script>
 </body>
 </html>

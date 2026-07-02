@@ -290,6 +290,7 @@ function syncStickyHeaderLayout() {
   const deptCell = document.querySelector(".table-sticky-cell-dept");
   const personCell = document.querySelector(".table-sticky-cell-person");
   const statsCell = document.querySelector(".table-sticky-cell-stats");
+  const prevWeekButton = document.getElementById("tablePrevWeekButton");
   const dayCells = Array.from(document.querySelectorAll(".table-sticky-cell-day"));
   const rootStyle = getComputedStyle(document.documentElement);
   const deptWidth = parseFloat(rootStyle.getPropertyValue("--dept-col-width")) || 72;
@@ -317,6 +318,10 @@ function syncStickyHeaderLayout() {
       statsCell.hidden = true;
       setWidth(statsCell, 0);
     }
+  }
+  if (prevWeekButton) {
+    const frozenWidth = deptWidth + personWidth + (state.tableView === "member" && state.tableStatsVisible ? statsWidth : 0);
+    prevWeekButton.style.left = `${Math.round(frozenWidth)}px`;
   }
   dayCells.forEach((cell) => setWidth(cell, dayWidth));
 }
@@ -5618,6 +5623,8 @@ function bindEvents() {
   bindClick("prevWeekButton", async () => changeScheduleWindowWeeks(-1));
   bindClick("nextWeekButton", async () => changeScheduleWindowWeeks(1));
   bindClick("nextPeriodButton", async () => changeScheduleWindowWeeks(8));
+  bindClick("tablePrevWeekButton", async () => changeScheduleWindowWeeks(-1));
+  bindClick("tableNextWeekButton", async () => changeScheduleWindowWeeks(1));
   bindClick("exportSapButton", () => {
     closeCoreActionsMenu();
     exportSapCsv();
