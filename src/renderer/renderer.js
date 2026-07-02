@@ -322,12 +322,33 @@ function syncStickyHeaderLayout() {
 }
 
 function syncStickyHeaderScroll() {
-  const tableWrap = document.getElementById("tableWrap");
   const container = document.getElementById("tableStickyHeaderDays");
-  if (!tableWrap || !container) {
+  const stickyHeader = document.getElementById("tableStickyHeader");
+  const calendarNav = document.querySelector(".calendar-nav");
+  const scrollLeft = window.scrollX || 0;
+  if (!container) {
     return;
   }
-  container.style.transform = `translateX(${-tableWrap.scrollLeft}px)`;
+  container.style.transform = `translateX(${-scrollLeft}px)`;
+  if (stickyHeader) {
+    stickyHeader.style.transform = `translateX(${scrollLeft}px)`;
+  }
+  if (calendarNav) {
+    calendarNav.style.transform = `translateX(${scrollLeft}px)`;
+  }
+}
+
+function scrollScheduleHorizontallyFromHeader(event) {
+  if (!event.deltaY && !event.deltaX) {
+    return;
+  }
+  event.preventDefault();
+  window.scrollBy({
+    left: event.deltaX || event.deltaY,
+    top: 0,
+    behavior: "auto"
+  });
+  syncStickyHeaderScroll();
 }
 
 function deepClone(value) {
@@ -5642,6 +5663,11 @@ function bindEvents() {
   if (tableWrap) {
     tableWrap.addEventListener("scroll", syncStickyHeaderScroll, { passive: true });
   }
+  const tableStickyHeader = document.getElementById("tableStickyHeader");
+  if (tableStickyHeader) {
+    tableStickyHeader.addEventListener("wheel", scrollScheduleHorizontallyFromHeader, { passive: false });
+  }
+  window.addEventListener("scroll", syncStickyHeaderScroll, { passive: true });
   window.addEventListener("resize", () => {
     syncScheduleColumnWidths();
     syncStickyHeaderLayout();
