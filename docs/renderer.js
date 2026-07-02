@@ -332,7 +332,7 @@ function syncStickyHeaderScroll() {
   if (!tableWrap || !container) {
     return;
   }
-  container.style.transform = `translateX(${-Math.round(tableWrap.scrollLeft)}px)`;
+  container.style.marginLeft = `${-tableWrap.scrollLeft}px`;
 }
 
 function scrollScheduleHorizontallyFromHeader(event) {
@@ -344,7 +344,7 @@ function scrollScheduleHorizontallyFromHeader(event) {
     return;
   }
   event.preventDefault();
-  tableWrap.scrollLeft = Math.round(tableWrap.scrollLeft + (event.deltaX || event.deltaY));
+  tableWrap.scrollLeft += event.deltaX || event.deltaY;
   syncStickyHeaderScroll();
 }
 

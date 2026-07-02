@@ -651,7 +651,6 @@ button {
   grid-auto-flow: column;
   grid-auto-columns: var(--day-col-width);
   width: max-content;
-  will-change: transform;
 }
 
 .table-sticky-cell {
