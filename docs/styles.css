@@ -658,6 +658,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  height: 40px;
   min-height: 40px;
   padding: 6px 2px;
   border-right: 1px solid var(--schedule-grid-line);
@@ -719,6 +720,7 @@ button {
 .table-sticky-cell-day {
   flex-direction: column;
   gap: 2px;
+  height: 40px;
 }
 
 .table-sticky-cell-day.sun {
