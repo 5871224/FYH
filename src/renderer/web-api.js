@@ -178,6 +178,9 @@
 
   async function restSelect(table, options = {}) {
     const { select = "*", filters = {}, order = "", limit = "", auth = false } = options;
+    if (!limit) {
+      return restSelectAll(table, { select, filters, order, auth });
+    }
     return requestJson(
       `/rest/v1/${table}${buildQuery({
         select,
@@ -193,6 +196,34 @@
         }
       }
     );
+  }
+
+  async function restSelectAll(table, options = {}) {
+    const { select = "*", filters = {}, order = "", auth = false } = options;
+    const pageSize = 1000;
+    const rows = [];
+    for (let offset = 0; ; offset += pageSize) {
+      const page = await requestJson(
+        `/rest/v1/${table}${buildQuery({
+          select,
+          order,
+          offset,
+          limit: pageSize,
+          ...filters
+        })}`,
+        {
+          method: "GET",
+          auth,
+          headers: {
+            Accept: "application/json"
+          }
+        }
+      );
+      rows.push(...(Array.isArray(page) ? page : []));
+      if (!Array.isArray(page) || page.length < pageSize) {
+        return rows;
+      }
+    }
   }
 
   async function restInsert(table, rows, options = {}) {

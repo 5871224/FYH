@@ -1,24 +1,24 @@
-# Shift Scheduler
+# 排班系統
 
-This is a browser-based scheduling system with Supabase storage and GitHub Pages output.
+這是瀏覽器版排班系統，資料存放在 Supabase，GitHub Pages 發佈內容在 `docs/`。
 
-## Main Features
+## 主要功能
 
-- Department, member, shift, leave, overtime, and holiday settings.
-- Schedule table editing.
-- Bulk schedule cell save through Supabase RPC.
-- Auto-schedule preview/apply flow.
-- Rest compliance checks.
-- Import/export helpers.
+- 單位、人員、班別、假別、加班、國定假日設定
+- 班表檢視與編輯
+- 透過 Supabase RPC 批次儲存班表格
+- 自動排班預覽 / 套用流程
+- 例假、休息日、連續上班檢查
+- 匯入 / 匯出輔助工具
 
-## Project Layout
+## 專案結構
 
-- `src/renderer/`: frontend source.
-- `docs/`: generated static site for GitHub Pages.
-- `supabase/`: SQL migrations and Edge Functions.
-- `scripts/`: local checks and publish helpers.
+- `src/renderer/`：前端原始碼。
+- `docs/`：GitHub Pages 使用的靜態網站輸出。
+- `supabase/`：SQL migration、RPC、Edge Function。
+- `scripts/`：本機檢查與發佈輔助腳本。
 
-## Commands
+## 常用指令
 
 ```bash
 npm run web
@@ -26,24 +26,24 @@ npm run web:check
 npm run web:publish
 ```
 
-- `npm run web`: run the local static preview server.
-- `npm run web:check`: verify public Supabase config.
-- `npm run web:publish`: copy `src/renderer/` into `docs/` with cache-busting asset URLs.
+- `npm run web`：啟動本機靜態預覽伺服器。
+- `npm run web:check`：檢查公開 Supabase 設定。
+- `npm run web:publish`：將 `src/renderer/` 複製到 `docs/`，並更新資源版本參數。
 
-Run `npm run web:publish` after frontend changes.
+修改前端後要執行 `npm run web:publish`，否則 GitHub Pages 可能仍是舊版。
 
-## Current Storage Model
+## 目前儲存模型
 
-The active Supabase model is normalized. The old JSON document storage is no longer the live source.
+目前使用正規化 Supabase 資料表。舊的 JSON 文件儲存已不是正式資料來源。
 
-Current schedule storage:
+目前班表格儲存方式：
 
-- `schedule_entries` is the single source of truth for schedule cells.
-- A cell is unique by `member_id + work_date`.
-- Shift, leave, and overtime are stored on the same row.
-- Bulk writes use `public.save_schedule_entries_bulk(entries jsonb)`.
+- `schedule_entries` 是班表格唯一正式來源。
+- 一個格子以 `member_id + work_date` 唯一識別。
+- 班別、假別、加班存在同一列。
+- 批次寫入使用 `public.save_schedule_entries_bulk(entries jsonb)`。
 
-Old request workflow artifacts are removed and should not be used:
+舊申請流程物件已移除，不應再使用：
 
 - `leave_requests`
 - `overtime_requests`
@@ -51,27 +51,27 @@ Old request workflow artifacts are removed and should not be used:
 - `request_type`
 - `get_public_schedule_requests()`
 
-## Auto-Schedule
+## 自動排班
 
-Auto-schedule currently works as a preview/apply flow. It uses:
+自動排班目前是「先預覽、再套用」流程，會使用：
 
-- member active dates
-- member department priority
-- shift required staff count
-- fixed rest weekday
-- monthly rest-day target
-- rest compliance assumptions
+- 人員在職日期
+- 人員可支援單位順序
+- 班別需求人數
+- 固定休假星期
+- 每月休假天數目標
+- 例假 / 休息日 / 連續上班規則
 
-Important functions:
+重要函式：
 
 - `buildAutoSchedulePreview()`
 - `findMinimumCostFlowAssignments()`
 - `placeDailySurplusRestDays()`
 - `applyAutoSchedulePreview()`
 
-## Verification
+## 驗證
 
-Useful checks:
+常用檢查：
 
 ```bash
 node --check src/renderer/renderer.js

@@ -9,6 +9,11 @@ This repo is the scheduler system.
 - Supabase SQL / migrations: `supabase/`
 - Scripts: `scripts/`
 
+## Encoding
+
+- Text files in this repo should be saved as UTF-8.
+- Keep Chinese documentation in Chinese unless the user asks for English.
+
 ## Required Rules
 
 1. If a task changes webpage UI, interactions, styling, or frontend data flow, run:
