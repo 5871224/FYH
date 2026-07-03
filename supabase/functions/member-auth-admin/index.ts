@@ -8,6 +8,7 @@ type MemberPayload = {
   leaveDate?: string | null;
   payByDay?: boolean;
   fixedRestWeekday?: number;
+  homeDepartmentId?: string;
   scheduleDepartmentIds?: string[];
   monthlyRestDays?: number;
 };
@@ -44,6 +45,7 @@ function normalizeMember(member: MemberPayload) {
     leaveDate: member?.leaveDate || null,
     payByDay: Boolean(member?.payByDay),
     fixedRestWeekday: Math.min(6, Math.max(0, Number(member?.fixedRestWeekday) || 0)),
+    homeDepartmentId: String(member?.homeDepartmentId || "").trim(),
     scheduleDepartmentIds: Array.isArray(member?.scheduleDepartmentIds)
       ? member.scheduleDepartmentIds.map((value) => String(value || "").trim()).filter(Boolean)
       : [],
@@ -86,11 +88,28 @@ async function findProfile(ctx: any, currentCode: string, previousCode: string) 
   return null;
 }
 
+async function resolveDepartmentUuid(ctx: any, schedulerItemId: string) {
+  const itemId = String(schedulerItemId || "").trim();
+  if (!itemId) {
+    return null;
+  }
+  const { data, error } = await ctx.supabaseAdmin
+    .from("set_departments")
+    .select("id")
+    .eq("scheduler_item_id", itemId)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  return data?.id || null;
+}
+
 async function upsertMember(ctx: any, body: any) {
   const member = normalizeMember(body?.member || {});
   const previousEmployeeCode = String(body?.previousEmployeeCode || member.employeeCode).trim();
   const password = String(body?.defaultPassword || DEFAULT_PASSWORD);
   const profile = await findProfile(ctx, member.employeeCode, previousEmployeeCode);
+  const homeDepartmentUuid = await resolveDepartmentUuid(ctx, member.homeDepartmentId || member.scheduleDepartmentIds[0] || "");
 
   if (!profile) {
     const { data, error } = await ctx.supabaseAdmin.auth.admin.createUser({
@@ -120,6 +139,7 @@ async function upsertMember(ctx: any, body: any) {
         leave_date: member.leaveDate,
         pay_by_day: member.payByDay,
         fixed_rest_weekday: member.fixedRestWeekday,
+        home_department_id: homeDepartmentUuid,
         schedule_department_ids: member.scheduleDepartmentIds,
         monthly_rest_days: member.monthlyRestDays,
         login_email: member.loginEmail
@@ -158,6 +178,7 @@ async function upsertMember(ctx: any, body: any) {
       leave_date: member.leaveDate,
       pay_by_day: member.payByDay,
       fixed_rest_weekday: member.fixedRestWeekday,
+      home_department_id: homeDepartmentUuid,
       schedule_department_ids: member.scheduleDepartmentIds,
       monthly_rest_days: member.monthlyRestDays,
       login_email: authUserSynced ? member.loginEmail : null

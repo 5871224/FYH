@@ -697,7 +697,7 @@
           id: row.id,
           code: row.employee_code || "",
           name: row.full_name || "",
-          deptId: scheduleDeptIds[0] || fallbackDeptId,
+          deptId: fallbackDeptId || scheduleDeptIds[0] || "",
           scheduleDeptIds,
           positionId: "",
           proxyMemberId: "",
@@ -840,6 +840,7 @@
         leaveDate: member?.leaveDate || null,
         payByDay: Boolean(member?.payByDay),
         fixedRestWeekday: clampInteger(member?.fixedRestWeekday, 0, 6, 0),
+        homeDepartmentId: member?.deptId || "",
         scheduleDepartmentIds: Array.isArray(member?.scheduleDeptIds) ? member.scheduleDeptIds : [],
         monthlyRestDays: Math.max(0, Number(member?.monthlyRestDays) || 0)
       },
@@ -1041,18 +1042,19 @@
       const scheduleDeptIds = Array.isArray(member.scheduleDeptIds) && member.scheduleDeptIds.length
         ? member.scheduleDeptIds
         : [member.deptId].filter(Boolean);
+      const homeDeptId = member.deptId || scheduleDeptIds[0] || "";
       await restUpdate("set_employee", {
         id: `eq.${profile.id}`
       }, {
         employee_code: member.code,
         full_name: member.name,
         role: member.role === "manager" ? "manager" : "employee",
-        home_department_id: departmentMap.get(scheduleDeptIds[0])?.id || null,
         hire_date: nullableDate(member.hireDate),
         leave_date: nullableDate(member.leaveDate),
         pay_by_day: Boolean(member.payByDay),
         fixed_rest_weekday: clampInteger(member.fixedRestWeekday, 0, 6, 0),
         monthly_rest_days: clampInteger(member.monthlyRestDays, 0, 31, 0),
+        home_department_id: departmentMap.get(homeDeptId)?.id || null,
         schedule_department_ids: scheduleDeptIds,
         is_active: true
       }, {

@@ -7,11 +7,14 @@ const renderer = fs.readFileSync(path.join(rootDir, "src", "renderer", "renderer
 const index = fs.readFileSync(path.join(rootDir, "src", "renderer", "index.html"), "utf8");
 const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js"), "utf8");
 const schema = fs.readFileSync(path.join(rootDir, "supabase", "001_current_schema.sql"), "utf8");
+const memberAuthAdmin = fs.readFileSync(path.join(rootDir, "supabase", "functions", "member-auth-admin", "index.ts"), "latin1");
 
 assert(index.includes("weekStartSettingsButton"), "floating function menu should show month/week settings");
 assert(renderer.includes("monthStartDay: 1") && renderer.includes("monthStartSetting"), "renderer should persist month start day");
 assert(renderer.includes("shiftRequiredStaffCount") && renderer.includes("requiredStaffCount"), "shift settings should include required staff count");
 assert(renderer.includes("memberScheduleDeptList") && renderer.includes("scheduleDeptIds"), "member settings should include ordered schedule departments");
+assert(renderer.includes('id="memberDept"') && webApi.includes("homeDepartmentId: member?.deptId"), "member settings should preserve the home department separately");
+assert(memberAuthAdmin.includes("home_department_id: homeDepartmentUuid"), "member auth sync should write home department id");
 assert(renderer.includes("monthlyRestDays"), "member settings should include monthly rest days");
 assert(renderer.includes('data-set-department-view="department"') && renderer.includes('data-set-department-view="member"'), "department settings should support both views");
 assert(webApi.includes("scheduleDepartmentIds") && webApi.includes("required_staff_count"), "web api should sync auto schedule settings");

@@ -4987,6 +4987,12 @@ function openMemberForm(mode, memberId = "") {
           </select>
         </div>
         <div class="form-row">
+          <label for="memberDept">所屬單位</label>
+          <select id="memberDept">
+            ${buildSelectOptions(state.departments, "id", (department) => department.name, member.deptId || member.scheduleDeptIds?.[0] || "")}
+          </select>
+        </div>
+        <div class="form-row">
           <label for="memberSalaryType">計薪方式</label>
           <select id="memberSalaryType">
             <option value="monthly" ${member.payByDay ? "" : "selected"}>月薪</option>
@@ -5040,13 +5046,17 @@ async function saveMember(mode) {
   const previousMember = mode === "edit"
     ? state.members.find((member) => member.id === modalContext.targetId) || null
     : null;
+  const homeDeptId = document.getElementById("memberDept")?.value || "";
   const scheduleDeptIds = readMemberScheduleDeptIds();
+  if (homeDeptId && !scheduleDeptIds.includes(homeDeptId)) {
+    scheduleDeptIds.unshift(homeDeptId);
+  }
   const monthlyRestDays = Math.max(0, Number(previousMember?.monthlyRestDays) || 0);
   const payload = {
     id: mode === "edit" ? modalContext.targetId : uid("m"),
     code: document.getElementById("memberCode")?.value.trim(),
     name: document.getElementById("memberName")?.value.trim(),
-    deptId: scheduleDeptIds[0] || "",
+    deptId: homeDeptId,
     scheduleDeptIds,
     positionId: mode === "edit" ? (state.members.find((member) => member.id === modalContext.targetId)?.positionId || "") : "",
     proxyMemberId: "",
