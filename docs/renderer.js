@@ -2086,6 +2086,15 @@ function buildAutoSchedulePreview(dates = getVisibleDates()) {
   return preview;
 }
 
+function getMissingAutoScheduleLeaveLabels() {
+  return [
+    { code: "0036", name: "例假" },
+    { code: "0047", name: "休息日" }
+  ]
+    .filter((leave) => !getLeaveByCode(leave.code))
+    .map((leave) => `${leave.name} ${leave.code}`);
+}
+
 async function previewAutoSchedule() {
   if (!promptManagerAccess("自動排班需先登入主管帳號")) {
     return;
@@ -2121,6 +2130,11 @@ async function generateAutoSchedulePreviewFromModal() {
   const dates = enumerateDateRange(startDate, endDate);
   if (!dates.length) {
     reportValidationError("請確認自動排班期間");
+    return;
+  }
+  const missingLeaveLabels = getMissingAutoScheduleLeaveLabels();
+  if (missingLeaveLabels.length) {
+    reportValidationError(`自動排班需要先在假別設定新增：${missingLeaveLabels.join("、")}`);
     return;
   }
   closeModal();

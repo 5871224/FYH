@@ -201,6 +201,8 @@ assert(renderer.includes("function buildAutoSchedulePreview(dates = getVisibleDa
 assert(renderer.includes('title: "自動排班期間"'), "auto schedule should ask for a period before previewing");
 assert(renderer.includes("const dates = enumerateDateRange(startDate, endDate);"), "auto schedule period modal should build a date range from user input");
 assert(renderer.includes("autoSchedulePreview = buildAutoSchedulePreview(dates);"), "auto schedule preview should use the confirmed period");
+assert(renderer.includes("function getMissingAutoScheduleLeaveLabels()"), "auto schedule should check required leave settings before previewing");
+assert(renderer.includes("自動排班需要先在假別設定新增"), "auto schedule should show a clear prompt when required leave settings are missing");
 assert(renderer.includes("memberCanScheduleShift(member, shift.id)"), "auto schedule candidates should use member shift eligibility");
 assert(renderer.includes("const mustWork = !member.payByDay && (restCount >= restTarget || hasRestThisWeek);"), "auto schedule should prioritize monthly members who must work");
 assert(!renderer.includes("homeDeptMatch"), "auto schedule should not prioritize a member's own department");
