@@ -559,8 +559,8 @@
       sheet.addRow([
         item.code || "",
         item.name || "",
-        item.defaultAllDay ? "是" : "否",
-        item.requireReason ? "是" : "否",
+        item.requiresTime ? "是" : "否",
+        item.requiresReason ? "是" : "否",
         item.color || "",
         item.textColor || "",
         item.autoTextColor ? "是" : "否",
@@ -754,16 +754,16 @@
         }
         const code = getCellDisplayValue(row.getCell(1));
         const name = getCellDisplayValue(row.getCell(2));
-        const defaultAllDay = normalizeImportedBoolean(getCellDisplayValue(row.getCell(3)));
-        const requireReason = normalizeImportedBoolean(getCellDisplayValue(row.getCell(4)));
+        const requiresTime = normalizeImportedBoolean(getCellDisplayValue(row.getCell(3)));
+        const requiresReason = normalizeImportedBoolean(getCellDisplayValue(row.getCell(4)));
         const color = getCellDisplayValue(row.getCell(5));
         const textColor = getCellDisplayValue(row.getCell(6));
         const autoTextColor = normalizeImportedBoolean(getCellDisplayValue(row.getCell(7)));
         const hiddenFromToolbar = normalizeImportedBoolean(getCellDisplayValue(row.getCell(8)));
-        if (![code, name, defaultAllDay, requireReason, color, textColor, autoTextColor, hiddenFromToolbar].some(Boolean)) {
+        if (![code, name, requiresTime, requiresReason, color, textColor, autoTextColor, hiddenFromToolbar].some(Boolean)) {
           return;
         }
-        items.push({ code, name, defaultAllDay, requireReason, color, textColor, autoTextColor, hiddenFromToolbar });
+        items.push({ code, name, requiresTime, requiresReason, color, textColor, autoTextColor, hiddenFromToolbar });
       });
     }
     return { items };

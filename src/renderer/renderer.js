@@ -1060,8 +1060,8 @@ function sanitizeLeaveItem(item, fallbackIndex) {
     textColor: item?.textColor || autoLeaveTextColor(color),
     autoTextColor: Boolean(autoText),
     hiddenFromToolbar: Boolean(item?.hiddenFromToolbar),
-    defaultAllDay: Boolean(item?.defaultAllDay),
-    requireReason: Boolean(item?.requireReason)
+    requiresTime: Boolean(item?.requiresTime),
+    requiresReason: Boolean(item?.requiresReason)
   };
 }
 
@@ -2396,7 +2396,7 @@ function formatOvertimeRestLines(record) {
 }
 
 function leaveRequiresTime(leave) {
-  return Boolean(leave?.defaultAllDay);
+  return Boolean(leave?.requiresTime);
 }
 
 function defaultLeaveIsAllDay(leave) {
@@ -2700,7 +2700,7 @@ function shouldPromptLeaveDetail(leave, leaveMeta = null) {
   if (leaveMeta?.reason || leaveMeta?.startTime || leaveMeta?.endTime || leaveMeta?.allDay !== undefined) {
     return true;
   }
-  if (leave?.requireReason) {
+  if (leave?.requiresReason) {
     return true;
   }
   return leaveRequiresTime(leave);
@@ -2715,7 +2715,7 @@ function formatLeaveDetailSummary(leave, leaveMeta) {
       lines.push(`時間：${leaveMeta?.startTime || "--:--"} - ${leaveMeta?.endTime || "--:--"}`);
     }
   }
-  if (leave && (leave.requireReason || leaveMeta?.reasonEnabled || leaveMeta?.reason)) {
+  if (leave && (leave.requiresReason || leaveMeta?.reasonEnabled || leaveMeta?.reason)) {
     lines.push(`原因：${leaveMeta?.reason || "未填寫"}`);
   }
   return lines;
@@ -3610,7 +3610,7 @@ function openLeaveAssignmentModal(memberId, day, leaveId) {
   const slot = getSlot(memberId, dateString);
   const existingMeta = slot?.leave === leaveId ? slot.leaveMeta || null : null;
   const defaultAllDay = existingMeta?.allDay ?? defaultLeaveIsAllDay(leave);
-  const reasonEnabled = existingMeta?.reasonEnabled ?? leave.requireReason;
+  const reasonEnabled = existingMeta?.reasonEnabled ?? leave.requiresReason;
   const startTime = existingMeta?.startTime || "";
   const endTime = existingMeta?.endTime || "";
   const reason = existingMeta?.reason || "";
@@ -3873,7 +3873,7 @@ function openListSettings(category) {
                   <div class="settings-table-meta">${category === "shift"
                     ? escapeHtml(getDepartmentSummary(item.applicableDeptIds))
                     : category === "leave"
-                      ? (item.defaultAllDay ? "是" : "否")
+                      ? (item.requiresTime ? "是" : "否")
                       : escapeHtml(`${item.startTime || "--:--"} - ${item.endTime || "--:--"}`)
                   }</div>
                   ${category === "shift"
@@ -3890,7 +3890,7 @@ function openListSettings(category) {
                     ? `<div class="settings-table-meta">${escapeHtml(`${item.startTime || "--:--"} - ${item.endTime || "--:--"}`)}</div>`
                     : ""}
                   ${category === "leave"
-                    ? `<div class="settings-table-meta">${item.requireReason ? "是" : "否"}</div>`
+                    ? `<div class="settings-table-meta">${item.requiresReason ? "是" : "否"}</div>`
                     : ""}
                   <div class="settings-table-meta">${item.hiddenFromToolbar ? "是" : "否"}</div>
                   <div class="settings-table-actions">
@@ -4121,8 +4121,8 @@ function openNamedColorFormModal(category, mode, targetId = "") {
       code: LEAVE_CATALOG[0].code,
       name: LEAVE_CATALOG[0].name,
       color: COLORS[0].hex,
-      defaultAllDay: false,
-      requireReason: false,
+      requiresTime: false,
+      requiresReason: false,
       hiddenFromToolbar: false,
       startTime: "",
       endTime: "",
@@ -4167,13 +4167,13 @@ function openNamedColorFormModal(category, mode, targetId = "") {
         <div class="form-section">
           <div class="form-row checkbox-row checkbox-row-left">
             <label>
-              <input id="leaveDefaultAllDay" type="checkbox" ${item.defaultAllDay ? "checked" : ""}>
+              <input id="leaveRequiresTime" type="checkbox" ${item.requiresTime ? "checked" : ""}>
               需填時間
             </label>
           </div>
           <div class="form-row checkbox-row checkbox-row-left">
             <label>
-              <input id="leaveRequireReason" type="checkbox" ${item.requireReason ? "checked" : ""}>
+              <input id="leaveRequiresReason" type="checkbox" ${item.requiresReason ? "checked" : ""}>
               需填原因
             </label>
           </div>
@@ -4294,8 +4294,8 @@ function saveNamedColorItem(category, mode) {
     color: modalColor,
     textColor: modalTextColor,
     autoTextColor: modalTextColorAuto,
-    defaultAllDay: category === "leave" ? document.getElementById("leaveDefaultAllDay")?.checked : undefined,
-    requireReason: category === "leave" ? document.getElementById("leaveRequireReason")?.checked : undefined,
+    requiresTime: category === "leave" ? document.getElementById("leaveRequiresTime")?.checked : undefined,
+    requiresReason: category === "leave" ? document.getElementById("leaveRequiresReason")?.checked : undefined,
     hiddenFromToolbar: Boolean(document.getElementById(`${category}HiddenFromToolbar`)?.checked),
     startTime: category === "overtime" ? readTimeInputValue("overtimeStartTime") : undefined,
     endTime: category === "overtime" ? readTimeInputValue("overtimeEndTime") : undefined,

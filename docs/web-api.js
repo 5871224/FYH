@@ -738,8 +738,8 @@
         textColor: row.text_color || "",
         autoTextColor: row.auto_text_color !== false,
         hiddenFromToolbar: Boolean(row.hidden_from_toolbar),
-        defaultAllDay: Boolean(row.requires_time),
-        requireReason: Boolean(row.requires_reason)
+        requiresTime: Boolean(row.requires_time),
+        requiresReason: Boolean(row.requires_reason)
       }));
   }
 
@@ -869,8 +869,8 @@
         text_color: item.textColor || null,
         auto_text_color: item.autoTextColor !== false,
         hidden_from_toolbar: Boolean(item.hiddenFromToolbar),
-        requires_time: Boolean(item.defaultAllDay),
-        requires_reason: Boolean(item.requireReason),
+        requires_time: Boolean(item.requiresTime),
+        requires_reason: Boolean(item.requiresReason),
         sort_order: index
       })), {
         auth: true,
@@ -1017,8 +1017,8 @@
         text_color: item.textColor || null,
         auto_text_color: item.autoTextColor !== false,
         hidden_from_toolbar: Boolean(item.hiddenFromToolbar),
-        requires_time: Boolean(item.defaultAllDay),
-        requires_reason: Boolean(item.requireReason),
+        requires_time: Boolean(item.requiresTime),
+        requires_reason: Boolean(item.requiresReason),
         sort_order: index
       })), {
         auth: true,

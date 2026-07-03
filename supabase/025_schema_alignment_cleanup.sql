@@ -42,11 +42,16 @@ end $$;
 do $$
 begin
   alter table if exists public.set_shift
-    add column if not exists hidden_from_toolbar boolean not null default false;
+    add column if not exists hidden_from_toolbar boolean not null default false,
+    add column if not exists auto_text_color boolean not null default true;
   alter table if exists public.set_leave
-    add column if not exists hidden_from_toolbar boolean not null default false;
+    add column if not exists hidden_from_toolbar boolean not null default false,
+    add column if not exists auto_text_color boolean not null default true,
+    add column if not exists requires_time boolean not null default false,
+    add column if not exists requires_reason boolean not null default false;
   alter table if exists public.set_overtime
-    add column if not exists hidden_from_toolbar boolean not null default false;
+    add column if not exists hidden_from_toolbar boolean not null default false,
+    add column if not exists auto_text_color boolean not null default true;
 
   if exists (
     select 1
@@ -196,6 +201,12 @@ begin
       add column applicable_department_ids uuid[] not null default '{}';
   end if;
 end $$;
+
+drop function if exists public.login_email_by_employee_code(text);
+drop index if exists public.idx_set_employee_login_email_unique;
+
+alter table if exists public.set_employee
+  drop column if exists login_email;
 
 alter table if exists public.set_departments
   drop column if exists code,

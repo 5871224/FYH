@@ -38,9 +38,7 @@ These are legacy artifacts from the old employee request workflow and should not
 
 1. `001_current_schema.sql`: current tables, indexes, RLS enablement, and `is_manager`.
 2. `024_schedule_entries_rpc.sql`: bulk RPC for schedule cell writes.
-3. `025_employee_schedule_shift_ids.sql`: replaces member schedule departments with ordered member shift IDs.
-4. `026_catalog_uuid_cleanup.sql`: converts catalog references to UUID IDs and removes retired catalog identifier columns.
-5. `027_remove_login_email.sql`: removes the retired `login_email` column and login email RPC.
+3. `025_schema_alignment_cleanup.sql`: upgrades older normalized installs to the current schema shape, including UUID catalog references, hidden flag renames, retired login fields, and active leave/display columns.
 
 ## Notes For Changes
 

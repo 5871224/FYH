@@ -32,6 +32,9 @@ assert(!webApi.includes('deleteRowsByForeignIds("overtime_requests"'), "web api 
 assert(webApi.includes('clearScheduleEntriesByForeignIds("leave_type_id"'), "deleting leave settings should clear schedule entry leave references before deleting leave types");
 assert(webApi.includes('clearScheduleEntriesByForeignIds("overtime_type_id"'), "deleting overtime settings should clear schedule entry overtime references before deleting overtime types");
 assert(webApi.includes("async function fetchRowsById") && webApi.includes("async function fetchRowById"), "catalog settings should resolve rows by uuid id");
+assert(webApi.includes("requiresTime: Boolean(row.requires_time)") && webApi.includes("requiresReason: Boolean(row.requires_reason)"), "leave catalog naming should match requires_time and requires_reason");
+assert(!webApi.includes("defaultAllDay: Boolean(row.requires_time)") && !webApi.includes("requireReason: Boolean(row.requires_reason)"), "web api should not keep the old leave catalog names");
+assert(renderer.includes("item.requiresTime") && renderer.includes("item.requiresReason"), "renderer should use consistent leave catalog naming");
 assert(!webApi.includes("fetchSchedulerRowByItemId") && !webApi.includes("deleteSchedulerRowsNotIn"), "web api should not depend on scheduler_item_id helpers");
 assert(!webApi.includes("login_email_by_employee_code"), "login should derive the auth email from employee code without a database login_email RPC");
 assert(!schema.includes("login_email"), "set_employee should not store login_email");
@@ -78,6 +81,9 @@ assert(schema.includes("create table if not exists public.holidays"), "schema sh
 assert(schema.includes("create table if not exists public.set_employee"), "schema should create set_employee");
 assert(schema.includes("schedule_shift_ids uuid[]"), "schema should store ordered member shift priorities as uuid ids");
 assert(schema.includes("applicable_department_ids uuid[]"), "schema should store shift department applicability as uuid ids");
+assert(schema.includes("auto_text_color boolean not null default true"), "schema should store catalog auto text color flags");
+assert(schema.includes("requires_time boolean not null default false"), "schema should store leave time requirement flags");
+assert(schema.includes("requires_reason boolean not null default false"), "schema should store leave reason requirement flags");
 assert(schema.includes("hidden_from_schedule") && !schema.includes("hidden_from_leave"), "department hidden flag should be schedule-named");
 assert(!schema.includes("scheduler_item_id text unique"), "active catalog tables should not keep scheduler_item_id");
 assert(!schema.includes("create table if not exists public.set_employee_departments"), "schema should not recreate member department priorities");
