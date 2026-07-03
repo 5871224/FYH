@@ -179,8 +179,6 @@
 
         checkedWeeks += 1;
         const regularHolidays = activeDays.filter((day) => day.leaveCode === REGULAR_HOLIDAY_CODE);
-        const restDays = activeDays.filter((day) => day.leaveCode === REST_DAY_CODE);
-
         if (!regularHolidays.length) {
           pushIssue(issues, {
             severity: "error",
@@ -191,19 +189,6 @@
             weekStart: week.startDate,
             weekEnd: week.endDate,
             message: "本週未標記例假"
-          });
-        }
-
-        if (!restDays.length) {
-          pushIssue(issues, {
-            severity: "error",
-            type: "missing_rest_day",
-            memberId: member.memberId,
-            memberName: member.memberName,
-            memberCode: member.memberCode || "",
-            weekStart: week.startDate,
-            weekEnd: week.endDate,
-            message: "本週未標記休息日"
           });
         }
 

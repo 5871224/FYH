@@ -115,6 +115,7 @@ const result = compliance.checkRestCompliance({
 assert(result.checkedWeeks >= 4, "sample calendars should produce checked weeks");
 assert(result.skippedWeeks >= 1, "hire or leave weeks should be skipped");
 assert(result.issues.some((issue) => issue.type === "missing_regular_holiday" && issue.memberId === "m2"), "missing regular holiday should be flagged");
+assert(!result.issues.some((issue) => issue.type === "missing_rest_day"), "missing rest days should not be flagged");
 assert(result.issues.some((issue) => issue.type === "regular_holiday_work" && issue.memberId === "m3"), "work on a regular holiday should be flagged");
 assert(result.issues.some((issue) => issue.type === "consecutive_work_days_exceeded" && issue.memberId === "m5"), "more than 6 consecutive work days should be flagged");
 assert(!result.issues.some((issue) => issue.memberId === "m1"), "a compliant week should not generate issues");

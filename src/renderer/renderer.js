@@ -5432,7 +5432,7 @@ function openRestComplianceModal() {
       </div>
       <div class="result-item ${issueCount ? "warning" : "success"}">
         <div class="result-title">檢查結果</div>
-        <div class="result-detail">${issueCount ? `${errorCount} 筆缺漏，${warningCount} 筆待確認` : "目前未發現缺少例假或休息日"}</div>
+        <div class="result-detail">${issueCount ? `${errorCount} 筆缺漏，${warningCount} 筆待確認` : "目前未發現缺少例假"}</div>
       </div>
     </div>
   `;
@@ -5442,7 +5442,7 @@ function openRestComplianceModal() {
       <div class="result-detail compliance-check-note">
         <div>目前檢查畫面顯示的 8 週，每 7 天為一週。</div>
         <div>到職日或離職日落在該週時，每週例假／休息日檢查會略過，改檢查「未在職日＋例假＋休息日」是否至少 2 天。</div>
-        <div>這版只看系統內已標記的「例假 0036 / 休息日 0047」；空白未排班不自動視為例休。</div>
+        <div>這版只檢查系統內已標記的「例假 0036」；空白未排班不自動視為例假。</div>
       </div>
     </div>
   `;
@@ -5473,7 +5473,7 @@ function openRestComplianceModal() {
     : `
       <div class="result-item success">
         <div class="result-title">檢查完成</div>
-        <div class="result-detail">目前依系統標記，顯示的 8 週未發現例假或休息日缺漏。</div>
+        <div class="result-detail">目前依系統標記，顯示的 8 週未發現例假缺漏。</div>
       </div>
     `;
 
