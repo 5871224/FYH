@@ -5046,8 +5046,9 @@ async function saveMember(mode) {
   const previousMember = mode === "edit"
     ? state.members.find((member) => member.id === modalContext.targetId) || null
     : null;
-  const homeDeptId = document.getElementById("memberDept")?.value || "";
+  const selectedHomeDeptId = document.getElementById("memberDept")?.value || "";
   const scheduleDeptIds = readMemberScheduleDeptIds();
+  const homeDeptId = selectedHomeDeptId || previousMember?.deptId || scheduleDeptIds[0] || "";
   if (homeDeptId && !scheduleDeptIds.includes(homeDeptId)) {
     scheduleDeptIds.unshift(homeDeptId);
   }
@@ -5067,7 +5068,12 @@ async function saveMember(mode) {
     monthlyRestDays,
     role: document.getElementById("memberRole")?.value === "manager" ? "manager" : "employee"
   };
-  if (!payload.code || !payload.name || !payload.deptId) {
+  if (!payload.code || !payload.name) {
+    reportValidationError("請填寫人員編號與姓名");
+    return;
+  }
+  if (!payload.deptId) {
+    reportValidationError("請選擇所屬單位");
     return;
   }
   try {
