@@ -5037,11 +5037,15 @@ async function saveMember(mode) {
     reportValidationError("請選擇所屬單位");
     return;
   }
+  let profileSyncError = null;
   try {
     await window.schedulerApi.syncMemberProfile(payload, previousMember?.code || "");
   } catch (error) {
-    setSaveStatus(`同步人員資料失敗：${error.message}`);
-    return;
+    if (mode !== "edit") {
+      reportValidationError(`同步人員資料失敗：${error.message}`);
+      return;
+    }
+    profileSyncError = error;
   }
   if (mode === "edit") {
     state.members = state.members.map((member) => member.id === payload.id ? payload : member);
@@ -5060,7 +5064,10 @@ async function saveMember(mode) {
   closeModal();
   renderAll();
   reopenModalFromContext(returnTo);
-  queueSave();
+  const saved = await forceSave();
+  if (profileSyncError && saved) {
+    setSaveStatus(`人員設定已儲存；登入帳號同步失敗：${profileSyncError.message}`);
+  }
 }
 
 async function exportMembersFromSettings() {
@@ -5560,7 +5567,7 @@ async function exportLeave() {
 
 async function forceSave() {
   if (!canEditSchedule()) {
-    return;
+    return false;
   }
   if (saveTimer) {
     clearTimeout(saveTimer);
@@ -5568,8 +5575,10 @@ async function forceSave() {
   }
   try {
     await window.schedulerApi.saveState(buildPersistedState());
+    return true;
   } catch (error) {
     setSaveStatus(`儲存失敗：${error.message}`);
+    return false;
   }
 }
 
