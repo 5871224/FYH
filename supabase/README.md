@@ -15,8 +15,7 @@ Historical one-off migrations were removed after the schema was normalized.
 
 - `scheduler_settings`: global scheduler settings.
 - `set_departments`: departments/locations.
-- `set_employee`: scheduler members and roles.
-- `set_employee_departments`: member department priority/order.
+- `set_employee`: scheduler members, roles, and ordered schedulable shift IDs.
 - `set_shift`: shift catalog.
 - `set_leave`: leave catalog.
 - `set_overtime`: overtime catalog.
@@ -39,6 +38,7 @@ These are legacy artifacts from the old employee request workflow and should not
 1. `001_current_schema.sql`: current tables, indexes, RLS enablement, and `is_manager`.
 2. `023_fix_login_employee_table.sql`: login email column and employee-code login RPC.
 3. `024_schedule_entries_rpc.sql`: bulk RPC for schedule cell writes.
+4. `025_employee_schedule_shift_ids.sql`: replaces member schedule departments with ordered member shift IDs.
 
 ## Notes For Changes
 

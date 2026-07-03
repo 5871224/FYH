@@ -7,19 +7,19 @@ const renderer = fs.readFileSync(path.join(rootDir, "src", "renderer", "renderer
 const index = fs.readFileSync(path.join(rootDir, "src", "renderer", "index.html"), "utf8");
 const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js"), "utf8");
 const schema = fs.readFileSync(path.join(rootDir, "supabase", "001_current_schema.sql"), "utf8");
-const memberAuthAdmin = fs.readFileSync(path.join(rootDir, "supabase", "functions", "member-auth-admin", "index.ts"), "latin1");
+const memberAuthAdmin = fs.readFileSync(path.join(rootDir, "supabase", "functions", "member-auth-admin", "index.ts"), "utf8");
 
 assert(index.includes("weekStartSettingsButton"), "floating function menu should show month/week settings");
 assert(renderer.includes("monthStartDay: 1") && renderer.includes("monthStartSetting"), "renderer should persist month start day");
 assert(renderer.includes("shiftRequiredStaffCount") && renderer.includes("requiredStaffCount"), "shift settings should include required staff count");
-assert(renderer.includes("memberScheduleDeptList") && renderer.includes("scheduleDeptIds"), "member settings should include ordered schedule departments");
+assert(renderer.includes("memberScheduleShiftList") && renderer.includes("scheduleShiftIds"), "member settings should include ordered schedule shifts");
 assert(renderer.includes('id="memberDept"') && webApi.includes("homeDepartmentId: member?.deptId"), "member settings should preserve the home department separately");
 assert(memberAuthAdmin.includes("home_department_id: homeDepartmentUuid"), "member auth sync should write home department id");
 assert(renderer.includes("monthlyRestDays"), "member settings should include monthly rest days");
 assert(renderer.includes('data-set-department-view="department"') && renderer.includes('data-set-department-view="member"'), "department settings should support both views");
-assert(webApi.includes("scheduleDepartmentIds") && webApi.includes("required_staff_count"), "web api should sync auto schedule settings");
+assert(webApi.includes("scheduleShiftIds") && webApi.includes("required_staff_count"), "web api should sync auto schedule settings");
 assert(
-  schema.includes("schedule_department_ids") &&
+  schema.includes("schedule_shift_ids") &&
     schema.includes("monthly_rest_days") &&
     schema.includes("required_staff_count") &&
     schema.includes("month_start_day"),
@@ -27,11 +27,11 @@ assert(
 );
 assert(
     schema.includes("fixed_rest_weekday") &&
-    schema.includes("public.set_employee_departments") &&
+    !schema.includes("public.set_employee_departments") &&
     schema.includes("public.set_shift") &&
     schema.includes("month_start_day") &&
     !schema.includes("schedule_months"),
-  "current schema should preserve auto schedule settings tables without schedule_months"
+  "current schema should preserve active auto schedule tables without schedule_months"
 );
 
 console.log("auto schedule settings checks passed");

@@ -104,19 +104,17 @@
     return fallback;
   }
 
-  function getDepartmentNamesForMember(member, departments) {
+  function getDepartmentNameForMember(member, departments) {
     const departmentMap = new Map((departments || []).map((department) => [department.id, department.name]));
-    const ids = Array.isArray(member?.scheduleDeptIds)
-      ? member.scheduleDeptIds
-      : Array.isArray(member?.departmentIds)
-        ? member.departmentIds
-        : [];
-    const normalized = ids
-      .filter((deptId, index, list) => departmentMap.has(deptId) && list.indexOf(deptId) === index);
-    if (member?.deptId && departmentMap.has(member.deptId) && !normalized.includes(member.deptId)) {
-      normalized.unshift(member.deptId);
-    }
-    return normalized.map((deptId) => departmentMap.get(deptId)).filter(Boolean);
+    return departmentMap.get(member?.deptId) || "";
+  }
+
+  function getShiftNamesForMember(member, shifts) {
+    const shiftMap = new Map((shifts || []).map((shift) => [shift.id, shift.name]));
+    return (Array.isArray(member?.scheduleShiftIds) ? member.scheduleShiftIds : [])
+      .filter((shiftId, index, list) => shiftMap.has(shiftId) && list.indexOf(shiftId) === index)
+      .map((shiftId) => shiftMap.get(shiftId))
+      .filter(Boolean);
   }
 
   function isMemberActiveOnDate(member, year, month, day) {
@@ -456,18 +454,19 @@
   async function createMemberWorkbook(payload) {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("人員資料");
-    const headers = ["工號", "姓名", "所屬單位", "排班單位", "權限", "到職日", "離職日", "計薪方式", "例假星期"];
+    const headers = ["工號", "姓名", "所屬單位", "排班班別", "權限", "到職日", "離職日", "計薪方式", "例假星期"];
     const weekdayLabels = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
     const departments = payload.state?.departments || [];
+    const shifts = payload.state?.shifts || [];
 
     sheet.addRow(headers);
     (payload.state?.members || []).forEach((member) => {
-      const scheduleDepartmentNames = getDepartmentNamesForMember(member, departments);
+      const scheduleShiftNames = getShiftNamesForMember(member, shifts);
       sheet.addRow([
         member.code || "",
         member.name || "",
-        scheduleDepartmentNames[0] || "",
-        scheduleDepartmentNames.join("、"),
+        getDepartmentNameForMember(member, departments),
+        scheduleShiftNames.join("、"),
         member.role === "manager" ? "主管" : "員工",
         formatDisplayDate(member.hireDate || ""),
         formatDisplayDate(member.leaveDate || ""),
@@ -633,12 +632,12 @@
     const codeColumn = getHeaderColumnIndex(sheet, ["工號"], 1);
     const nameColumn = getHeaderColumnIndex(sheet, ["姓名"], 2);
     const departmentColumn = getHeaderColumnIndex(sheet, ["所屬單位", "單位"], 3);
-    const scheduleDepartmentColumn = getHeaderColumnIndex(sheet, ["排班單位", "可排單位"], 0);
-    const roleColumn = getHeaderColumnIndex(sheet, ["權限"], scheduleDepartmentColumn ? 5 : 4);
-    const hireDateColumn = getHeaderColumnIndex(sheet, ["到職日"], scheduleDepartmentColumn ? 6 : 5);
-    const leaveDateColumn = getHeaderColumnIndex(sheet, ["離職日"], scheduleDepartmentColumn ? 7 : 6);
-    const salaryTypeColumn = getHeaderColumnIndex(sheet, ["計薪方式"], scheduleDepartmentColumn ? 8 : 7);
-    const fixedRestWeekdayColumn = getHeaderColumnIndex(sheet, ["例假星期"], scheduleDepartmentColumn ? 9 : 8);
+    const scheduleShiftColumn = getHeaderColumnIndex(sheet, ["排班班別"], 0);
+    const roleColumn = getHeaderColumnIndex(sheet, ["權限"], scheduleShiftColumn ? 5 : 4);
+    const hireDateColumn = getHeaderColumnIndex(sheet, ["到職日"], scheduleShiftColumn ? 6 : 5);
+    const leaveDateColumn = getHeaderColumnIndex(sheet, ["離職日"], scheduleShiftColumn ? 7 : 6);
+    const salaryTypeColumn = getHeaderColumnIndex(sheet, ["計薪方式"], scheduleShiftColumn ? 8 : 7);
+    const fixedRestWeekdayColumn = getHeaderColumnIndex(sheet, ["例假星期"], scheduleShiftColumn ? 9 : 8);
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) {
         return;
@@ -646,20 +645,20 @@
       const code = getCellDisplayValue(row.getCell(codeColumn));
       const name = getCellDisplayValue(row.getCell(nameColumn));
       const departmentName = getCellDisplayValue(row.getCell(departmentColumn));
-      const scheduleDepartmentNames = scheduleDepartmentColumn ? getCellDisplayValue(row.getCell(scheduleDepartmentColumn)) : "";
+      const scheduleShiftNames = scheduleShiftColumn ? getCellDisplayValue(row.getCell(scheduleShiftColumn)) : "";
       const roleText = getCellDisplayValue(row.getCell(roleColumn));
       const hireDate = normalizeImportedDate(row.getCell(hireDateColumn).value);
       const leaveDate = normalizeImportedDate(row.getCell(leaveDateColumn).value);
       const salaryType = getCellDisplayValue(row.getCell(salaryTypeColumn));
       const fixedRestWeekdayText = getCellDisplayValue(row.getCell(fixedRestWeekdayColumn));
-      if (![code, name, departmentName, scheduleDepartmentNames, roleText, hireDate, leaveDate, salaryType, fixedRestWeekdayText].some(Boolean)) {
+      if (![code, name, departmentName, scheduleShiftNames, roleText, hireDate, leaveDate, salaryType, fixedRestWeekdayText].some(Boolean)) {
         return;
       }
       rows.push({
         code,
         name,
         departmentName,
-        scheduleDepartmentNames,
+        scheduleShiftNames,
         role: roleText === "主管" ? "manager" : "employee",
         hireDate,
         leaveDate,

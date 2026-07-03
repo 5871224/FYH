@@ -9,7 +9,7 @@ type MemberPayload = {
   payByDay?: boolean;
   fixedRestWeekday?: number;
   homeDepartmentId?: string;
-  scheduleDepartmentIds?: string[];
+  scheduleShiftIds?: string[];
   monthlyRestDays?: number;
 };
 
@@ -22,9 +22,10 @@ function buildLoginEmail(employeeCode: string) {
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "");
   if (!normalized) {
-    throw new Error("工�??��??��?建�??�入帳�?");
+    throw new Error("工號無法建立登入帳號");
   }
-  // ponytail: ?�用 local.invalid ?�內?�登?�帳?��?完全不�?賴�?實信箱�??��?後�??�公?�信箱�??��??�裡?��?�?? email 規�???  return `${normalized}@local.invalid`;
+  // ponytail: 用 local.invalid 建內部登入帳號，完全不依賴真實信箱；日後接公司信箱時再換 email 規則。
+  return `${normalized}@local.invalid`;
 }
 
 function normalizeRole(role: string | undefined) {
@@ -35,7 +36,7 @@ function normalizeMember(member: MemberPayload) {
   const employeeCode = String(member?.employeeCode || "").trim();
   const fullName = String(member?.fullName || "").trim();
   if (!employeeCode || !fullName) {
-    throw new Error("缺�?工�??��???);
+    throw new Error("缺少工號或姓名");
   }
   return {
     employeeCode,
@@ -46,8 +47,8 @@ function normalizeMember(member: MemberPayload) {
     payByDay: Boolean(member?.payByDay),
     fixedRestWeekday: Math.min(6, Math.max(0, Number(member?.fixedRestWeekday) || 0)),
     homeDepartmentId: String(member?.homeDepartmentId || "").trim(),
-    scheduleDepartmentIds: Array.isArray(member?.scheduleDepartmentIds)
-      ? member.scheduleDepartmentIds.map((value) => String(value || "").trim()).filter(Boolean)
+    scheduleShiftIds: Array.isArray(member?.scheduleShiftIds)
+      ? member.scheduleShiftIds.map((value) => String(value || "").trim()).filter(Boolean)
       : [],
     monthlyRestDays: Math.max(0, Number(member?.monthlyRestDays) || 0),
     loginEmail: buildLoginEmail(employeeCode)
@@ -57,7 +58,7 @@ function normalizeMember(member: MemberPayload) {
 async function getActorRole(ctx: any) {
   const actorId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!actorId) {
-    throw new Error("?��??�登?�身�?);
+    throw new Error("缺少登入身分");
   }
   const { data, error } = await ctx.supabase
     .from("set_employee")
@@ -109,7 +110,7 @@ async function upsertMember(ctx: any, body: any) {
   const previousEmployeeCode = String(body?.previousEmployeeCode || member.employeeCode).trim();
   const password = String(body?.defaultPassword || DEFAULT_PASSWORD);
   const profile = await findProfile(ctx, member.employeeCode, previousEmployeeCode);
-  const homeDepartmentUuid = await resolveDepartmentUuid(ctx, member.homeDepartmentId || member.scheduleDepartmentIds[0] || "");
+  const homeDepartmentUuid = await resolveDepartmentUuid(ctx, member.homeDepartmentId || "");
 
   if (!profile) {
     const { data, error } = await ctx.supabaseAdmin.auth.admin.createUser({
@@ -126,7 +127,7 @@ async function upsertMember(ctx: any, body: any) {
     }
     const userId = data.user?.id;
     if (!userId) {
-      throw new Error("建�??�入帳�?失�?");
+      throw new Error("建立登入帳號失敗");
     }
     const { error: insertError } = await ctx.supabaseAdmin
       .from("set_employee")
@@ -140,7 +141,7 @@ async function upsertMember(ctx: any, body: any) {
         pay_by_day: member.payByDay,
         fixed_rest_weekday: member.fixedRestWeekday,
         home_department_id: homeDepartmentUuid,
-        schedule_department_ids: member.scheduleDepartmentIds,
+        schedule_shift_ids: member.scheduleShiftIds,
         monthly_rest_days: member.monthlyRestDays,
         login_email: member.loginEmail
       });
@@ -179,7 +180,7 @@ async function upsertMember(ctx: any, body: any) {
       pay_by_day: member.payByDay,
       fixed_rest_weekday: member.fixedRestWeekday,
       home_department_id: homeDepartmentUuid,
-      schedule_department_ids: member.scheduleDepartmentIds,
+      schedule_shift_ids: member.scheduleShiftIds,
       monthly_rest_days: member.monthlyRestDays,
       login_email: authUserSynced ? member.loginEmail : null
     })
@@ -200,11 +201,11 @@ async function resetPassword(ctx: any, body: any) {
   const employeeCode = String(body?.employeeCode || "").trim();
   const password = String(body?.password || DEFAULT_PASSWORD);
   if (!employeeCode) {
-    throw new Error("缺�?工�?");
+    throw new Error("缺少工號");
   }
   const profile = await findProfile(ctx, employeeCode, employeeCode);
   if (!profile?.id) {
-    return new Response(JSON.stringify({ message: "?��??�這�?人員?�登?��??? }), {
+    return new Response(JSON.stringify({ message: "找不到這位人員的登入帳號" }), {
       status: 404,
       headers: { "Content-Type": "application/json" }
     });
@@ -236,7 +237,7 @@ export default {
     try {
       const actorRole = await getActorRole(ctx);
       if (actorRole !== "manager") {
-        return new Response(JSON.stringify({ message: "此�??��?主管使用" }), {
+        return new Response(JSON.stringify({ message: "此功能限主管使用" }), {
           status: 403,
           headers: { "Content-Type": "application/json" }
         });
@@ -254,12 +255,12 @@ export default {
         return Response.json(result);
       }
 
-      return new Response(JSON.stringify({ message: "不支?��??��?" }), {
+      return new Response(JSON.stringify({ message: "不支援的操作" }), {
         status: 400,
         headers: { "Content-Type": "application/json" }
       });
     } catch (error) {
-      return new Response(JSON.stringify({ message: error instanceof Error ? error.message : "系統?�誤" }), {
+      return new Response(JSON.stringify({ message: error instanceof Error ? error.message : "系統錯誤" }), {
         status: 400,
         headers: { "Content-Type": "application/json" }
       });

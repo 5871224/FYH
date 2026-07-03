@@ -70,7 +70,8 @@ assert(schema.includes("create table if not exists public.schedule_entries"), "s
 assert(!schema.includes("schedule_months"), "current schema should not create schedule_months");
 assert(schema.includes("create table if not exists public.holidays"), "schema should create holidays");
 assert(schema.includes("create table if not exists public.set_employee"), "schema should create set_employee");
-assert(schema.includes("create table if not exists public.set_employee_departments"), "schema should create member department priorities");
+assert(schema.includes("schedule_shift_ids text[]"), "schema should store ordered member shift priorities");
+assert(!schema.includes("create table if not exists public.set_employee_departments"), "schema should not recreate member department priorities");
 assert(!schema.includes("leave_requests") && !schema.includes("overtime_requests"), "current schema should not recreate legacy request tables");
 assert(!schema.includes("request_status") && !schema.includes("request_type"), "current schema should not recreate legacy request types");
 assert(scheduleEntryRpcMigration.includes("create or replace function public.save_schedule_entries_bulk(entries jsonb)"), "schedule entry RPC migration should create the bulk save function");

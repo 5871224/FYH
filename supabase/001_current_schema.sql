@@ -37,7 +37,7 @@ create table if not exists public.set_employee (
   role text not null default 'employee' check (role in ('manager', 'employee')),
   login_email text unique,
   home_department_id uuid references public.set_departments (id) on delete set null,
-  schedule_department_ids text[] not null default '{}',
+  schedule_shift_ids text[] not null default '{}',
   hire_date date,
   leave_date date,
   pay_by_day boolean not null default false,
@@ -46,13 +46,6 @@ create table if not exists public.set_employee (
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
-);
-
-create table if not exists public.set_employee_departments (
-  member_id uuid not null references public.set_employee (id) on delete cascade,
-  department_id uuid not null references public.set_departments (id) on delete cascade,
-  sort_order integer not null default 0,
-  primary key (member_id, department_id)
 );
 
 create table if not exists public.set_shift (
@@ -171,7 +164,6 @@ create index if not exists idx_attendance_logs_member_event_at on public.attenda
 alter table public.scheduler_settings enable row level security;
 alter table public.set_departments enable row level security;
 alter table public.set_employee enable row level security;
-alter table public.set_employee_departments enable row level security;
 alter table public.set_shift enable row level security;
 alter table public.set_leave enable row level security;
 alter table public.set_overtime enable row level security;

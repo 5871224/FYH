@@ -137,7 +137,7 @@ let isSaving = false;
 let latestSaveStatus = "";
 let appInfo = null;
 let dragMemberId = "";
-let dragScheduleDeptId = "";
+let dragScheduleShiftId = "";
 let leaveTooltipTimer = null;
 let coreActionsOpen = false;
 let departmentSettingsView = "department";
@@ -922,33 +922,25 @@ function sanitizePosition(position, fallbackIndex) {
   };
 }
 
-function normalizeScheduleDeptIds(member, departments) {
-  const validDeptIds = new Set((departments || []).map((department) => department.id));
-  const ids = Array.isArray(member?.scheduleDeptIds)
-    ? member.scheduleDeptIds
-    : Array.isArray(member?.departmentIds)
-      ? member.departmentIds
-      : [];
-  const normalized = ids
-    .map((deptId) => String(deptId || ""))
-    .filter((deptId, index, list) => validDeptIds.has(deptId) && list.indexOf(deptId) === index);
-  const fallbackDeptId = member?.deptId && validDeptIds.has(member.deptId)
-    ? member.deptId
-    : departments[0]?.id || "";
-  if (fallbackDeptId && !normalized.includes(fallbackDeptId)) {
-    normalized.unshift(fallbackDeptId);
-  }
-  return normalized;
+function normalizeScheduleShiftIds(member, shifts) {
+  const validShiftIds = new Set((shifts || []).map((shift) => shift.id));
+  const ids = Array.isArray(member?.scheduleShiftIds) ? member.scheduleShiftIds : [];
+  return ids
+    .map((shiftId) => String(shiftId || ""))
+    .filter((shiftId, index, list) => validShiftIds.has(shiftId) && list.indexOf(shiftId) === index);
 }
 
 function sanitizeMember(member, fallbackIndex, merged) {
-  const scheduleDeptIds = normalizeScheduleDeptIds(member, merged.departments);
+  const validDeptIds = new Set(merged.departments.map((department) => department.id));
+  const deptId = member?.deptId && validDeptIds.has(member.deptId)
+    ? member.deptId
+    : merged.departments[0]?.id || "";
   return {
     id: member?.id || uid(`m${fallbackIndex}`),
     code: member?.code || `M${String(fallbackIndex + 1).padStart(3, "0")}`,
     name: member?.name || `人員 ${fallbackIndex + 1}`,
-    deptId: scheduleDeptIds[0] || "",
-    scheduleDeptIds,
+    deptId,
+    scheduleShiftIds: normalizeScheduleShiftIds(member, merged.shifts),
     positionId: member?.positionId && merged.positions.some((position) => position.id === member.positionId)
       ? member.positionId
       : merged.positions[0]?.id || "",
@@ -1128,13 +1120,13 @@ function normalizeState(payload) {
   merged.positions = Array.isArray(payload.positions) && payload.positions.length
     ? payload.positions.map((position, index) => sanitizePosition(position, index))
     : merged.positions;
-  merged.members = Array.isArray(payload.members)
-    ? payload.members.map((member, index) => sanitizeMember(member, index, merged))
-    : merged.members;
   merged.shifts = Array.isArray(payload.shifts)
     ? payload.shifts.map((shift, index) => sanitizeShift(shift, index, merged))
     : merged.shifts;
   merged.shifts = merged.shifts.filter((shift) => shift.name !== "休息");
+  merged.members = Array.isArray(payload.members)
+    ? payload.members.map((member, index) => sanitizeMember(member, index, merged))
+    : merged.members;
   merged.leaves = Array.isArray(payload.leaves)
     ? payload.leaves.map((item, index) => sanitizeLeaveItem(item, index))
     : merged.leaves;
@@ -1202,29 +1194,30 @@ function getDepartmentSummary(deptIds) {
   return getDepartmentName(deptIds[0]);
 }
 
-function getMemberScheduleDeptIds(member) {
-  const validDeptIds = new Set(state.departments.map((department) => department.id));
-  const ids = Array.isArray(member?.scheduleDeptIds) ? member.scheduleDeptIds : [member?.deptId || ""];
-  const normalized = ids
-    .map((deptId) => String(deptId || ""))
-    .filter((deptId, index, list) => validDeptIds.has(deptId) && list.indexOf(deptId) === index);
-  if (member?.deptId && validDeptIds.has(member.deptId) && !normalized.includes(member.deptId)) {
-    normalized.unshift(member.deptId);
-  }
-  return normalized;
+function getMemberScheduleShiftIds(member) {
+  const validShiftIds = new Set(state.shifts.map((shift) => shift.id));
+  return (Array.isArray(member?.scheduleShiftIds) ? member.scheduleShiftIds : [])
+    .map((shiftId) => String(shiftId || ""))
+    .filter((shiftId, index, list) => validShiftIds.has(shiftId) && list.indexOf(shiftId) === index);
 }
 
 function getMemberHomeDeptId(member) {
-  return getMemberScheduleDeptIds(member)[0] || "";
+  return member?.deptId || "";
 }
 
-function getMemberScheduleDeptNames(member) {
-  const names = getMemberScheduleDeptIds(member).map((deptId) => getDepartmentName(deptId)).filter(Boolean);
+function getMemberScheduleShiftNames(member) {
+  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, shift.name]));
+  const names = getMemberScheduleShiftIds(member).map((shiftId) => shiftMap.get(shiftId)).filter(Boolean);
   return names.length ? names.join("、") : "未指定";
 }
 
-function memberCanScheduleDepartment(member, departmentId) {
-  return getMemberScheduleDeptIds(member).includes(departmentId);
+function getMemberShiftPriority(member, shiftId) {
+  const index = getMemberScheduleShiftIds(member).indexOf(shiftId);
+  return index === -1 ? Infinity : index;
+}
+
+function memberCanScheduleShift(member, shiftId) {
+  return Number.isFinite(getMemberShiftPriority(member, shiftId));
 }
 
 function shiftAllowsDepartment(shift, deptId) {
@@ -1715,7 +1708,6 @@ function markAutoLeave(scheduleMap, member, dateString, leave, preview, reason) 
 function getDailyShiftNeedOptions(scheduleMap, dateString) {
   const shifts = getVisibleAutoScheduleShifts(dateString);
   const activeMembers = getActiveMembersForDate(dateString);
-  const memberDeptIdsById = new Map(activeMembers.map((member) => [member.id, getMemberScheduleDeptIds(member)]));
   const availableMembers = [];
   activeMembers.forEach((member) => {
     const slot = getWorkScheduleSlot(scheduleMap, member.id, dateString);
@@ -1727,11 +1719,8 @@ function getDailyShiftNeedOptions(scheduleMap, dateString) {
     .map((shift) => {
       const assignedCount = countAssignedShiftMembers(scheduleMap, shift.id, dateString);
       const remaining = Math.max(0, getShiftDemandForDate(shift, dateString) - assignedCount);
-      const shiftDeptIds = getOperatingShiftDepartmentIds(shift, dateString);
       const candidates = remaining > 0
-        ? availableMembers.filter((member) => (
-          !shiftDeptIds.length || shiftDeptIds.some((deptId) => memberDeptIdsById.get(member.id)?.includes(deptId))
-        ))
+        ? availableMembers.filter((member) => memberCanScheduleShift(member, shift.id))
         : [];
       return { shift, assignedCount, remaining, candidates };
     })
@@ -1770,30 +1759,19 @@ function shiftHasVisibleDepartment(shift) {
 }
 
 function getDailyAssignmentCost(scheduleMap, option, member, dateString, dates) {
-  const shiftDeptIds = getOperatingShiftDepartmentIds(option.shift, dateString);
-  const homeDeptMatch = shiftDeptIds.length ? shiftDeptIds.includes(getMemberHomeDeptId(member)) : true;
   const weekIndex = getWeekBucketIndex(dateString, dates[0] || dateString);
-  const slot = getWorkScheduleSlot(scheduleMap, member.id, dateString);
   const restTarget = getMemberAutoRestTarget(member, scheduleMap, dates).restTarget;
   const restCount = countMemberLeaveByPredicate(scheduleMap, member.id, dates, isRestLeaveId);
   const hasRestThisWeek = memberHasRestInWeek(scheduleMap, member.id, dates, weekIndex, dates[0] || dateString);
-  const mustWork = !member.payByDay
-    && !isRegularRestLeaveId(slot?.leave)
-    && hasRestThisWeek;
-  const monthlyCanStillRest = !member.payByDay && restCount < restTarget && !hasRestThisWeek;
+  const shiftPriority = getMemberShiftPriority(member, option.shift.id);
+  const mustWork = !member.payByDay && (restCount >= restTarget || hasRestThisWeek);
   if (mustWork) {
-    return 0;
+    return shiftPriority;
   }
-  if (!member.payByDay && homeDeptMatch) {
-    return 100;
+  if (!member.payByDay) {
+    return 1000 + shiftPriority;
   }
-  if (!member.payByDay && !monthlyCanStillRest) {
-    return 200;
-  }
-  if (monthlyCanStillRest) {
-    return 300;
-  }
-  return 400;
+  return 2000 + shiftPriority;
 }
 
 function findMinimumCostFlowAssignments(scheduleMap, options, dateString, dates) {
@@ -1958,7 +1936,7 @@ function placeDailySurplusRestDays(scheduleMap, dateString, dates, rangeStartDat
       }
       const restDiff = countMemberLeaveByPredicate(scheduleMap, a.id, dates, isRestLeaveId)
         - countMemberLeaveByPredicate(scheduleMap, b.id, dates, isRestLeaveId);
-      return restDiff || getMemberHomeDeptId(a).localeCompare(getMemberHomeDeptId(b)) || a.name.localeCompare(b.name);
+      return restDiff || a.name.localeCompare(b.name);
     });
   candidates.forEach((member) => {
     markAutoLeave(scheduleMap, member, dateString, restLeave, preview, "多餘人力預排休息日");
@@ -2877,8 +2855,7 @@ function memberMatchesSelectedShift(member) {
   if (!shift) {
     return false;
   }
-  const shiftDeptIds = getShiftDepartmentIds(shift);
-  return !shiftDeptIds.length || shiftDeptIds.some((deptId) => memberCanScheduleDepartment(member, deptId));
+  return memberCanScheduleShift(member, shift.id);
 }
 
 function memberLabel(member) {
@@ -4293,7 +4270,13 @@ async function deleteListItem(category, id) {
   if (!confirmed) {
     return;
   }
-  if (category === "shift") state.shifts = state.shifts.filter((item) => item.id !== id);
+  if (category === "shift") {
+    state.shifts = state.shifts.filter((item) => item.id !== id);
+    state.members = state.members.map((member) => ({
+      ...member,
+      scheduleShiftIds: getMemberScheduleShiftIds(member).filter((shiftId) => shiftId !== id)
+    }));
+  }
   if (category === "leave") state.leaves = state.leaves.filter((item) => item.id !== id);
   if (category === "overtime") state.overtime = state.overtime.filter((item) => item.id !== id);
   removeAssignmentsByItem(category, id);
@@ -4307,7 +4290,6 @@ function openDepartmentSettings() {
   const activeMembers = state.members.filter(isMemberCurrentlyActive);
   const departmentRows = state.departments.map((department) => {
     const homeMembers = activeMembers.filter((member) => getMemberHomeDeptId(member) === department.id);
-    const schedulableMembers = activeMembers.filter((member) => getMemberHomeDeptId(member) !== department.id && memberCanScheduleDepartment(member, department.id));
     return `
       <div class="department-settings-row sortable-settings-item" draggable="true" data-sort-category="department" data-sort-item="${department.id}" data-drop-department="${department.id}">
         <div class="department-settings-title">${escapeHtml(department.name)}</div>
@@ -4321,12 +4303,6 @@ function openDepartmentSettings() {
             : '<div class="dept-empty-pill">拖曳人員到這裡</div>'
           }
         </div>
-        <div class="member-inline-list">
-          ${schedulableMembers.length
-            ? schedulableMembers.map((member) => `<div class="dept-empty-pill">${escapeHtml(member.name)}</div>`).join("")
-            : '<div class="dept-empty-pill">-</div>'
-          }
-        </div>
         <div class="member-table-actions">
           ${renderActionIconButton("edit", `data-edit-department="${department.id}"`)}
           ${renderActionIconButton("delete", `data-delete-department="${department.id}"`)}
@@ -4337,7 +4313,7 @@ function openDepartmentSettings() {
   const memberRows = activeMembers.map((member) => `
     <div class="department-settings-row department-settings-row-member">
       <div class="department-settings-title">${escapeHtml(member.name)}</div>
-      <div>${escapeHtml(getMemberScheduleDeptNames(member))}</div>
+      <div>${escapeHtml(getDepartmentName(getMemberHomeDeptId(member)))}</div>
       <div class="member-table-actions">
         ${renderActionIconButton("edit", `data-edit-member="${member.id}"`)}
         ${renderActionIconButton("delete", `data-delete-member="${member.id}"`)}
@@ -4353,7 +4329,6 @@ function openDepartmentSettings() {
             <div class="department-settings-row department-settings-head">
               <div>單位</div>
               <div>所屬人員</div>
-              <div>可排人員</div>
               <div>操作</div>
             </div>
             ${departmentRows}
@@ -4367,7 +4342,7 @@ function openDepartmentSettings() {
             <div class="department-settings-table department-settings-table-member">
             <div class="department-settings-row department-settings-head">
               <div>人員</div>
-              <div>排班單位</div>
+              <div>所屬單位</div>
               <div>操作</div>
             </div>
             ${memberRows}
@@ -4498,7 +4473,6 @@ async function moveMemberToDepartment(memberId, departmentId, targetMemberId = "
     return;
   }
   const returnTo = captureSettingsReturnContext({ category: "department-settings", view: departmentSettingsView });
-  const previousHomeDeptId = getMemberHomeDeptId(member);
   const remaining = state.members.filter((item) => item.id !== memberId);
   const targetDeptId = targetMemberId
     ? (getMemberHomeDeptId(remaining.find((item) => item.id === targetMemberId)) || departmentId)
@@ -4513,15 +4487,7 @@ async function moveMemberToDepartment(memberId, departmentId, targetMemberId = "
   if (!grouped.has(targetDeptId)) {
     return;
   }
-  let keptDeptIds = getMemberScheduleDeptIds(member).filter((deptId) => deptId !== targetDeptId);
-  if (previousHomeDeptId && previousHomeDeptId !== targetDeptId && keptDeptIds.includes(previousHomeDeptId)) {
-    const removeOldDept = await confirmAction("是否將舊單位從這位人員的排班單位移除？");
-    if (removeOldDept) {
-      keptDeptIds = keptDeptIds.filter((deptId) => deptId !== previousHomeDeptId);
-    }
-  }
-  const movedDeptIds = [targetDeptId, ...keptDeptIds];
-  const movedMember = { ...member, deptId: targetDeptId, scheduleDeptIds: movedDeptIds };
+  const movedMember = { ...member, deptId: targetDeptId };
   const targetList = grouped.get(targetDeptId);
   const targetIndex = targetMemberId ? targetList.findIndex((item) => item.id === targetMemberId) : -1;
   if (targetIndex >= 0) {
@@ -4620,8 +4586,8 @@ function previewSortableSettingsItem(targetElement, clientY) {
   return moveDragPreviewElement(draggedElement, targetElement, clientY);
 }
 
-function previewScheduleDepartmentOption(targetElement, clientY) {
-  const draggedElement = document.querySelector(`[data-schedule-dept-option="${cssEscapeValue(dragScheduleDeptId)}"]`);
+function previewScheduleShiftOption(targetElement, clientY) {
+  const draggedElement = document.querySelector(`[data-schedule-shift-option="${cssEscapeValue(dragScheduleShiftId)}"]`);
   if (!(draggedElement instanceof HTMLElement)) {
     return false;
   }
@@ -4629,8 +4595,8 @@ function previewScheduleDepartmentOption(targetElement, clientY) {
   if (!moveDragPreviewElement(draggedElement, targetElement, clientY)) {
     return false;
   }
-  syncScheduleDeptSelectorRanks();
-  syncScheduleDeptSummary();
+  syncScheduleShiftSelectorRanks();
+  syncScheduleShiftSummary();
   return true;
 }
 
@@ -4746,24 +4712,21 @@ function buildSelectOptions(items, valueField, labelBuilder, selectedValue, incl
   return entries.join("");
 }
 
-function renderScheduleDepartmentSelector(member) {
-  const today = new Date();
-  const todayString = toDateString(today.getFullYear(), today.getMonth(), today.getDate());
-  const availableDepartments = state.departments.filter((department) => !department.endDate || department.endDate >= todayString);
-  const selectedIds = getMemberScheduleDeptIds(member).filter((deptId) => availableDepartments.some((department) => department.id === deptId));
-  const orderedDepartments = [
-    ...selectedIds.map((deptId) => availableDepartments.find((department) => department.id === deptId)).filter(Boolean),
-    ...availableDepartments.filter((department) => !selectedIds.includes(department.id))
+function renderScheduleShiftSelector(member) {
+  const selectedIds = getMemberScheduleShiftIds(member);
+  const orderedShifts = [
+    ...selectedIds.map((shiftId) => state.shifts.find((shift) => shift.id === shiftId)).filter(Boolean),
+    ...state.shifts.filter((shift) => !selectedIds.includes(shift.id))
   ];
   return `
-    <div class="schedule-dept-list" id="memberScheduleDeptList" hidden>
-      ${orderedDepartments.map((department, index) => {
-        const checked = selectedIds.includes(department.id);
+    <div class="schedule-dept-list" id="memberScheduleShiftList" hidden>
+      ${orderedShifts.map((shift, index) => {
+        const checked = selectedIds.includes(shift.id);
         return `
-          <label class="schedule-dept-option" draggable="true" data-schedule-dept-option="${escapeHtml(department.id)}">
-            <input type="checkbox" value="${escapeHtml(department.id)}" ${checked ? "checked" : ""}>
+          <label class="schedule-dept-option" draggable="true" data-schedule-shift-option="${escapeHtml(shift.id)}">
+            <input type="checkbox" value="${escapeHtml(shift.id)}" ${checked ? "checked" : ""}>
             <span class="schedule-dept-rank">${checked ? index + 1 : "-"}</span>
-            <span>${escapeHtml(department.name)}</span>
+            <span>${escapeHtml(shift.name)}</span>
           </label>
         `;
       }).join("")}
@@ -4771,27 +4734,28 @@ function renderScheduleDepartmentSelector(member) {
   `;
 }
 
-function readMemberScheduleDeptIds() {
-  return Array.from(document.querySelectorAll("#memberScheduleDeptList [data-schedule-dept-option]"))
+function readMemberScheduleShiftIds() {
+  return Array.from(document.querySelectorAll("#memberScheduleShiftList [data-schedule-shift-option]"))
     .filter((row) => row.querySelector("input")?.checked)
-    .map((row) => row.dataset.scheduleDeptOption || "")
+    .map((row) => row.dataset.scheduleShiftOption || "")
     .filter(Boolean);
 }
 
-function syncScheduleDeptSummary() {
-  const summary = document.querySelector(".schedule-dept-summary");
+function syncScheduleShiftSummary() {
+  const summary = document.querySelector(".schedule-shift-summary");
   if (!summary) {
     return;
   }
-  const names = readMemberScheduleDeptIds()
-    .map((deptId) => getDepartmentName(deptId))
+  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, shift.name]));
+  const names = readMemberScheduleShiftIds()
+    .map((shiftId) => shiftMap.get(shiftId))
     .filter(Boolean);
   summary.textContent = names.length ? names.join("、") : "未指定";
 }
 
-function syncScheduleDeptSelectorRanks() {
+function syncScheduleShiftSelectorRanks() {
   let rank = 1;
-  document.querySelectorAll("#memberScheduleDeptList [data-schedule-dept-option]").forEach((row) => {
+  document.querySelectorAll("#memberScheduleShiftList [data-schedule-shift-option]").forEach((row) => {
     const rankElement = row.querySelector(".schedule-dept-rank");
     const checked = Boolean(row.querySelector("input")?.checked);
     if (rankElement) {
@@ -4812,7 +4776,7 @@ function getFilteredMemberSettingsMembers() {
       ? true
       : memberSettingsFilters.department === "__none__"
         ? !getMemberHomeDeptId(member)
-        : memberCanScheduleDepartment(member, memberSettingsFilters.department);
+        : getMemberHomeDeptId(member) === memberSettingsFilters.department;
     const matchesRole = memberSettingsFilters.role === "all"
       ? true
       : member.role === memberSettingsFilters.role;
@@ -4843,7 +4807,7 @@ function renderMemberSettingsList() {
             <div class="member-table-row member-table-head">
               <div>工號</div>
               <div>姓名</div>
-              <div>排班單位</div>
+              <div>排班班別</div>
               <div>權限</div>
               <div>到職日</div>
               <div>離職日</div>
@@ -4855,7 +4819,7 @@ function renderMemberSettingsList() {
               <div class="member-table-row">
                 <div class="member-table-code">${escapeHtml(member.code)}</div>
                 <div class="member-table-name">${escapeHtml(member.name)}</div>
-                <div>${escapeHtml(getMemberScheduleDeptNames(member))}</div>
+                <div>${escapeHtml(getMemberScheduleShiftNames(member))}</div>
                 <div>${member.role === "manager" ? "主管" : "員工"}</div>
                 <div>${escapeHtml(member.hireDate || "-")}</div>
                 <div>${escapeHtml(member.leaveDate || "-")}</div>
@@ -4959,7 +4923,7 @@ function openMemberForm(mode, memberId = "") {
       leaveDate: "",
       payByDay: false,
       fixedRestWeekday: 0,
-      scheduleDeptIds: state.departments[0]?.id ? [state.departments[0].id] : [],
+      scheduleShiftIds: [],
       role: "employee"
     };
   if (!member) {
@@ -4989,7 +4953,7 @@ function openMemberForm(mode, memberId = "") {
         <div class="form-row">
           <label for="memberDept">所屬單位</label>
           <select id="memberDept">
-            ${buildSelectOptions(state.departments, "id", (department) => department.name, member.deptId || member.scheduleDeptIds?.[0] || "")}
+            ${buildSelectOptions(state.departments, "id", (department) => department.name, member.deptId || "")}
           </select>
         </div>
         <div class="form-row">
@@ -5021,12 +4985,12 @@ function openMemberForm(mode, memberId = "") {
           </div>
         ` : ""}
         <div class="form-row form-row-wide">
-          <label>排班單位</label>
+          <label>排班班別</label>
           <div class="schedule-dept-summary-row">
-            <div class="readonly-pill schedule-dept-summary">${escapeHtml(getMemberScheduleDeptNames(member))}</div>
-            <button class="ghost-btn compact-btn" type="button" data-toggle-schedule-depts="true">設定</button>
+            <div class="readonly-pill schedule-shift-summary">${escapeHtml(getMemberScheduleShiftNames(member))}</div>
+            <button class="ghost-btn compact-btn" type="button" data-toggle-schedule-shifts="true">設定</button>
           </div>
-          ${renderScheduleDepartmentSelector(member)}
+          ${renderScheduleShiftSelector(member)}
         </div>
       </div>
     `,
@@ -5047,18 +5011,15 @@ async function saveMember(mode) {
     ? state.members.find((member) => member.id === modalContext.targetId) || null
     : null;
   const selectedHomeDeptId = document.getElementById("memberDept")?.value || "";
-  const scheduleDeptIds = readMemberScheduleDeptIds();
-  const homeDeptId = selectedHomeDeptId || previousMember?.deptId || scheduleDeptIds[0] || "";
-  if (homeDeptId && !scheduleDeptIds.includes(homeDeptId)) {
-    scheduleDeptIds.unshift(homeDeptId);
-  }
+  const scheduleShiftIds = readMemberScheduleShiftIds();
+  const homeDeptId = selectedHomeDeptId || previousMember?.deptId || "";
   const monthlyRestDays = Math.max(0, Number(previousMember?.monthlyRestDays) || 0);
   const payload = {
     id: mode === "edit" ? modalContext.targetId : uid("m"),
     code: document.getElementById("memberCode")?.value.trim(),
     name: document.getElementById("memberName")?.value.trim(),
     deptId: homeDeptId,
-    scheduleDeptIds,
+    scheduleShiftIds,
     positionId: mode === "edit" ? (state.members.find((member) => member.id === modalContext.targetId)?.positionId || "") : "",
     proxyMemberId: "",
     hireDate,
@@ -5121,6 +5082,7 @@ async function importMembersFromSettings() {
       return;
     }
     const departmentMap = new Map(state.departments.map((department) => [department.name.trim(), department.id]));
+    const shiftMap = new Map(state.shifts.map((shift) => [shift.name.trim(), shift.id]));
     let imported = 0;
     let updated = 0;
     let skipped = 0;
@@ -5132,18 +5094,15 @@ async function importMembersFromSettings() {
       const name = String(row.name || "").trim();
       const departmentName = String(row.departmentName || "").trim();
       const deptId = departmentMap.get(departmentName);
-      const scheduleDepartmentNames = String(row.scheduleDepartmentNames || departmentName || "")
+      const scheduleShiftNames = String(row.scheduleShiftNames || "")
         .split(/[、,，]/)
         .map((value) => value.trim())
         .filter(Boolean);
-      const hasUnknownScheduleDepartment = scheduleDepartmentNames.some((value) => !departmentMap.has(value));
-      const scheduleDeptIds = scheduleDepartmentNames
-        .map((value) => departmentMap.get(value))
-        .filter((deptIdValue, index, list) => deptIdValue && list.indexOf(deptIdValue) === index);
-      if (deptId && !scheduleDeptIds.includes(deptId)) {
-        scheduleDeptIds.unshift(deptId);
-      }
-      if (!code || !name || !deptId || hasUnknownScheduleDepartment) {
+      const hasUnknownScheduleShift = scheduleShiftNames.some((value) => !shiftMap.has(value));
+      const scheduleShiftIds = scheduleShiftNames
+        .map((value) => shiftMap.get(value))
+        .filter((shiftIdValue, index, list) => shiftIdValue && list.indexOf(shiftIdValue) === index);
+      if (!code || !name || !deptId || hasUnknownScheduleShift) {
         skipped += 1;
         continue;
       }
@@ -5156,8 +5115,8 @@ async function importMembersFromSettings() {
         id: existing?.id || uid("m"),
         code,
         name,
-        deptId: scheduleDeptIds[0] || deptId,
-        scheduleDeptIds,
+        deptId,
+        scheduleShiftIds,
         positionId: existing?.positionId || "",
         proxyMemberId: existing?.proxyMemberId || "",
         hireDate: row.hireDate || "",
@@ -5802,7 +5761,7 @@ function bindEvents() {
       target.dataset.saveOvertimeAssignment ||
       target.dataset.openAddDepartment ||
       target.dataset.setDepartmentView ||
-      target.dataset.toggleScheduleDepts ||
+      target.dataset.toggleScheduleShifts ||
       target.dataset.editDepartment ||
       target.dataset.saveDepartment ||
       target.dataset.deleteDepartment ||
@@ -5911,8 +5870,8 @@ function bindEvents() {
       openDepartmentSettings();
       return;
     }
-    if (target.dataset.toggleScheduleDepts) {
-      const list = document.getElementById("memberScheduleDeptList");
+    if (target.dataset.toggleScheduleShifts) {
+      const list = document.getElementById("memberScheduleShiftList");
       if (list) {
         list.hidden = !list.hidden;
       }
@@ -6045,9 +6004,9 @@ function bindEvents() {
       syncOvertimeFormUi();
       return;
     }
-    if (target.closest("#memberScheduleDeptList")) {
-      syncScheduleDeptSelectorRanks();
-      syncScheduleDeptSummary();
+    if (target.closest("#memberScheduleShiftList")) {
+      syncScheduleShiftSelectorRanks();
+      syncScheduleShiftSummary();
       return;
     }
     const targets = toggleMap[target.id];
@@ -6103,11 +6062,11 @@ function bindEvents() {
       event.dataTransfer.setData("text/plain", dragScheduleTableMemberId);
       return;
     }
-    const scheduleDeptOption = event.target.closest("[data-schedule-dept-option]");
-    if (scheduleDeptOption) {
-      dragScheduleDeptId = scheduleDeptOption.dataset.scheduleDeptOption || "";
+    const scheduleShiftOption = event.target.closest("[data-schedule-shift-option]");
+    if (scheduleShiftOption) {
+      dragScheduleShiftId = scheduleShiftOption.dataset.scheduleShiftOption || "";
       event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData("text/plain", dragScheduleDeptId);
+      event.dataTransfer.setData("text/plain", dragScheduleShiftId);
       return;
     }
     const card = event.target.closest("[data-member-card]");
@@ -6146,11 +6105,11 @@ function bindEvents() {
         return;
       }
     }
-    const scheduleDeptOption = event.target.closest("[data-schedule-dept-option]");
-    if (scheduleDeptOption && dragScheduleDeptId) {
+    const scheduleShiftOption = event.target.closest("[data-schedule-shift-option]");
+    if (scheduleShiftOption && dragScheduleShiftId) {
       event.preventDefault();
       event.dataTransfer.dropEffect = "move";
-      previewScheduleDepartmentOption(scheduleDeptOption, event.clientY);
+      previewScheduleShiftOption(scheduleShiftOption, event.clientY);
       return;
     }
     const memberTarget = event.target.closest("[data-drop-member]");
@@ -6193,13 +6152,13 @@ function bindEvents() {
       dragScheduleTableMemberId = "";
       return;
     }
-    const scheduleDeptOption = event.target.closest("[data-schedule-dept-option]");
-    if (scheduleDeptOption && dragScheduleDeptId) {
+    const scheduleShiftOption = event.target.closest("[data-schedule-shift-option]");
+    if (scheduleShiftOption && dragScheduleShiftId) {
       event.preventDefault();
-      syncScheduleDeptSelectorRanks();
-      syncScheduleDeptSummary();
+      syncScheduleShiftSelectorRanks();
+      syncScheduleShiftSummary();
       clearDragPreviewState();
-      dragScheduleDeptId = "";
+      dragScheduleShiftId = "";
       return;
     }
     const memberTarget = event.target.closest("[data-drop-member]");
@@ -6240,7 +6199,7 @@ function bindEvents() {
   document.body.addEventListener("dragend", () => {
     clearDragPreviewState();
     dragMemberId = "";
-    dragScheduleDeptId = "";
+    dragScheduleShiftId = "";
     dragSortItemId = "";
     dragSortCategory = "";
     dragScheduleTableDeptId = "";

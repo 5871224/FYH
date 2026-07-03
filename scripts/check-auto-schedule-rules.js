@@ -9,8 +9,28 @@ function holidayTarget(activeDays) {
   return Math.round((activeDays / 56) * 16);
 }
 
-function memberCanWorkShift(memberDeptIds, shiftDeptIds) {
-  return !shiftDeptIds.length || shiftDeptIds.some((deptId) => memberDeptIds.includes(deptId));
+function memberCanScheduleShift(scheduleShiftIds, shiftId) {
+  return scheduleShiftIds.includes(shiftId);
+}
+
+function memberShiftPriority(scheduleShiftIds, shiftId) {
+  const index = scheduleShiftIds.indexOf(shiftId);
+  return index === -1 ? Infinity : index;
+}
+
+function assignmentCost({ payByDay, restCount, restTarget, hasRestThisWeek, scheduleShiftIds }, shiftId) {
+  const shiftPriority = memberShiftPriority(scheduleShiftIds, shiftId);
+  if (!Number.isFinite(shiftPriority)) {
+    return Infinity;
+  }
+  const mustWork = !payByDay && (restCount >= restTarget || hasRestThisWeek);
+  if (mustWork) {
+    return shiftPriority;
+  }
+  if (!payByDay) {
+    return 1000 + shiftPriority;
+  }
+  return 2000 + shiftPriority;
 }
 
 function findMinimumCostFlowAssignments(options) {
@@ -122,9 +142,12 @@ assert.equal(holidayTarget(56), 16);
 assert.equal(holidayTarget(28), 8);
 assert.equal(Math.max(0, holidayTarget(56) - 8), 8);
 assert.equal(Math.max(0, holidayTarget(28) - 4), 4);
-assert.equal(memberCanWorkShift(["d2"], ["d1", "d2"]), true);
-assert.equal(memberCanWorkShift(["d3"], ["d1", "d2"]), false);
-assert.equal(memberCanWorkShift(["d3"], []), true);
+assert.equal(memberCanScheduleShift(["s2"], "s2"), true);
+assert.equal(memberCanScheduleShift(["s3"], "s2"), false);
+assert.equal(assignmentCost({ payByDay: false, restCount: 8, restTarget: 8, hasRestThisWeek: false, scheduleShiftIds: ["late", "early"] }, "late"), 0);
+assert.equal(assignmentCost({ payByDay: false, restCount: 3, restTarget: 8, hasRestThisWeek: false, scheduleShiftIds: ["late", "early"] }, "early"), 1001);
+assert.equal(assignmentCost({ payByDay: true, restCount: 0, restTarget: 0, hasRestThisWeek: false, scheduleShiftIds: ["late", "early"] }, "late"), 2000);
+assert.equal(assignmentCost({ payByDay: true, restCount: 0, restTarget: 0, hasRestThisWeek: false, scheduleShiftIds: ["late"] }, "early"), Infinity);
 assert.deepEqual(chooseDailyAssignments([
   { shift: "critical", remaining: 1, candidates: [{ id: "only" }] },
   { shift: "open", remaining: 1, candidates: [{ id: "only" }, { id: "flex" }] }
@@ -178,5 +201,8 @@ assert(renderer.includes("function buildAutoSchedulePreview(dates = getVisibleDa
 assert(renderer.includes('title: "自動排班期間"'), "auto schedule should ask for a period before previewing");
 assert(renderer.includes("const dates = enumerateDateRange(startDate, endDate);"), "auto schedule period modal should build a date range from user input");
 assert(renderer.includes("autoSchedulePreview = buildAutoSchedulePreview(dates);"), "auto schedule preview should use the confirmed period");
+assert(renderer.includes("memberCanScheduleShift(member, shift.id)"), "auto schedule candidates should use member shift eligibility");
+assert(renderer.includes("const mustWork = !member.payByDay && (restCount >= restTarget || hasRestThisWeek);"), "auto schedule should prioritize monthly members who must work");
+assert(!renderer.includes("homeDeptMatch"), "auto schedule should not prioritize a member's own department");
 
 console.log("auto schedule rules check ok");

@@ -2184,7 +2184,7 @@ thead th.today,
 }
 
 .department-settings-table-department .department-settings-row {
-  grid-template-columns: minmax(76px, 0.55fr) minmax(220px, 2.1fr) minmax(220px, 2.1fr) minmax(74px, 0.45fr);
+  grid-template-columns: minmax(76px, 0.55fr) minmax(220px, 2.1fr) minmax(74px, 0.45fr);
 }
 
 .department-settings-table-member .department-settings-row {
@@ -2480,7 +2480,7 @@ thead th.today,
   }
 
   .department-settings-table-department .department-settings-row {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .department-settings-table-member .department-settings-row {

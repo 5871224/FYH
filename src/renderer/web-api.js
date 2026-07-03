@@ -568,19 +568,24 @@
     return (rows || [])
       .filter((row) => row.scheduler_item_id)
       .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.name || "").localeCompare(String(b.name || "")))
-      .map((row) => ({
-        id: row.scheduler_item_id,
-        name: row.name || "",
-        color: row.color || "#378ADD",
-        textColor: row.text_color || "",
-        autoTextColor: row.auto_text_color !== false,
-        startTime: (row.start_time || "").slice(0, 5),
-        endTime: (row.end_time || "").slice(0, 5),
-        hiddenFromToolbar: Boolean(row.hidden_from_toolbar),
-        requiredStaffCount: Math.max(0, Number(row.required_staff_count) || 0),
-        applicableDeptIds: [departmentIdByUuid.get(row.applicable_department_id)].filter(Boolean),
-        positionRequirements: []
-      }));
+      .map((row) => {
+        const applicableDeptIds = Array.isArray(row.applicable_department_ids)
+          ? row.applicable_department_ids
+          : [departmentIdByUuid.get(row.applicable_department_id)];
+        return {
+          id: row.scheduler_item_id,
+          name: row.name || "",
+          color: row.color || "#378ADD",
+          textColor: row.text_color || "",
+          autoTextColor: row.auto_text_color !== false,
+          startTime: (row.start_time || "").slice(0, 5),
+          endTime: (row.end_time || "").slice(0, 5),
+          hiddenFromToolbar: Boolean(row.hidden_from_toolbar),
+          requiredStaffCount: Math.max(0, Number(row.required_staff_count) || 0),
+          applicableDeptIds: applicableDeptIds.filter((value, index, list) => value && list.indexOf(value) === index),
+          positionRequirements: []
+        };
+      });
   }
 
   function mapLeaveRows(rows = []) {
@@ -640,7 +645,6 @@
         settingsRows,
         departmentRows,
         profileRows,
-        memberDepartmentRows,
         shiftRows,
         leaveRows,
         overtimeRows,
@@ -650,7 +654,6 @@
         restSelect("scheduler_settings", { select: "*", filters: { id: `eq.${documentId}` }, limit: "1", auth }),
         restSelect("set_departments", { select: "*", order: "sort_order.asc,name.asc", auth }),
         restSelect("set_employee", { select: "*", filters: { is_active: "eq.true" }, order: "employee_code.asc", auth }),
-        restSelect("set_employee_departments", { select: "*", order: "sort_order.asc", auth }),
         restSelect("set_shift", { select: "*", order: "sort_order.asc,name.asc", auth }),
         restSelect("set_leave", { select: "*", order: "sort_order.asc,code.asc", auth }),
         restSelect("set_overtime", { select: "*", order: "sort_order.asc,name.asc", auth }),
@@ -663,42 +666,17 @@
       const shiftIdByUuid = new Map((shiftRows || []).map((row) => [row.id, getRowSchedulerId(row, "shift")]));
       const leaveIdByUuid = new Map((leaveRows || []).map((row) => [row.id, getRowSchedulerId(row, "leave")]));
       const overtimeIdByUuid = new Map((overtimeRows || []).map((row) => [row.id, getRowSchedulerId(row, "overtime")]));
-      const memberDepartmentMap = new Map();
-      (memberDepartmentRows || []).forEach((row) => {
-        const departmentId = departmentIdByUuid.get(row.department_id);
-        if (!row.member_id || !departmentId) {
-          return;
-        }
-        if (!memberDepartmentMap.has(row.member_id)) {
-          memberDepartmentMap.set(row.member_id, []);
-        }
-        memberDepartmentMap.get(row.member_id).push({
-          departmentId,
-          sortOrder: Number(row.sort_order || 0)
-        });
-      });
-      memberDepartmentMap.forEach((items, memberId) => {
-        memberDepartmentMap.set(memberId, items
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-          .map((item) => item.departmentId)
-          .filter((value, index, list) => value && list.indexOf(value) === index));
-      });
 
       const members = (profileRows || []).map((row) => {
-        const relationDeptIds = memberDepartmentMap.get(row.id) || [];
         const fallbackDeptId = departmentIdByUuid.get(row.home_department_id) || "";
-        const storedDeptIds = Array.isArray(row.schedule_department_ids) ? row.schedule_department_ids : [];
-        const scheduleDeptIds = (relationDeptIds.length ? relationDeptIds : storedDeptIds)
+        const scheduleShiftIds = (Array.isArray(row.schedule_shift_ids) ? row.schedule_shift_ids : [])
           .filter((value, index, list) => value && list.indexOf(value) === index);
-        if (fallbackDeptId && !scheduleDeptIds.includes(fallbackDeptId)) {
-          scheduleDeptIds.unshift(fallbackDeptId);
-        }
         return {
           id: row.id,
           code: row.employee_code || "",
           name: row.full_name || "",
-          deptId: fallbackDeptId || scheduleDeptIds[0] || "",
-          scheduleDeptIds,
+          deptId: fallbackDeptId,
+          scheduleShiftIds,
           positionId: "",
           proxyMemberId: "",
           hireDate: row.hire_date || "",
@@ -841,7 +819,7 @@
         payByDay: Boolean(member?.payByDay),
         fixedRestWeekday: clampInteger(member?.fixedRestWeekday, 0, 6, 0),
         homeDepartmentId: member?.deptId || "",
-        scheduleDepartmentIds: Array.isArray(member?.scheduleDeptIds) ? member.scheduleDeptIds : [],
+        scheduleShiftIds: Array.isArray(member?.scheduleShiftIds) ? member.scheduleShiftIds : [],
         monthlyRestDays: Math.max(0, Number(member?.monthlyRestDays) || 0)
       },
       previousEmployeeCode: String(previousEmployeeCode || member?.code || "").trim(),
@@ -988,7 +966,8 @@
       await restInsert("set_shift", shifts.map((shift, index) => ({
         scheduler_item_id: shift.id,
         name: shift.name || shift.id,
-        applicable_department_id: departmentMap.get(shift.applicableDeptIds?.[0])?.id || null,
+        applicable_department_ids: (Array.isArray(shift.applicableDeptIds) ? shift.applicableDeptIds : [])
+          .filter((departmentId, index, list) => departmentMap.has(departmentId) && list.indexOf(departmentId) === index),
         color: shift.color || null,
         text_color: shift.textColor || null,
         auto_text_color: shift.autoTextColor !== false,
@@ -1005,6 +984,7 @@
     }
     await deleteSchedulerRowsNotIn("set_shift", shifts.map((shift) => shift.id));
     const shiftMap = await fetchRowsBySchedulerId("set_shift");
+    const shiftIds = new Set(shifts.map((shift) => shift.id));
 
     if (holidays.length) {
       await restInsert("holidays", holidays
@@ -1039,10 +1019,9 @@
       if (!profile?.id) {
         continue;
       }
-      const scheduleDeptIds = Array.isArray(member.scheduleDeptIds) && member.scheduleDeptIds.length
-        ? member.scheduleDeptIds
-        : [member.deptId].filter(Boolean);
-      const homeDeptId = member.deptId || scheduleDeptIds[0] || "";
+      const scheduleShiftIds = (Array.isArray(member.scheduleShiftIds) ? member.scheduleShiftIds : [])
+        .filter((shiftId, index, list) => shiftIds.has(shiftId) && list.indexOf(shiftId) === index);
+      const homeDeptId = member.deptId || "";
       await restUpdate("set_employee", {
         id: `eq.${profile.id}`
       }, {
@@ -1055,37 +1034,11 @@
         fixed_rest_weekday: clampInteger(member.fixedRestWeekday, 0, 6, 0),
         monthly_rest_days: clampInteger(member.monthlyRestDays, 0, 31, 0),
         home_department_id: departmentMap.get(homeDeptId)?.id || null,
-        schedule_department_ids: scheduleDeptIds,
+        schedule_shift_ids: scheduleShiftIds,
         is_active: true
       }, {
         auth: true,
         prefer: "return=minimal"
-      });
-    }
-
-    await restDelete("set_employee_departments", { id: "not.is.null" }, { auth: true });
-    const memberDepartmentRows = [];
-    (state.members || []).forEach((member) => {
-      const profile = profileMap.get(member.code);
-      const scheduleDeptIds = Array.isArray(member.scheduleDeptIds) && member.scheduleDeptIds.length
-        ? member.scheduleDeptIds
-        : [member.deptId].filter(Boolean);
-      scheduleDeptIds.forEach((departmentId, index) => {
-        const department = departmentMap.get(departmentId);
-        if (profile?.id && department?.id) {
-          memberDepartmentRows.push({
-            member_id: profile.id,
-            department_id: department.id,
-            sort_order: index
-          });
-        }
-      });
-    });
-    if (memberDepartmentRows.length) {
-      await restInsert("set_employee_departments", memberDepartmentRows, {
-        auth: true,
-        onConflict: "member_id,department_id",
-        prefer: "resolution=merge-duplicates,return=minimal"
       });
     }
 
