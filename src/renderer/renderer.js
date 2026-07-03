@@ -166,6 +166,7 @@ let toolbarCollapseInitialized = false;
 let measureTextContext = null;
 let scheduleRangeSelection = null;
 let scheduleDragSelecting = false;
+let scheduleHeaderDragSelection = null;
 let scheduleSuppressNextCellClick = false;
 let scheduleClipboard = null;
 let scheduleUndoStack = [];
@@ -247,7 +248,7 @@ function renderStickyTableHeader(dates) {
     const weekStripeClass = getWeekStripeClassForDate(dateString);
     const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, index, dates.length);
     cells.push(
-      `<div class="table-sticky-cell table-sticky-cell-day ${cls} ${weekStripeClass} ${weekBoundaryClass} ${dateString === today ? "today" : ""}">${date.getMonth() + 1}/${day}<span>${WEEKDAY_LABELS[weekday]}</span></div>`
+      `<div class="table-sticky-cell table-sticky-cell-day ${cls} ${weekStripeClass} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-schedule-column="${index}" data-date="${dateString}">${date.getMonth() + 1}/${day}<span>${WEEKDAY_LABELS[weekday]}</span></div>`
     );
   });
   container.innerHTML = cells.join("");
@@ -323,8 +324,13 @@ function syncStickyHeaderLayout() {
   if (prevWeekButton) {
     const frozenWidth = deptWidth + personWidth + (state.tableView === "member" && state.tableStatsVisible ? statsWidth : 0);
     prevWeekButton.style.left = `${Math.round(frozenWidth)}px`;
+    document.documentElement.style.setProperty("--schedule-frozen-width", `${Math.round(frozenWidth)}px`);
   }
   dayCells.forEach((cell) => setWidth(cell, dayWidth));
+  const topScrollbarContent = document.getElementById("tableTopScrollbarContent");
+  if (topScrollbarContent) {
+    topScrollbarContent.style.width = `${Math.round(dayCells.length * dayWidth)}px`;
+  }
 }
 
 function syncStickyHeaderScroll() {
@@ -334,6 +340,20 @@ function syncStickyHeaderScroll() {
     return;
   }
   container.style.marginLeft = `${-tableWrap.scrollLeft}px`;
+  const topScrollbar = document.getElementById("tableTopScrollbar");
+  if (topScrollbar && topScrollbar.scrollLeft !== tableWrap.scrollLeft) {
+    topScrollbar.scrollLeft = tableWrap.scrollLeft;
+  }
+}
+
+function scrollScheduleHorizontallyFromTopScrollbar(event) {
+  const tableWrap = document.getElementById("tableWrap");
+  const topScrollbar = event.target;
+  if (!tableWrap || !(topScrollbar instanceof HTMLElement)) {
+    return;
+  }
+  tableWrap.scrollLeft = topScrollbar.scrollLeft;
+  syncStickyHeaderScroll();
 }
 
 function scrollScheduleHorizontallyFromHeader(event) {
@@ -1344,6 +1364,21 @@ function getScheduleCellPoint(cell) {
   };
 }
 
+function getSchedulePointByRowCol(row, col) {
+  const cell = document.querySelector(`#mainTable .cell[data-row-index="${row}"][data-col-index="${col}"]`);
+  return cell instanceof HTMLElement ? getScheduleCellPoint(cell) : null;
+}
+
+function getScheduleGridMaxRow() {
+  return Array.from(document.querySelectorAll("#mainTable .cell[data-row-index]"))
+    .reduce((max, cell) => Math.max(max, Number(cell.dataset.rowIndex)), -1);
+}
+
+function getScheduleGridMaxCol() {
+  return Array.from(document.querySelectorAll("#mainTable .cell[data-col-index]"))
+    .reduce((max, cell) => Math.max(max, Number(cell.dataset.colIndex)), -1);
+}
+
 function isValidScheduleCellPoint(point) {
   return point
     && Number.isInteger(point.row)
@@ -1369,6 +1404,40 @@ function clearScheduleRangeSelection() {
   document.querySelectorAll("#mainTable .cell.range-selected").forEach((cell) => {
     cell.classList.remove("range-selected", "range-anchor");
   });
+}
+
+function selectScheduleColumn(col, extend = false) {
+  const maxRow = getScheduleGridMaxRow();
+  if (maxRow < 0) {
+    return false;
+  }
+  const anchorCol = extend && isValidScheduleCellPoint(scheduleRangeSelection?.anchor)
+    ? scheduleRangeSelection.anchor.col
+    : col;
+  const anchor = getSchedulePointByRowCol(0, anchorCol);
+  const focus = getSchedulePointByRowCol(maxRow, col);
+  if (!anchor || !focus) {
+    return false;
+  }
+  setScheduleRangeSelection(anchor, focus);
+  return true;
+}
+
+function selectScheduleRow(row, extend = false) {
+  const maxCol = getScheduleGridMaxCol();
+  if (maxCol < 0) {
+    return false;
+  }
+  const anchorRow = extend && isValidScheduleCellPoint(scheduleRangeSelection?.anchor)
+    ? scheduleRangeSelection.anchor.row
+    : row;
+  const anchor = getSchedulePointByRowCol(anchorRow, 0);
+  const focus = getSchedulePointByRowCol(row, maxCol);
+  if (!anchor || !focus) {
+    return false;
+  }
+  setScheduleRangeSelection(anchor, focus);
+  return true;
 }
 
 function syncScheduleRangeSelectionUi() {
@@ -1805,8 +1874,8 @@ function markAutoLeave(scheduleMap, member, dateString, leave, preview, reason) 
     allDay: true,
     startTime: "",
     endTime: "",
-    reasonEnabled: Boolean(reason),
-    reason: reason || ""
+    reasonEnabled: false,
+    reason: ""
   };
   return true;
 }
@@ -2231,6 +2300,42 @@ function cancelAutoSchedulePreview() {
   showInfoMessage("已取消自動排班預覽");
 }
 
+function beginScheduleHeaderColumnSelection(event) {
+  if (event.button !== 0) {
+    return;
+  }
+  const target = event.target instanceof Element ? event.target.closest("[data-schedule-column]") : null;
+  if (!(target instanceof HTMLElement) || !canEditSchedule() || state.tableView !== "member" || state.selected.type) {
+    return;
+  }
+  const col = Number(target.dataset.scheduleColumn);
+  if (!Number.isInteger(col)) {
+    return;
+  }
+  selectScheduleColumn(col, event.shiftKey);
+  scheduleHeaderDragSelection = { type: "column" };
+  event.preventDefault();
+}
+
+function updateScheduleHeaderColumnSelection(event) {
+  if (scheduleHeaderDragSelection?.type !== "column") {
+    return;
+  }
+  const target = event.target instanceof Element ? event.target.closest("[data-schedule-column]") : null;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const col = Number(target.dataset.scheduleColumn);
+  if (Number.isInteger(col)) {
+    selectScheduleColumn(col, true);
+  }
+}
+
+function selectScheduleRowFromMemberCell(cell, extend = false) {
+  const row = Number(cell?.dataset?.rowIndex);
+  return Number.isInteger(row) && selectScheduleRow(row, extend);
+}
+
 function beginScheduleRangeSelection(event) {
   if (event.button !== 0) {
     return;
@@ -2263,6 +2368,7 @@ function updateScheduleRangeSelection(event) {
 
 function endScheduleRangeSelection() {
   scheduleDragSelecting = false;
+  scheduleHeaderDragSelection = null;
 }
 
 function clearSelectedChip() {
@@ -2557,8 +2663,12 @@ function syncRoleUi() {
   syncToolbarCollapseUi();
   const coreActionsShell = document.getElementById("coreActionsShell");
   if (coreActionsShell) {
-    coreActionsShell.style.display = isManager() ? "" : "none";
+    coreActionsShell.style.display = "";
   }
+  document.querySelectorAll(".manager-action").forEach((element) => {
+    element.style.display = isManager() ? "" : "none";
+    element.disabled = !isManager();
+  });
   const managerOnlyIds = [
     "deptSettingsButton",
     "shiftSettingsButton",
@@ -2587,38 +2697,32 @@ function syncRoleUi() {
 }
 
 function renderAuthBar() {
-  const container = document.getElementById("authBar");
-  const signOutSlot = document.getElementById("signOutSlot");
-  if (!container) {
+  const toggle = document.getElementById("coreActionsToggle");
+  const menu = document.getElementById("coreActionsMenu");
+  if (!toggle || !menu) {
     return;
   }
-  if (signOutSlot) {
-    signOutSlot.innerHTML = "";
+  const loggedIn = isLoggedIn();
+  const manager = loggedIn && isManager();
+  const hasProfile = Boolean(currentProfile);
+  toggle.textContent = loggedIn ? getCurrentProfileName() || "已登入" : "登入";
+  toggle.title = loggedIn ? "開啟使用者功能" : "登入";
+  menu.querySelectorAll(".user-menu-login").forEach((element) => {
+    element.style.display = loggedIn ? "none" : "";
+  });
+  menu.querySelectorAll(".user-menu-auth").forEach((element) => {
+    element.style.display = loggedIn ? "" : "none";
+  });
+  const changePasswordButton = menu.querySelector("[data-open-change-password]");
+  if (changePasswordButton) {
+    changePasswordButton.style.display = loggedIn && hasProfile ? "" : "none";
   }
-  if (!isLoggedIn()) {
-    container.innerHTML = `
-      <button class="ghost-btn compact-btn" type="button" data-open-sign-in="true">登入</button>
-    `;
-    return;
-  }
-  if (!currentProfile) {
-    container.innerHTML = `
-      <div class="session-pill">已登入，但尚未建立身份資料</div>
-    `;
-    if (signOutSlot) {
-      signOutSlot.innerHTML = `<button class="ghost-btn compact-btn" id="signOutButton" type="button">登出</button>`;
-    }
-    return;
-  }
-  const requestButtons = currentProfile ? `
-    <button class="ghost-btn compact-btn" type="button" data-open-change-password="true">修改密碼</button>
-  ` : "";
-  container.innerHTML = `
-    <div class="session-pill">${escapeHtml(getCurrentProfileName())}</div>
-    ${requestButtons}
-  `;
-  if (signOutSlot) {
-    signOutSlot.innerHTML = `<button class="ghost-btn compact-btn" id="signOutButton" type="button">登出</button>`;
+  menu.querySelectorAll(".manager-action").forEach((element) => {
+    element.style.display = manager ? "" : "none";
+    element.disabled = !manager;
+  });
+  if (!loggedIn) {
+    closeCoreActionsMenu();
   }
 }
 
@@ -2756,25 +2860,19 @@ function hasLeaveRows() {
 }
 
 function shouldPromptLeaveDetail(leave, leaveMeta = null) {
-  if (leaveMeta?.reason || leaveMeta?.startTime || leaveMeta?.endTime || leaveMeta?.allDay !== undefined) {
-    return true;
-  }
-  if (leave?.requiresReason) {
-    return true;
-  }
-  return leaveRequiresTime(leave);
+  return Boolean(leave && (leaveRequiresTime(leave) || leave.requiresReason));
 }
 
 function formatLeaveDetailSummary(leave, leaveMeta) {
   const lines = [];
-  if (leave && (leaveRequiresTime(leave) || leaveMeta?.allDay !== undefined || leaveMeta?.startTime || leaveMeta?.endTime)) {
+  if (leave && leaveRequiresTime(leave)) {
     if (leaveMeta?.allDay !== false) {
       lines.push("時間：整天");
     } else {
       lines.push(`時間：${leaveMeta?.startTime || "--:--"} - ${leaveMeta?.endTime || "--:--"}`);
     }
   }
-  if (leave && (leave.requiresReason || leaveMeta?.reasonEnabled || leaveMeta?.reason)) {
+  if (leave?.requiresReason) {
     lines.push(`原因：${leaveMeta?.reason || "未填寫"}`);
   }
   return lines;
@@ -3293,7 +3391,7 @@ function renderTable() {
             ? ` data-table-member-id="${escapeHtml(member.id)}" data-table-member-department-id="${escapeHtml(getMemberHomeDeptId(member))}"`
             : "";
           const shiftEligibleClass = memberMatchesSelectedShift(member) ? " shift-eligible-person-col" : "";
-          html += `<td class="person-col${orderDragClass}${shiftEligibleClass}"${draggableAttr}${memberEditAttrs}><div class="member-label">${memberLabel(member)}</div></td>`;
+          html += `<td class="person-col${orderDragClass}${shiftEligibleClass}"${draggableAttr}${memberEditAttrs} data-row-index="${rowIndex}"><div class="member-label">${memberLabel(member)}</div></td>`;
           if (state.tableStatsVisible) {
             html += `<td class="stats-col">${renderMemberStats(member)}</td>`;
           }
@@ -3327,7 +3425,6 @@ function renderTable() {
 function renderHeader() {
   const { startDate, endDate } = getVisibleDateRange();
   document.getElementById("monthTitle").textContent = `${startDate} ～ ${endDate}`;
-  document.getElementById("dbHint").textContent = "";
   renderAuthBar();
 }
 
@@ -5715,6 +5812,10 @@ function bindEvents() {
 
   bindClick("coreActionsToggle", (event) => {
     event.stopPropagation();
+    if (!isLoggedIn()) {
+      openSignInDialog();
+      return;
+    }
     toggleCoreActionsMenu();
   });
   bindClick("toolbarCollapseToggle", (event) => {
@@ -5768,6 +5869,10 @@ function bindEvents() {
   if (tableWrap) {
     tableWrap.addEventListener("scroll", syncStickyHeaderScroll, { passive: true });
   }
+  const topScrollbar = document.getElementById("tableTopScrollbar");
+  if (topScrollbar) {
+    topScrollbar.addEventListener("scroll", scrollScheduleHorizontallyFromTopScrollbar, { passive: true });
+  }
   const tableStickyHeader = document.getElementById("tableStickyHeader");
   if (tableStickyHeader) {
     tableStickyHeader.addEventListener("wheel", scrollScheduleHorizontallyFromHeader, { passive: false });
@@ -5813,6 +5918,8 @@ function bindEvents() {
     });
   }
 
+  document.body.addEventListener("mousedown", beginScheduleHeaderColumnSelection);
+  document.body.addEventListener("mouseover", updateScheduleHeaderColumnSelection);
   document.body.addEventListener("mousedown", beginScheduleRangeSelection);
   document.body.addEventListener("mouseover", updateScheduleRangeSelection);
   document.body.addEventListener("mouseup", endScheduleRangeSelection);
@@ -5825,6 +5932,7 @@ function bindEvents() {
       return;
     }
     if (target.dataset.openSignIn) {
+      closeCoreActionsMenu();
       openSignInDialog();
       return;
     }
@@ -5837,6 +5945,7 @@ function bindEvents() {
       return;
     }
     if (target.id === "signOutButton" || target.id === "authGateSignOutButton") {
+      closeCoreActionsMenu();
       await handleSignOut();
       return;
     }
@@ -5847,6 +5956,10 @@ function bindEvents() {
       const returnTo = modalContext.returnTo || null;
       closeModal();
       reopenModalFromContext(returnTo);
+      return;
+    }
+    if (target instanceof HTMLElement && target.dataset.tableMemberId && target.dataset.rowIndex) {
+      selectScheduleRowFromMemberCell(target, event.shiftKey);
       return;
     }
     const cellTarget = target instanceof Element ? target.closest(".cell") : null;
@@ -5917,6 +6030,7 @@ function bindEvents() {
       return;
     }
     if (target.dataset.openChangePassword) {
+      closeCoreActionsMenu();
       openChangePasswordModal();
       return;
     }

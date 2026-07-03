@@ -17,6 +17,7 @@
   --person-col-width: 92px;
   --stats-col-width: 86px;
   --day-col-width: 44px;
+  --schedule-frozen-width: 250px;
   --schedule-radius: 18px;
   --schedule-grid-line: #ebe3d8;
   --schedule-header-bg: #fbf8f1;
@@ -57,7 +58,7 @@ button {
   flex-direction: column;
   min-height: 100vh;
   padding: 20px;
-  padding-bottom: 380px;
+  padding-bottom: 320px;
   gap: 16px;
 }
 
@@ -183,6 +184,7 @@ button {
 }
 
 .toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row {
+  position: static;
   margin-bottom: 0;
   gap: 0;
 }
@@ -248,17 +250,20 @@ button {
 }
 
 .toolbar-top-row {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 4;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 0;
+  margin: 0;
 }
 
 .toolbar-collapse-toggle {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -266,8 +271,8 @@ button {
 }
 
 .toolbar-collapse-toggle svg {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   stroke: currentColor;
   stroke-width: 2;
   fill: none;
@@ -396,6 +401,13 @@ button {
   border-radius: 16px;
   background: #fffdf8;
   box-shadow: 0 18px 34px rgba(72, 52, 31, 0.16);
+}
+
+.calendar-nav .core-actions-menu {
+  top: calc(100% + 8px);
+  bottom: auto;
+  right: 0;
+  left: auto;
 }
 
 .core-actions-menu.open {
@@ -534,10 +546,10 @@ button {
 }
 
 .calendar-nav {
-  width: max-content;
-  max-width: none;
+  width: 100%;
+  max-width: 100%;
   flex-wrap: nowrap;
-  justify-content: flex-start;
+  justify-content: space-between;
   align-self: flex-start;
   gap: 12px;
   margin-bottom: 14px;
@@ -554,7 +566,7 @@ button {
 
 .month-title-wrap {
   text-align: center;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   min-width: 180px;
   justify-content: center;
 }
@@ -570,6 +582,7 @@ button {
   justify-content: flex-end;
   flex: 0 0 auto;
   min-width: 0;
+  margin-left: auto;
   gap: 8px;
 }
 
@@ -584,10 +597,31 @@ button {
 }
 
 /* Schedule table: wrappers draw the outer frame; cells draw only inner grid lines. */
-.table-sticky-header {
+.table-top-scrollbar {
   position: -webkit-sticky;
   position: sticky;
   top: 0;
+  z-index: 25;
+  height: 14px;
+  margin-left: var(--schedule-frozen-width);
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: var(--schedule-header-bg);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;
+  scrollbar-color: #cdbb9f #fbf8f1;
+  scrollbar-width: thin;
+}
+
+.table-top-scrollbar-content {
+  height: 1px;
+}
+
+.table-sticky-header {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 14px;
   z-index: 24;
   isolation: isolate;
   display: flex;
@@ -721,6 +755,8 @@ button {
   flex-direction: column;
   gap: 2px;
   height: 40px;
+  cursor: pointer;
+  user-select: none;
 }
 
 .table-sticky-cell-day.sun {
@@ -833,8 +869,12 @@ button {
   border: 1px solid transparent;
   border-top: none;
   background: #fff;
-  scrollbar-color: #cdbb9f #fbf8f1;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+}
+
+.table-wrap::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .table-wrap::after {
@@ -941,6 +981,16 @@ thead th small {
   min-width: var(--person-col-width);
   width: var(--person-col-width);
   max-width: var(--person-col-width);
+}
+
+.person-col[data-row-index] {
+  cursor: pointer;
+  user-select: none;
+}
+
+.table-sticky-cell-day:hover,
+.person-col[data-row-index]:hover {
+  background: #f8ead1;
 }
 
 .stats-col {
@@ -2360,7 +2410,7 @@ thead th.today,
     left: 12px;
     right: 12px;
     bottom: 12px;
-    max-height: min(36vh, 260px);
+    max-height: min(34dvh, 240px);
     padding: 12px;
   }
 
@@ -2374,6 +2424,9 @@ thead th.today,
   .toolbar-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+    max-height: calc(min(34dvh, 240px) - 24px);
+    overflow-y: auto;
+    padding-right: 2px;
   }
 
   .core-actions-menu {
@@ -2392,7 +2445,7 @@ thead th.today,
 
   .toolbar-top-row {
     gap: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 0;
   }
 
   .toolbar-main-title {
@@ -2400,14 +2453,14 @@ thead th.today,
   }
 
   .toolbar-collapse-toggle {
-    width: 32px;
-    height: 32px;
-    flex: 0 0 32px;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
   }
 
   .toolbar-collapse-toggle svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
 
   .auth-bar {
@@ -2481,7 +2534,7 @@ thead th.today,
   }
 
   .table-sticky-header {
-    top: 8px;
+    top: 14px;
   }
 
   .calendar-card {
@@ -2621,7 +2674,7 @@ thead th.today,
   }
 
   .app-shell {
-    padding-bottom: 320px;
+    padding-bottom: 260px;
   }
 
   .toolbar-floating-card {
