@@ -1027,6 +1027,11 @@ thead th.stats-col {
   font-weight: 800;
 }
 
+.person-col.shift-eligible-person-col {
+  background: #fff0f6;
+  box-shadow: inset 4px 0 0 #d63384;
+}
+
 .cell {
   min-width: var(--day-col-width);
   width: var(--day-col-width);
@@ -2009,6 +2014,31 @@ thead th.today,
 
 .settings-table-row-shift {
   grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.settings-member-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.settings-member-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid #d8e0ee;
+  border-radius: 999px;
+  background: #fff;
+  color: #243047;
+  cursor: pointer;
+  user-select: none;
+}
+
+.settings-member-chip:hover {
+  border-color: #8aa4d6;
+  background: #f6f9ff;
 }
 
 .settings-table-row-leave {

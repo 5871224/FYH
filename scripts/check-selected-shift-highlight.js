@@ -12,7 +12,8 @@ assert(renderer.includes("memberCanScheduleShift(member, shift.id)"), "selected 
 assert(renderer.includes("renderToolbar();\n  renderTable();"), "selecting a chip should refresh the schedule table highlight");
 assert(renderer.includes('event.key === "Escape"'), "Escape should clear the selected toolbar chip");
 assert(renderer.includes("function clearSelectedChip"), "selected toolbar chip clearing should be centralized");
-assert(styles.includes(".member-main.shift-eligible-member-name"), "eligible member names should have deep-pink styling");
-assert(styles.includes("color: #b51f62;"), "selected shift eligible names should be deep pink");
+assert(renderer.includes("shift-eligible-person-col"), "eligible members should mark the person column");
+assert(styles.includes(".person-col.shift-eligible-person-col"), "eligible member name cells should have a distinct background");
+assert(styles.includes("background: #fff0f6;"), "selected shift eligible name cells should use the highlight background");
 
 console.log("selected shift highlight check ok");

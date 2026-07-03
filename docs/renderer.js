@@ -1195,7 +1195,7 @@ function getDepartmentSummary(deptIds) {
 }
 
 function getMemberScheduleShiftIds(member) {
-  const validShiftIds = new Set(state.shifts.map((shift) => shift.id));
+  const validShiftIds = new Set(state.shifts.filter((shift) => !shift.hiddenFromToolbar).map((shift) => shift.id));
   return (Array.isArray(member?.scheduleShiftIds) ? member.scheduleShiftIds : [])
     .map((shiftId) => String(shiftId || ""))
     .filter((shiftId, index, list) => validShiftIds.has(shiftId) && list.indexOf(shiftId) === index);
@@ -1218,6 +1218,12 @@ function getMemberShiftPriority(member, shiftId) {
 
 function memberCanScheduleShift(member, shiftId) {
   return Number.isFinite(getMemberShiftPriority(member, shiftId));
+}
+
+function getMembersForScheduleShift(shiftId) {
+  return state.members
+    .filter((member) => isMemberCurrentlyActive(member) && memberCanScheduleShift(member, shiftId))
+    .sort((a, b) => getMemberShiftPriority(a, shiftId) - getMemberShiftPriority(b, shiftId) || a.name.localeCompare(b.name));
 }
 
 function shiftAllowsDepartment(shift, deptId) {
@@ -2759,9 +2765,7 @@ function reopenModalFromContext(context) {
     return;
   }
   if (context.category === "department-settings") {
-    if (context.view) {
-      departmentSettingsView = context.view === "member" ? "member" : "department";
-    }
+    departmentSettingsView = "department";
     openDepartmentSettings();
     restoreSettingsScroll(context);
     return;
@@ -3176,7 +3180,8 @@ function renderTable() {
           const memberEditAttrs = canEditScheduleOrder
             ? ` data-table-member-id="${escapeHtml(member.id)}" data-table-member-department-id="${escapeHtml(getMemberHomeDeptId(member))}"`
             : "";
-          html += `<td class="person-col${orderDragClass}"${draggableAttr}${memberEditAttrs}><div class="member-label">${memberLabel(member)}</div></td>`;
+          const shiftEligibleClass = memberMatchesSelectedShift(member) ? " shift-eligible-person-col" : "";
+          html += `<td class="person-col${orderDragClass}${shiftEligibleClass}"${draggableAttr}${memberEditAttrs}><div class="member-label">${memberLabel(member)}</div></td>`;
           if (state.tableStatsVisible) {
             html += `<td class="stats-col">${renderMemberStats(member)}</td>`;
           }
@@ -3778,6 +3783,15 @@ function openListSettings(category) {
     overtime: "加班設定"
   };
   const list = getItemList(category);
+  const renderShiftMemberNames = (shift) => {
+    const members = getMembersForScheduleShift(shift.id);
+    if (!members.length) {
+      return "-";
+    }
+    return members.map((member) => (
+      `<span class="settings-member-chip" data-shift-schedule-member="${escapeHtml(member.id)}" title="雙擊修改人員">${escapeHtml(member.name)}</span>`
+    )).join("");
+  };
   const body = list.length
       ? `
         <div class="settings-table-wrap">
@@ -3786,9 +3800,10 @@ function openListSettings(category) {
               <div class="settings-table-row settings-table-head settings-table-row-${category}">
                 <div>預覽</div>
                 ${category === "leave" ? "<div>假別代碼</div>" : ""}
-                <div>${category === "shift" ? "班別" : category === "leave" ? "假別" : "加班"}</div>
+                ${category === "shift" ? "" : `<div>${category === "leave" ? "假別" : "加班"}</div>`}
                 <div>${category === "shift" ? "適用單位" : category === "leave" ? "需填時間" : "時段"}</div>
                 ${category === "shift" ? "<div>需求人數</div>" : ""}
+                ${category === "shift" ? "<div>排班人員</div>" : ""}
                 ${category === "overtime" ? "<div>休息1</div><div>休息2</div>" : ""}
                 ${category === "shift" ? "<div>時段</div>" : ""}
                 ${category === "leave" ? "<div>需填原因</div>" : ""}
@@ -3801,7 +3816,7 @@ function openListSettings(category) {
                     <div class="settings-table-preview" style="background:${escapeHtml(item.color)};color:${escapeHtml(getItemTextColor(item, item.color))}">${escapeHtml(item.name || item.code || "名稱")}</div>
                   </div>
                   ${category === "leave" ? `<div class="settings-table-code">${escapeHtml(item.code || "")}</div>` : ""}
-                  <div class="settings-table-name">${escapeHtml(category === "leave" ? getLeaveCatalogDisplayName(item) : item.name)}</div>
+                  ${category === "shift" ? "" : `<div class="settings-table-name">${escapeHtml(category === "leave" ? getLeaveCatalogDisplayName(item) : item.name)}</div>`}
                   <div class="settings-table-meta">${category === "shift"
                     ? escapeHtml(getDepartmentSummary(item.applicableDeptIds))
                     : category === "leave"
@@ -3810,6 +3825,9 @@ function openListSettings(category) {
                   }</div>
                   ${category === "shift"
                     ? `<div class="settings-table-meta">${escapeHtml(String(item.requiredStaffCount ?? 0))}</div>`
+                    : ""}
+                  ${category === "shift"
+                    ? `<div class="settings-table-meta settings-member-list">${renderShiftMemberNames(item)}</div>`
                     : ""}
                   ${category === "overtime"
                     ? `<div class="settings-table-meta">${item.useRest1 ? escapeHtml(`${item.rest1StartTime || "--:--"} - ${item.rest1EndTime || "--:--"}`) : "-"}</div>
@@ -4286,7 +4304,8 @@ async function deleteListItem(category, id) {
 }
 
 function openDepartmentSettings() {
-  modalContext = { category: "department-settings", view: departmentSettingsView };
+  departmentSettingsView = "department";
+  modalContext = { category: "department-settings", view: "department" };
   const activeMembers = state.members.filter(isMemberCurrentlyActive);
   const departmentRows = state.departments.map((department) => {
     const homeMembers = activeMembers.filter((member) => getMemberHomeDeptId(member) === department.id);
@@ -4310,48 +4329,20 @@ function openDepartmentSettings() {
       </div>
     `;
   }).join("");
-  const memberRows = activeMembers.map((member) => `
-    <div class="department-settings-row department-settings-row-member">
-      <div class="department-settings-title">${escapeHtml(member.name)}</div>
-      <div>${escapeHtml(getDepartmentName(getMemberHomeDeptId(member)))}</div>
-      <div class="member-table-actions">
-        ${renderActionIconButton("edit", `data-edit-member="${member.id}"`)}
-        ${renderActionIconButton("delete", `data-delete-member="${member.id}"`)}
+  const body = state.departments.length
+    ? `
+      <div class="department-settings-table-wrap">
+        <div class="department-settings-table department-settings-table-department">
+        <div class="department-settings-row department-settings-head">
+          <div>單位</div>
+          <div>所屬人員</div>
+          <div>操作</div>
+        </div>
+        ${departmentRows}
+        </div>
       </div>
-    </div>
-  `).join("");
-  const body = `
-    ${departmentSettingsView === "department"
-      ? (state.departments.length
-        ? `
-          <div class="department-settings-table-wrap">
-            <div class="department-settings-table department-settings-table-department">
-            <div class="department-settings-row department-settings-head">
-              <div>單位</div>
-              <div>所屬人員</div>
-              <div>操作</div>
-            </div>
-            ${departmentRows}
-            </div>
-          </div>
-        `
-        : '<div class="empty-state">目前還沒有單位</div>')
-      : (activeMembers.length
-        ? `
-          <div class="department-settings-table-wrap">
-            <div class="department-settings-table department-settings-table-member">
-            <div class="department-settings-row department-settings-head">
-              <div>人員</div>
-              <div>所屬單位</div>
-              <div>操作</div>
-            </div>
-            ${memberRows}
-            </div>
-          </div>
-        `
-        : '<div class="empty-state">目前沒有今日在職人員</div>')
-    }
-  `;
+    `
+    : '<div class="empty-state">目前還沒有單位</div>';
   openEntityListModal({
     title: "單位設定",
     modalClass: "modal modal-wide department-settings-modal",
@@ -4360,15 +4351,10 @@ function openDepartmentSettings() {
       <button class="ghost-btn compact-btn" type="button" data-export-departments="true">匯出</button>
       <button class="ghost-btn compact-btn" type="button" data-import-departments="true">匯入</button>
       <button class="btn-primary" type="button" data-open-add-department="true">新增單位</button>
-      <div class="settings-view-toggle" role="group" aria-label="單位設定檢視">
-        <button class="settings-view-option ${departmentSettingsView === "department" ? "active" : ""}" type="button" data-set-department-view="department" aria-pressed="${departmentSettingsView === "department" ? "true" : "false"}">單位檢視</button>
-        <button class="settings-view-option ${departmentSettingsView === "member" ? "active" : ""}" type="button" data-set-department-view="member" aria-pressed="${departmentSettingsView === "member" ? "true" : "false"}">人員檢視</button>
-      </div>
     `,
     hideFooterClose: true
   });
 }
-
 function openDepartmentForm(mode, departmentId = "") {
   const returnTo = modalContext?.category === "department-settings"
     ? captureSettingsReturnContext({ category: "department-settings", view: departmentSettingsView })
@@ -4714,9 +4700,10 @@ function buildSelectOptions(items, valueField, labelBuilder, selectedValue, incl
 
 function renderScheduleShiftSelector(member) {
   const selectedIds = getMemberScheduleShiftIds(member);
+  const visibleShifts = state.shifts.filter((shift) => !shift.hiddenFromToolbar);
   const orderedShifts = [
-    ...selectedIds.map((shiftId) => state.shifts.find((shift) => shift.id === shiftId)).filter(Boolean),
-    ...state.shifts.filter((shift) => !selectedIds.includes(shift.id))
+    ...selectedIds.map((shiftId) => visibleShifts.find((shift) => shift.id === shiftId)).filter(Boolean),
+    ...visibleShifts.filter((shift) => !selectedIds.includes(shift.id))
   ];
   return `
     <div class="schedule-dept-list" id="memberScheduleShiftList" hidden>
@@ -4813,6 +4800,7 @@ function renderMemberSettingsList() {
               <div>離職日</div>
               <div>計薪方式</div>
               <div>例假星期</div>
+              <div>所屬單位</div>
               <div class="member-table-actions-head">操作</div>
             </div>
             ${filteredMembers.map((member) => `
@@ -4825,6 +4813,7 @@ function renderMemberSettingsList() {
                 <div>${escapeHtml(member.leaveDate || "-")}</div>
                 <div>${getSalaryTypeLabel(member)}</div>
                 <div>${getRestWeekdayLabel(member.fixedRestWeekday)}</div>
+                <div>${escapeHtml(getDepartmentName(getMemberHomeDeptId(member)))}</div>
                 <div class="member-table-actions">
                   ${renderActionIconButton("edit", `data-edit-member="${member.id}"`)}
                   ${renderActionIconButton("delete", `data-delete-member="${member.id}"`)}
@@ -4951,12 +4940,6 @@ function openMemberForm(mode, memberId = "") {
           </select>
         </div>
         <div class="form-row">
-          <label for="memberDept">所屬單位</label>
-          <select id="memberDept">
-            ${buildSelectOptions(state.departments, "id", (department) => department.name, member.deptId || "")}
-          </select>
-        </div>
-        <div class="form-row">
           <label for="memberSalaryType">計薪方式</label>
           <select id="memberSalaryType">
             <option value="monthly" ${member.payByDay ? "" : "selected"}>月薪</option>
@@ -4977,6 +4960,12 @@ function openMemberForm(mode, memberId = "") {
             ${REST_WEEKDAY_OPTIONS.map((option) => (
               `<option value="${option.value}" ${normalizeRestWeekday(member.fixedRestWeekday) === option.value ? "selected" : ""}>${option.label}</option>`
             )).join("")}
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="memberDept">所屬單位</label>
+          <select id="memberDept">
+            ${buildSelectOptions(state.departments, "id", (department) => department.name, member.deptId || "")}
           </select>
         </div>
         ${mode === "edit" ? `
@@ -5089,7 +5078,7 @@ async function importMembersFromSettings() {
       return;
     }
     const departmentMap = new Map(state.departments.map((department) => [department.name.trim(), department.id]));
-    const shiftMap = new Map(state.shifts.map((shift) => [shift.name.trim(), shift.id]));
+    const shiftMap = new Map(state.shifts.filter((shift) => !shift.hiddenFromToolbar).map((shift) => [shift.name.trim(), shift.id]));
     let imported = 0;
     let updated = 0;
     let skipped = 0;
@@ -5133,14 +5122,16 @@ async function importMembersFromSettings() {
         monthlyRestDays: Math.max(0, Number(row.monthlyRestDays) || 0),
         role: row.role === "manager" ? "manager" : "employee"
       };
-      try {
-        await window.schedulerApi.syncMemberProfile(payload, existing?.code || "");
-      } catch (error) {
-        syncFailed += 1;
-        if (!firstSyncError) {
-          firstSyncError = `${code || "(空白工號)"}：${error.message || "同步失敗"}`;
+      if (!existing) {
+        try {
+          await window.schedulerApi.syncMemberProfile(payload, "");
+        } catch (error) {
+          syncFailed += 1;
+          if (!firstSyncError) {
+            firstSyncError = `${code || "(空白工號)"}：${error.message || "同步失敗"}`;
+          }
+          continue;
         }
-        continue;
       }
       if (existing) {
         state.members = state.members.map((member) => member.id === existing.id ? payload : member);
@@ -5769,7 +5760,6 @@ function bindEvents() {
       target.dataset.generateAutoSchedule ||
       target.dataset.saveOvertimeAssignment ||
       target.dataset.openAddDepartment ||
-      target.dataset.setDepartmentView ||
       target.dataset.toggleScheduleShifts ||
       target.dataset.editDepartment ||
       target.dataset.saveDepartment ||
@@ -5874,11 +5864,6 @@ function bindEvents() {
     }
 
     if (target.dataset.openAddDepartment) openDepartmentForm("add");
-    if (target.dataset.setDepartmentView) {
-      departmentSettingsView = target.dataset.setDepartmentView === "member" ? "member" : "department";
-      openDepartmentSettings();
-      return;
-    }
     if (target.dataset.toggleScheduleShifts) {
       const list = document.getElementById("memberScheduleShiftList");
       if (list) {
@@ -5929,6 +5914,14 @@ function bindEvents() {
   });
 
   document.body.addEventListener("dblclick", (event) => {
+    const shiftMember = event.target.closest("[data-shift-schedule-member]");
+    if (shiftMember) {
+      const memberId = shiftMember.dataset.shiftScheduleMember || "";
+      if (memberId && canEditSchedule()) {
+        openMemberForm("edit", memberId);
+      }
+      return;
+    }
     const target = event.target.closest("[data-table-member-id], [data-table-department-id]");
     if (!target) return;
     if (!canEditSchedule()) return;
@@ -5987,11 +5980,6 @@ function bindEvents() {
       const field = target.dataset.memberSettingsFilterField;
       memberSettingsFilters[field] = target.value || (field === "employment" ? "active" : "all");
       openMemberSettings();
-      return;
-    }
-    if (target instanceof HTMLSelectElement && target.dataset.departmentViewSelect) {
-      departmentSettingsView = target.value === "member" ? "member" : "department";
-      openDepartmentSettings();
       return;
     }
     if (!(target instanceof HTMLInputElement)) {

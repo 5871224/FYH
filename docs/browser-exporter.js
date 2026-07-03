@@ -454,7 +454,7 @@
   async function createMemberWorkbook(payload) {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("人員資料");
-    const headers = ["工號", "姓名", "所屬單位", "排班班別", "權限", "到職日", "離職日", "計薪方式", "例假星期"];
+    const headers = ["工號", "姓名", "排班班別", "權限", "到職日", "離職日", "計薪方式", "例假星期", "所屬單位"];
     const weekdayLabels = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
     const departments = payload.state?.departments || [];
     const shifts = payload.state?.shifts || [];
@@ -465,13 +465,13 @@
       sheet.addRow([
         member.code || "",
         member.name || "",
-        getDepartmentNameForMember(member, departments),
         scheduleShiftNames.join("、"),
         member.role === "manager" ? "主管" : "員工",
         formatDisplayDate(member.hireDate || ""),
         formatDisplayDate(member.leaveDate || ""),
         member.payByDay ? "日薪" : "月薪",
-        weekdayLabels[Math.max(0, Math.min(6, Number(member.fixedRestWeekday) || 0))] || "週日"
+        weekdayLabels[Math.max(0, Math.min(6, Number(member.fixedRestWeekday) || 0))] || "週日",
+        getDepartmentNameForMember(member, departments)
       ]);
     });
 
@@ -631,7 +631,7 @@
     const rows = [];
     const codeColumn = getHeaderColumnIndex(sheet, ["工號"], 1);
     const nameColumn = getHeaderColumnIndex(sheet, ["姓名"], 2);
-    const departmentColumn = getHeaderColumnIndex(sheet, ["所屬單位", "單位"], 3);
+    const departmentColumn = getHeaderColumnIndex(sheet, ["所屬單位", "單位"], 9);
     const scheduleShiftColumn = getHeaderColumnIndex(sheet, ["排班班別"], 0);
     const roleColumn = getHeaderColumnIndex(sheet, ["權限"], scheduleShiftColumn ? 5 : 4);
     const hireDateColumn = getHeaderColumnIndex(sheet, ["到職日"], scheduleShiftColumn ? 6 : 5);

@@ -16,7 +16,7 @@ assert(renderer.includes("memberScheduleShiftList") && renderer.includes("schedu
 assert(renderer.includes('id="memberDept"') && webApi.includes("homeDepartmentId: member?.deptId"), "member settings should preserve the home department separately");
 assert(memberAuthAdmin.includes("home_department_id: homeDepartmentUuid"), "member auth sync should write home department id");
 assert(renderer.includes("monthlyRestDays"), "member settings should include monthly rest days");
-assert(renderer.includes('data-set-department-view="department"') && renderer.includes('data-set-department-view="member"'), "department settings should support both views");
+assert(!renderer.includes('data-set-department-view="member"') && !renderer.includes("人員檢視"), "department settings should keep only the department view");
 assert(webApi.includes("scheduleShiftIds") && webApi.includes("required_staff_count"), "web api should sync auto schedule settings");
 assert(
   schema.includes("schedule_shift_ids") &&
