@@ -15,8 +15,10 @@ assert(webApi.includes('restSelect("set_shift"'), "loadState should read set_shi
 assert(webApi.includes('restSelect("set_leave"'), "loadState should read set_leave table");
 assert(webApi.includes('restSelect("set_overtime"'), "loadState should read set_overtime table");
 assert(webApi.includes('restSelect("schedule_entries"'), "loadState should read schedule_entries table");
+assert(webApi.includes("filters: getScheduleEntryFilters(scheduleRange)"), "loadState should only read the buffered visible schedule range");
 assert(webApi.includes('restInsert("set_departments"'), "saveState should write set_departments table");
 assert(webApi.includes('restRpc("save_schedule_entries_bulk"'), "schedule entry writes should use the bulk RPC");
+assert(webApi.includes("fetchExistingScheduleRowsForRanges(state.scheduleLoadedRanges)"), "saveState cleanup should only compare loaded schedule ranges");
 assert(!webApi.includes('restSelect("schedule_months"') && !webApi.includes('restInsert("schedule_months"'), "web api should not use schedule_months");
 assert(!webApi.includes("schedule_month_id"), "web api should not depend on schedule_month_id");
 assert(webApi.includes("async function saveScheduleCell(payload)") && webApi.includes("shift_type_id: shiftType?.id || null"), "single cell edits should save shift, leave, and overtime together");
@@ -29,6 +31,10 @@ assert(!webApi.includes('deleteRowsByForeignIds("leave_requests"'), "web api sho
 assert(!webApi.includes('deleteRowsByForeignIds("overtime_requests"'), "web api should not write old overtime_requests table");
 assert(webApi.includes('clearScheduleEntriesByForeignIds("leave_type_id"'), "deleting leave settings should clear schedule entry leave references before deleting leave types");
 assert(webApi.includes('clearScheduleEntriesByForeignIds("overtime_type_id"'), "deleting overtime settings should clear schedule entry overtime references before deleting overtime types");
+assert(webApi.includes("async function fetchRowsById") && webApi.includes("async function fetchRowById"), "catalog settings should resolve rows by uuid id");
+assert(!webApi.includes("fetchSchedulerRowByItemId") && !webApi.includes("deleteSchedulerRowsNotIn"), "web api should not depend on scheduler_item_id helpers");
+assert(!webApi.includes("login_email_by_employee_code"), "login should derive the auth email from employee code without a database login_email RPC");
+assert(!schema.includes("login_email"), "set_employee should not store login_email");
 assert(!renderer.includes("merged.overtime = merged.overtime.length ? [merged.overtime[0]] : [];"), "overtime settings should keep every overtime type from storage");
 assert(!renderer.includes("leaveRequestId") && !renderer.includes("overtimeRequestId"), "schedule state should not keep legacy request ids");
 assert(
@@ -70,7 +76,10 @@ assert(schema.includes("create table if not exists public.schedule_entries"), "s
 assert(!schema.includes("schedule_months"), "current schema should not create schedule_months");
 assert(schema.includes("create table if not exists public.holidays"), "schema should create holidays");
 assert(schema.includes("create table if not exists public.set_employee"), "schema should create set_employee");
-assert(schema.includes("schedule_shift_ids text[]"), "schema should store ordered member shift priorities");
+assert(schema.includes("schedule_shift_ids uuid[]"), "schema should store ordered member shift priorities as uuid ids");
+assert(schema.includes("applicable_department_ids uuid[]"), "schema should store shift department applicability as uuid ids");
+assert(schema.includes("hidden_from_schedule") && !schema.includes("hidden_from_leave"), "department hidden flag should be schedule-named");
+assert(!schema.includes("scheduler_item_id text unique"), "active catalog tables should not keep scheduler_item_id");
 assert(!schema.includes("create table if not exists public.set_employee_departments"), "schema should not recreate member department priorities");
 assert(!schema.includes("leave_requests") && !schema.includes("overtime_requests"), "current schema should not recreate legacy request tables");
 assert(!schema.includes("request_status") && !schema.includes("request_type"), "current schema should not recreate legacy request types");

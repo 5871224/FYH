@@ -16,6 +16,8 @@ This repo is the scheduler system.
 
 ## Required Rules
 
+0. Keep responses concise. Share high-level status updates only.
+
 1. If a task changes webpage UI, interactions, styling, or frontend data flow, run:
 
 ```bash

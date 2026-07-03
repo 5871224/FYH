@@ -2013,7 +2013,7 @@ thead th.today,
 }
 
 .settings-table-row-shift {
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: minmax(76px, 0.55fr) minmax(96px, 0.65fr) minmax(64px, 0.42fr) minmax(280px, 2.7fr) minmax(92px, 0.62fr) minmax(68px, 0.45fr) minmax(72px, 0.45fr);
 }
 
 .settings-member-list {
@@ -2021,6 +2021,7 @@ thead th.today,
   flex-wrap: wrap;
   gap: 4px;
   align-items: center;
+  justify-content: flex-start;
 }
 
 .settings-member-chip {
@@ -2156,7 +2157,35 @@ thead th.today,
 }
 
 .member-table-row {
-  grid-template-columns: repeat(9, minmax(0, 1fr));
+  grid-template-columns: minmax(86px, 0.7fr) minmax(90px, 0.7fr) minmax(240px, 2.5fr) minmax(52px, 0.38fr) minmax(96px, 0.7fr) minmax(62px, 0.48fr) minmax(74px, 0.55fr) minmax(72px, 0.45fr);
+}
+
+.member-shift-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.member-shift-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 1px 7px;
+  border: 1px solid #b8d3ff;
+  border-radius: 999px;
+  background: #fff;
+  color: #24436f;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.member-date-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.25;
 }
 
 .settings-view-toggle {
@@ -2231,6 +2260,17 @@ thead th.today,
   justify-content: center;
   text-align: center;
   min-width: 0;
+}
+
+.settings-table-row-shift > div:not(.settings-member-list),
+.member-table-row > div:not(.member-shift-pill-list):not(.member-date-stack) {
+  white-space: nowrap;
+}
+
+.settings-table-row-shift > .settings-member-list,
+.member-table-row > .member-shift-pill-list {
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .department-settings-row > .member-inline-list {
@@ -2489,7 +2529,7 @@ thead th.today,
   }
 
   .member-table-row {
-    grid-template-columns: repeat(9, minmax(0, 1fr));
+    grid-template-columns: minmax(76px, 0.7fr) minmax(82px, 0.7fr) minmax(210px, 2.3fr) minmax(48px, 0.38fr) minmax(88px, 0.7fr) minmax(58px, 0.48fr) minmax(68px, 0.55fr) minmax(68px, 0.45fr);
     gap: 8px;
     padding: 6px 12px;
     font-size: 12px;
@@ -2506,7 +2546,7 @@ thead th.today,
   }
 
   .settings-table-row-shift {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: minmax(70px, 0.55fr) minmax(90px, 0.65fr) minmax(58px, 0.42fr) minmax(240px, 2.7fr) minmax(86px, 0.62fr) minmax(62px, 0.45fr) minmax(68px, 0.45fr);
   }
 
   .department-settings-table-department .department-settings-row {

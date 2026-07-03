@@ -10,6 +10,7 @@ Historical one-off migrations were removed after the schema was normalized.
 - Shift, leave, and overtime are columns on the same `schedule_entries` row.
 - Employee leave/overtime request tables are no longer part of the active model.
 - Bulk cell writes go through `public.save_schedule_entries_bulk(entries jsonb)`.
+- Catalog tables use their UUID `id` as the only application identifier; `scheduler_item_id` is retired.
 
 ## Active Tables
 
@@ -36,9 +37,10 @@ These are legacy artifacts from the old employee request workflow and should not
 ## Files
 
 1. `001_current_schema.sql`: current tables, indexes, RLS enablement, and `is_manager`.
-2. `023_fix_login_employee_table.sql`: login email column and employee-code login RPC.
-3. `024_schedule_entries_rpc.sql`: bulk RPC for schedule cell writes.
-4. `025_employee_schedule_shift_ids.sql`: replaces member schedule departments with ordered member shift IDs.
+2. `024_schedule_entries_rpc.sql`: bulk RPC for schedule cell writes.
+3. `025_employee_schedule_shift_ids.sql`: replaces member schedule departments with ordered member shift IDs.
+4. `026_catalog_uuid_cleanup.sql`: converts catalog references to UUID IDs and removes retired catalog identifier columns.
+5. `027_remove_login_email.sql`: removes the retired `login_email` column and login email RPC.
 
 ## Notes For Changes
 

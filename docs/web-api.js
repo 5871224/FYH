@@ -359,19 +359,18 @@
     }
   }
 
-  async function getLoginEmailByEmployeeCode(employeeCode) {
-    const email = await requestJson("/rest/v1/rpc/login_email_by_employee_code", {
-      method: "POST",
-      body: JSON.stringify({
-        p_employee_code: String(employeeCode || "").trim()
-      })
-    });
-    return typeof email === "string" ? email.trim() : "";
+  function buildLocalLoginEmail(employeeCode) {
+    const normalized = String(employeeCode || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return normalized ? `${normalized}@local.invalid` : "";
   }
 
   async function signIn(loginAccount, password) {
     const employeeCode = String(loginAccount || "").trim();
-    const email = await getLoginEmailByEmployeeCode(employeeCode);
+    const email = buildLocalLoginEmail(employeeCode);
     if (!email) {
       throw new Error("找不到這個工號，或尚未設定登入帳號");
     }
@@ -437,6 +436,22 @@
     return Math.min(max, Math.max(min, numeric));
   }
 
+  function normalizeTextArray(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item || "").trim()).filter(Boolean);
+    }
+    const text = String(value || "").trim();
+    if (!text) {
+      return [];
+    }
+    const body = text.startsWith("{") && text.endsWith("}") ? text.slice(1, -1) : text;
+    // ponytail: scheduler ids do not contain commas; use a full Postgres array parser if that changes.
+    return body
+      .split(",")
+      .map((item) => item.trim().replace(/^"|"$/g, "").replace(/\\"/g, "\""))
+      .filter(Boolean);
+  }
+
   function notInFilter(values) {
     const list = [...new Set((values || []).map((value) => String(value || "").trim()).filter(Boolean))];
     return list.length ? `not.${buildInFilter(list)}` : "not.is.null";
@@ -477,33 +492,161 @@
     return `${memberId || ""}|${workDate || ""}`;
   }
 
-  async function deleteSchedulerRowsNotIn(table, schedulerIds) {
+  function toDateObject(dateString) {
+    const [year, month, day] = String(dateString || "").split("-").map(Number);
+    if (!year || !month || !day) {
+      return null;
+    }
+    return new Date(year, month - 1, day);
+  }
+
+  function toDateStringFromDate(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  }
+
+  function addDaysToDateString(dateString, count) {
+    const date = toDateObject(dateString);
+    if (!date) {
+      return "";
+    }
+    date.setDate(date.getDate() + count);
+    return toDateStringFromDate(date);
+  }
+
+  function diffDays(startDateString, endDateString) {
+    const start = toDateObject(startDateString);
+    const end = toDateObject(endDateString);
+    if (!start || !end) {
+      return 0;
+    }
+    return Math.floor((end - start) / (24 * 60 * 60 * 1000));
+  }
+
+  function getScheduleLoadRange(settings = {}) {
+    const today = toDateStringFromDate(new Date());
+    const anchorDate = toDateObject(settings.eight_week_start_date) ? settings.eight_week_start_date : today;
+    const periods = Math.floor(diffDays(anchorDate, today) / 56);
+    const visibleStart = addDaysToDateString(anchorDate, periods * 56) || today;
+    // ponytail: 7-day buffer covers the current 6-day consecutive-work rule; widen this if rules look farther.
+    return {
+      startDate: addDaysToDateString(visibleStart, -7),
+      endDate: addDaysToDateString(visibleStart, 62)
+    };
+  }
+
+  function getScheduleEntryFilters(range = {}) {
+    const filters = {};
+    const startDate = toDateObject(range.startDate) ? range.startDate : "";
+    const endDate = toDateObject(range.endDate) ? range.endDate : "";
+    if (startDate && endDate) {
+      filters.and = `(work_date.gte.${startDate},work_date.lte.${endDate})`;
+    } else if (startDate) {
+      filters.work_date = `gte.${startDate}`;
+    } else if (endDate) {
+      filters.work_date = `lte.${endDate}`;
+    }
+    return filters;
+  }
+
+  function mapScheduleRows(scheduleEntryRows = [], members = []) {
+    const memberIds = new Set((members || []).map((member) => member.id).filter(Boolean));
+    const schedule = {};
+    (scheduleEntryRows || []).forEach((row) => {
+      if (memberIds.size && !memberIds.has(row.member_id)) {
+        return;
+      }
+      const key = makeScheduleKey(row.member_id, row.work_date);
+      if (!key) {
+        return;
+      }
+      const shift = row.shift_type_id || null;
+      const leave = row.leave_type_id || null;
+      const overtime = row.overtime_type_id || null;
+      if (!shift && !leave && !overtime) {
+        return;
+      }
+      schedule[key] = {
+        shift,
+        leave,
+        overtime,
+        leaveMeta: leave ? {
+          allDay: row.leave_all_day !== false,
+          startTime: (row.leave_start_time || "").slice(0, 5),
+          endTime: (row.leave_end_time || "").slice(0, 5),
+          reasonEnabled: Boolean(row.leave_reason),
+          reason: row.leave_reason || ""
+        } : null,
+        overtimeMeta: overtime ? {
+          startTime: (row.overtime_start_time || "").slice(0, 5),
+          endTime: (row.overtime_end_time || "").slice(0, 5),
+          useRest1: Boolean(row.overtime_use_rest_1),
+          rest1StartTime: (row.overtime_rest_1_start_time || "").slice(0, 5),
+          rest1EndTime: (row.overtime_rest_1_end_time || "").slice(0, 5),
+          useRest2: Boolean(row.overtime_use_rest_2),
+          rest2StartTime: (row.overtime_rest_2_start_time || "").slice(0, 5),
+          rest2EndTime: (row.overtime_rest_2_end_time || "").slice(0, 5),
+          reason: row.overtime_reason || ""
+        } : null
+      };
+    });
+    return schedule;
+  }
+
+  function normalizeScheduleLoadedRanges(ranges = []) {
+    return (Array.isArray(ranges) ? ranges : [])
+      .map((range) => ({
+        startDate: toDateObject(range?.startDate) ? range.startDate : "",
+        endDate: toDateObject(range?.endDate) ? range.endDate : ""
+      }))
+      .filter((range) => range.startDate && range.endDate && range.startDate <= range.endDate);
+  }
+
+  async function fetchExistingScheduleRowsForRanges(ranges) {
+    const loadedRanges = normalizeScheduleLoadedRanges(ranges);
+    if (!loadedRanges.length) {
+      return [];
+    }
+    const pages = await Promise.all(loadedRanges.map((range) => restSelect("schedule_entries", {
+      select: "id,member_id,work_date",
+      filters: getScheduleEntryFilters(range),
+      auth: true
+    })));
+    const rowsByKey = new Map();
+    pages.flat().forEach((row) => {
+      if (row?.id) {
+        rowsByKey.set(row.id, row);
+      }
+    });
+    return [...rowsByKey.values()];
+  }
+
+  async function deleteRowsNotIn(table, ids) {
     await restDelete(table, {
-      scheduler_item_id: notInFilter(schedulerIds)
+      id: notInFilter(ids)
     }, {
       auth: true
     });
   }
 
-  async function fetchRowsBySchedulerId(table) {
+  async function fetchRowsById(table) {
     const rows = await restSelect(table, {
       select: "*",
       auth: Boolean(currentSession?.access_token)
     });
     return new Map((rows || [])
-      .filter((row) => row.scheduler_item_id)
-      .map((row) => [row.scheduler_item_id, row]));
+      .filter((row) => row.id)
+      .map((row) => [row.id, row]));
   }
 
-  async function fetchSchedulerRowByItemId(table, schedulerItemId) {
-    const itemId = String(schedulerItemId || "").trim();
-    if (!itemId) {
+  async function fetchRowById(table, id) {
+    const rowId = String(id || "").trim();
+    if (!rowId) {
       return null;
     }
     const rows = await restSelect(table, {
       select: "*",
       filters: {
-        scheduler_item_id: `eq.${itemId}`
+        id: `eq.${rowId}`
       },
       limit: "1",
       auth: true
@@ -511,15 +654,15 @@
     return rows?.[0] || null;
   }
 
-  function getRemovedSchedulerRowIds(rowMap, keptSchedulerIds) {
-    const keptIds = new Set((keptSchedulerIds || []).map((value) => String(value || "").trim()).filter(Boolean));
+  function getRemovedRowIds(rowMap, keptRowIds) {
+    const keptIds = new Set((keptRowIds || []).map((value) => String(value || "").trim()).filter(Boolean));
     return [...rowMap.entries()]
-      .filter(([schedulerId, row]) => schedulerId && !keptIds.has(schedulerId) && row?.id)
+      .filter(([rowId, row]) => rowId && !keptIds.has(rowId) && row?.id)
       .map(([, row]) => row.id);
   }
 
   function isLegacyRequestCatalogRow(row) {
-    return String(row?.scheduler_item_id || "").startsWith("catalog:");
+    return String(row?.id || "").startsWith("catalog:");
   }
 
   async function deleteRowsByForeignIds(table, column, ids) {
@@ -547,33 +690,27 @@
     });
   }
 
-  function getRowSchedulerId(row, fallbackPrefix) {
-    return row.scheduler_item_id || `${fallbackPrefix}:${row.id}`;
-  }
-
   function mapDepartmentRows(rows = []) {
     return (rows || [])
-      .filter((row) => row.scheduler_item_id)
+      .filter((row) => row.id)
       .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.name || "").localeCompare(String(b.name || "")))
       .map((row) => ({
-        id: row.scheduler_item_id,
+        id: row.id,
         name: row.name || "",
         startDate: row.start_date || "",
         endDate: row.end_date || "",
-        hiddenFromLeave: Boolean(row.hidden_from_leave)
+        hiddenFromSchedule: Boolean(row.hidden_from_schedule)
       }));
   }
 
-  function mapShiftRows(rows = [], departmentIdByUuid = new Map()) {
+  function mapShiftRows(rows = []) {
     return (rows || [])
-      .filter((row) => row.scheduler_item_id)
+      .filter((row) => row.id)
       .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.name || "").localeCompare(String(b.name || "")))
       .map((row) => {
-        const applicableDeptIds = Array.isArray(row.applicable_department_ids)
-          ? row.applicable_department_ids
-          : [departmentIdByUuid.get(row.applicable_department_id)];
+        const applicableDeptIds = normalizeTextArray(row.applicable_department_ids);
         return {
-          id: row.scheduler_item_id,
+          id: row.id,
           name: row.name || "",
           color: row.color || "#378ADD",
           textColor: row.text_color || "",
@@ -590,11 +727,11 @@
 
   function mapLeaveRows(rows = []) {
     return (rows || [])
-      .filter((row) => row.scheduler_item_id)
+      .filter((row) => row.id)
       .filter((row) => !isLegacyRequestCatalogRow(row))
       .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.code || "").localeCompare(String(b.code || "")))
       .map((row) => ({
-        id: row.scheduler_item_id,
+        id: row.id,
         code: row.code || "",
         name: row.name || "",
         color: row.color || "#888780",
@@ -608,10 +745,10 @@
 
   function mapOvertimeRows(rows = []) {
     return (rows || [])
-      .filter((row) => row.scheduler_item_id)
+      .filter((row) => row.id)
       .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.name || "").localeCompare(String(b.name || "")))
       .map((row) => ({
-        id: row.scheduler_item_id,
+        id: row.id,
         name: row.name || "加班",
         color: row.color || "#D85A30",
         textColor: row.text_color || "",
@@ -632,7 +769,7 @@
     return (rows || [])
       .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.holiday_date || "").localeCompare(String(b.holiday_date || "")))
       .map((row) => ({
-        id: row.scheduler_item_id || `h:${row.id}`,
+        id: row.id,
         date: row.holiday_date || "",
         name: row.name || ""
       }));
@@ -648,8 +785,7 @@
         shiftRows,
         leaveRows,
         overtimeRows,
-        holidayRows,
-        scheduleEntryRows
+        holidayRows
       ] = await Promise.all([
         restSelect("scheduler_settings", { select: "*", filters: { id: `eq.${documentId}` }, limit: "1", auth }),
         restSelect("set_departments", { select: "*", order: "sort_order.asc,name.asc", auth }),
@@ -657,19 +793,21 @@
         restSelect("set_shift", { select: "*", order: "sort_order.asc,name.asc", auth }),
         restSelect("set_leave", { select: "*", order: "sort_order.asc,code.asc", auth }),
         restSelect("set_overtime", { select: "*", order: "sort_order.asc,name.asc", auth }),
-        restSelect("holidays", { select: "*", order: "sort_order.asc,holiday_date.asc", auth }),
-        restSelect("schedule_entries", { select: "*", order: "work_date.asc", auth })
+        restSelect("holidays", { select: "*", order: "sort_order.asc,holiday_date.asc", auth })
       ]);
 
       const settings = settingsRows?.[0] || {};
-      const departmentIdByUuid = new Map((departmentRows || []).map((row) => [row.id, row.scheduler_item_id || ""]));
-      const shiftIdByUuid = new Map((shiftRows || []).map((row) => [row.id, getRowSchedulerId(row, "shift")]));
-      const leaveIdByUuid = new Map((leaveRows || []).map((row) => [row.id, getRowSchedulerId(row, "leave")]));
-      const overtimeIdByUuid = new Map((overtimeRows || []).map((row) => [row.id, getRowSchedulerId(row, "overtime")]));
+      const scheduleRange = getScheduleLoadRange(settings);
+      const scheduleEntryRows = await restSelect("schedule_entries", {
+        select: "*",
+        filters: getScheduleEntryFilters(scheduleRange),
+        order: "work_date.asc",
+        auth
+      });
 
       const members = (profileRows || []).map((row) => {
-        const fallbackDeptId = departmentIdByUuid.get(row.home_department_id) || "";
-        const scheduleShiftIds = (Array.isArray(row.schedule_shift_ids) ? row.schedule_shift_ids : [])
+        const fallbackDeptId = row.home_department_id || "";
+        const scheduleShiftIds = normalizeTextArray(row.schedule_shift_ids)
           .filter((value, index, list) => value && list.indexOf(value) === index);
         return {
           id: row.id,
@@ -687,44 +825,7 @@
           role: row.role === "manager" ? "manager" : "employee"
         };
       });
-      const memberByUuid = new Map(members.map((member) => [member.id, member]));
-      const schedule = {};
-      (scheduleEntryRows || []).forEach((row) => {
-        const member = memberByUuid.get(row.member_id);
-        const key = makeScheduleKey(member?.id, row.work_date);
-        if (!key) {
-          return;
-        }
-        const shift = shiftIdByUuid.get(row.shift_type_id) || null;
-        const leave = leaveIdByUuid.get(row.leave_type_id) || null;
-        const overtime = overtimeIdByUuid.get(row.overtime_type_id) || null;
-        if (!shift && !leave && !overtime) {
-          return;
-        }
-        schedule[key] = {
-          shift,
-          leave,
-          overtime,
-          leaveMeta: leave ? {
-            allDay: row.leave_all_day !== false,
-            startTime: (row.leave_start_time || "").slice(0, 5),
-            endTime: (row.leave_end_time || "").slice(0, 5),
-            reasonEnabled: Boolean(row.leave_reason),
-            reason: row.leave_reason || ""
-          } : null,
-          overtimeMeta: overtime ? {
-            startTime: (row.overtime_start_time || "").slice(0, 5),
-            endTime: (row.overtime_end_time || "").slice(0, 5),
-            useRest1: Boolean(row.overtime_use_rest_1),
-            rest1StartTime: (row.overtime_rest_1_start_time || "").slice(0, 5),
-            rest1EndTime: (row.overtime_rest_1_end_time || "").slice(0, 5),
-            useRest2: Boolean(row.overtime_use_rest_2),
-            rest2StartTime: (row.overtime_rest_2_start_time || "").slice(0, 5),
-            rest2EndTime: (row.overtime_rest_2_end_time || "").slice(0, 5),
-            reason: row.overtime_reason || ""
-          } : null
-        };
-      });
+      const schedule = mapScheduleRows(scheduleEntryRows, members);
 
       return {
         year: Number(settings.current_year) || new Date().getFullYear(),
@@ -737,19 +838,17 @@
         scheduleStartDate: settings.schedule_start_date || "",
         departments: mapDepartmentRows(departmentRows),
         members,
-        shifts: mapShiftRows(shiftRows, departmentIdByUuid),
+        shifts: mapShiftRows(shiftRows),
         leaves: mapLeaveRows(leaveRows),
         overtime: mapOvertimeRows(overtimeRows),
         holidays: mapHolidayRows(holidayRows),
         rules: {
-          maxConsecutiveWorkDays: Math.max(1, Number(settings.max_consecutive_work_days) || 6),
           weekStart: clampInteger(settings.week_start, 0, 6, 0),
           monthStartDay: clampInteger(settings.month_start_day, 1, 31, 1),
-          eightWeekStartDate: settings.eight_week_start_date || "",
-          forbidProxyLeaveConflict: settings.forbid_proxy_leave_conflict !== false,
-          requireEmploymentWindow: settings.require_employment_window !== false
+          eightWeekStartDate: settings.eight_week_start_date || ""
         },
-        schedule
+        schedule,
+        scheduleLoadedRanges: [scheduleRange]
       };
     } catch (error) {
       if (!currentSession?.access_token && /permission denied|42501|401|403/i.test(error.message || "")) {
@@ -763,7 +862,7 @@
     const leaveItems = (state.leaves || []).filter((item) => item?.id && item?.code && !String(item.id).startsWith("catalog:"));
     if (leaveItems.length) {
       await restInsert("set_leave", leaveItems.map((item, index) => ({
-        scheduler_item_id: item.id,
+        id: item.id,
         code: item.code,
         name: item.name,
         color: item.color || null,
@@ -775,7 +874,7 @@
         sort_order: index
       })), {
         auth: true,
-        onConflict: "scheduler_item_id",
+        onConflict: "id",
         prefer: "resolution=merge-duplicates,return=minimal"
       });
     }
@@ -783,7 +882,7 @@
     const overtimeItems = (state.overtime || []).filter((item) => item?.id && item?.name);
     if (overtimeItems.length) {
       await restInsert("set_overtime", overtimeItems.map((item, index) => ({
-        scheduler_item_id: item.id,
+        id: item.id,
         name: item.name,
         color: item.color || null,
         text_color: item.textColor || null,
@@ -800,7 +899,7 @@
         sort_order: index
       })), {
         auth: true,
-        onConflict: "scheduler_item_id",
+        onConflict: "id",
         prefer: "resolution=merge-duplicates,return=minimal"
       });
     }
@@ -864,6 +963,26 @@
     return new Map((rows || []).map((row) => [row.employee_code, row]));
   }
 
+  async function loadScheduleEntries(range = {}) {
+    const startDate = toDateObject(range.startDate) ? range.startDate : "";
+    const endDate = toDateObject(range.endDate) ? range.endDate : "";
+    if (!startDate || !endDate) {
+      throw new Error("schedule range is required");
+    }
+    const auth = Boolean(currentSession?.access_token);
+    const rows = await restSelect("schedule_entries", {
+      select: "*",
+      filters: getScheduleEntryFilters({ startDate, endDate }),
+      order: "work_date.asc",
+      auth
+    });
+    const members = Array.isArray(range.members) ? range.members : [];
+    return {
+      schedule: mapScheduleRows(rows, members),
+      scheduleLoadedRanges: [{ startDate, endDate }]
+    };
+  }
+
   async function saveState(state) {
     ensureManager();
     const departments = Array.isArray(state.departments) ? state.departments : [];
@@ -874,25 +993,24 @@
 
     if (departments.length) {
       await restInsert("set_departments", departments.map((department, index) => ({
-        scheduler_item_id: department.id,
-        code: department.id,
+        id: department.id,
         name: department.name || department.id,
         start_date: nullableDate(department.startDate),
         end_date: nullableDate(department.endDate),
-        hidden_from_leave: Boolean(department.hiddenFromLeave),
+        hidden_from_schedule: Boolean(department.hiddenFromSchedule),
         sort_order: index
       })), {
         auth: true,
-        onConflict: "scheduler_item_id",
+        onConflict: "id",
         prefer: "resolution=merge-duplicates,return=minimal"
       });
     }
-    await deleteSchedulerRowsNotIn("set_departments", departments.map((department) => department.id));
-    const departmentMap = await fetchRowsBySchedulerId("set_departments");
+    await deleteRowsNotIn("set_departments", departments.map((department) => department.id));
+    const departmentMap = await fetchRowsById("set_departments");
 
     if (leaves.length) {
       await restInsert("set_leave", leaves.map((item, index) => ({
-        scheduler_item_id: item.id,
+        id: item.id,
         code: item.code || item.id,
         name: item.name || item.code || item.id,
         color: item.color || null,
@@ -904,13 +1022,13 @@
         sort_order: index
       })), {
         auth: true,
-        onConflict: "scheduler_item_id",
+        onConflict: "id",
         prefer: "resolution=merge-duplicates,return=minimal"
       });
     }
     const keptLeaveIds = leaves.map((item) => item.id).filter((id) => !String(id).startsWith("catalog:"));
-    const existingLeaveMap = await fetchRowsBySchedulerId("set_leave");
-    const removedLeaveRowIds = getRemovedSchedulerRowIds(existingLeaveMap, keptLeaveIds);
+    const existingLeaveMap = await fetchRowsById("set_leave");
+    const removedLeaveRowIds = getRemovedRowIds(existingLeaveMap, keptLeaveIds);
     await clearScheduleEntriesByForeignIds("leave_type_id", removedLeaveRowIds, {
       leave_type_id: null,
       leave_all_day: true,
@@ -918,12 +1036,12 @@
       leave_end_time: null,
       leave_reason: null
     });
-    await deleteSchedulerRowsNotIn("set_leave", keptLeaveIds);
-    const leaveMap = await fetchRowsBySchedulerId("set_leave");
+    await deleteRowsNotIn("set_leave", keptLeaveIds);
+    const leaveMap = await fetchRowsById("set_leave");
 
     if (overtime.length) {
       await restInsert("set_overtime", overtime.map((item, index) => ({
-        scheduler_item_id: item.id,
+        id: item.id,
         name: item.name || "加班",
         color: item.color || null,
         text_color: item.textColor || null,
@@ -940,13 +1058,13 @@
         sort_order: index
       })), {
         auth: true,
-        onConflict: "scheduler_item_id",
+        onConflict: "id",
         prefer: "resolution=merge-duplicates,return=minimal"
       });
     }
     const keptOvertimeIds = overtime.map((item) => item.id);
-    const existingOvertimeMap = await fetchRowsBySchedulerId("set_overtime");
-    const removedOvertimeRowIds = getRemovedSchedulerRowIds(existingOvertimeMap, keptOvertimeIds);
+    const existingOvertimeMap = await fetchRowsById("set_overtime");
+    const removedOvertimeRowIds = getRemovedRowIds(existingOvertimeMap, keptOvertimeIds);
     await clearScheduleEntriesByForeignIds("overtime_type_id", removedOvertimeRowIds, {
       overtime_type_id: null,
       overtime_start_time: null,
@@ -959,12 +1077,12 @@
       overtime_rest_2_end_time: null,
       overtime_reason: null
     });
-    await deleteSchedulerRowsNotIn("set_overtime", keptOvertimeIds);
-    const overtimeMap = await fetchRowsBySchedulerId("set_overtime");
+    await deleteRowsNotIn("set_overtime", keptOvertimeIds);
+    const overtimeMap = await fetchRowsById("set_overtime");
 
     if (shifts.length) {
       await restInsert("set_shift", shifts.map((shift, index) => ({
-        scheduler_item_id: shift.id,
+        id: shift.id,
         name: shift.name || shift.id,
         applicable_department_ids: (Array.isArray(shift.applicableDeptIds) ? shift.applicableDeptIds : [])
           .filter((departmentId, index, list) => departmentMap.has(departmentId) && list.indexOf(departmentId) === index),
@@ -978,19 +1096,19 @@
         sort_order: index
       })), {
         auth: true,
-        onConflict: "scheduler_item_id",
+        onConflict: "id",
         prefer: "resolution=merge-duplicates,return=minimal"
       });
     }
-    await deleteSchedulerRowsNotIn("set_shift", shifts.map((shift) => shift.id));
-    const shiftMap = await fetchRowsBySchedulerId("set_shift");
+    await deleteRowsNotIn("set_shift", shifts.map((shift) => shift.id));
+    const shiftMap = await fetchRowsById("set_shift");
     const shiftIds = new Set(shifts.map((shift) => shift.id));
 
     if (holidays.length) {
       await restInsert("holidays", holidays
         .filter((holiday) => nullableDate(holiday.date))
         .map((holiday, index) => ({
-          scheduler_item_id: holiday.id,
+          id: holiday.id,
           holiday_date: nullableDate(holiday.date),
           name: holiday.name || "假日",
           sort_order: index
@@ -1000,7 +1118,7 @@
         prefer: "resolution=merge-duplicates,return=minimal"
       });
     }
-    await deleteSchedulerRowsNotIn("holidays", holidays.map((holiday) => holiday.id));
+    await deleteRowsNotIn("holidays", holidays.map((holiday) => holiday.id));
 
     const profileMap = await ensureMemberProfiles(state);
     const memberCodes = (state.members || []).map((member) => member.code).filter(Boolean);
@@ -1051,12 +1169,9 @@
       table_dept_scope_filter: state.tableDeptScopeFilter || "all",
       table_stats_visible: state.tableStatsVisible !== false,
       schedule_start_date: nullableDate(state.scheduleStartDate),
-      max_consecutive_work_days: Math.max(1, Number(state.rules?.maxConsecutiveWorkDays) || 6),
       week_start: clampInteger(state.rules?.weekStart, 0, 6, 0),
       month_start_day: clampInteger(state.rules?.monthStartDay, 1, 31, 1),
       eight_week_start_date: nullableDate(state.rules?.eightWeekStartDate),
-      forbid_proxy_leave_conflict: state.rules?.forbidProxyLeaveConflict !== false,
-      require_employment_window: state.rules?.requireEmploymentWindow !== false,
       updated_at: new Date().toISOString()
     }], {
       auth: true,
@@ -1100,10 +1215,7 @@
       };
     }).filter((row) => row && (row.shift_type_id || row.leave_type_id || row.overtime_type_id));
     const savedScheduleKeys = new Set(scheduleRows.map((row) => makeScheduleEntryKey(row.member_id, row.work_date)));
-    const existingScheduleRows = await restSelect("schedule_entries", {
-      select: "id,member_id,work_date",
-      auth: true
-    });
+    const existingScheduleRows = await fetchExistingScheduleRowsForRanges(state.scheduleLoadedRanges);
     const obsoleteScheduleRows = (existingScheduleRows || [])
       .filter((row) => row?.id && !savedScheduleKeys.has(makeScheduleEntryKey(row.member_id, row.work_date)))
       .map((row) => ({
@@ -1175,14 +1287,14 @@
   async function saveScheduleCells(payloads) {
     ensureManager();
     const rowCache = new Map();
-    const resolveSchedulerRow = async (table, schedulerItemId) => {
-      const itemId = String(schedulerItemId || "").trim();
-      if (!itemId) {
+    const resolveCatalogRow = async (table, id) => {
+      const rowId = String(id || "").trim();
+      if (!rowId) {
         return null;
       }
-      const cacheKey = `${table}:${itemId}`;
+      const cacheKey = `${table}:${rowId}`;
       if (!rowCache.has(cacheKey)) {
-        rowCache.set(cacheKey, fetchSchedulerRowByItemId(table, itemId));
+        rowCache.set(cacheKey, fetchRowById(table, rowId));
       }
       return await rowCache.get(cacheKey);
     };
@@ -1195,9 +1307,9 @@
       }
       const slot = payload.slot || {};
       const [shiftType, leaveType, overtimeType] = await Promise.all([
-        resolveSchedulerRow("set_shift", slot.shift),
-        resolveSchedulerRow("set_leave", slot.leave),
-        resolveSchedulerRow("set_overtime", slot.overtime)
+        resolveCatalogRow("set_shift", slot.shift),
+        resolveCatalogRow("set_leave", slot.leave),
+        resolveCatalogRow("set_overtime", slot.overtime)
       ]);
       if (!shiftType?.id && !leaveType?.id && !overtimeType?.id) {
         rows.push({
@@ -1368,6 +1480,7 @@
     signOut,
     changePassword,
     loadState,
+    loadScheduleEntries,
     saveState,
     syncCatalogs,
     saveScheduleCells,

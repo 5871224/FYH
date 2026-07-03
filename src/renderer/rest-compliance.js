@@ -151,7 +151,9 @@
   }
 
   function checkRestCompliance(config) {
-    const weeks = buildCalendarWeeks(config.year, config.month, config.weekStart);
+    const weeks = Array.isArray(config.weeks) && config.weeks.length
+      ? config.weeks
+      : buildCalendarWeeks(config.year, config.month, config.weekStart);
     const issues = [];
     const maxConsecutiveWorkDays = Math.max(1, Number(config.maxConsecutiveWorkDays) || 6);
     const reportStartDate = config.reportStartDate || weeks[0]?.startDate || "";

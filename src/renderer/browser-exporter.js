@@ -235,7 +235,7 @@
     const rows = [];
     const hiddenDepartmentIds = new Set(
       (state.departments || [])
-        .filter((department) => department?.hiddenFromLeave)
+        .filter((department) => department?.hiddenFromSchedule)
         .map((department) => department.id)
     );
 
@@ -496,7 +496,7 @@
   async function createDepartmentWorkbook(payload) {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("單位設定");
-    const headers = ["單位", "開始日期", "結束日期", "請假匯出排除"];
+    const headers = ["單位", "開始日期", "結束日期", "不顯示"];
 
     sheet.addRow(headers);
     (payload.state?.departments || []).forEach((department) => {
@@ -504,7 +504,7 @@
         department.name || "",
         formatDisplayDate(department.startDate || ""),
         formatDisplayDate(department.endDate || ""),
-        department.hiddenFromLeave ? "是" : "否"
+        department.hiddenFromSchedule ? "是" : "否"
       ]);
     });
 
@@ -684,11 +684,11 @@
       const name = getCellDisplayValue(row.getCell(1));
       const startDate = normalizeImportedDate(row.getCell(2).value);
       const endDate = normalizeImportedDate(row.getCell(3).value);
-      const hiddenFromLeave = normalizeImportedBoolean(getCellDisplayValue(row.getCell(4)));
-      if (![name, startDate, endDate, hiddenFromLeave].some(Boolean)) {
+      const hiddenFromSchedule = normalizeImportedBoolean(getCellDisplayValue(row.getCell(4)));
+      if (![name, startDate, endDate, hiddenFromSchedule].some(Boolean)) {
         return;
       }
-      rows.push({ name, startDate, endDate, hiddenFromLeave });
+      rows.push({ name, startDate, endDate, hiddenFromSchedule });
     });
     return rows;
   }

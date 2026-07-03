@@ -15,6 +15,10 @@ type MemberPayload = {
 
 const DEFAULT_PASSWORD = "0000";
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(String(value || "").trim());
+}
+
 function buildLoginEmail(employeeCode: string) {
   const normalized = String(employeeCode || "")
     .trim()
@@ -51,7 +55,7 @@ function normalizeMember(member: MemberPayload) {
       ? member.scheduleShiftIds.map((value) => String(value || "").trim()).filter(Boolean)
       : [],
     monthlyRestDays: Math.max(0, Number(member?.monthlyRestDays) || 0),
-    loginEmail: buildLoginEmail(employeeCode)
+    authEmail: buildLoginEmail(employeeCode)
   };
 }
 
@@ -76,7 +80,7 @@ async function findProfile(ctx: any, currentCode: string, previousCode: string) 
   for (const code of codes) {
     const { data, error } = await ctx.supabaseAdmin
       .from("set_employee")
-      .select("id, employee_code, login_email")
+      .select("id, employee_code")
       .eq("employee_code", code)
       .maybeSingle();
     if (error) {
@@ -89,15 +93,15 @@ async function findProfile(ctx: any, currentCode: string, previousCode: string) 
   return null;
 }
 
-async function resolveDepartmentUuid(ctx: any, schedulerItemId: string) {
-  const itemId = String(schedulerItemId || "").trim();
-  if (!itemId) {
+async function resolveDepartmentUuid(ctx: any, departmentId: string) {
+  const itemId = String(departmentId || "").trim();
+  if (!isUuid(itemId)) {
     return null;
   }
   const { data, error } = await ctx.supabaseAdmin
     .from("set_departments")
     .select("id")
-    .eq("scheduler_item_id", itemId)
+    .eq("id", itemId)
     .maybeSingle();
   if (error) {
     throw error;
@@ -114,7 +118,7 @@ async function upsertMember(ctx: any, body: any) {
 
   if (!profile) {
     const { data, error } = await ctx.supabaseAdmin.auth.admin.createUser({
-      email: member.loginEmail,
+      email: member.authEmail,
       password,
       email_confirm: true,
       user_metadata: {
@@ -142,8 +146,7 @@ async function upsertMember(ctx: any, body: any) {
         fixed_rest_weekday: member.fixedRestWeekday,
         home_department_id: homeDepartmentUuid,
         schedule_shift_ids: member.scheduleShiftIds,
-        monthly_rest_days: member.monthlyRestDays,
-        login_email: member.loginEmail
+        monthly_rest_days: member.monthlyRestDays
       });
     if (insertError) {
       throw insertError;
@@ -152,12 +155,12 @@ async function upsertMember(ctx: any, body: any) {
       ok: true,
       created: true,
       employeeCode: member.employeeCode,
-      loginEmail: member.loginEmail
+      authEmail: member.authEmail
     };
   }
 
   const { error: updateAuthError } = await ctx.supabaseAdmin.auth.admin.updateUserById(profile.id, {
-    email: member.loginEmail,
+    email: member.authEmail,
     email_confirm: true,
     user_metadata: {
       employee_code: member.employeeCode,
@@ -167,8 +170,6 @@ async function upsertMember(ctx: any, body: any) {
   if (updateAuthError && !/not found/i.test(String(updateAuthError.message || updateAuthError))) {
     throw updateAuthError;
   }
-  const authUserSynced = !updateAuthError;
-
   const { error: updateProfileError } = await ctx.supabaseAdmin
     .from("set_employee")
     .update({
@@ -181,8 +182,7 @@ async function upsertMember(ctx: any, body: any) {
       fixed_rest_weekday: member.fixedRestWeekday,
       home_department_id: homeDepartmentUuid,
       schedule_shift_ids: member.scheduleShiftIds,
-      monthly_rest_days: member.monthlyRestDays,
-      login_email: authUserSynced ? member.loginEmail : null
+      monthly_rest_days: member.monthlyRestDays
     })
     .eq("id", profile.id);
   if (updateProfileError) {
@@ -190,10 +190,10 @@ async function upsertMember(ctx: any, body: any) {
   }
 
   return {
-    ok: true,
-    created: false,
-    employeeCode: member.employeeCode,
-    loginEmail: member.loginEmail
+      ok: true,
+      created: false,
+      employeeCode: member.employeeCode,
+      authEmail: member.authEmail
   };
 }
 

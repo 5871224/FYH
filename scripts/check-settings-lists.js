@@ -6,6 +6,7 @@ const rootDir = path.resolve(__dirname, "..");
 const renderer = fs.readFileSync(path.join(rootDir, "src", "renderer", "renderer.js"), "utf8");
 const browserExporter = fs.readFileSync(path.join(rootDir, "src", "renderer", "browser-exporter.js"), "utf8");
 const styles = fs.readFileSync(path.join(rootDir, "src", "renderer", "styles.css"), "utf8");
+const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js"), "utf8");
 
 assert(renderer.includes('class="settings-table-wrap"'), "settings list should render table wrap");
 assert(renderer.includes('data-sort-category="${category}"'), "settings list should keep drag category on rows");
@@ -45,8 +46,13 @@ assert(renderer.includes("function shiftHasVisibleDepartment"), "shift view shou
 assert(renderer.includes("function getMembersForScheduleShift"), "shift settings should compute eligible members");
 assert(renderer.includes('data-shift-schedule-member="${escapeHtml(member.id)}"'), "shift settings should render schedulable members");
 assert(renderer.includes("openMemberForm(\"edit\", memberId);"), "double-clicking a shift member should open that member");
+assert(renderer.includes("function renderMemberScheduleShiftPills"), "member settings should render shift pills");
+assert(renderer.includes('class="member-shift-pill-list"'), "member settings should show schedule shifts as pills");
+assert(renderer.includes("<div>到職日<br>離職日</div>"), "member settings should merge hire and leave date columns");
 assert(renderer.includes("state.shifts.filter((shift) => !shift.hiddenFromToolbar).map((shift) => [shift.name.trim(), shift.id])"), "member import should only accept visible schedule shifts");
 assert(renderer.includes("if (!existing) {\n        try {\n          await window.schedulerApi.syncMemberProfile(payload, \"\");"), "member import should not sync profiles again for existing members");
+assert(webApi.includes("function normalizeTextArray"), "web api should normalize Postgres text arrays");
+assert(webApi.includes("schedule_shift_ids uuid[]") || webApi.includes("scheduleShiftIds"), "member schedule shifts should stay on uuid-backed scheduleShiftIds");
 assert(browserExporter.includes('["工號", "姓名", "排班班別", "權限", "到職日", "離職日", "計薪方式", "例假星期", "所屬單位"]'), "member export should place home department after rest weekday");
 assert(browserExporter.includes('const departmentColumn = getHeaderColumnIndex(sheet, ["所屬單位", "單位"], 9);'), "member import should read the home department after rest weekday by default");
 
@@ -54,6 +60,9 @@ assert(styles.includes(".catalog-settings-modal"), "catalog settings modal style
 assert(styles.includes(".department-settings-modal"), "department settings modal styles should exist");
 assert(styles.includes(".settings-table-row-shift"), "shift table row styles should exist");
 assert(styles.includes(".settings-member-chip"), "shift schedulable member chips should be styled");
+assert(styles.includes(".member-shift-pill"), "member shift pills should be styled");
+assert(!styles.includes(".member-table-row {\n  grid-template-columns: repeat(9"), "member settings table should not use equal-width columns");
+assert(styles.includes("minmax(280px, 2.7fr)") && styles.includes("minmax(240px, 2.5fr)"), "shift/member assignment columns should be wider than compact columns");
 assert(styles.includes(".settings-table-row-leave"), "leave table row styles should exist");
 assert(styles.includes(".settings-table-code"), "leave settings code column styles should exist");
 assert(styles.includes(".settings-icon-btn"), "settings icon button styles should exist");

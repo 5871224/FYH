@@ -99,11 +99,10 @@ const DEFAULT_STATE = {
     maxConsecutiveWorkDays: 6,
     weekStart: 0,
     monthStartDay: 1,
-    eightWeekStartDate: "",
-    forbidProxyLeaveConflict: true,
-    requireEmploymentWindow: true
+    eightWeekStartDate: ""
   },
-  schedule: {}
+  schedule: {},
+  scheduleLoadedRanges: []
 };
 
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -382,8 +381,8 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function uid(prefix) {
-  return `${prefix}_${crypto.randomUUID().slice(0, 8)}`;
+function uid(_prefix) {
+  return crypto.randomUUID();
 }
 
 function getMeasureTextContext() {
@@ -603,6 +602,52 @@ function getVisibleDateRange() {
     startDate: dates[0] || getTodayDateString(),
     endDate: dates[dates.length - 1] || getTodayDateString()
   };
+}
+
+function getBufferedVisibleDateRange() {
+  const range = getVisibleDateRange();
+  // ponytail: 7-day buffer matches the current 6-day consecutive-work ceiling; widen if compliance rules look farther.
+  return {
+    startDate: addDaysToDateString(range.startDate, -7),
+    endDate: addDaysToDateString(range.endDate, 7)
+  };
+}
+
+function normalizeScheduleLoadedRanges(ranges) {
+  return (Array.isArray(ranges) ? ranges : [])
+    .map((range) => ({
+      startDate: toDateObject(range?.startDate) ? range.startDate : "",
+      endDate: toDateObject(range?.endDate) ? range.endDate : ""
+    }))
+    .filter((range) => range.startDate && range.endDate && range.startDate <= range.endDate);
+}
+
+function isScheduleRangeLoaded(range) {
+  return normalizeScheduleLoadedRanges(state.scheduleLoadedRanges)
+    .some((loaded) => loaded.startDate <= range.startDate && loaded.endDate >= range.endDate);
+}
+
+function rememberScheduleLoadedRange(range) {
+  state.scheduleLoadedRanges = [
+    ...normalizeScheduleLoadedRanges(state.scheduleLoadedRanges),
+    range
+  ];
+}
+
+async function ensureVisibleScheduleLoaded() {
+  const range = getBufferedVisibleDateRange();
+  if (isScheduleRangeLoaded(range)) {
+    return;
+  }
+  const payload = await window.schedulerApi.loadScheduleEntries({
+    ...range,
+    members: state.members.map((member) => ({ id: member.id }))
+  });
+  state.schedule = cleanupScheduleEntries({
+    ...state.schedule,
+    ...(payload.schedule || {})
+  }, state);
+  rememberScheduleLoadedRange(range);
 }
 
 function getScheduleKeyForDateString(memberId, dateString) {
@@ -865,7 +910,7 @@ function isDepartmentActiveInVisibleRange(department) {
 }
 
 function isDepartmentVisibleInSchedule(department) {
-  return Boolean(department) && !department.hiddenFromLeave;
+  return Boolean(department) && !department.hiddenFromSchedule;
 }
 
 function isDepartmentVisibleInScheduleRange(department) {
@@ -910,7 +955,7 @@ function sanitizeDepartment(department, fallbackIndex) {
     name: department?.name || `單位 ${fallbackIndex + 1}`,
     startDate: department?.startDate || "",
     endDate: department?.endDate || "",
-    hiddenFromLeave: Boolean(department?.hiddenFromLeave)
+    hiddenFromSchedule: Boolean(department?.hiddenFromSchedule)
   };
 }
 
@@ -1140,9 +1185,7 @@ function normalizeState(payload) {
     maxConsecutiveWorkDays: Math.max(1, Number(payload.rules?.maxConsecutiveWorkDays) || merged.rules.maxConsecutiveWorkDays),
     weekStart: Number.isInteger(Number(payload.rules?.weekStart)) ? Math.min(6, Math.max(0, Number(payload.rules?.weekStart))) : merged.rules.weekStart,
     monthStartDay: Number.isInteger(Number(payload.rules?.monthStartDay)) ? Math.min(31, Math.max(1, Number(payload.rules?.monthStartDay))) : merged.rules.monthStartDay,
-    eightWeekStartDate: toDateObject(payload.rules?.eightWeekStartDate) ? payload.rules.eightWeekStartDate : merged.rules.eightWeekStartDate,
-    forbidProxyLeaveConflict: payload.rules?.forbidProxyLeaveConflict !== false,
-    requireEmploymentWindow: payload.rules?.requireEmploymentWindow !== false
+    eightWeekStartDate: toDateObject(payload.rules?.eightWeekStartDate) ? payload.rules.eightWeekStartDate : merged.rules.eightWeekStartDate
   };
   merged.deptFilter = typeof payload.deptFilter === "string" ? payload.deptFilter : merged.deptFilter;
   merged.tableView = payload.tableView === "shift" ? "shift" : "member";
@@ -1150,6 +1193,7 @@ function normalizeState(payload) {
   merged.tableStatsVisible = payload.tableStatsVisible !== false;
   merged.scheduleStartDate = toDateObject(payload.scheduleStartDate) ? payload.scheduleStartDate : merged.scheduleStartDate;
   merged.schedule = cleanupScheduleEntries(payload.schedule && typeof payload.schedule === "object" ? payload.schedule : merged.schedule, merged);
+  merged.scheduleLoadedRanges = normalizeScheduleLoadedRanges(payload.scheduleLoadedRanges);
 
   if (!merged.departments.some((department) => department.id === merged.deptFilter)) {
     merged.deptFilter = "all";
@@ -1209,6 +1253,15 @@ function getMemberScheduleShiftNames(member) {
   const shiftMap = new Map(state.shifts.map((shift) => [shift.id, shift.name]));
   const names = getMemberScheduleShiftIds(member).map((shiftId) => shiftMap.get(shiftId)).filter(Boolean);
   return names.length ? names.join("、") : "未指定";
+}
+
+function renderMemberScheduleShiftPills(member) {
+  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, shift.name]));
+  const names = getMemberScheduleShiftIds(member).map((shiftId) => shiftMap.get(shiftId)).filter(Boolean);
+  if (!names.length) {
+    return "-";
+  }
+  return names.map((name) => `<span class="member-shift-pill">${escapeHtml(name)}</span>`).join("");
 }
 
 function getMemberShiftPriority(member, shiftId) {
@@ -2627,7 +2680,7 @@ function hasLeaveRows() {
   const excludedLeaveCodes = new Set(["0036", "0047"]);
   return state.members.some((member) => {
     const department = state.departments.find((item) => item.id === member.deptId);
-    if (department?.hiddenFromLeave) {
+    if (department?.hiddenFromSchedule) {
       return false;
     }
     for (let day = 1; day <= daysInMonth(state.year, state.month); day += 1) {
@@ -4361,7 +4414,7 @@ function openDepartmentForm(mode, departmentId = "") {
     : null;
   const department = mode === "edit"
     ? state.departments.find((item) => item.id === departmentId)
-    : { id: "", name: "", startDate: "", endDate: "", hiddenFromLeave: false };
+    : { id: "", name: "", startDate: "", endDate: "", hiddenFromSchedule: false };
   if (!department) {
     return;
   }
@@ -4386,7 +4439,7 @@ function openDepartmentForm(mode, departmentId = "") {
       </div>
       <div class="form-row checkbox-row checkbox-row-left">
         <label>
-          <input id="departmentHiddenFromLeave" type="checkbox" ${department.hiddenFromLeave ? "checked" : ""}>
+          <input id="departmentHiddenFromSchedule" type="checkbox" ${department.hiddenFromSchedule ? "checked" : ""}>
           不顯示
         </label>
       </div>
@@ -4401,7 +4454,7 @@ function saveDepartment(mode) {
   const name = document.getElementById("departmentName")?.value.trim();
   const startDate = document.getElementById("departmentStartDate")?.value || "";
   const endDate = document.getElementById("departmentEndDate")?.value || "";
-  const hiddenFromLeave = Boolean(document.getElementById("departmentHiddenFromLeave")?.checked);
+  const hiddenFromSchedule = Boolean(document.getElementById("departmentHiddenFromSchedule")?.checked);
   if (!name) {
     document.getElementById("departmentName")?.focus();
     return;
@@ -4410,7 +4463,7 @@ function saveDepartment(mode) {
     reportValidationError("開始日期必須早於結束日期");
     return;
   }
-  const payload = { id: mode === "edit" ? modalContext.targetId : uid("d"), name, startDate, endDate, hiddenFromLeave };
+  const payload = { id: mode === "edit" ? modalContext.targetId : uid("d"), name, startDate, endDate, hiddenFromSchedule };
   if (mode === "edit") {
     state.departments = state.departments.map((department) => department.id === modalContext.targetId ? payload : department);
   } else {
@@ -4796,24 +4849,20 @@ function renderMemberSettingsList() {
               <div>姓名</div>
               <div>排班班別</div>
               <div>權限</div>
-              <div>到職日</div>
-              <div>離職日</div>
+              <div>到職日<br>離職日</div>
               <div>計薪方式</div>
               <div>例假星期</div>
-              <div>所屬單位</div>
               <div class="member-table-actions-head">操作</div>
             </div>
             ${filteredMembers.map((member) => `
               <div class="member-table-row">
                 <div class="member-table-code">${escapeHtml(member.code)}</div>
                 <div class="member-table-name">${escapeHtml(member.name)}</div>
-                <div>${escapeHtml(getMemberScheduleShiftNames(member))}</div>
+                <div class="member-shift-pill-list">${renderMemberScheduleShiftPills(member)}</div>
                 <div>${member.role === "manager" ? "主管" : "員工"}</div>
-                <div>${escapeHtml(member.hireDate || "-")}</div>
-                <div>${escapeHtml(member.leaveDate || "-")}</div>
+                <div class="member-date-stack"><span>${escapeHtml(member.hireDate || "-")}</span><span>${escapeHtml(member.leaveDate || "-")}</span></div>
                 <div>${getSalaryTypeLabel(member)}</div>
                 <div>${getRestWeekdayLabel(member.fixedRestWeekday)}</div>
-                <div>${escapeHtml(getDepartmentName(getMemberHomeDeptId(member)))}</div>
                 <div class="member-table-actions">
                   ${renderActionIconButton("edit", `data-edit-member="${member.id}"`)}
                   ${renderActionIconButton("delete", `data-delete-member="${member.id}"`)}
@@ -5231,19 +5280,33 @@ function getScheduleSlotByDateString(memberId, dateString) {
   return state.schedule[scheduleKey(memberId, date.getFullYear(), date.getMonth(), date.getDate())] || null;
 }
 
-function buildRestComplianceCalendars() {
+function getVisibleScheduleWeeks() {
+  const visibleDates = getVisibleDates();
+  const weeks = [];
+  for (let index = 0; index < visibleDates.length; index += 7) {
+    const dates = visibleDates.slice(index, index + 7);
+    if (dates.length) {
+      weeks.push({
+        startDate: dates[0],
+        endDate: dates[dates.length - 1],
+        dates
+      });
+    }
+  }
+  return weeks;
+}
+
+function buildRestComplianceCalendars(weeks) {
   const checker = window.restCompliance;
   if (!checker) {
     return [];
   }
-  const weekStart = getConfiguredWeekStart();
-  const weeks = checker.buildCalendarWeeks(state.year, state.month, weekStart);
   const dateRange = [...new Set(weeks.flatMap((week) => week.dates))];
-  const previousMonthStart = new Date(state.year, state.month - 1, 1);
-  const currentMonthEnd = new Date(state.year, state.month + 1, 0);
+  const visibleStartDate = dateRange[0] || getTodayDateString();
+  const visibleEndDate = dateRange[dateRange.length - 1] || visibleStartDate;
   const slidingDateRange = enumerateDateRange(
-    toDateString(previousMonthStart.getFullYear(), previousMonthStart.getMonth(), previousMonthStart.getDate()),
-    toDateString(currentMonthEnd.getFullYear(), currentMonthEnd.getMonth(), currentMonthEnd.getDate())
+    addDaysToDateString(visibleStartDate, -7),
+    visibleEndDate
   );
 
   return state.members.map((member) => {
@@ -5332,14 +5395,18 @@ function openRestComplianceModal() {
     return;
   }
 
+  const complianceWeeks = getVisibleScheduleWeeks();
+  const complianceStartDate = complianceWeeks[0]?.startDate || getTodayDateString();
+  const complianceEndDate = complianceWeeks[complianceWeeks.length - 1]?.endDate || complianceStartDate;
   const result = checker.checkRestCompliance({
     year: state.year,
     month: state.month,
+    weeks: complianceWeeks,
     weekStart: getConfiguredWeekStart(),
     maxConsecutiveWorkDays: Math.max(1, Number(state.rules?.maxConsecutiveWorkDays) || 6),
-    reportStartDate: toDateString(state.year, state.month, 1),
-    reportEndDate: toDateString(state.year, state.month, daysInMonth(state.year, state.month)),
-    memberCalendars: buildRestComplianceCalendars()
+    reportStartDate: complianceStartDate,
+    reportEndDate: complianceEndDate,
+    memberCalendars: buildRestComplianceCalendars(complianceWeeks)
   });
   const issueCount = result.issues.length;
   const errorCount = result.issues.filter((issue) => issue.severity === "error").length;
@@ -5360,8 +5427,8 @@ function openRestComplianceModal() {
   const summaryCards = `
     <div class="compliance-summary-grid">
       <div class="result-item">
-        <div class="result-title">檢查月份</div>
-        <div class="result-detail">${escapeHtml(formatMonthText(state.year, state.month))}</div>
+        <div class="result-title">檢查範圍</div>
+        <div class="result-detail">${escapeHtml(formatWeekRangeText(complianceStartDate, complianceEndDate))}</div>
       </div>
       <div class="result-item ${issueCount ? "warning" : "success"}">
         <div class="result-title">檢查結果</div>
@@ -5373,7 +5440,7 @@ function openRestComplianceModal() {
     <div class="result-item">
       <div class="result-title">檢查說明</div>
       <div class="result-detail compliance-check-note">
-        <div>目前依設定的每週起算日，以 ${escapeHtml(formatWeekStartLabel(getConfiguredWeekStart()))} 開始切 7 日週期。</div>
+        <div>目前檢查畫面顯示的 8 週，每 7 天為一週。</div>
         <div>到職日或離職日落在該週時，每週例假／休息日檢查會略過，改檢查「未在職日＋例假＋休息日」是否至少 2 天。</div>
         <div>這版只看系統內已標記的「例假 0036 / 休息日 0047」；空白未排班不自動視為例休。</div>
       </div>
@@ -5406,7 +5473,7 @@ function openRestComplianceModal() {
     : `
       <div class="result-item success">
         <div class="result-title">檢查完成</div>
-        <div class="result-detail">目前依系統標記，當月未發現例假或休息日缺漏。</div>
+        <div class="result-detail">目前依系統標記，顯示的 8 週未發現例假或休息日缺漏。</div>
       </div>
     `;
 
@@ -5481,6 +5548,7 @@ async function changeScheduleWindowWeeks(weeks) {
   const startDate = toDateObject(state.scheduleStartDate) ? state.scheduleStartDate : getEightWeekCycleStartForDate(getTodayDateString());
   state.scheduleStartDate = addDaysToDateString(startDate, weeks * 7);
   syncVisibleDatePartsFromStart();
+  await ensureVisibleScheduleLoaded();
   renderAll();
   await forceSave();
 }
@@ -6231,6 +6299,7 @@ async function loadApp() {
     const payload = await window.schedulerApi.loadState();
     state = normalizeState(payload);
     resetScheduleWindowToToday();
+    await ensureVisibleScheduleLoaded();
     currentMember = resolveCurrentMember();
   } catch (error) {
     setSaveStatus(`載入失敗：${error.message}`);

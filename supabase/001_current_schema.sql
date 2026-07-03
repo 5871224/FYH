@@ -9,22 +9,18 @@ create table if not exists public.scheduler_settings (
   table_dept_scope_filter text not null default 'all',
   table_stats_visible boolean not null default false,
   schedule_start_date date,
-  max_consecutive_work_days integer not null default 6,
   week_start integer not null default 0 check (week_start between 0 and 6),
   month_start_day integer not null default 1 check (month_start_day between 1 and 31),
   eight_week_start_date date,
-  forbid_proxy_leave_conflict boolean not null default true,
-  require_employment_window boolean not null default true,
   updated_at timestamptz not null default now()
 );
 
 create table if not exists public.set_departments (
   id uuid primary key default gen_random_uuid(),
-  scheduler_item_id text unique,
   name text not null,
   start_date date,
   end_date date,
-  hidden_from_leave boolean not null default false,
+  hidden_from_schedule boolean not null default false,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -35,9 +31,8 @@ create table if not exists public.set_employee (
   employee_code text not null unique,
   full_name text not null,
   role text not null default 'employee' check (role in ('manager', 'employee')),
-  login_email text unique,
   home_department_id uuid references public.set_departments (id) on delete set null,
-  schedule_shift_ids text[] not null default '{}',
+  schedule_shift_ids uuid[] not null default '{}',
   hire_date date,
   leave_date date,
   pay_by_day boolean not null default false,
@@ -50,15 +45,14 @@ create table if not exists public.set_employee (
 
 create table if not exists public.set_shift (
   id uuid primary key default gen_random_uuid(),
-  scheduler_item_id text unique,
   name text not null,
   color text not null default '#7C5CFF',
   text_color text,
   start_time time,
   end_time time,
   required_staff_count integer not null default 0 check (required_staff_count >= 0),
-  applicable_department_ids text[] not null default '{}',
-  hidden_from_picker boolean not null default false,
+  applicable_department_ids uuid[] not null default '{}',
+  hidden_from_toolbar boolean not null default false,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -66,13 +60,12 @@ create table if not exists public.set_shift (
 
 create table if not exists public.set_leave (
   id uuid primary key default gen_random_uuid(),
-  scheduler_item_id text unique,
   code text,
   name text not null,
   color text not null default '#E8EEF8',
   text_color text,
   display_name text,
-  hidden_from_picker boolean not null default false,
+  hidden_from_toolbar boolean not null default false,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -80,7 +73,6 @@ create table if not exists public.set_leave (
 
 create table if not exists public.set_overtime (
   id uuid primary key default gen_random_uuid(),
-  scheduler_item_id text unique,
   name text not null,
   color text not null default '#D85A30',
   text_color text,
@@ -92,7 +84,7 @@ create table if not exists public.set_overtime (
   use_rest_2 boolean not null default false,
   rest_2_start_time time,
   rest_2_end_time time,
-  hidden_from_picker boolean not null default false,
+  hidden_from_toolbar boolean not null default false,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -100,7 +92,6 @@ create table if not exists public.set_overtime (
 
 create table if not exists public.holidays (
   id uuid primary key default gen_random_uuid(),
-  scheduler_item_id text unique,
   holiday_date date not null unique,
   name text not null,
   sort_order integer not null default 0,
