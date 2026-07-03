@@ -14,6 +14,7 @@ assert(renderer.includes('class="settings-table-preview"'), "settings list shoul
 assert(renderer.includes('const style = `color:${foreground};background:${item.color};border-color:${item.color};`;'), "toolbar chips should use filled preview colors");
 assert(renderer.includes("textColor: getItemTextColor(shift, shift.color)"), "shift segments should reuse preview text color");
 assert(renderer.includes("textColor: getItemTextColor(overtime, color)"), "overtime segments should reuse preview text color");
+assert(renderer.includes('leave.code === "0047" && cellState.shift ? "rgb(112, 112, 112)"'), "rest-day leave text should turn gray when a shift is scheduled");
 
 assert(styles.includes(".settings-table-preview"), "preview pill styles should exist");
 assert(styles.includes(".settings-table-row-shift"), "shift settings grid should still be defined");

@@ -3117,7 +3117,7 @@ function renderCellInner(key, memberId = "", day = 0, slotOverride = null, isPre
         category: "leave",
         name: cellState.leaveMeta?.displayName || leave.name,
         color: leave.color,
-        textColor: getItemTextColor(leave, leave.color)
+        textColor: leave.code === "0047" && cellState.shift ? "rgb(112, 112, 112)" : getItemTextColor(leave, leave.color)
       });
     }
   }
