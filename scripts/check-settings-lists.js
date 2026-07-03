@@ -33,6 +33,7 @@ assert(renderer.includes("function renderScheduleCell(memberId, dateString)") &&
 assert(renderer.includes("function getChangedScheduleCells(previousSchedule, nextSchedule)") && renderer.includes("await persistScheduleCells(changedCells);"), "schedule history restores should persist only changed cells");
 assert(renderer.includes("const SCHEDULE_HISTORY_LIMIT = 20") && renderer.includes("let scheduleUndoStack = []") && renderer.includes("let scheduleRedoStack = []"), "schedule undo and redo should keep bounded multi-step stacks");
 assert(renderer.includes("async function finishScheduleCellMutationWithUndo") && renderer.includes("pushScheduleUndoSnapshot(previousSchedule);"), "direct schedule cell edits should be undoable without full schedule saves");
+assert(renderer.includes('if ((event.ctrlKey || event.metaKey) && (key === "z" || key === "y"))'), "schedule undo and redo should work without requiring a selected cell");
 assert(renderer.includes("async function applyAutoSchedulePreview"), "auto schedule apply flow should remain async");
 assert(!renderer.includes("}, 250);"), "save queue should not debounce database writes");
 assert(!renderer.includes('data-open-leave-request="true"'), "floating toolbar should not show the leave request button");

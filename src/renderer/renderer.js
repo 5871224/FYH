@@ -2287,12 +2287,29 @@ async function handleScheduleGridKeydown(event) {
   }
   if (document.querySelector("#modalRoot .modal-overlay")
     || isTypingTarget(event.target)
-    || !canEditSchedule()
-    || state.tableView !== "member"
-    || !scheduleRangeSelection) {
+    || !canEditSchedule()) {
     return;
   }
   const key = event.key.toLowerCase();
+  if ((event.ctrlKey || event.metaKey) && (key === "z" || key === "y")) {
+    event.preventDefault();
+    const redoRequested = key === "y" || event.shiftKey;
+    const targetStack = redoRequested ? scheduleRedoStack : scheduleUndoStack;
+    const snapshot = targetStack.pop();
+    if (!snapshot) {
+      return;
+    }
+    const oppositeStack = redoRequested ? scheduleUndoStack : scheduleRedoStack;
+    oppositeStack.push(deepClone(state.schedule || {}));
+    if (oppositeStack.length > SCHEDULE_HISTORY_LIMIT) {
+      oppositeStack.shift();
+    }
+    await restoreScheduleSnapshot(snapshot);
+    return;
+  }
+  if (state.tableView !== "member" || !scheduleRangeSelection) {
+    return;
+  }
   if (key === "delete" || key === "backspace") {
     event.preventDefault();
     rememberScheduleUndoSnapshot();
@@ -2327,40 +2344,6 @@ async function handleScheduleGridKeydown(event) {
       discardLastScheduleUndoSnapshot();
     }
     return;
-  }
-  if (key === "z") {
-    event.preventDefault();
-    if (event.shiftKey) {
-      const redoSnapshot = scheduleRedoStack.pop();
-      if (redoSnapshot) {
-        scheduleUndoStack.push(deepClone(state.schedule || {}));
-        if (scheduleUndoStack.length > SCHEDULE_HISTORY_LIMIT) {
-          scheduleUndoStack.shift();
-        }
-        await restoreScheduleSnapshot(redoSnapshot);
-      }
-      return;
-    }
-    const undoSnapshot = scheduleUndoStack.pop();
-    if (undoSnapshot) {
-      scheduleRedoStack.push(deepClone(state.schedule || {}));
-      if (scheduleRedoStack.length > SCHEDULE_HISTORY_LIMIT) {
-        scheduleRedoStack.shift();
-      }
-      await restoreScheduleSnapshot(undoSnapshot);
-    }
-    return;
-  }
-  if (key === "y") {
-    event.preventDefault();
-    const redoSnapshot = scheduleRedoStack.pop();
-    if (redoSnapshot) {
-      scheduleUndoStack.push(deepClone(state.schedule || {}));
-      if (scheduleUndoStack.length > SCHEDULE_HISTORY_LIMIT) {
-        scheduleUndoStack.shift();
-      }
-      await restoreScheduleSnapshot(redoSnapshot);
-    }
   }
 }
 
