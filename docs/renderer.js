@@ -126,6 +126,8 @@ const REST_WEEKDAY_OPTIONS = [
   { value: 0, label: "週日" }
 ];
 
+const SCHEDULE_HISTORY_LIMIT = 20;
+
 let state = createEmptyState();
 let modalColor = COLORS[0].hex;
 let modalTextColor = "#ffffff";
@@ -166,8 +168,8 @@ let scheduleRangeSelection = null;
 let scheduleDragSelecting = false;
 let scheduleSuppressNextCellClick = false;
 let scheduleClipboard = null;
-let scheduleUndoSnapshot = null;
-let scheduleRedoSnapshot = null;
+let scheduleUndoStack = [];
+let scheduleRedoStack = [];
 let autoSchedulePreview = null;
 
 function getSettingsScrollElement(selector = "") {
@@ -1476,9 +1478,46 @@ async function clearScheduleCellEditableParts(memberId, dateString) {
   });
 }
 
+function pushScheduleUndoSnapshot(snapshot = state.schedule || {}) {
+  scheduleUndoStack.push(deepClone(snapshot));
+  if (scheduleUndoStack.length > SCHEDULE_HISTORY_LIMIT) {
+    scheduleUndoStack.shift();
+  }
+  scheduleRedoStack = [];
+}
+
 function rememberScheduleUndoSnapshot() {
-  scheduleUndoSnapshot = deepClone(state.schedule || {});
-  scheduleRedoSnapshot = null;
+  pushScheduleUndoSnapshot();
+}
+
+function discardLastScheduleUndoSnapshot() {
+  scheduleUndoStack.pop();
+}
+
+function parseScheduleKeyParts(key) {
+  const parts = String(key || "").split("_");
+  if (parts.length < 4) {
+    return null;
+  }
+  const day = Number(parts.pop());
+  const month = Number(parts.pop());
+  const year = Number(parts.pop());
+  const memberId = parts.join("_");
+  if (!memberId || !Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null;
+  }
+  return { memberId, dateString: toDateString(year, month, day) };
+}
+
+function getChangedScheduleCells(previousSchedule, nextSchedule) {
+  const keys = new Set([
+    ...Object.keys(previousSchedule || {}),
+    ...Object.keys(nextSchedule || {})
+  ]);
+  return Array.from(keys)
+    .filter((key) => JSON.stringify(previousSchedule?.[key] || null) !== JSON.stringify(nextSchedule?.[key] || null))
+    .map(parseScheduleKeyParts)
+    .filter(Boolean);
 }
 
 function getScheduleCellElement(memberId, dateString) {
@@ -1526,11 +1565,14 @@ async function finishScheduleCellMutation(memberId, dateString) {
   await persistScheduleCell(memberId, dateString);
 }
 
-async function finishScheduleGridMutation() {
-  pruneEmptySchedule();
-  renderTable();
-  syncScheduleRangeSelectionUi();
-  await forceSave();
+async function finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule) {
+  const nextSchedule = state.schedule || {};
+  if (!getChangedScheduleCells(previousSchedule, nextSchedule).length) {
+    return false;
+  }
+  pushScheduleUndoSnapshot(previousSchedule);
+  await finishScheduleCellMutation(memberId, dateString);
+  return true;
 }
 
 function copyScheduleRangeToClipboard() {
@@ -1631,8 +1673,13 @@ async function restoreScheduleSnapshot(snapshot) {
   if (!snapshot) {
     return false;
   }
+  const previousSchedule = state.schedule || {};
   state.schedule = deepClone(snapshot);
-  await finishScheduleGridMutation();
+  pruneEmptySchedule();
+  const changedCells = getChangedScheduleCells(previousSchedule, state.schedule);
+  renderTable();
+  syncScheduleRangeSelectionUi();
+  await persistScheduleCells(changedCells);
   return true;
 }
 
@@ -2156,13 +2203,22 @@ async function applyAutoSchedulePreview() {
   if (!await confirmAction("確定要套用目前綠色預排結果嗎？套用後會寫入班表。")) {
     return;
   }
-  Object.entries(autoSchedulePreview.slots || {}).forEach(([key, slot]) => {
+  const previewSlots = autoSchedulePreview.slots || {};
+  const changedCells = Object.keys(previewSlots).map(parseScheduleKeyParts).filter(Boolean);
+  if (!changedCells.length) {
+    autoSchedulePreview = null;
+    renderAll();
+    showInfoMessage("自動排班預覽沒有需要套用的變更");
+    return;
+  }
+  rememberScheduleUndoSnapshot();
+  Object.entries(previewSlots).forEach(([key, slot]) => {
     state.schedule[key] = deepClone(slot);
   });
   autoSchedulePreview = null;
   pruneEmptySchedule();
   renderAll();
-  await forceSave();
+  await persistScheduleCells(changedCells);
   showInfoMessage("已套用自動排班預覽");
 }
 
@@ -2241,7 +2297,7 @@ async function handleScheduleGridKeydown(event) {
     event.preventDefault();
     rememberScheduleUndoSnapshot();
     if (!await clearSelectedScheduleCells()) {
-      scheduleUndoSnapshot = null;
+      discardLastScheduleUndoSnapshot();
     }
     return;
   }
@@ -2260,7 +2316,7 @@ async function handleScheduleGridKeydown(event) {
     }
     rememberScheduleUndoSnapshot();
     if (!await clearSelectedScheduleCells()) {
-      scheduleUndoSnapshot = null;
+      discardLastScheduleUndoSnapshot();
     }
     return;
   }
@@ -2268,35 +2324,41 @@ async function handleScheduleGridKeydown(event) {
     event.preventDefault();
     rememberScheduleUndoSnapshot();
     if (!await pasteScheduleClipboard()) {
-      scheduleUndoSnapshot = null;
+      discardLastScheduleUndoSnapshot();
     }
     return;
   }
   if (key === "z") {
     event.preventDefault();
     if (event.shiftKey) {
-      const redoSnapshot = scheduleRedoSnapshot;
+      const redoSnapshot = scheduleRedoStack.pop();
       if (redoSnapshot) {
-        scheduleRedoSnapshot = null;
-        scheduleUndoSnapshot = deepClone(state.schedule || {});
+        scheduleUndoStack.push(deepClone(state.schedule || {}));
+        if (scheduleUndoStack.length > SCHEDULE_HISTORY_LIMIT) {
+          scheduleUndoStack.shift();
+        }
         await restoreScheduleSnapshot(redoSnapshot);
       }
       return;
     }
-    const undoSnapshot = scheduleUndoSnapshot;
+    const undoSnapshot = scheduleUndoStack.pop();
     if (undoSnapshot) {
-      scheduleUndoSnapshot = null;
-      scheduleRedoSnapshot = deepClone(state.schedule || {});
+      scheduleRedoStack.push(deepClone(state.schedule || {}));
+      if (scheduleRedoStack.length > SCHEDULE_HISTORY_LIMIT) {
+        scheduleRedoStack.shift();
+      }
       await restoreScheduleSnapshot(undoSnapshot);
     }
     return;
   }
   if (key === "y") {
     event.preventDefault();
-    const redoSnapshot = scheduleRedoSnapshot;
+    const redoSnapshot = scheduleRedoStack.pop();
     if (redoSnapshot) {
-      scheduleRedoSnapshot = null;
-      scheduleUndoSnapshot = deepClone(state.schedule || {});
+      scheduleUndoStack.push(deepClone(state.schedule || {}));
+      if (scheduleUndoStack.length > SCHEDULE_HISTORY_LIMIT) {
+        scheduleUndoStack.shift();
+      }
       await restoreScheduleSnapshot(redoSnapshot);
     }
   }
@@ -3387,6 +3449,7 @@ async function applySelectionToCell(memberId, day) {
   if (!slot) {
     return;
   }
+  const previousSchedule = deepClone(state.schedule || {});
   const { type, id } = state.selected;
   if (type === "leave") {
     const leave = getItem("leave", id);
@@ -3396,7 +3459,7 @@ async function applySelectionToCell(memberId, day) {
     try {
       if (slot.leave === id) {
         clearLegacyLeaveFromSlot(slot);
-        await finishScheduleCellMutation(memberId, dateString);
+        await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
         return;
       } else if (shouldPromptLeaveDetail(leave, null)) {
         openLeaveAssignmentModal(memberId, dateString, id);
@@ -3410,7 +3473,7 @@ async function applySelectionToCell(memberId, day) {
           reason: ""
         };
       }
-      await finishScheduleCellMutation(memberId, dateString);
+      await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
     } catch (error) {
       showInfoMessage(`設定請假失敗：${formatSchedulerError(error, "設定失敗")}`);
     }
@@ -3420,7 +3483,7 @@ async function applySelectionToCell(memberId, day) {
     const nextShiftId = slot.shift === id ? null : id;
     slot.shift = nextShiftId;
     try {
-      await finishScheduleCellMutation(memberId, dateString);
+      await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
     } catch (error) {
       showInfoMessage(`設定班別失敗：${formatSchedulerError(error, "設定失敗")}`);
     }
@@ -3446,7 +3509,7 @@ async function applySelectionToCell(memberId, day) {
       } else {
         clearLegacyOvertimeFromSlot(slot);
       }
-      await finishScheduleCellMutation(memberId, dateString);
+      await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
     } catch (error) {
       showInfoMessage(`設定加班失敗：${formatSchedulerError(error, "設定失敗")}`);
     }
@@ -3455,7 +3518,7 @@ async function applySelectionToCell(memberId, day) {
   if (type === "cancel-shift") {
     slot.shift = null;
     try {
-      await finishScheduleCellMutation(memberId, dateString);
+      await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
     } catch (error) {
       showInfoMessage(`清除班別失敗：${formatSchedulerError(error, "清除失敗")}`);
     }
@@ -3464,7 +3527,7 @@ async function applySelectionToCell(memberId, day) {
   if (type === "cancel-leave") {
     try {
       clearLegacyLeaveFromSlot(slot);
-      await finishScheduleCellMutation(memberId, dateString);
+      await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
     } catch (error) {
       showInfoMessage(`清除請假失敗：${formatSchedulerError(error, "清除失敗")}`);
     }
@@ -3473,7 +3536,7 @@ async function applySelectionToCell(memberId, day) {
   if (type === "cancel-overtime") {
     try {
       clearLegacyOvertimeFromSlot(slot);
-      await finishScheduleCellMutation(memberId, dateString);
+      await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
     } catch (error) {
       showInfoMessage(`清除加班失敗：${formatSchedulerError(error, "清除失敗")}`);
     }
@@ -3693,6 +3756,7 @@ async function saveLeaveAssignmentFromModal() {
     if (!slot || !leave) {
       throw new Error("找不到班表格子或假別");
     }
+    const previousSchedule = deepClone(state.schedule || {});
     slot.leave = leaveId;
     slot.leaveMeta = {
       leaveCode: leave.code || "",
@@ -3706,8 +3770,7 @@ async function saveLeaveAssignmentFromModal() {
       reason: reasonEnabled ? (document.getElementById("leaveAssignmentReason")?.value.trim() || "") : ""
     };
     closeModal();
-    renderScheduleCell(memberId, dateString);
-    await persistScheduleCell(memberId, dateString);
+    await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
   } catch (error) {
     reportValidationError(`儲存休假失敗：${formatSchedulerError(error, "儲存失敗")}`);
   }
@@ -3819,6 +3882,7 @@ async function saveOvertimeAssignmentFromModal() {
     if (!slot || !overtime) {
       throw new Error("找不到班表格子或加班類型");
     }
+    const previousSchedule = deepClone(state.schedule || {});
     slot.overtime = overtime.id;
     slot.overtimeMeta = {
       displayName: overtime.name || "加班",
@@ -3835,8 +3899,7 @@ async function saveOvertimeAssignmentFromModal() {
       reason: slot.overtimeMeta?.reason || ""
     };
     closeModal();
-    renderScheduleCell(memberId, dateString);
-    await persistScheduleCell(memberId, dateString);
+    await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
   } catch (error) {
     reportValidationError(`儲存加班失敗：${formatSchedulerError(error, "儲存失敗")}`);
   }

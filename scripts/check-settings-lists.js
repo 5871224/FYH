@@ -30,7 +30,9 @@ assert(!renderer.includes("function mergeDefaultLeaves"), "leave settings should
 assert(renderer.includes("await forceSave();"), "settings changes should persist to storage");
 assert(renderer.includes("async function applySelectionToCell") && renderer.includes("await finishScheduleCellMutation(memberId, dateString);"), "schedule cell edits should persist immediately");
 assert(renderer.includes("function renderScheduleCell(memberId, dateString)") && renderer.includes("saveScheduleCell"), "schedule cell edits should update only changed cells");
-assert(renderer.includes("async function finishScheduleGridMutation()") && renderer.includes("await finishScheduleGridMutation();"), "schedule grid range edits should persist asynchronously");
+assert(renderer.includes("function getChangedScheduleCells(previousSchedule, nextSchedule)") && renderer.includes("await persistScheduleCells(changedCells);"), "schedule history restores should persist only changed cells");
+assert(renderer.includes("const SCHEDULE_HISTORY_LIMIT = 20") && renderer.includes("let scheduleUndoStack = []") && renderer.includes("let scheduleRedoStack = []"), "schedule undo and redo should keep bounded multi-step stacks");
+assert(renderer.includes("async function finishScheduleCellMutationWithUndo") && renderer.includes("pushScheduleUndoSnapshot(previousSchedule);"), "direct schedule cell edits should be undoable without full schedule saves");
 assert(renderer.includes("async function applyAutoSchedulePreview"), "auto schedule apply flow should remain async");
 assert(!renderer.includes("}, 250);"), "save queue should not debounce database writes");
 assert(!renderer.includes('data-open-leave-request="true"'), "floating toolbar should not show the leave request button");
