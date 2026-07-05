@@ -8,9 +8,10 @@ Historical one-off migrations were removed after the schema was normalized.
 - `schedule_entries` is the single source of truth for schedule cells.
 - A schedule cell is unique by `member_id + work_date`.
 - Shift, leave, and overtime are columns on the same `schedule_entries` row.
-- Employee leave/overtime request tables are no longer part of the active model.
+- Attendance overtime requests are independent from schedule overtime columns.
 - Bulk cell writes go through `public.save_schedule_entries_bulk(entries jsonb)`.
 - Catalog tables use their UUID `id` as the only application identifier; `scheduler_item_id` is retired.
+- Shift applicability uses the required single `set_shift.applicable_department_id` column.
 
 ## Active Tables
 
@@ -22,7 +23,13 @@ Historical one-off migrations were removed after the schema was normalized.
 - `set_overtime`: overtime catalog.
 - `holidays`: holiday catalog.
 - `schedule_entries`: schedule cells by member and date.
-- `clock_locations` / `attendance_logs`: reserved for attendance features.
+- `attendance_records`: current effective clock-in/out data by person/date.
+- `attendance_action_logs`: admin attendance change history.
+- `attendance_overtime_requests`: attendance-based overtime requests, separate from schedule overtime.
+- `overtime_review_logs`: overtime review history.
+- `meal_products`: meal ordering products.
+- `meal_settings`: meal cutoff settings.
+- `meal_orders`: meal order item rows.
 
 ## Removed Legacy Objects
 
@@ -33,6 +40,8 @@ These are legacy artifacts from the old employee request workflow and should not
 - `request_status`
 - `request_type`
 - `public.get_public_schedule_requests()`
+- `clock_locations`
+- `attendance_logs`
 
 ## Files
 
@@ -41,7 +50,7 @@ These are legacy artifacts from the old employee request workflow and should not
 
 ## Notes For Changes
 
-- Do not add new leave/overtime request tables. Use `schedule_entries`.
+- Do not restore the old schedule leave/overtime request workflow. Attendance overtime requests must stay independent from schedule overtime.
 - If a frontend change writes schedule cells, keep `docs/` updated with `npm run web:publish`.
 - If table or schedule cell columns change, update:
   - `001_current_schema.sql`
