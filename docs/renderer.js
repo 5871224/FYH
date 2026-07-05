@@ -1022,12 +1022,9 @@ function sanitizeMember(member, fallbackIndex, merged) {
 }
 
 function sanitizeShift(shift, fallbackIndex, merged) {
-  const applicableDeptIds = Array.isArray(shift?.applicableDeptIds)
-    ? shift.applicableDeptIds.filter((deptId) => merged.departments.some((department) => department.id === deptId))
-    : [];
   const applicableDeptId = shift?.applicableDeptId && merged.departments.some((department) => department.id === shift.applicableDeptId)
     ? shift.applicableDeptId
-    : applicableDeptIds[0] || merged.departments[0]?.id || "";
+    : merged.departments[0]?.id || "";
   const color = shift?.color || COLORS[fallbackIndex % COLORS.length].hex;
   const autoText = shift?.autoTextColor ?? !shift?.textColor;
     return {
@@ -1040,7 +1037,7 @@ function sanitizeShift(shift, fallbackIndex, merged) {
       endTime: shift?.endTime || "",
       hiddenFromToolbar: Boolean(shift?.hiddenFromToolbar),
       requiredStaffCount: Math.max(0, Number(shift?.requiredStaffCount) || 0),
-      applicableDeptIds: applicableDeptId ? [applicableDeptId] : [],
+      applicableDeptId,
       positionRequirements: Array.isArray(shift?.positionRequirements)
         ? shift.positionRequirements
         .filter((item) => item && item.positionId)
@@ -1253,11 +1250,8 @@ function getRestWeekdayLabel(value) {
   return REST_WEEKDAY_OPTIONS.find((option) => option.value === normalizeRestWeekday(value))?.label || "週日";
 }
 
-function getDepartmentSummary(deptIds) {
-  if (!Array.isArray(deptIds) || !deptIds.length) {
-    return "全部單位";
-  }
-  return getDepartmentName(deptIds[0]);
+function getDepartmentSummary(deptId) {
+  return getDepartmentName(deptId);
 }
 
 function getMemberScheduleShiftIds(member) {
@@ -1302,7 +1296,7 @@ function getMembersForScheduleShift(shiftId) {
 }
 
 function shiftAllowsDepartment(shift, deptId) {
-  return !Array.isArray(shift?.applicableDeptIds) || !shift.applicableDeptIds.length || shift.applicableDeptIds.includes(deptId);
+  return Boolean(shift?.applicableDeptId && shift.applicableDeptId === deptId);
 }
 
 function getItemList(category) {
@@ -1903,7 +1897,7 @@ function getDailyShiftNeedOptions(scheduleMap, dateString) {
 }
 
 function getShiftDepartmentIds(shift) {
-  return Array.isArray(shift?.applicableDeptIds) ? shift.applicableDeptIds.filter(Boolean) : [];
+  return shift?.applicableDeptId ? [shift.applicableDeptId] : [];
 }
 
 function getShiftDemandForDate(shift, dateString) {
@@ -4028,7 +4022,7 @@ function openListSettings(category) {
                   ${category === "leave" ? `<div class="settings-table-code">${escapeHtml(item.code || "")}</div>` : ""}
                   ${category === "shift" ? "" : `<div class="settings-table-name">${escapeHtml(category === "leave" ? getLeaveCatalogDisplayName(item) : item.name)}</div>`}
                   <div class="settings-table-meta">${category === "shift"
-                    ? escapeHtml(getDepartmentSummary(item.applicableDeptIds))
+                    ? escapeHtml(getDepartmentSummary(item.applicableDeptId))
                     : category === "leave"
                       ? (item.requiresTime ? "是" : "否")
                       : escapeHtml(`${item.startTime || "--:--"} - ${item.endTime || "--:--"}`)
@@ -4078,8 +4072,7 @@ function openListSettings(category) {
 }
 
 function readApplicableDepartmentInput() {
-  const selectedDeptId = document.getElementById("shiftApplicableDept")?.value || "";
-  return selectedDeptId ? [selectedDeptId] : [];
+  return document.getElementById("shiftApplicableDept")?.value || "";
 }
 
 function renderColorPreviewFields(category, previewText) {
@@ -4173,7 +4166,7 @@ function openShiftFormModal(mode, shiftId = "") {
       endTime: "",
       hiddenFromToolbar: false,
       requiredStaffCount: 1,
-      applicableDeptIds: [state.deptFilter !== "all" ? state.deptFilter : (state.departments[0]?.id || "")].filter(Boolean),
+      applicableDeptId: state.deptFilter !== "all" ? state.deptFilter : (state.departments[0]?.id || ""),
       positionRequirements: []
     };
   if (!shift) {
@@ -4191,7 +4184,7 @@ function openShiftFormModal(mode, shiftId = "") {
       ${renderColorPreviewFields("shift", shift.name || "班別")}
       <div class="form-row">
         <label for="shiftApplicableDept">適用單位</label>
-        <select id="shiftApplicableDept">${buildSelectOptions(state.departments, "id", (item) => item.name, shift.applicableDeptIds?.[0] || "")}</select>
+        <select id="shiftApplicableDept">${buildSelectOptions(state.departments, "id", (item) => item.name, shift.applicableDeptId || "")}</select>
       </div>
       <div class="form-grid">
         <div class="form-row">
@@ -4241,6 +4234,11 @@ function saveShiftFromModal(mode) {
     reportValidationError("上班時間必須早於下班時間");
     return;
   }
+  const applicableDeptId = readApplicableDepartmentInput();
+  if (!state.departments.some((department) => department.id === applicableDeptId)) {
+    reportValidationError("請選擇適用單位");
+    return;
+  }
   const payload = {
     id: mode === "edit" ? modalContext.targetId : uid("s"),
     name,
@@ -4251,7 +4249,7 @@ function saveShiftFromModal(mode) {
     endTime,
     hiddenFromToolbar: Boolean(document.getElementById("shiftHiddenFromToolbar")?.checked),
     requiredStaffCount: Math.max(0, Number(document.getElementById("shiftRequiredStaffCount")?.value || 0)),
-    applicableDeptIds: readApplicableDepartmentInput(),
+    applicableDeptId,
     positionRequirements: []
   };
 

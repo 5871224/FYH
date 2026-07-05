@@ -20,10 +20,8 @@ function isDepartmentOperatingOnDate(department, dateString) {
 }
 
 function isShiftOperatingOnDate(shift, departments, dateString) {
-  const shiftDeptIds = Array.isArray(shift?.applicableDeptIds) ? shift.applicableDeptIds.filter(Boolean) : [];
-  return !shiftDeptIds.length || shiftDeptIds.some((deptId) => (
-    isDepartmentOperatingOnDate(departments.find((department) => department.id === deptId), dateString)
-  ));
+  const shiftDeptId = shift?.applicableDeptId || "";
+  return Boolean(shiftDeptId && isDepartmentOperatingOnDate(departments.find((department) => department.id === shiftDeptId), dateString));
 }
 
 const departments = [
@@ -43,10 +41,10 @@ assert.equal(isDepartmentOperatingOnDate(departments[2], "2026-06-01"), true);
 assert.equal(isDepartmentOperatingOnDate(departments[2], "2026-06-30"), true);
 assert.equal(isDepartmentOperatingOnDate(departments[3], "2026-05-31"), true);
 assert.equal(isDepartmentOperatingOnDate(departments[3], "2026-06-01"), false);
-assert.equal(isShiftOperatingOnDate({ applicableDeptIds: ["open"] }, departments, "2026-06-01"), false);
-assert.equal(isShiftOperatingOnDate({ applicableDeptIds: ["open", "always"] }, departments, "2026-06-01"), true);
-assert.equal(isShiftOperatingOnDate({ applicableDeptIds: ["from_june"] }, departments, "2026-06-30"), true);
-assert.equal(isShiftOperatingOnDate({ applicableDeptIds: [] }, departments, "2026-06-01"), true);
+assert.equal(isShiftOperatingOnDate({ applicableDeptId: "open" }, departments, "2026-06-01"), false);
+assert.equal(isShiftOperatingOnDate({ applicableDeptId: "always" }, departments, "2026-06-01"), true);
+assert.equal(isShiftOperatingOnDate({ applicableDeptId: "from_june" }, departments, "2026-06-30"), true);
+assert.equal(isShiftOperatingOnDate({ applicableDeptId: "" }, departments, "2026-06-01"), false);
 
 assert(renderer.includes("function isDepartmentOperatingOnDate"), "renderer should check department operating dates");
 assert(renderer.includes("function isShiftOperatingOnDate"), "renderer should check shift operating dates");

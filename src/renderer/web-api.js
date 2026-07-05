@@ -707,22 +707,19 @@
     return (rows || [])
       .filter((row) => row.id)
       .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.name || "").localeCompare(String(b.name || "")))
-      .map((row) => {
-        const applicableDeptIds = normalizeTextArray(row.applicable_department_ids);
-        return {
-          id: row.id,
-          name: row.name || "",
-          color: row.color || "#378ADD",
-          textColor: row.text_color || "",
-          autoTextColor: row.auto_text_color !== false,
-          startTime: (row.start_time || "").slice(0, 5),
-          endTime: (row.end_time || "").slice(0, 5),
-          hiddenFromToolbar: Boolean(row.hidden_from_toolbar),
-          requiredStaffCount: Math.max(0, Number(row.required_staff_count) || 0),
-          applicableDeptIds: applicableDeptIds.filter((value, index, list) => value && list.indexOf(value) === index),
-          positionRequirements: []
-        };
-      });
+      .map((row) => ({
+        id: row.id,
+        name: row.name || "",
+        color: row.color || "#378ADD",
+        textColor: row.text_color || "",
+        autoTextColor: row.auto_text_color !== false,
+        startTime: (row.start_time || "").slice(0, 5),
+        endTime: (row.end_time || "").slice(0, 5),
+        hiddenFromToolbar: Boolean(row.hidden_from_toolbar),
+        requiredStaffCount: Math.max(0, Number(row.required_staff_count) || 0),
+        applicableDeptId: row.applicable_department_id || "",
+        positionRequirements: []
+      }));
   }
 
   function mapLeaveRows(rows = []) {
@@ -1084,8 +1081,7 @@
       await restInsert("set_shift", shifts.map((shift, index) => ({
         id: shift.id,
         name: shift.name || shift.id,
-        applicable_department_ids: (Array.isArray(shift.applicableDeptIds) ? shift.applicableDeptIds : [])
-          .filter((departmentId, index, list) => departmentMap.has(departmentId) && list.indexOf(departmentId) === index),
+        applicable_department_id: departmentMap.has(shift.applicableDeptId) ? shift.applicableDeptId : null,
         color: shift.color || null,
         text_color: shift.textColor || null,
         auto_text_color: shift.autoTextColor !== false,

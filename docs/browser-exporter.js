@@ -531,7 +531,7 @@
     (payload.state?.shifts || []).forEach((shift) => {
       sheet.addRow([
         shift.name || "",
-        departmentMap.get(shift.applicableDeptIds?.[0] || "") || "",
+        departmentMap.get(shift.applicableDeptId || "") || "",
         Math.max(0, Number(shift.requiredStaffCount) || 0),
         shift.startTime || "",
         shift.endTime || "",

@@ -52,7 +52,7 @@ create table if not exists public.set_shift (
   start_time time,
   end_time time,
   required_staff_count integer not null default 0 check (required_staff_count >= 0),
-  applicable_department_ids uuid[] not null default '{}',
+  applicable_department_id uuid not null references public.set_departments (id) on delete restrict,
   hidden_from_toolbar boolean not null default false,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),

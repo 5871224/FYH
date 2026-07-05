@@ -80,7 +80,8 @@ assert(!schema.includes("schedule_months"), "current schema should not create sc
 assert(schema.includes("create table if not exists public.holidays"), "schema should create holidays");
 assert(schema.includes("create table if not exists public.set_employee"), "schema should create set_employee");
 assert(schema.includes("schedule_shift_ids uuid[]"), "schema should store ordered member shift priorities as uuid ids");
-assert(schema.includes("applicable_department_ids uuid[]"), "schema should store shift department applicability as uuid ids");
+assert(schema.includes("applicable_department_id uuid not null"), "schema should store one required shift department id");
+assert(!schema.includes("applicable_department_ids uuid[]"), "schema should not keep shift department applicability arrays");
 assert(schema.includes("auto_text_color boolean not null default true"), "schema should store catalog auto text color flags");
 assert(schema.includes("requires_time boolean not null default false"), "schema should store leave time requirement flags");
 assert(schema.includes("requires_reason boolean not null default false"), "schema should store leave reason requirement flags");

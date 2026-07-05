@@ -149,59 +149,6 @@ begin
   end if;
 end $$;
 
-do $$
-declare
-  has_applicable_department_ids boolean;
-  has_department_scheduler_item_id boolean;
-  join_sql text;
-begin
-  select exists (
-    select 1
-    from information_schema.columns
-    where table_schema = 'public'
-      and table_name = 'set_shift'
-      and column_name = 'applicable_department_ids'
-  ) into has_applicable_department_ids;
-
-  select exists (
-    select 1
-    from information_schema.columns
-    where table_schema = 'public'
-      and table_name = 'set_departments'
-      and column_name = 'scheduler_item_id'
-  ) into has_department_scheduler_item_id;
-
-  if has_applicable_department_ids then
-    alter table public.set_shift
-      drop column if exists applicable_department_uuid_ids;
-    alter table public.set_shift
-      add column applicable_department_uuid_ids uuid[] not null default '{}';
-
-    join_sql := 'department.id::text = item.value::text';
-    if has_department_scheduler_item_id then
-      join_sql := join_sql || ' or department.scheduler_item_id = item.value::text';
-    end if;
-
-    execute format($sql$
-      update public.set_shift shift_row
-      set applicable_department_uuid_ids = coalesce((
-        select array_agg(department.id order by item.ordinality)
-        from unnest(shift_row.applicable_department_ids) with ordinality as item(value, ordinality)
-        join public.set_departments department
-          on %s
-      ), '{}'::uuid[])
-    $sql$, join_sql);
-
-    alter table public.set_shift
-      drop column applicable_department_ids;
-    alter table public.set_shift
-      rename column applicable_department_uuid_ids to applicable_department_ids;
-  else
-    alter table public.set_shift
-      add column applicable_department_ids uuid[] not null default '{}';
-  end if;
-end $$;
-
 drop function if exists public.login_email_by_employee_code(text);
 drop index if exists public.idx_set_employee_login_email_unique;
 
