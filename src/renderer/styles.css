@@ -353,6 +353,38 @@ body.is-home-view .app-shell {
   margin: 0 0 14px;
 }
 
+.overtime-request-panel {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 253, 248, 0.82);
+  border: 1px solid rgba(166, 143, 111, 0.2);
+}
+
+.overtime-request-panel h2 {
+  margin: 0 0 8px;
+  font-size: 22px;
+}
+
+.overtime-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.overtime-panel-header p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.overtime-submit-btn {
+  width: 100%;
+  margin-top: 14px;
+}
+
 body.is-clock-view .app-shell {
   justify-content: center;
   padding-bottom: 20px;
@@ -2658,6 +2690,10 @@ thead th.today,
 
   .clock-action-btn span {
     font-size: 26px;
+  }
+
+  .overtime-panel-header {
+    flex-direction: column;
   }
 
   .toolbar-floating-card {

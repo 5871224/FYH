@@ -692,6 +692,30 @@
     });
   }
 
+  async function getTodayAttendanceOvertime() {
+    ensureSignedIn();
+    return requestFunction("attendance-overtime", {
+      action: "today_status"
+    });
+  }
+
+  async function submitAttendanceOvertime(payload = {}) {
+    ensureSignedIn();
+    return requestFunction("attendance-overtime", {
+      action: "submit",
+      earlyHours: payload.earlyHours,
+      lateHours: payload.lateHours,
+      note: payload.note || ""
+    });
+  }
+
+  async function deleteAttendanceOvertime() {
+    ensureSignedIn();
+    return requestFunction("attendance-overtime", {
+      action: "delete"
+    });
+  }
+
   async function fetchRowsById(table) {
     const rows = await restSelect(table, {
       select: "*",
@@ -1635,6 +1659,9 @@
     changePassword,
     getTodayAttendance,
     clockAttendance,
+    getTodayAttendanceOvertime,
+    submitAttendanceOvertime,
+    deleteAttendanceOvertime,
     loadState,
     loadScheduleEntries,
     saveState,

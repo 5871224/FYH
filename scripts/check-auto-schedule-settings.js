@@ -9,6 +9,7 @@ const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js
 const schema = fs.readFileSync(path.join(rootDir, "supabase", "001_current_schema.sql"), "utf8");
 const memberAuthAdmin = fs.readFileSync(path.join(rootDir, "supabase", "functions", "member-auth-admin", "index.ts"), "utf8");
 const attendanceClock = fs.readFileSync(path.join(rootDir, "supabase", "functions", "attendance-clock", "index.ts"), "utf8");
+const attendanceOvertime = fs.readFileSync(path.join(rootDir, "supabase", "functions", "attendance-overtime", "index.ts"), "utf8");
 
 assert(index.includes("weekStartSettingsButton"), "floating function menu should show month/week settings");
 assert(renderer.includes("monthStartDay: 1") && renderer.includes("monthStartSetting"), "renderer should persist month start day");
@@ -35,6 +36,12 @@ assert(webApi.includes("getTodayAttendance") && webApi.includes("clockAttendance
 assert(attendanceClock.includes("MAX_GPS_DISTANCE_METERS = 300"), "attendance clock should enforce the 300m GPS distance");
 assert(attendanceClock.includes("MAX_GPS_ACCURACY_METERS = 300"), "attendance clock should enforce the 300m GPS accuracy");
 assert(attendanceClock.includes('action === "clock_in"') && attendanceClock.includes('action === "clock_out"'), "attendance clock should support clock in and clock out");
+assert(renderer.includes("function renderTodayOvertimePanel"), "renderer should show today's attendance overtime panel");
+assert(renderer.includes("async function submitTodayOvertimeRequest"), "renderer should submit employee overtime requests");
+assert(webApi.includes("submitAttendanceOvertime") && webApi.includes("deleteAttendanceOvertime"), "web api should expose attendance overtime actions");
+assert(attendanceOvertime.includes("function buildEligibility"), "attendance overtime should calculate request eligibility");
+assert(attendanceOvertime.includes("Math.floor(minutes / 30) * 0.5"), "attendance overtime should round down to half-hour increments");
+assert(attendanceOvertime.includes("員工申請時數不可高於系統計算值"), "attendance overtime should reject employee hours above system calculation");
 assert(renderer.includes("monthlyRestDays"), "member settings should include monthly rest days");
 assert(!renderer.includes('data-set-department-view="member"') && !renderer.includes("人員檢視"), "department settings should keep only the department view");
 assert(webApi.includes("scheduleShiftIds") && webApi.includes("required_staff_count"), "web api should sync auto schedule settings");

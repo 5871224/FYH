@@ -158,6 +158,11 @@ let attendanceState = {
   serverDate: "",
   error: ""
 };
+let attendanceOvertimeState = {
+  loading: false,
+  status: null,
+  error: ""
+};
 let memberSettingsFilters = {
   name: "",
   department: "all",
@@ -2563,6 +2568,7 @@ async function loadTodayAttendance() {
       serverDate: result.serverDate || getTodayDateString(),
       error: ""
     };
+    await loadTodayAttendanceOvertime(false);
   } catch (error) {
     attendanceState = {
       loading: false,
@@ -2572,6 +2578,21 @@ async function loadTodayAttendance() {
     };
   }
   renderAll();
+}
+
+async function loadTodayAttendanceOvertime(shouldRender = true) {
+  if (!isLoggedIn()) {
+    return;
+  }
+  attendanceOvertimeState = { ...attendanceOvertimeState, loading: true, error: "" };
+  if (shouldRender) renderAll();
+  try {
+    const status = await window.schedulerApi.getTodayAttendanceOvertime();
+    attendanceOvertimeState = { loading: false, status, error: "" };
+  } catch (error) {
+    attendanceOvertimeState = { loading: false, status: null, error: error.message || "讀取加班申請狀態失敗" };
+  }
+  if (shouldRender) renderAll();
 }
 
 async function submitAttendanceClock(action) {
@@ -2599,6 +2620,7 @@ async function submitAttendanceClock(action) {
       serverDate: result.serverDate || getTodayDateString(),
       error: ""
     };
+    await loadTodayAttendanceOvertime(false);
     showInfoMessage(action === "clock_in" ? "上班打卡完成" : "下班打卡完成");
   } catch (error) {
     attendanceState = {
@@ -2606,6 +2628,42 @@ async function submitAttendanceClock(action) {
       loading: false,
       error: error.message || "打卡失敗"
     };
+  }
+  renderAll();
+}
+
+async function submitTodayOvertimeRequest() {
+  if (attendanceOvertimeState.loading) {
+    return;
+  }
+  const earlyHours = Number(document.getElementById("overtimeEarlyHours")?.value || 0);
+  const lateHours = Number(document.getElementById("overtimeLateHours")?.value || 0);
+  const note = document.getElementById("overtimeEmployeeNote")?.value || "";
+  attendanceOvertimeState = { ...attendanceOvertimeState, loading: true, error: "" };
+  renderAll();
+  try {
+    await window.schedulerApi.submitAttendanceOvertime({ earlyHours, lateHours, note });
+    await loadTodayAttendanceOvertime(false);
+    showInfoMessage("加班申請已送出");
+  } catch (error) {
+    attendanceOvertimeState = { ...attendanceOvertimeState, loading: false, error: error.message || "送出加班申請失敗" };
+  }
+  renderAll();
+}
+
+async function deleteTodayOvertimeRequest() {
+  const confirmed = await confirmAction("確定要刪除今日加班申請嗎？");
+  if (!confirmed) {
+    return;
+  }
+  attendanceOvertimeState = { ...attendanceOvertimeState, loading: true, error: "" };
+  renderAll();
+  try {
+    await window.schedulerApi.deleteAttendanceOvertime();
+    await loadTodayAttendanceOvertime(false);
+    showInfoMessage("加班申請已刪除");
+  } catch (error) {
+    attendanceOvertimeState = { ...attendanceOvertimeState, loading: false, error: error.message || "刪除加班申請失敗" };
   }
   renderAll();
 }
@@ -3632,7 +3690,80 @@ function renderClockPage() {
         <strong>${escapeHtml(record.clock_out_source || "-")}</strong>
       </div>
     </div>
+    ${renderTodayOvertimePanel()}
     ${attendanceState.loading ? '<p class="clock-loading">處理中，請稍候...</p>' : ""}
+  `;
+}
+
+function getOvertimeStatusLabel(status) {
+  if (status === "approved") return "已核准";
+  if (status === "returned") return "退回";
+  return "待審";
+}
+
+function renderTodayOvertimePanel() {
+  const stateValue = attendanceOvertimeState.status;
+  const eligibility = stateValue?.eligibility || null;
+  const request = stateValue?.request || null;
+  if (attendanceOvertimeState.loading) {
+    return '<section class="overtime-request-panel"><p class="clock-loading">讀取加班狀態...</p></section>';
+  }
+  if (attendanceOvertimeState.error) {
+    return `<section class="overtime-request-panel"><div class="auth-error">${escapeHtml(attendanceOvertimeState.error)}</div></section>`;
+  }
+  if (!stateValue) {
+    return "";
+  }
+  if (request) {
+    const canDelete = request.status === "pending" || request.status === "returned";
+    return `
+      <section class="overtime-request-panel">
+        <div class="overtime-panel-header">
+          <div>
+            <h2>今日加班申請</h2>
+            <p>${getOvertimeStatusLabel(request.status)}，合計 ${Number(request.total_overtime_hours || 0)} 小時</p>
+          </div>
+          ${canDelete ? '<button class="ghost-btn" type="button" data-delete-today-overtime="true">刪除申請</button>' : ""}
+        </div>
+        <div class="clock-status-grid">
+          <div><span>提早上班</span><strong>${Number(request.early_overtime_hours || 0)} 小時</strong></div>
+          <div><span>延後下班</span><strong>${Number(request.late_overtime_hours || 0)} 小時</strong></div>
+        </div>
+      </section>
+    `;
+  }
+  if (!eligibility?.eligible) {
+    return `
+      <section class="overtime-request-panel">
+        <h2>今日加班申請</h2>
+        <p class="home-subtitle">${escapeHtml(eligibility?.reasons?.[0] || "今日目前不可申請加班")}</p>
+      </section>
+    `;
+  }
+  return `
+    <section class="overtime-request-panel">
+      <div class="overtime-panel-header">
+        <div>
+          <h2>今日加班申請</h2>
+          <p>系統計算可申請 ${Number(eligibility.totalHours || 0)} 小時，可送出前自行調低。</p>
+        </div>
+      </div>
+      <div class="form-grid two-col">
+        <div class="form-row">
+          <label for="overtimeEarlyHours">提早上班時數</label>
+          <input id="overtimeEarlyHours" type="number" min="0" max="${Number(eligibility.earlyHours || 0)}" step="0.5" value="${Number(eligibility.earlyHours || 0)}">
+        </div>
+        <div class="form-row">
+          <label for="overtimeLateHours">延後下班時數</label>
+          <input id="overtimeLateHours" type="number" min="0" max="${Number(eligibility.lateHours || 0)}" step="0.5" value="${Number(eligibility.lateHours || 0)}">
+        </div>
+        <div class="form-row form-row-wide">
+          <label for="overtimeEmployeeNote">加班備註</label>
+          <textarea id="overtimeEmployeeNote" rows="3" placeholder="可填寫加班原因或補充說明"></textarea>
+        </div>
+      </div>
+      <button class="btn-primary overtime-submit-btn" type="button" data-submit-today-overtime="true">送出加班申請</button>
+    </section>
   `;
 }
 
@@ -5981,6 +6112,7 @@ async function handleSignOut() {
   currentProfile = null;
   currentMember = null;
   attendanceState = { loading: false, record: null, serverDate: "", error: "" };
+  attendanceOvertimeState = { loading: false, status: null, error: "" };
   appInfo = null;
   closeModal();
   closeCoreActionsMenu();
@@ -6266,6 +6398,14 @@ function bindEvents() {
     }
     if (target.dataset.clockAction) {
       await submitAttendanceClock(target.dataset.clockAction);
+      return;
+    }
+    if (target.dataset.submitTodayOvertime) {
+      await submitTodayOvertimeRequest();
+      return;
+    }
+    if (target.dataset.deleteTodayOvertime) {
+      await deleteTodayOvertimeRequest();
       return;
     }
     if (target.id === "coreActionsToggle") {
@@ -6792,6 +6932,7 @@ async function loadApp() {
       state = createEmptyState();
       currentMember = null;
       attendanceState = { loading: false, record: null, serverDate: "", error: "" };
+      attendanceOvertimeState = { loading: false, status: null, error: "" };
       appInfo = null;
       appView = "home";
       authModalOpen = true;
@@ -6814,6 +6955,7 @@ async function loadApp() {
     currentProfile = null;
     currentMember = null;
     attendanceState = { loading: false, record: null, serverDate: "", error: "" };
+    attendanceOvertimeState = { loading: false, status: null, error: "" };
     appInfo = null;
     renderAll();
     syncCoreActionsMenu();
