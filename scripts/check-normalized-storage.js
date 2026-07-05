@@ -91,6 +91,7 @@ assert(schema.includes("hidden_from_schedule") && !schema.includes("hidden_from_
 assert(schema.includes("address text") && schema.includes("attendance_enabled boolean not null default false"), "departments should store attendance location settings");
 assert(schema.includes("create table if not exists public.attendance_records"), "schema should create attendance records");
 assert(schema.includes("create table if not exists public.attendance_action_logs"), "schema should create attendance action logs");
+assert(schema.includes("employee_code_snapshot text") && schema.includes("employee_name_snapshot text"), "attendance records should snapshot employee identity");
 assert(schema.includes("create table if not exists public.attendance_overtime_requests"), "schema should create independent attendance overtime requests");
 assert(schema.includes("create table if not exists public.overtime_review_logs"), "schema should create overtime review logs");
 assert(schema.includes("create table if not exists public.meal_products"), "schema should create meal products");
@@ -100,6 +101,10 @@ assert(schema.includes("unique (user_id, work_date)"), "attendance and overtime 
 assert(schema.includes("unique (user_id, order_date, product_id)"), "meal orders should be unique by user/date/product");
 assert(schema.includes("create or replace function public.is_admin(p_user_id uuid)"), "schema should expose an admin helper");
 assert(schema.includes("alter table public.meal_orders enable row level security"), "new meal tables should have RLS enabled");
+assert(schema.includes("create policy read_schedule_entries") && schema.includes("create policy read_meal_orders"), "current schema should create RLS policies");
+assert(schema.includes("create or replace function public.protect_admin_member"), "current schema should protect the last admin at database level");
+assert(schema.includes("create or replace function public.save_attendance_clock"), "current schema should create the atomic clock RPC");
+assert(schema.includes("create or replace function public.save_meal_order"), "current schema should create the meal transaction RPC");
 assert(!schema.includes("create table if not exists public.clock_locations"), "current schema should not create retired clock_locations");
 assert(!schema.includes("create table if not exists public.attendance_logs"), "current schema should not create retired attendance_logs");
 assert(!schema.includes("scheduler_item_id text unique"), "active catalog tables should not keep scheduler_item_id");

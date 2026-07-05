@@ -12,6 +12,19 @@ function taipeiDateString(date = new Date()) {
   }).format(date);
 }
 
+function addDaysToDateString(dateString: string, count: number) {
+  const [year, month, day] = String(dateString || "").split("-").map(Number);
+  if (!year || !month || !day) return "";
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + count);
+  return taipeiDateString(date);
+}
+
+function isProfileEffective(profile: any, today = taipeiDateString()) {
+  const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
+  return Boolean(profile?.is_active && (!profile.hire_date || today >= profile.hire_date) && (!effectiveEndDate || today <= effectiveEndDate));
+}
+
 function getClientIp(req: Request) {
   return String(
     req.headers.get("cf-connecting-ip")
@@ -37,9 +50,7 @@ function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number) 
 }
 
 function ipMatches(allowedIp: string, clientIp: string) {
-  if (!allowedIp || !clientIp) {
-    return false;
-  }
+  if (!allowedIp || !clientIp) return false;
   return allowedIp
     .split(/[\s,;]+/)
     .map((value) => value.trim())
@@ -49,18 +60,16 @@ function ipMatches(allowedIp: string, clientIp: string) {
 
 async function getProfile(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
-  if (!userId) {
-    throw new Error("請先登入");
-  }
+  if (!userId) throw new Error("請先登入");
+
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
     .select("id, employee_code, full_name, role, is_active, hire_date, leave_date")
     .eq("id", userId)
     .single();
   if (error) throw error;
-  const today = taipeiDateString();
-  if (!data?.is_active || (data.hire_date && today < data.hire_date) || (data.leave_date && today > data.leave_date)) {
-    throw new Error("此帳號目前不在有效期間，無法打卡");
+  if (!isProfileEffective(data)) {
+    throw new Error("帳號不在有效任職期間，無法打卡");
   }
   return data;
 }
@@ -88,20 +97,19 @@ async function getEnabledDepartments(ctx: any) {
 async function resolveClockLocation(ctx: any, req: Request, body: any) {
   const departments = await getEnabledDepartments(ctx);
   if (!departments.length) {
-    throw new Error("目前沒有啟用中的打卡地點，請聯絡管理員");
+    throw new Error("目前沒有啟用打卡的單位，請先到修改單位設定打卡資料");
   }
 
+  const allowGps = body?.deviceType === "phone";
   const latitude = toNumber(body?.latitude);
   const longitude = toNumber(body?.longitude);
   const accuracy = toNumber(body?.accuracy);
-  if (latitude !== null && longitude !== null && accuracy !== null && accuracy <= MAX_GPS_ACCURACY_METERS) {
+  if (allowGps && latitude !== null && longitude !== null && accuracy !== null && accuracy <= MAX_GPS_ACCURACY_METERS) {
     const gpsMatch = departments
       .map((department: any) => {
         const departmentLatitude = toNumber(department.latitude);
         const departmentLongitude = toNumber(department.longitude);
-        if (departmentLatitude === null || departmentLongitude === null) {
-          return null;
-        }
+        if (departmentLatitude === null || departmentLongitude === null) return null;
         return {
           department,
           distance: distanceMeters(latitude, longitude, departmentLatitude, departmentLongitude)
@@ -128,85 +136,39 @@ async function resolveClockLocation(ctx: any, req: Request, body: any) {
     return {
       department: ipDepartment,
       source: "IP",
-      latitude,
-      longitude,
-      accuracy,
+      latitude: null,
+      longitude: null,
+      accuracy: null,
       distance: null,
       ip: clientIp
     };
   }
 
   throw new Error(clientIp
-    ? `目前網路 IP 為 ${clientIp}，未列入公司允許的打卡 IP，請確認已連接公司網路，或聯絡管理員確認 IP 設定。`
-    : "目前位置或網路不符合打卡條件，請確認已到公司地點或連接公司網路。");
-}
-
-function buildClockFields(kind: "clock_in" | "clock_out", location: any, nowIso: string) {
-  return {
-    [`${kind}_at`]: nowIso,
-    [`${kind}_department_id`]: location.department.id,
-    [`${kind}_department_name_snapshot`]: location.department.name || "",
-    [`${kind}_address_snapshot`]: location.department.address || "",
-    [`${kind}_source`]: location.source,
-    [`${kind}_latitude`]: location.latitude,
-    [`${kind}_longitude`]: location.longitude,
-    [`${kind}_accuracy`]: location.accuracy,
-    [`${kind}_distance`]: location.distance,
-    [`${kind}_ip`]: location.ip || "",
-    updated_at: nowIso
-  };
-}
-
-async function writeLog(ctx: any, recordId: string, actionType: string, operator: any) {
-  await ctx.supabaseAdmin.from("attendance_action_logs").insert({
-    attendance_record_id: recordId,
-    action_type: actionType,
-    operator_user_id: operator.id,
-    operator_name_snapshot: operator.full_name || ""
-  });
+    ? `目前 IP ${clientIp} 不在可打卡單位設定內，請改用手機 GPS 或請管理員確認固定 IP`
+    : "目前無法取得可用的 GPS 或固定 IP 打卡位置");
 }
 
 async function clock(ctx: any, req: Request, body: any, kind: "clock_in" | "clock_out") {
   const profile = await getProfile(ctx);
   const workDate = taipeiDateString();
-  const existing = await getTodayRecord(ctx, profile.id, workDate);
-  if (existing?.[`${kind}_at`]) {
-    return { ok: true, record: existing, duplicate: true, serverDate: workDate };
-  }
-  if (kind === "clock_in" && existing?.clock_out_at) {
-    throw new Error("已完成下班打卡，不能再補打上班卡");
-  }
-
   const location = await resolveClockLocation(ctx, req, body);
-  const nowIso = new Date().toISOString();
-  const fields = buildClockFields(kind, location, nowIso);
-  let record = existing;
-
-  if (record) {
-    const { data, error } = await ctx.supabaseAdmin
-      .from("attendance_records")
-      .update(fields)
-      .eq("id", record.id)
-      .select("*")
-      .single();
-    if (error) throw error;
-    record = data;
-  } else {
-    const { data, error } = await ctx.supabaseAdmin
-      .from("attendance_records")
-      .insert({
-        user_id: profile.id,
-        work_date: workDate,
-        ...fields
-      })
-      .select("*")
-      .single();
-    if (error) throw error;
-    record = data;
-  }
-
-  await writeLog(ctx, record.id, kind, profile);
-  return { ok: true, record, duplicate: false, serverDate: workDate };
+  const { data, error } = await ctx.supabaseAdmin.rpc("save_attendance_clock", {
+    p_user_id: profile.id,
+    p_work_date: workDate,
+    p_kind: kind,
+    p_location: {
+      departmentId: location.department.id,
+      source: location.source,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      accuracy: location.accuracy,
+      distance: location.distance,
+      ip: location.ip || ""
+    }
+  });
+  if (error) throw error;
+  return data;
 }
 
 export default {
@@ -225,12 +187,8 @@ export default {
           serverDate: taipeiDateString()
         });
       }
-      if (body?.action === "clock_in") {
-        return Response.json(await clock(ctx, req, body, "clock_in"));
-      }
-      if (body?.action === "clock_out") {
-        return Response.json(await clock(ctx, req, body, "clock_out"));
-      }
+      if (body?.action === "clock_in") return Response.json(await clock(ctx, req, body, "clock_in"));
+      if (body?.action === "clock_out") return Response.json(await clock(ctx, req, body, "clock_out"));
       return Response.json({ message: "不支援的打卡操作" }, { status: 400 });
     } catch (error) {
       return Response.json({ message: error instanceof Error ? error.message : "打卡失敗" }, { status: 400 });

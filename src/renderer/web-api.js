@@ -28,6 +28,10 @@
     return normalizedRole === "admin" || normalizedRole === "manager";
   }
 
+  function hasAdminAccess(role) {
+    return normalizeRole(role) === "admin";
+  }
+
   function makeFileName(prefix, payload, extension) {
     return `${prefix}_${payload.year}_${String(payload.month + 1).padStart(2, "0")}.${extension}`;
   }
@@ -74,7 +78,11 @@
   }
 
   function isPhoneDevice() {
-    return window.matchMedia?.("(pointer: coarse) and (max-width: 767px)")?.matches || false;
+    const userAgent = navigator.userAgent || "";
+    return Boolean(
+      navigator.userAgentData?.mobile
+        || /Android|iPhone|iPod|Windows Phone|Mobi/i.test(userAgent)
+    );
   }
 
   function getSessionStore() {
@@ -121,6 +129,32 @@
     sessionStorage.removeItem(sessionStorageKey);
   }
 
+  function readSessionMeta() {
+    try {
+      return JSON.parse(getSessionStore().getItem(sessionStorageKey) || "null");
+    } catch {
+      return null;
+    }
+  }
+
+  function isSessionIdleExpired() {
+    const stored = readSessionMeta();
+    const lastActivityAt = Number(stored?.lastActivityAt || 0);
+    return Boolean(currentSession && (!lastActivityAt || Date.now() - lastActivityAt > getSessionMaxIdleMs()));
+  }
+
+  function expireSession() {
+    clearSession();
+    window.dispatchEvent(new CustomEvent("scheduler-session-expired"));
+  }
+
+  function assertSessionActive() {
+    if (isSessionIdleExpired()) {
+      expireSession();
+      throw new Error("登入已逾時，請重新登入");
+    }
+  }
+
   function touchSession() {
     if (currentSession) {
       persistSession(currentSession);
@@ -156,6 +190,9 @@
   }
 
   async function requestJson(pathname, options = {}) {
+    if (options.auth) {
+      assertSessionActive();
+    }
     const response = await fetch(`${baseUrl}${pathname}`, {
       ...options,
       headers: buildHeaders({
@@ -178,6 +215,7 @@
   }
 
   async function requestFunction(functionName, payload) {
+    assertSessionActive();
     const response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
       method: "POST",
       headers: buildHeaders({
@@ -415,6 +453,12 @@
     return normalized ? `${normalized}@local.invalid` : "";
   }
 
+  setInterval(() => {
+    if (isSessionIdleExpired()) {
+      expireSession();
+    }
+  }, 60 * 1000);
+
   async function signIn(loginAccount, password) {
     const employeeCode = String(loginAccount || "").trim();
     const email = buildLocalLoginEmail(employeeCode);
@@ -549,6 +593,15 @@
 
   function toDateStringFromDate(date) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  }
+
+  function taipeiDateString(date = new Date()) {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Taipei",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(date);
   }
 
   function addDaysToDateString(dateString, count) {
@@ -686,6 +739,7 @@
     ensureSignedIn();
     return requestFunction("attendance-clock", {
       action,
+      deviceType: isPhoneDevice() ? "phone" : "desktop",
       latitude: position.latitude,
       longitude: position.longitude,
       accuracy: position.accuracy
@@ -773,8 +827,9 @@
   }
 
   function assertProfileCanLogin(profile) {
-    const today = new Date().toISOString().slice(0, 10);
-    if (!profile?.is_active || (profile.hire_date && today < profile.hire_date) || (profile.leave_date && today > profile.leave_date)) {
+    const today = taipeiDateString();
+    const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
+    if (!profile?.is_active || (profile.hire_date && today < profile.hire_date) || (effectiveEndDate && today > effectiveEndDate)) {
       throw new Error("此帳號目前不在有效期間，無法登入");
     }
   }
@@ -828,9 +883,28 @@
         address: row.address || "",
         latitude: row.latitude ?? "",
         longitude: row.longitude ?? "",
-        publicIp: row.public_ip || "",
+        publicIp: hasAdminAccess(currentProfile?.role) ? row.public_ip || "" : "",
         attendanceEnabled: Boolean(row.attendance_enabled)
       }));
+  }
+
+  function mapDepartmentWriteRow(department, sortOrder) {
+    const row = {
+      id: department.id,
+      name: department.name || department.id,
+      start_date: nullableDate(department.startDate),
+      end_date: nullableDate(department.endDate),
+      hidden_from_schedule: Boolean(department.hiddenFromSchedule),
+      sort_order: sortOrder
+    };
+    if (hasAdminAccess(currentProfile?.role)) {
+      row.address = department.address || null;
+      row.latitude = department.latitude === "" || department.latitude === null || department.latitude === undefined ? null : Number(department.latitude);
+      row.longitude = department.longitude === "" || department.longitude === null || department.longitude === undefined ? null : Number(department.longitude);
+      row.public_ip = department.publicIp || null;
+      row.attendance_enabled = Boolean(department.attendanceEnabled);
+    }
+    return row;
   }
 
   function mapShiftRows(rows = []) {
@@ -905,6 +979,9 @@
   async function loadState() {
     const auth = Boolean(currentSession?.access_token);
     try {
+      const departmentSelect = hasAdminAccess(currentProfile?.role)
+        ? "*"
+        : "id,name,start_date,end_date,hidden_from_schedule,address,latitude,longitude,attendance_enabled,sort_order,created_at,updated_at";
       const [
         settingsRows,
         departmentRows,
@@ -915,7 +992,7 @@
         holidayRows
       ] = await Promise.all([
         restSelect("scheduler_settings", { select: "*", filters: { id: `eq.${documentId}` }, limit: "1", auth }),
-        restSelect("set_departments", { select: "*", order: "sort_order.asc,name.asc", auth }),
+        restSelect("set_departments", { select: departmentSelect, order: "sort_order.asc,name.asc", auth }),
         restSelect("set_employee", { select: "*", filters: { is_active: "eq.true" }, order: "employee_code.asc", auth }),
         restSelect("set_shift", { select: "*", order: "sort_order.asc,name.asc", auth }),
         restSelect("set_leave", { select: "*", order: "sort_order.asc,code.asc", auth }),
@@ -1062,6 +1139,14 @@
     });
   }
 
+  async function deleteMemberProfile(employeeCode) {
+    ensureManager();
+    return requestFunction("member-auth-admin", {
+      action: "delete_member",
+      employeeCode: String(employeeCode || "").trim()
+    });
+  }
+
   async function ensureMemberProfiles(state) {
     const members = Array.isArray(state.members) ? state.members.filter((member) => member?.code && member?.name) : [];
     if (!members.length) {
@@ -1119,19 +1204,7 @@
     const holidays = Array.isArray(state.holidays) ? state.holidays : [];
 
     if (departments.length) {
-      await restInsert("set_departments", departments.map((department, index) => ({
-        id: department.id,
-        name: department.name || department.id,
-        start_date: nullableDate(department.startDate),
-        end_date: nullableDate(department.endDate),
-        hidden_from_schedule: Boolean(department.hiddenFromSchedule),
-        address: department.address || null,
-        latitude: department.latitude === "" || department.latitude === null || department.latitude === undefined ? null : Number(department.latitude),
-        longitude: department.longitude === "" || department.longitude === null || department.longitude === undefined ? null : Number(department.longitude),
-        public_ip: department.publicIp || null,
-        attendance_enabled: Boolean(department.attendanceEnabled),
-        sort_order: index
-      })), {
+      await restInsert("set_departments", departments.map((department, index) => mapDepartmentWriteRow(department, index)), {
         auth: true,
         onConflict: "id",
         prefer: "resolution=merge-duplicates,return=minimal"
@@ -1367,19 +1440,7 @@
 
   async function saveDepartmentItem(department, sortOrder = 0) {
     ensureManager();
-    await restInsert("set_departments", [{
-      id: department.id,
-      name: department.name || department.id,
-      start_date: nullableDate(department.startDate),
-      end_date: nullableDate(department.endDate),
-      hidden_from_schedule: Boolean(department.hiddenFromSchedule),
-      address: department.address || null,
-      latitude: department.latitude === "" || department.latitude === null || department.latitude === undefined ? null : Number(department.latitude),
-      longitude: department.longitude === "" || department.longitude === null || department.longitude === undefined ? null : Number(department.longitude),
-      public_ip: department.publicIp || null,
-      attendance_enabled: Boolean(department.attendanceEnabled),
-      sort_order: sortOrder
-    }], {
+    await restInsert("set_departments", [mapDepartmentWriteRow(department, sortOrder)], {
       auth: true,
       onConflict: "id",
       prefer: "resolution=merge-duplicates,return=minimal"
@@ -1711,6 +1772,7 @@
     saveTodayMealOrder,
     getPersonalRecords,
     getMealStatsReport,
+    deleteMemberProfile,
     loadState,
     loadScheduleEntries,
     saveState,

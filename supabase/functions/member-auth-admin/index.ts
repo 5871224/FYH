@@ -15,6 +15,28 @@ type MemberPayload = {
 
 const DEFAULT_PASSWORD = "0000";
 
+function taipeiDateString(date = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(date);
+}
+
+function addDaysToDateString(dateString: string, count: number) {
+  const [year, month, day] = String(dateString || "").split("-").map(Number);
+  if (!year || !month || !day) return "";
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + count);
+  return taipeiDateString(date);
+}
+
+function isProfileEffective(profile: any, today = taipeiDateString()) {
+  const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
+  return Boolean(profile?.is_active !== false && (!profile.hire_date || today >= profile.hire_date) && (!effectiveEndDate || today <= effectiveEndDate));
+}
+
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(String(value || "").trim());
 }
@@ -73,13 +95,16 @@ async function getActorRole(ctx: any) {
   if (!actorId) {
     throw new Error("缺少登入身分");
   }
-  const { data, error } = await ctx.supabase
+  const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("role")
+    .select("role, is_active, hire_date, leave_date")
     .eq("id", actorId)
     .single();
   if (error) {
     throw error;
+  }
+  if (!isProfileEffective(data)) {
+    throw new Error("此帳號目前不在有效期間，無法管理人員");
   }
   return data?.role || "";
 }
@@ -89,7 +114,7 @@ async function findProfile(ctx: any, currentCode: string, previousCode: string) 
   for (const code of codes) {
     const { data, error } = await ctx.supabaseAdmin
       .from("set_employee")
-      .select("id, employee_code, role")
+      .select("id, employee_code, role, is_active, hire_date, leave_date")
       .eq("employee_code", code)
       .maybeSingle();
     if (error) {
@@ -100,6 +125,36 @@ async function findProfile(ctx: any, currentCode: string, previousCode: string) 
     }
   }
   return null;
+}
+
+async function countEffectiveAdmins(ctx: any) {
+  const { data, error } = await ctx.supabaseAdmin
+    .from("set_employee")
+    .select("id, role, is_active, hire_date, leave_date")
+    .eq("role", "admin");
+  if (error) {
+    throw error;
+  }
+  return (data || []).filter((profile: any) => isProfileEffective(profile)).length;
+}
+
+async function assertLastAdminProtected(ctx: any, existingProfile: any, nextMember: any) {
+  if (normalizeRole(existingProfile?.role) !== "admin") {
+    return;
+  }
+  const nextProfile = {
+    ...existingProfile,
+    role: nextMember.role,
+    hire_date: nextMember.hireDate,
+    leave_date: nextMember.leaveDate
+  };
+  const remainsEffectiveAdmin = normalizeRole(nextProfile.role) === "admin" && isProfileEffective(nextProfile);
+  if (remainsEffectiveAdmin) {
+    return;
+  }
+  if (await countEffectiveAdmins(ctx) <= 1) {
+    throw new Error("系統必須保留至少一個有效管理員");
+  }
 }
 
 async function resolveDepartmentUuid(ctx: any, departmentId: string) {
@@ -125,6 +180,9 @@ async function upsertMember(ctx: any, body: any) {
   const profile = await findProfile(ctx, member.employeeCode, previousEmployeeCode);
   const homeDepartmentUuid = await resolveDepartmentUuid(ctx, member.homeDepartmentId || "");
   const actorRole = normalizeRole(body?.actorRole);
+  if (profile) {
+    await assertLastAdminProtected(ctx, profile, member);
+  }
   if (!hasAdminAccess(actorRole)) {
     if (!profile && member.role !== "employee") {
       throw new Error("只有管理員可以新增主管或管理員");
@@ -247,6 +305,58 @@ async function resetPassword(ctx: any, body: any) {
   };
 }
 
+async function countRows(ctx: any, table: string, column: string, value: string) {
+  const { count, error } = await ctx.supabaseAdmin
+    .from(table)
+    .select("id", { count: "exact", head: true })
+    .eq(column, value);
+  if (error) {
+    throw error;
+  }
+  return count || 0;
+}
+
+async function deleteMember(ctx: any, body: any) {
+  const employeeCode = String(body?.employeeCode || "").trim();
+  const actorRole = normalizeRole(body?.actorRole);
+  if (!employeeCode) {
+    throw new Error("請提供人員工號");
+  }
+  const profile = await findProfile(ctx, employeeCode, employeeCode);
+  if (!profile?.id) {
+    return { ok: true, deleted: false };
+  }
+  if (normalizeRole(profile.role) === "admin" && !hasAdminAccess(actorRole)) {
+    throw new Error("只有管理員可以刪除管理員帳號");
+  }
+  if (normalizeRole(profile.role) === "admin" && await countEffectiveAdmins(ctx) <= 1) {
+    throw new Error("系統必須保留至少一個有效管理員");
+  }
+
+  const relatedCounts = [
+    await countRows(ctx, "schedule_entries", "member_id", profile.id),
+    await countRows(ctx, "attendance_records", "user_id", profile.id),
+    await countRows(ctx, "attendance_overtime_requests", "user_id", profile.id),
+    await countRows(ctx, "meal_orders", "user_id", profile.id)
+  ];
+  if (relatedCounts.some((count) => count > 0)) {
+    throw new Error("此人員已有班表、打卡、加班或訂餐資料，為保留歷史紀錄，無法刪除。");
+  }
+
+  const { error: deleteProfileError } = await ctx.supabaseAdmin
+    .from("set_employee")
+    .delete()
+    .eq("id", profile.id);
+  if (deleteProfileError) {
+    throw deleteProfileError;
+  }
+  const { error: deleteUserError } = await ctx.supabaseAdmin.auth.admin.deleteUser(profile.id);
+  if (deleteUserError && !/not found/i.test(String(deleteUserError.message || deleteUserError))) {
+    throw deleteUserError;
+  }
+  return { ok: true, deleted: true, employeeCode };
+}
+
 console.assert(buildLoginEmail("SELF_CHECK") === "self_check@local.invalid", "member-auth-admin buildLoginEmail failed");
 
 export default {
@@ -278,6 +388,9 @@ export default {
           return result;
         }
         return Response.json(result);
+      }
+      if (body?.action === "delete_member") {
+        return Response.json(await deleteMember(ctx, body));
       }
 
       return new Response(JSON.stringify({ message: "不支援的操作" }), {

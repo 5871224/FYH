@@ -9,6 +9,19 @@ function taipeiDateString(date = new Date()) {
   }).format(date);
 }
 
+function addDaysToDateString(dateString: string, count: number) {
+  const [year, month, day] = String(dateString || "").split("-").map(Number);
+  if (!year || !month || !day) return "";
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + count);
+  return taipeiDateString(date);
+}
+
+function isProfileEffective(profile: any, today = taipeiDateString()) {
+  const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
+  return Boolean(profile?.is_active && (!profile.hire_date || today >= profile.hire_date) && (!effectiveEndDate || today <= effectiveEndDate));
+}
+
 function taipeiTimeString(date = new Date()) {
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Taipei",
@@ -21,15 +34,15 @@ function taipeiTimeString(date = new Date()) {
 async function getProfile(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!userId) throw new Error("請先登入");
+
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
     .select("id, employee_code, full_name, is_active, hire_date, leave_date")
     .eq("id", userId)
     .single();
   if (error) throw error;
-  const today = taipeiDateString();
-  if (!data?.is_active || (data.hire_date && today < data.hire_date) || (data.leave_date && today > data.leave_date)) {
-    throw new Error("此帳號目前不在有效期間，無法訂餐");
+  if (!isProfileEffective(data)) {
+    throw new Error("帳號不在有效任職期間，無法訂餐");
   }
   return data;
 }
@@ -87,68 +100,14 @@ async function todayStatus(ctx: any) {
   };
 }
 
-function readQuantityMap(items: any[]) {
-  const map = new Map<string, number>();
-  (Array.isArray(items) ? items : []).forEach((item) => {
-    const productId = String(item?.productId || "").trim();
-    const quantity = Math.max(0, Math.floor(Number(item?.quantity || 0)));
-    if (productId && quantity > 0) {
-      map.set(productId, quantity);
-    }
-  });
-  return map;
-}
-
 async function saveOrder(ctx: any, body: any) {
   const profile = await getProfile(ctx);
-  const context = await getTodayContext(ctx, profile);
-  if (!context.attendance?.clock_in_at || !context.attendance?.clock_in_department_id) {
-    throw new Error("今日需先完成上班打卡才能訂餐");
-  }
-  if (!context.orderingOpen) {
-    throw new Error(`今日訂餐已於 ${context.cutoffTime} 截止`);
-  }
-
-  const quantityMap = readQuantityMap(body?.items || []);
-  const activeProducts = new Map(context.products.map((product: any) => [product.id, product]));
-  const orderId = context.orders[0]?.order_id || crypto.randomUUID();
-  const nowIso = new Date().toISOString();
-
-  const { error: deleteError } = await ctx.supabaseAdmin
-    .from("meal_orders")
-    .delete()
-    .eq("user_id", profile.id)
-    .eq("order_date", context.orderDate);
-  if (deleteError) throw deleteError;
-
-  const rows = Array.from(quantityMap.entries()).map(([productId, quantity]) => {
-    const product: any = activeProducts.get(productId);
-    if (!product) {
-      throw new Error("訂餐品項已停用，請重新整理後再送出");
-    }
-    return {
-      order_id: orderId,
-      user_id: profile.id,
-      employee_code_snapshot: profile.employee_code || "",
-      employee_name_snapshot: profile.full_name || "",
-      order_date: context.orderDate,
-      department_id: context.attendance.clock_in_department_id,
-      department_name_snapshot: context.attendance.clock_in_department_name_snapshot || "",
-      clock_location_id: context.attendance.clock_in_department_id,
-      product_id: product.id,
-      product_name_snapshot: product.name || "",
-      quantity,
-      unit_price: product.price || 0,
-      note: String(body?.note || "").trim(),
-      submitted_at: nowIso,
-      updated_at: nowIso
-    };
+  const { error } = await ctx.supabaseAdmin.rpc("save_meal_order", {
+    p_user_id: profile.id,
+    p_items: Array.isArray(body?.items) ? body.items : [],
+    p_note: String(body?.note || "").trim()
   });
-
-  if (rows.length) {
-    const { error } = await ctx.supabaseAdmin.from("meal_orders").insert(rows);
-    if (error) throw error;
-  }
+  if (error) throw error;
   return todayStatus(ctx);
 }
 

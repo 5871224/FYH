@@ -5,7 +5,7 @@ const path = require("node:path");
 const rootDir = path.resolve(__dirname, "..");
 const styles = fs.readFileSync(path.join(rootDir, "src", "renderer", "styles.css"), "utf8");
 
-assert(styles.includes("overflow-x: visible;"), "schedule table should keep page-level horizontal scrolling");
+assert(styles.includes(".table-top-scrollbar") && styles.includes(".table-top-scrollbar-content"), "schedule table should expose the horizontal scrollbar above the date header");
 assert(styles.includes("--schedule-radius: 18px;"), "schedule table radius should be a single shared token");
 assert(styles.includes("border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;"), "sticky header should own rounded top corners");
 assert(styles.includes(".table-sticky-header::after"), "sticky header should draw its rounded top border with an overlay");

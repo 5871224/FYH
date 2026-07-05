@@ -19,6 +19,11 @@ function isManagerRole(role: string) {
   return role === "admin" || role === "manager";
 }
 
+function isProfileEffective(profile: any, today = taipeiDateString()) {
+  const effectiveEndDate = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
+  return Boolean(profile?.is_active && (!profile.hire_date || today >= profile.hire_date) && (!effectiveEndDate || today <= effectiveEndDate));
+}
+
 async function getProfile(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!userId) throw new Error("請先登入");
@@ -29,7 +34,7 @@ async function getProfile(ctx: any) {
     .single();
   if (error) throw error;
   const today = taipeiDateString();
-  if (!data?.is_active || (data.hire_date && today < data.hire_date) || (data.leave_date && today > data.leave_date)) {
+  if (!isProfileEffective(data, today)) {
     throw new Error("此帳號目前不在有效期間，無法查看記錄");
   }
   return data;

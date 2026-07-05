@@ -10,8 +10,11 @@ Historical one-off migrations were removed after the schema was normalized.
 - Shift, leave, and overtime are columns on the same `schedule_entries` row.
 - Attendance overtime requests are independent from schedule overtime columns.
 - Bulk cell writes go through `public.save_schedule_entries_bulk(entries jsonb)`.
+- Attendance clock writes go through `public.save_attendance_clock(...)` so duplicate clicks do not overwrite the first clock time.
+- Meal order saves go through `public.save_meal_order(...)` so delete/insert happens in one database transaction.
 - Catalog tables use their UUID `id` as the only application identifier; `scheduler_item_id` is retired.
 - Shift applicability uses the required single `set_shift.applicable_department_id` column.
+- RLS policies are created in `001_current_schema.sql`; direct table writes should still stay narrow and manager-only.
 
 ## Active Tables
 
@@ -45,7 +48,7 @@ These are legacy artifacts from the old employee request workflow and should not
 
 ## Files
 
-1. `001_current_schema.sql`: current tables, indexes, RLS enablement, and `is_manager`.
+1. `001_current_schema.sql`: current tables, indexes, RLS policies, admin protection trigger, and attendance/meal RPCs.
 2. `024_schedule_entries_rpc.sql`: bulk RPC for schedule cell writes.
 
 ## Notes For Changes

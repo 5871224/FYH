@@ -2554,7 +2554,9 @@ function formatClockTime(value) {
 }
 
 function getBrowserPosition() {
-  if (!navigator.geolocation) {
+  const userAgent = navigator.userAgent || "";
+  const isPhone = Boolean(navigator.userAgentData?.mobile || /Android|iPhone|iPod|Windows Phone|Mobi/i.test(userAgent));
+  if (!isPhone || !navigator.geolocation) {
     return Promise.resolve({});
   }
   return new Promise((resolve) => {
@@ -2619,11 +2621,9 @@ async function submitAttendanceClock(action) {
   if (attendanceState.loading) {
     return;
   }
-  if (action === "clock_out") {
-    const confirmed = await confirmAction("確定要下班打卡嗎？");
-    if (!confirmed) {
-      return;
-    }
+  const confirmed = await confirmAction(action === "clock_in" ? "確定要上班打卡嗎？" : "確定要下班打卡嗎？");
+  if (!confirmed) {
+    return;
   }
   attendanceState = { ...attendanceState, loading: true, error: "" };
   renderAll();
@@ -6097,15 +6097,19 @@ async function deleteMember(memberId) {
   if (!confirmed) {
     return;
   }
+  try {
+    await window.schedulerApi.deleteMemberProfile(member?.code || "");
+  } catch (error) {
+    showInfoMessage(error.message || "刪除人員失敗");
+    return;
+  }
   state.members = state.members.filter((member) => member.id !== memberId);
   state.members = state.members.map((member) => ({
     ...member,
     proxyMemberId: member.proxyMemberId === memberId ? "" : member.proxyMemberId
   }));
-  removeScheduleByMember(memberId);
   renderAll();
   openMemberSettings();
-  queueSave();
 }
 
 async function resetMemberPasswordFromModal(employeeCode) {
@@ -6662,6 +6666,23 @@ function bindEvents() {
   document.body.addEventListener("mouseup", endScheduleRangeSelection);
   document.body.addEventListener("mouseleave", endScheduleRangeSelection);
   document.addEventListener("keydown", handleScheduleGridKeydown);
+  window.addEventListener("scheduler-session-expired", async () => {
+    authErrorMessage = "登入已逾時，請重新登入";
+    authPromptMessage = "";
+    authModalOpen = true;
+    currentSession = null;
+    currentProfile = null;
+    currentMember = null;
+    attendanceState = { loading: false, record: null, serverDate: "", error: "" };
+    attendanceOvertimeState = { loading: false, status: null, error: "" };
+    mealOrderState = { loading: false, status: null, error: "" };
+    recordsState = { loading: false, personal: [], mealStats: null, error: "" };
+    state = createEmptyState();
+    appView = "home";
+    closeModal();
+    closeCoreActionsMenu();
+    renderAll();
+  });
 
   document.body.addEventListener("click", async (event) => {
     const target = event.target.closest("button, td");

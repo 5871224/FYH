@@ -18,7 +18,7 @@ assert(renderer.includes("const activeMembers = state.members.filter(isMemberCur
 assert(renderer.includes("const homeMembers = activeMembers.filter"), "department view should show active home members");
 assert(renderer.includes("departmentAddress") && renderer.includes("departmentLatitude") && renderer.includes("departmentLongitude"), "department form should expose attendance address and coordinates");
 assert(renderer.includes("departmentPublicIp") && renderer.includes("departmentAttendanceEnabled"), "department form should expose attendance IP and enabled flag");
-assert(webApi.includes("attendance_enabled: Boolean(department.attendanceEnabled)") && webApi.includes("public_ip: department.publicIp || null"), "web api should persist department attendance settings");
+assert(webApi.includes("function mapDepartmentWriteRow") && webApi.includes("row.attendance_enabled = Boolean(department.attendanceEnabled)") && webApi.includes("row.public_ip = department.publicIp || null"), "web api should persist department attendance settings");
 assert(renderer.includes("這個單位仍有班別使用"), "department delete should warn when shifts still use the department");
 assert(!renderer.includes("const memberRows = activeMembers.map"), "department member view should be removed");
 assert(!renderer.includes('data-set-department-view="member"') && !renderer.includes("人員檢視"), "department settings should not render the old view switch");
