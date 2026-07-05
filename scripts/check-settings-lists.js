@@ -16,6 +16,7 @@ assert(renderer.includes('renderActionIconButton("delete"'), "delete actions sho
 assert(renderer.includes('data-sort-category="department"'), "department settings should support drag sorting");
 assert(renderer.includes("const activeMembers = state.members.filter(isMemberCurrentlyActive);"), "department settings should filter members by active status");
 assert(renderer.includes("const homeMembers = activeMembers.filter"), "department view should show active home members");
+assert(renderer.includes("這個單位仍有班別使用"), "department delete should warn when shifts still use the department");
 assert(!renderer.includes("const memberRows = activeMembers.map"), "department member view should be removed");
 assert(!renderer.includes('data-set-department-view="member"') && !renderer.includes("人員檢視"), "department settings should not render the old view switch");
 assert(renderer.includes('data-drop-member="${member.id}"'), "department settings should support dropping onto members for reordering");

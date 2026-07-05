@@ -4665,6 +4665,11 @@ async function deleteDepartment(departmentId) {
     showInfoMessage("這個單位還有人員，請先將人員移轉到其他單位後再刪除。");
     return;
   }
+  const usedShifts = state.shifts.filter((shift) => shift.applicableDeptId === departmentId);
+  if (usedShifts.length) {
+    showInfoMessage(`這個單位仍有班別使用，請先修改有使用的班別：${usedShifts.map((shift) => shift.name).join("、")}`);
+    return;
+  }
   const confirmed = await confirmAction("確定要刪除這個單位嗎？");
   if (!confirmed) {
     return;
