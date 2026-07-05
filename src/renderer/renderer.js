@@ -4253,14 +4253,19 @@ async function saveShiftFromModal(mode) {
     positionRequirements: []
   };
 
+  const sortOrder = mode === "edit"
+    ? state.shifts.findIndex((shift) => shift.id === payload.id)
+    : state.shifts.length;
+  try {
+    await window.schedulerApi.saveShiftItem(payload, Math.max(0, sortOrder));
+  } catch (error) {
+    setSaveStatus(`班別儲存失敗：${error.message}`);
+    return;
+  }
   if (mode === "edit") {
     state.shifts = state.shifts.map((shift) => shift.id === payload.id ? payload : shift);
   } else {
     state.shifts.push(payload);
-  }
-  const saved = await forceSave();
-  if (!saved) {
-    return;
   }
   closeModal();
   renderAll();
@@ -4403,7 +4408,7 @@ function openNamedColorFormModal(category, mode, targetId = "") {
   syncNamedColorUi();
 }
 
-function saveNamedColorItem(category, mode) {
+async function saveNamedColorItem(category, mode) {
   const returnTo = modalContext.returnTo || null;
   if (category === "shift") {
     void saveShiftFromModal(mode);
@@ -4478,15 +4483,20 @@ function saveNamedColorItem(category, mode) {
   const nextList = mode === "edit"
     ? currentList.map((item) => item.id === payload.id ? payload : item)
     : [...currentList, payload];
+  const sortOrder = mode === "edit"
+    ? currentList.findIndex((item) => item.id === payload.id)
+    : currentList.length;
+  try {
+    await window.schedulerApi.saveCatalogItem(category, payload, Math.max(0, sortOrder));
+  } catch (error) {
+    setSaveStatus(`${category === "leave" ? "假別" : "加班"}儲存失敗：${error.message}`);
+    return;
+  }
   if (category === "leave") state.leaves = nextList;
   if (category === "overtime") state.overtime = nextList;
   closeModal();
   renderAll();
   reopenModalFromContext(returnTo || { category: "list-settings", listCategory: category });
-  queueSave();
-  if (category === "leave" || category === "overtime") {
-    syncScheduleCatalogs().catch((error) => setSaveStatus(`同步設定失敗：${error.message}`));
-  }
 }
 
 async function deleteListItem(category, id) {
@@ -4607,7 +4617,7 @@ function openDepartmentForm(mode, departmentId = "") {
   });
 }
 
-function saveDepartment(mode) {
+async function saveDepartment(mode) {
   const returnTo = modalContext.returnTo || null;
   const name = document.getElementById("departmentName")?.value.trim();
   const startDate = document.getElementById("departmentStartDate")?.value || "";
@@ -4622,6 +4632,15 @@ function saveDepartment(mode) {
     return;
   }
   const payload = { id: mode === "edit" ? modalContext.targetId : uid("d"), name, startDate, endDate, hiddenFromSchedule };
+  const sortOrder = mode === "edit"
+    ? state.departments.findIndex((department) => department.id === payload.id)
+    : state.departments.length;
+  try {
+    await window.schedulerApi.saveDepartmentItem(payload, Math.max(0, sortOrder));
+  } catch (error) {
+    setSaveStatus(`單位儲存失敗：${error.message}`);
+    return;
+  }
   if (mode === "edit") {
     state.departments = state.departments.map((department) => department.id === modalContext.targetId ? payload : department);
   } else {
@@ -4630,7 +4649,6 @@ function saveDepartment(mode) {
   closeModal();
   renderAll();
   reopenModalFromContext(returnTo || { category: "department-settings", view: departmentSettingsView });
-  queueSave();
 }
 
 function removeScheduleByMember(memberId) {
@@ -5233,15 +5251,11 @@ async function saveMember(mode) {
     reportValidationError("請選擇所屬單位");
     return;
   }
-  let profileSyncError = null;
   try {
     await window.schedulerApi.syncMemberProfile(payload, previousMember?.code || "");
   } catch (error) {
-    if (mode !== "edit") {
-      reportValidationError(`同步人員資料失敗：${error.message}`);
-      return;
-    }
-    profileSyncError = error;
+    reportValidationError(`同步人員資料失敗：${error.message}`);
+    return;
   }
   if (mode === "edit") {
     state.members = state.members.map((member) => member.id === payload.id ? payload : member);
@@ -5260,10 +5274,6 @@ async function saveMember(mode) {
   closeModal();
   renderAll();
   reopenModalFromContext(returnTo);
-  const saved = await forceSave();
-  if (profileSyncError && saved) {
-    setSaveStatus(`人員設定已儲存；登入帳號同步失敗：${profileSyncError.message}`);
-  }
 }
 
 async function exportMembersFromSettings() {
@@ -6091,7 +6101,7 @@ function bindEvents() {
     if (target.dataset.saveShift) await saveShiftFromModal(target.dataset.saveShift);
     if (target.dataset.saveNamedItem) {
       const [category, mode] = target.dataset.saveNamedItem.split(":");
-      saveNamedColorItem(category, mode);
+      await saveNamedColorItem(category, mode);
     }
     if (target.dataset.saveWeekStart) {
       await saveWeekStartSettingFromModal();
@@ -6115,7 +6125,7 @@ function bindEvents() {
       return;
     }
     if (target.dataset.editDepartment) openDepartmentForm("edit", target.dataset.editDepartment);
-    if (target.dataset.saveDepartment) saveDepartment(target.dataset.saveDepartment);
+    if (target.dataset.saveDepartment) await saveDepartment(target.dataset.saveDepartment);
     if (target.dataset.deleteDepartment) {
       await deleteDepartment(target.dataset.deleteDepartment);
       return;

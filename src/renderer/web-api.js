@@ -1230,6 +1230,93 @@
     await syncLeaveAndOvertimeCatalogs(state);
   }
 
+  async function saveDepartmentItem(department, sortOrder = 0) {
+    ensureManager();
+    await restInsert("set_departments", [{
+      id: department.id,
+      name: department.name || department.id,
+      start_date: nullableDate(department.startDate),
+      end_date: nullableDate(department.endDate),
+      hidden_from_schedule: Boolean(department.hiddenFromSchedule),
+      sort_order: sortOrder
+    }], {
+      auth: true,
+      onConflict: "id",
+      prefer: "resolution=merge-duplicates,return=minimal"
+    });
+    return { ok: true };
+  }
+
+  async function saveShiftItem(shift, sortOrder = 0) {
+    ensureManager();
+    await restInsert("set_shift", [{
+      id: shift.id,
+      name: shift.name || shift.id,
+      applicable_department_id: shift.applicableDeptId || null,
+      color: shift.color || null,
+      text_color: shift.textColor || null,
+      auto_text_color: shift.autoTextColor !== false,
+      hidden_from_toolbar: Boolean(shift.hiddenFromToolbar),
+      start_time: nullableTime(shift.startTime),
+      end_time: nullableTime(shift.endTime),
+      required_staff_count: Math.max(0, Number(shift.requiredStaffCount) || 0),
+      sort_order: sortOrder
+    }], {
+      auth: true,
+      onConflict: "id",
+      prefer: "resolution=merge-duplicates,return=minimal"
+    });
+    return { ok: true };
+  }
+
+  async function saveCatalogItem(category, item, sortOrder = 0) {
+    ensureManager();
+    if (category === "leave") {
+      await restInsert("set_leave", [{
+        id: item.id,
+        code: item.code || item.id,
+        name: item.name || item.code || item.id,
+        color: item.color || null,
+        text_color: item.textColor || null,
+        auto_text_color: item.autoTextColor !== false,
+        hidden_from_toolbar: Boolean(item.hiddenFromToolbar),
+        requires_time: Boolean(item.requiresTime),
+        requires_reason: Boolean(item.requiresReason),
+        sort_order: sortOrder
+      }], {
+        auth: true,
+        onConflict: "id",
+        prefer: "resolution=merge-duplicates,return=minimal"
+      });
+      return { ok: true };
+    }
+    if (category === "overtime") {
+      await restInsert("set_overtime", [{
+        id: item.id,
+        name: item.name || "加班",
+        color: item.color || null,
+        text_color: item.textColor || null,
+        auto_text_color: item.autoTextColor !== false,
+        hidden_from_toolbar: Boolean(item.hiddenFromToolbar),
+        start_time: nullableTime(item.startTime),
+        end_time: nullableTime(item.endTime),
+        use_rest_1: Boolean(item.useRest1),
+        rest_1_start_time: item.useRest1 ? nullableTime(item.rest1StartTime) : null,
+        rest_1_end_time: item.useRest1 ? nullableTime(item.rest1EndTime) : null,
+        use_rest_2: Boolean(item.useRest2),
+        rest_2_start_time: item.useRest2 ? nullableTime(item.rest2StartTime) : null,
+        rest_2_end_time: item.useRest2 ? nullableTime(item.rest2EndTime) : null,
+        sort_order: sortOrder
+      }], {
+        auth: true,
+        onConflict: "id",
+        prefer: "resolution=merge-duplicates,return=minimal"
+      });
+      return { ok: true };
+    }
+    throw new Error(`不支援的設定類型：${category}`);
+  }
+
   async function resolveManagerMemberProfileId(memberId, memberCode) {
     const normalizedMemberId = String(memberId || "").trim();
     if (isUuid(normalizedMemberId)) {
@@ -1479,6 +1566,9 @@
     loadScheduleEntries,
     saveState,
     syncCatalogs,
+    saveDepartmentItem,
+    saveShiftItem,
+    saveCatalogItem,
     saveScheduleCells,
     saveScheduleCell,
     syncMemberProfile,
