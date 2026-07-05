@@ -53,6 +53,25 @@ create table if not exists public.set_employee (
 alter table public.set_employee
   drop constraint if exists set_employee_role_check;
 
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'set_employee'
+      and column_name = 'role'
+      and data_type = 'USER-DEFINED'
+  ) then
+    alter table public.set_employee
+      alter column role drop default;
+    alter table public.set_employee
+      alter column role type text using role::text;
+    alter table public.set_employee
+      alter column role set default 'employee';
+  end if;
+end $$;
+
 alter table public.set_employee
   add constraint set_employee_role_check
   check (role in ('admin', 'manager', 'employee'));
