@@ -44,4 +44,6 @@ end $$;
 alter table public.set_shift
   drop column if exists applicable_department_ids;
 
+notify pgrst, 'reload schema';
+
 commit;

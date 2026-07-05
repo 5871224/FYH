@@ -4221,7 +4221,7 @@ function openShiftFormModal(mode, shiftId = "") {
   syncNamedColorUi();
 }
 
-function saveShiftFromModal(mode) {
+async function saveShiftFromModal(mode) {
   const returnTo = modalContext.returnTo || null;
   const name = document.getElementById("shiftName")?.value.trim();
   if (!name) {
@@ -4258,10 +4258,13 @@ function saveShiftFromModal(mode) {
   } else {
     state.shifts.push(payload);
   }
+  const saved = await forceSave();
+  if (!saved) {
+    return;
+  }
   closeModal();
   renderAll();
   reopenModalFromContext(returnTo || { category: "list-settings", listCategory: "shift" });
-  queueSave();
 }
 
 function openNamedColorFormModal(category, mode, targetId = "") {
@@ -4403,7 +4406,7 @@ function openNamedColorFormModal(category, mode, targetId = "") {
 function saveNamedColorItem(category, mode) {
   const returnTo = modalContext.returnTo || null;
   if (category === "shift") {
-    saveShiftFromModal(mode);
+    void saveShiftFromModal(mode);
     return;
   }
   const selectedLeave = category === "leave"
@@ -6085,7 +6088,7 @@ function bindEvents() {
     if (target.dataset.editItem === "shift") openShiftFormModal("edit", target.dataset.editId);
     if (target.dataset.editItem === "leave") openNamedColorFormModal("leave", "edit", target.dataset.editId);
     if (target.dataset.editItem === "overtime") openNamedColorFormModal("overtime", "edit", target.dataset.editId);
-    if (target.dataset.saveShift) saveShiftFromModal(target.dataset.saveShift);
+    if (target.dataset.saveShift) await saveShiftFromModal(target.dataset.saveShift);
     if (target.dataset.saveNamedItem) {
       const [category, mode] = target.dataset.saveNamedItem.split(":");
       saveNamedColorItem(category, mode);
