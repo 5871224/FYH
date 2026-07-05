@@ -9,6 +9,8 @@
   const anonKey = String(config.supabaseAnonKey || "");
   const documentId = String(config.documentId || "default");
   const sessionStorageKey = `scheduler.supabase.session.${baseUrl}`;
+  const mobileSessionMaxIdleMs = 48 * 60 * 60 * 1000;
+  const desktopSessionMaxIdleMs = 30 * 60 * 1000;
 
   if (!baseUrl || !anonKey || !exporter) {
     throw new Error("缺少 Supabase 設定");
@@ -71,9 +73,28 @@
     };
   }
 
+  function isPhoneDevice() {
+    return window.matchMedia?.("(pointer: coarse) and (max-width: 767px)")?.matches || false;
+  }
+
+  function getSessionStore() {
+    return isPhoneDevice() ? localStorage : sessionStorage;
+  }
+
+  function getSessionMaxIdleMs() {
+    return isPhoneDevice() ? mobileSessionMaxIdleMs : desktopSessionMaxIdleMs;
+  }
+
   function readStoredSession() {
     try {
-      return normalizeSession(JSON.parse(localStorage.getItem(sessionStorageKey) || "null"));
+      const stored = JSON.parse(getSessionStore().getItem(sessionStorageKey) || "null");
+      const session = normalizeSession(stored?.session || stored);
+      const lastActivityAt = Number(stored?.lastActivityAt || 0);
+      if (!session || !lastActivityAt || Date.now() - lastActivityAt > getSessionMaxIdleMs()) {
+        clearSession();
+        return null;
+      }
+      return session;
     } catch {
       return null;
     }
@@ -82,9 +103,14 @@
   function persistSession(session) {
     currentSession = normalizeSession(session);
     if (currentSession) {
-      localStorage.setItem(sessionStorageKey, JSON.stringify(currentSession));
+      getSessionStore().setItem(sessionStorageKey, JSON.stringify({
+        session: currentSession,
+        lastActivityAt: Date.now(),
+        device: isPhoneDevice() ? "phone" : "desktop"
+      }));
     } else {
       localStorage.removeItem(sessionStorageKey);
+      sessionStorage.removeItem(sessionStorageKey);
     }
   }
 
@@ -92,6 +118,13 @@
     currentSession = null;
     currentProfile = null;
     localStorage.removeItem(sessionStorageKey);
+    sessionStorage.removeItem(sessionStorageKey);
+  }
+
+  function touchSession() {
+    if (currentSession) {
+      persistSession(currentSession);
+    }
   }
 
   function buildHeaders(options = {}) {
@@ -134,6 +167,9 @@
     if (!response.ok) {
       throw new Error(await readError(response));
     }
+    if (options.auth) {
+      touchSession();
+    }
     if (response.status === 204) {
       return null;
     }
@@ -158,6 +194,7 @@
       }
       throw new Error(await readError(response));
     }
+    touchSession();
     const text = await response.text();
     return text ? JSON.parse(text) : null;
   }
@@ -349,6 +386,7 @@
     if (!currentProfile) {
       throw new Error("帳號尚未綁定身份");
     }
+    assertProfileCanLogin(currentProfile);
     return {
       session: currentSession,
       profile: currentProfile
@@ -661,6 +699,13 @@
       auth: true
     });
     return rows?.[0] || null;
+  }
+
+  function assertProfileCanLogin(profile) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (!profile?.is_active || (profile.hire_date && today < profile.hire_date) || (profile.leave_date && today > profile.leave_date)) {
+      throw new Error("此帳號目前不在有效期間，無法登入");
+    }
   }
 
   function getRemovedRowIds(rowMap, keptRowIds) {

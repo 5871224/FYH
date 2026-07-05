@@ -147,6 +147,7 @@ let dragMemberId = "";
 let dragScheduleShiftId = "";
 let leaveTooltipTimer = null;
 let coreActionsOpen = false;
+let appView = "home";
 let departmentSettingsView = "department";
 let currentSession = null;
 let currentProfile = null;
@@ -2768,7 +2769,6 @@ function renderAuthGate() {
           </div>
           ${authErrorMessage ? `<div class="auth-error">${escapeHtml(authErrorMessage)}</div>` : ""}
           <div class="modal-footer auth-footer">
-            <button class="btn-cancel" type="button" data-close-auth-gate="true">取消</button>
             <button class="btn-primary" type="button" data-auth-sign-in="true">登入</button>
           </div>
         </div>
@@ -3445,10 +3445,71 @@ function renderHeader() {
   renderAuthBar();
 }
 
+function renderHomeDashboard() {
+  const homeCard = document.getElementById("homeCard");
+  if (!homeCard) {
+    return;
+  }
+  if (!isLoggedIn()) {
+    homeCard.innerHTML = "";
+    return;
+  }
+  homeCard.innerHTML = `
+    <div class="home-hero">
+      <div>
+        <p class="home-eyebrow">福圓號排班系統</p>
+        <h1>${escapeHtml(getCurrentProfileName() || "使用者")}，您好</h1>
+        <p class="home-subtitle">${escapeHtml(getCurrentRoleLabel())}登入中，請選擇今天要使用的功能。</p>
+      </div>
+      <button class="ghost-btn home-signout-btn" type="button" id="homeSignOutButton">登出</button>
+    </div>
+    <div class="home-action-grid">
+      <button class="home-action-card home-action-card-primary" type="button" data-home-action="clock">
+        <span class="home-action-title">打卡</span>
+        <span class="home-action-text">進入上班、下班打卡頁</span>
+      </button>
+      <button class="home-action-card" type="button" data-home-action="schedule">
+        <span class="home-action-title">班表</span>
+        <span class="home-action-text">查看或管理既有班表</span>
+      </button>
+      <button class="home-action-card" type="button" data-home-action="meal">
+        <span class="home-action-title">訂餐</span>
+        <span class="home-action-text">進入今日訂餐頁面</span>
+      </button>
+      <button class="home-action-card" type="button" data-home-action="records">
+        <span class="home-action-title">記錄</span>
+        <span class="home-action-text">查看個人記錄與權限頁籤</span>
+      </button>
+    </div>
+  `;
+}
+
+function syncAppView() {
+  const loggedIn = isLoggedIn();
+  const homeCard = document.getElementById("homeCard");
+  const scheduleCard = document.getElementById("scheduleCard");
+  const toolbarCard = document.querySelector(".toolbar-card");
+  const showSchedule = loggedIn && appView === "schedule";
+  if (homeCard) {
+    homeCard.hidden = !loggedIn || appView !== "home";
+  }
+  if (scheduleCard) {
+    scheduleCard.hidden = !showSchedule;
+  }
+  if (toolbarCard) {
+    toolbarCard.hidden = !showSchedule;
+  }
+  document.body.classList.toggle("is-authenticated", loggedIn);
+  document.body.classList.toggle("is-home-view", loggedIn && appView === "home");
+  document.body.classList.toggle("is-schedule-view", showSchedule);
+}
+
 function renderAll() {
   renderHeader();
   renderToolbar();
+  renderHomeDashboard();
   renderTable();
+  syncAppView();
   renderAuthGate();
 }
 
@@ -6015,6 +6076,30 @@ function bindEvents() {
       await handleSignOut();
       return;
     }
+    if (target.id === "homeSignOutButton") {
+      await handleSignOut();
+      return;
+    }
+    if (target.dataset.homeAction) {
+      closeCoreActionsMenu();
+      if (target.dataset.homeAction === "home") {
+        appView = "home";
+        renderAll();
+        return;
+      }
+      if (target.dataset.homeAction === "schedule") {
+        appView = "schedule";
+        renderAll();
+        return;
+      }
+      const comingSoon = {
+        clock: "打卡頁會在下一階段開放",
+        meal: "訂餐頁會在訂餐階段開放",
+        records: "記錄頁會在報表階段開放"
+      };
+      showInfoMessage(comingSoon[target.dataset.homeAction] || "此功能尚未開放");
+      return;
+    }
     if (target.id === "coreActionsToggle") {
       return;
     }
@@ -6535,12 +6620,23 @@ async function loadApp() {
     const authContext = await window.schedulerApi.initializeAuth();
     currentSession = authContext.session;
     currentProfile = authContext.profile;
+    if (!currentSession?.user) {
+      state = createEmptyState();
+      currentMember = null;
+      appInfo = null;
+      appView = "home";
+      authModalOpen = true;
+      renderAll();
+      syncCoreActionsMenu();
+      return;
+    }
     appInfo = await window.schedulerApi.getAppInfo();
     const payload = await window.schedulerApi.loadState();
     state = normalizeState(payload);
     resetScheduleWindowToToday();
     await ensureVisibleScheduleLoaded();
     currentMember = resolveCurrentMember();
+    appView = "home";
   } catch (error) {
     setSaveStatus(`載入失敗：${error.message}`);
     authErrorMessage = error.message || "載入失敗";

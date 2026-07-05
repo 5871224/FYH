@@ -62,7 +62,9 @@
       </div>
     </section>
 
-    <section class="calendar-card">
+    <section class="home-card" id="homeCard" hidden></section>
+
+    <section class="calendar-card" id="scheduleCard">
       <div class="calendar-nav">
         <div class="calendar-nav-left">
           <select id="tableViewSelect" aria-label="班表檢視">
@@ -84,6 +86,7 @@
             <button class="ghost-btn core-actions-toggle" id="coreActionsToggle" type="button" aria-expanded="false">登入</button>
             <div class="core-actions-menu" id="coreActionsMenu" aria-hidden="true">
               <button class="ghost-btn ops-btn user-menu-login" type="button" data-open-sign-in="true">登入</button>
+              <button class="ghost-btn ops-btn user-menu-auth" type="button" data-home-action="home">首頁</button>
               <button class="ghost-btn ops-btn manager-action" id="weekStartSettingsButton" type="button">週期設定</button>
               <button class="ghost-btn ops-btn manager-action" id="autoSchedulePreviewButton" type="button">自動排班預覽</button>
               <button class="primary-btn ops-btn manager-action" id="autoScheduleApplyButton" type="button">套用預覽</button>

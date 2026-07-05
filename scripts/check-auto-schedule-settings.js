@@ -21,6 +21,12 @@ assert(memberAuthAdmin.includes("只有管理員可以修改人員權限"), "mem
 assert(renderer.includes("function isAdmin()"), "renderer should expose an admin role helper");
 assert(renderer.includes("const ROLE_OPTIONS"), "renderer should keep role labels in one place");
 assert(webApi.includes("function hasManagerAccess"), "web api should let admins use manager-level actions");
+assert(index.includes('id="homeCard"'), "logged-in users should land on a home dashboard");
+assert(renderer.includes('let appView = "home"'), "renderer should track the active app view");
+assert(renderer.includes("function renderHomeDashboard"), "renderer should render the logged-in home dashboard");
+assert(renderer.includes("if (!currentSession?.user)") && renderer.includes("authModalOpen = true"), "renderer should not load schedule data before login");
+assert(webApi.includes("mobileSessionMaxIdleMs") && webApi.includes("desktopSessionMaxIdleMs"), "web api should enforce device-specific login idle windows");
+assert(webApi.includes("function assertProfileCanLogin"), "web api should reject inactive or out-of-period accounts");
 assert(renderer.includes("monthlyRestDays"), "member settings should include monthly rest days");
 assert(!renderer.includes('data-set-department-view="member"') && !renderer.includes("人員檢視"), "department settings should keep only the department view");
 assert(webApi.includes("scheduleShiftIds") && webApi.includes("required_staff_count"), "web api should sync auto schedule settings");
