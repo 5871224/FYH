@@ -1,7 +1,7 @@
 # Supabase Schema
 
 This folder contains the current database schema and RPC definitions for the scheduler.
-Historical one-off migrations are consolidated here only when they are still needed to bring older installs to the current schema shape.
+Historical one-off migrations were removed after the schema was normalized.
 
 ## Current Model
 
@@ -38,9 +38,6 @@ These are legacy artifacts from the old employee request workflow and should not
 
 1. `001_current_schema.sql`: current tables, indexes, RLS enablement, and `is_manager`.
 2. `024_schedule_entries_rpc.sql`: bulk RPC for schedule cell writes.
-3. `025_schema_alignment_cleanup.sql`: old database conversion script for older normalized installs; aligns UUID catalog references, hidden flag names, retired login fields, active leave/display columns, and single shift department references.
-4. `026_shift_applicable_department_id.sql`: converts `set_shift` to the required single `applicable_department_id` column and drops the retired `applicable_department_ids` array.
-5. `027_reload_postgrest_schema.sql`: asks PostgREST/Supabase REST to reload schema cache after column changes.
 
 ## Notes For Changes
 
@@ -51,4 +48,3 @@ These are legacy artifacts from the old employee request workflow and should not
   - `024_schedule_entries_rpc.sql`
   - `src/renderer/web-api.js`
   - `scripts/check-normalized-storage.js`
-- If a change affects old installs, update `025_schema_alignment_cleanup.sql` too.

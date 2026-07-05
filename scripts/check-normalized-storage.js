@@ -8,7 +8,6 @@ const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js
 const exporter = fs.readFileSync(path.join(rootDir, "src", "renderer", "browser-exporter.js"), "utf8");
 const schema = fs.readFileSync(path.join(rootDir, "supabase", "001_current_schema.sql"), "utf8");
 const scheduleEntryRpcMigration = fs.readFileSync(path.join(rootDir, "supabase", "024_schedule_entries_rpc.sql"), "utf8");
-const schemaCleanupMigration = fs.readFileSync(path.join(rootDir, "supabase", "025_schema_alignment_cleanup.sql"), "utf8");
 
 assert(webApi.includes('restSelect("set_departments"'), "loadState should read set_departments table");
 assert(webApi.includes('restSelect("set_employee"'), "loadState should read set_employee table");
@@ -83,8 +82,6 @@ assert(schema.includes("create table if not exists public.set_employee"), "schem
 assert(schema.includes("schedule_shift_ids uuid[]"), "schema should store ordered member shift priorities as uuid ids");
 assert(schema.includes("applicable_department_id uuid not null"), "schema should store one required shift department id");
 assert(!schema.includes("applicable_department_ids uuid[]"), "schema should not keep shift department applicability arrays");
-assert(schemaCleanupMigration.includes("add column if not exists applicable_department_id uuid"), "old database conversion should add the single shift department id");
-assert(schemaCleanupMigration.includes("drop column if exists applicable_department_ids"), "old database conversion should drop retired shift department arrays");
 assert(schema.includes("auto_text_color boolean not null default true"), "schema should store catalog auto text color flags");
 assert(schema.includes("requires_time boolean not null default false"), "schema should store leave time requirement flags");
 assert(schema.includes("requires_reason boolean not null default false"), "schema should store leave reason requirement flags");
