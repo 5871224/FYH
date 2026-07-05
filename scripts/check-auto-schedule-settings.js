@@ -15,6 +15,12 @@ assert(renderer.includes("shiftRequiredStaffCount") && renderer.includes("requir
 assert(renderer.includes("memberScheduleShiftList") && renderer.includes("scheduleShiftIds"), "member settings should include ordered schedule shifts");
 assert(renderer.includes('id="memberDept"') && webApi.includes("homeDepartmentId: member?.deptId"), "member settings should preserve the home department separately");
 assert(memberAuthAdmin.includes("home_department_id: homeDepartmentUuid"), "member auth sync should write home department id");
+assert(memberAuthAdmin.includes('return role === "admin" || role === "manager" ? role : "employee";'), "member auth sync should preserve admin roles");
+assert(memberAuthAdmin.includes("function hasManagerAccess"), "member auth sync should let admin share manager-level access");
+assert(memberAuthAdmin.includes("只有管理員可以修改人員權限"), "member auth sync should restrict role changes to admins");
+assert(renderer.includes("function isAdmin()"), "renderer should expose an admin role helper");
+assert(renderer.includes("const ROLE_OPTIONS"), "renderer should keep role labels in one place");
+assert(webApi.includes("function hasManagerAccess"), "web api should let admins use manager-level actions");
 assert(renderer.includes("monthlyRestDays"), "member settings should include monthly rest days");
 assert(!renderer.includes('data-set-department-view="member"') && !renderer.includes("人員檢視"), "department settings should keep only the department view");
 assert(webApi.includes("scheduleShiftIds") && webApi.includes("required_staff_count"), "web api should sync auto schedule settings");

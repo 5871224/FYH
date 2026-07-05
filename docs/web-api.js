@@ -17,6 +17,15 @@
   let currentSession = null;
   let currentProfile = null;
 
+  function normalizeRole(role) {
+    return role === "admin" || role === "manager" ? role : "employee";
+  }
+
+  function hasManagerAccess(role) {
+    const normalizedRole = normalizeRole(role);
+    return normalizedRole === "admin" || normalizedRole === "manager";
+  }
+
   function makeFileName(prefix, payload, extension) {
     return `${prefix}_${payload.year}_${String(payload.month + 1).padStart(2, "0")}.${extension}`;
   }
@@ -294,7 +303,7 @@
 
   function ensureManager() {
     ensureSignedIn();
-    if (currentProfile?.role !== "manager") {
+    if (!hasManagerAccess(currentProfile?.role)) {
       throw new Error("此功能需要主管權限");
     }
   }
@@ -819,7 +828,7 @@
           payByDay: Boolean(row.pay_by_day),
           fixedRestWeekday: clampInteger(row.fixed_rest_weekday, 0, 6, 0),
           monthlyRestDays: Math.max(0, Number(row.monthly_rest_days) || 0),
-          role: row.role === "manager" ? "manager" : "employee"
+          role: normalizeRole(row.role)
         };
       });
       const schedule = mapScheduleRows(scheduleEntryRows, members);
@@ -909,7 +918,7 @@
       member: {
         employeeCode: String(member?.code || "").trim(),
         fullName: member?.name || "",
-        role: member?.role === "manager" ? "manager" : "employee",
+        role: normalizeRole(member?.role),
         hireDate: member?.hireDate || null,
         leaveDate: member?.leaveDate || null,
         payByDay: Boolean(member?.payByDay),
@@ -1141,7 +1150,7 @@
       }, {
         employee_code: member.code,
         full_name: member.name,
-        role: member.role === "manager" ? "manager" : "employee",
+        role: normalizeRole(member.role),
         hire_date: nullableDate(member.hireDate),
         leave_date: nullableDate(member.leaveDate),
         pay_by_day: Boolean(member.payByDay),

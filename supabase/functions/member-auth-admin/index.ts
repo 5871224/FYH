@@ -33,7 +33,16 @@ function buildLoginEmail(employeeCode: string) {
 }
 
 function normalizeRole(role: string | undefined) {
-  return role === "manager" ? "manager" : "employee";
+  return role === "admin" || role === "manager" ? role : "employee";
+}
+
+function hasManagerAccess(role: string | undefined) {
+  const normalizedRole = normalizeRole(role);
+  return normalizedRole === "admin" || normalizedRole === "manager";
+}
+
+function hasAdminAccess(role: string | undefined) {
+  return normalizeRole(role) === "admin";
 }
 
 function normalizeMember(member: MemberPayload) {
@@ -80,7 +89,7 @@ async function findProfile(ctx: any, currentCode: string, previousCode: string) 
   for (const code of codes) {
     const { data, error } = await ctx.supabaseAdmin
       .from("set_employee")
-      .select("id, employee_code")
+      .select("id, employee_code, role")
       .eq("employee_code", code)
       .maybeSingle();
     if (error) {
@@ -115,6 +124,18 @@ async function upsertMember(ctx: any, body: any) {
   const password = String(body?.defaultPassword || DEFAULT_PASSWORD);
   const profile = await findProfile(ctx, member.employeeCode, previousEmployeeCode);
   const homeDepartmentUuid = await resolveDepartmentUuid(ctx, member.homeDepartmentId || "");
+  const actorRole = normalizeRole(body?.actorRole);
+  if (!hasAdminAccess(actorRole)) {
+    if (!profile && member.role !== "employee") {
+      throw new Error("只有管理員可以新增主管或管理員");
+    }
+    if (profile?.role === "admin") {
+      throw new Error("只有管理員可以修改管理員帳號");
+    }
+    if (profile && member.role !== normalizeRole(profile.role)) {
+      throw new Error("只有管理員可以修改人員權限");
+    }
+  }
 
   if (!profile) {
     const { data, error } = await ctx.supabaseAdmin.auth.admin.createUser({
@@ -210,6 +231,9 @@ async function resetPassword(ctx: any, body: any) {
       headers: { "Content-Type": "application/json" }
     });
   }
+  if (normalizeRole(profile.role) === "admin" && !hasAdminAccess(body?.actorRole)) {
+    throw new Error("只有管理員可以重設管理員密碼");
+  }
   const { error } = await ctx.supabaseAdmin.auth.admin.updateUserById(profile.id, {
     password
   });
@@ -236,7 +260,7 @@ export default {
 
     try {
       const actorRole = await getActorRole(ctx);
-      if (actorRole !== "manager") {
+      if (!hasManagerAccess(actorRole)) {
         return new Response(JSON.stringify({ message: "此功能限主管使用" }), {
           status: 403,
           headers: { "Content-Type": "application/json" }
@@ -244,6 +268,7 @@ export default {
       }
 
       const body = await req.json();
+      body.actorRole = actorRole;
       if (body?.action === "upsert_member") {
         return Response.json(await upsertMember(ctx, body));
       }

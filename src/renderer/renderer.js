@@ -105,6 +105,12 @@ const DEFAULT_STATE = {
   scheduleLoadedRanges: []
 };
 
+const ROLE_OPTIONS = [
+  { value: "admin", label: "管理員" },
+  { value: "manager", label: "主管" },
+  { value: "employee", label: "員工" }
+];
+
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 const MONTH_LABELS = ["1 月", "2 月", "3 月", "4 月", "5 月", "6 月", "7 月", "8 月", "9 月", "10 月", "11 月", "12 月"];
 const WEEK_START_OPTIONS = [
@@ -1017,7 +1023,7 @@ function sanitizeMember(member, fallbackIndex, merged) {
     payByDay: Boolean(member?.payByDay),
     fixedRestWeekday: normalizeRestWeekday(member?.fixedRestWeekday),
     monthlyRestDays: Math.max(0, Number(member?.monthlyRestDays) || 0),
-    role: member?.role === "manager" ? "manager" : "employee"
+    role: normalizeRole(member?.role)
   };
 }
 
@@ -2458,8 +2464,17 @@ function isLoggedIn() {
   return Boolean(currentSession?.user);
 }
 
+function normalizeRole(role) {
+  return role === "admin" || role === "manager" ? role : "employee";
+}
+
+function isAdmin() {
+  return normalizeRole(currentProfile?.role) === "admin";
+}
+
 function isManager() {
-  return currentProfile?.role === "manager";
+  const role = normalizeRole(currentProfile?.role);
+  return role === "admin" || role === "manager";
 }
 
 function canEditSchedule() {
@@ -2487,7 +2502,15 @@ function getRequestActor() {
 }
 
 function getCurrentRoleLabel() {
-  return isManager() ? "主管" : "員工";
+  return getRoleLabel(currentProfile?.role);
+}
+
+function getRoleLabel(role) {
+  return ROLE_OPTIONS.find((option) => option.value === normalizeRole(role))?.label || "員工";
+}
+
+function canEditMemberAccount(member) {
+  return isAdmin() || normalizeRole(member?.role) !== "admin";
 }
 
 function resolveCurrentMember() {
@@ -5000,7 +5023,7 @@ function getFilteredMemberSettingsMembers() {
         : getMemberHomeDeptId(member) === memberSettingsFilters.department;
     const matchesRole = memberSettingsFilters.role === "all"
       ? true
-      : member.role === memberSettingsFilters.role;
+      : normalizeRole(member.role) === memberSettingsFilters.role;
     const active = isMemberCurrentlyActive(member);
     const matchesEmployment = memberSettingsFilters.employment === "all"
       ? true
@@ -5035,21 +5058,24 @@ function renderMemberSettingsList() {
               <div>例假星期</div>
               <div class="member-table-actions-head">操作</div>
             </div>
-            ${filteredMembers.map((member) => `
+            ${filteredMembers.map((member) => {
+              const canEditAccount = canEditMemberAccount(member);
+              return `
               <div class="member-table-row">
                 <div class="member-table-code">${escapeHtml(member.code)}</div>
                 <div class="member-table-name">${escapeHtml(member.name)}</div>
                 <div class="member-shift-pill-list">${renderMemberScheduleShiftPills(member)}</div>
-                <div>${member.role === "manager" ? "主管" : "員工"}</div>
+                <div>${getRoleLabel(member.role)}</div>
                 <div class="member-date-stack"><span>${escapeHtml(member.hireDate || "-")}</span><span>${escapeHtml(member.leaveDate || "-")}</span></div>
                 <div>${getSalaryTypeLabel(member)}</div>
                 <div>${getRestWeekdayLabel(member.fixedRestWeekday)}</div>
                 <div class="member-table-actions">
-                  ${renderActionIconButton("edit", `data-edit-member="${member.id}"`)}
-                  ${renderActionIconButton("delete", `data-delete-member="${member.id}"`)}
+                  ${canEditAccount ? renderActionIconButton("edit", `data-edit-member="${member.id}"`) : ""}
+                  ${canEditAccount ? renderActionIconButton("delete", `data-delete-member="${member.id}"`) : ""}
                 </div>
               </div>
-            `).join("")}
+            `;
+            }).join("")}
           </div>
         </div>
       </div>
@@ -5087,6 +5113,7 @@ function openMemberSettings() {
           <label for="memberSettingsRoleFilter">權限</label>
           <select id="memberSettingsRoleFilter" data-member-settings-filter-field="role">
             <option value="all" ${memberSettingsFilters.role === "all" ? "selected" : ""}>全部</option>
+            <option value="admin" ${memberSettingsFilters.role === "admin" ? "selected" : ""}>管理員</option>
             <option value="manager" ${memberSettingsFilters.role === "manager" ? "selected" : ""}>主管</option>
             <option value="employee" ${memberSettingsFilters.role === "employee" ? "selected" : ""}>員工</option>
           </select>
@@ -5123,6 +5150,16 @@ function openMemberSettings() {
   });
 }
 
+function renderMemberRoleOptions(member) {
+  const currentRole = normalizeRole(member?.role);
+  const options = isAdmin()
+    ? ROLE_OPTIONS
+    : ROLE_OPTIONS.filter((option) => option.value === currentRole);
+  return options.map((option) => (
+    `<option value="${option.value}" ${currentRole === option.value ? "selected" : ""}>${option.label}</option>`
+  )).join("");
+}
+
 function openMemberForm(mode, memberId = "") {
   const returnTo = modalContext?.category === "department-settings"
     ? captureSettingsReturnContext({ category: "department-settings", view: modalContext.view || departmentSettingsView })
@@ -5148,6 +5185,10 @@ function openMemberForm(mode, memberId = "") {
   if (!member) {
     return;
   }
+  if (!canEditMemberAccount(member)) {
+    showInfoMessage("只有管理員可以修改管理員帳號");
+    return;
+  }
   modalContext = { mode, category: "member", targetId: memberId, returnTo };
   openEntityListModal({
     title: `${mode === "edit" ? "修改" : "新增"}人員`,
@@ -5164,9 +5205,8 @@ function openMemberForm(mode, memberId = "") {
         </div>
         <div class="form-row">
           <label for="memberRole">權限</label>
-          <select id="memberRole">
-            <option value="employee" ${member.role === "manager" ? "" : "selected"}>員工</option>
-            <option value="manager" ${member.role === "manager" ? "selected" : ""}>主管</option>
+          <select id="memberRole" ${isAdmin() ? "" : "disabled"}>
+            ${renderMemberRoleOptions(member)}
           </select>
         </div>
         <div class="form-row">
@@ -5246,7 +5286,7 @@ async function saveMember(mode) {
     payByDay: document.getElementById("memberSalaryType")?.value === "daily",
     fixedRestWeekday: normalizeRestWeekday(document.getElementById("memberFixedRestWeekday")?.value),
     monthlyRestDays,
-    role: document.getElementById("memberRole")?.value === "manager" ? "manager" : "employee"
+    role: isAdmin() ? normalizeRole(document.getElementById("memberRole")?.value) : normalizeRole(previousMember?.role)
   };
   if (!payload.code || !payload.name) {
     reportValidationError("請填寫人員編號與姓名");
@@ -5342,7 +5382,7 @@ async function importMembersFromSettings() {
         payByDay: Boolean(row.payByDay),
         fixedRestWeekday: normalizeRestWeekday(row.fixedRestWeekday),
         monthlyRestDays: Math.max(0, Number(row.monthlyRestDays) || 0),
-        role: row.role === "manager" ? "manager" : "employee"
+        role: isAdmin() ? normalizeRole(row.role) : normalizeRole(existing?.role)
       };
       if (!existing) {
         try {
@@ -5381,6 +5421,11 @@ async function importMembersFromSettings() {
 }
 
 async function deleteMember(memberId) {
+  const member = state.members.find((item) => item.id === memberId);
+  if (member && !canEditMemberAccount(member)) {
+    showInfoMessage("只有管理員可以刪除管理員帳號");
+    return;
+  }
   const confirmed = await confirmAction("確定要刪除這位人員嗎？");
   if (!confirmed) {
     return;
@@ -5399,6 +5444,11 @@ async function deleteMember(memberId) {
 async function resetMemberPasswordFromModal(employeeCode) {
   const code = String(employeeCode || "").trim();
   if (!code) {
+    return;
+  }
+  const member = state.members.find((item) => item.code === code);
+  if (member && !canEditMemberAccount(member)) {
+    showInfoMessage("只有管理員可以重設管理員密碼");
     return;
   }
   const confirmed = await confirmAction(`確定要將 ${code} 的密碼重設為 0000 嗎？`);

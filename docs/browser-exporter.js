@@ -11,6 +11,24 @@
     return `${memberId}_${year}_${month}_${day}`;
   }
 
+  function normalizeRole(role) {
+    return role === "admin" || role === "manager" ? role : "employee";
+  }
+
+  function getRoleLabel(role) {
+    const normalizedRole = normalizeRole(role);
+    if (normalizedRole === "admin") return "管理員";
+    if (normalizedRole === "manager") return "主管";
+    return "員工";
+  }
+
+  function parseRoleLabel(label) {
+    const text = String(label || "").trim();
+    if (text === "管理員" || /^admin$/i.test(text)) return "admin";
+    if (text === "主管" || /^manager$/i.test(text)) return "manager";
+    return "employee";
+  }
+
   function formatYmd(year, month, day) {
     return `${year}${String(month + 1).padStart(2, "0")}${String(day).padStart(2, "0")}`;
   }
@@ -466,7 +484,7 @@
         member.code || "",
         member.name || "",
         scheduleShiftNames.join("、"),
-        member.role === "manager" ? "主管" : "員工",
+        getRoleLabel(member.role),
         formatDisplayDate(member.hireDate || ""),
         formatDisplayDate(member.leaveDate || ""),
         member.payByDay ? "日薪" : "月薪",
@@ -659,7 +677,7 @@
         name,
         departmentName,
         scheduleShiftNames,
-        role: roleText === "主管" ? "manager" : "employee",
+        role: parseRoleLabel(roleText),
         hireDate,
         leaveDate,
         payByDay: salaryType === "日薪" || salaryType === "按日計薪",

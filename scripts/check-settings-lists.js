@@ -56,6 +56,9 @@ assert(renderer.includes("<div>到職日<br>離職日</div>"), "member settings 
 assert(renderer.includes("state.shifts.filter((shift) => !shift.hiddenFromToolbar).map((shift) => [shift.name.trim(), shift.id])"), "member import should only accept visible schedule shifts");
 assert(renderer.includes("if (!existing) {\n        try {\n          await window.schedulerApi.syncMemberProfile(payload, \"\");"), "member import should not sync profiles again for existing members");
 assert(webApi.includes("function normalizeTextArray"), "web api should normalize Postgres text arrays");
+assert(renderer.includes("function getRoleLabel") && renderer.includes('value: "admin"'), "member settings should support admin role labels");
+assert(renderer.includes("function canEditMemberAccount") && renderer.includes("只有管理員可以修改管理員帳號"), "member settings should protect admin accounts from managers");
+assert(browserExporter.includes("function parseRoleLabel") && browserExporter.includes('text === "管理員"'), "member import/export should preserve admin roles");
 assert(webApi.includes("schedule_shift_ids uuid[]") || webApi.includes("scheduleShiftIds"), "member schedule shifts should stay on uuid-backed scheduleShiftIds");
 assert(browserExporter.includes('["工號", "姓名", "排班班別", "權限", "到職日", "離職日", "計薪方式", "例假星期", "所屬單位"]'), "member export should place home department after rest weekday");
 assert(browserExporter.includes('const departmentColumn = getHeaderColumnIndex(sheet, ["所屬單位", "單位"], 9);'), "member import should read the home department after rest weekday by default");
