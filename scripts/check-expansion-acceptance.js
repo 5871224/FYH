@@ -20,6 +20,7 @@ assert(schema.includes("create table if not exists public.attendance_overtime_re
 assert(schema.includes("create table if not exists public.meal_orders"), "database should include meal orders");
 assert(schema.includes("create policy read_schedule_entries"), "database should include RLS policies");
 assert(schema.includes("create or replace function public.protect_admin_member"), "database should protect the last admin");
+assert(schema.includes("create or replace function public.protect_department_attendance_settings"), "database should protect attendance settings from manager writes");
 
 assert(renderer.includes("function isAdmin()") && renderer.includes("function canEditMemberAccount"), "permissions should distinguish admin from manager");
 assert(webApi.includes("mobileSessionMaxIdleMs") && webApi.includes("desktopSessionMaxIdleMs"), "login should have device-specific idle windows");
@@ -40,6 +41,7 @@ assert(index.includes('id="mealCard"') && renderer.includes("function renderMeal
 assert(schema.includes("create or replace function public.save_meal_order"), "meal ordering should use a database transaction RPC");
 assert(mealOrder.includes('rpc("save_meal_order"'), "meal ordering should call the transaction RPC");
 assert(schema.includes("請先完成上班打卡後再訂餐") && schema.includes("今日訂餐已超過截止時間"), "meal ordering should require clock-in and cutoff checks in the transaction");
+assert(renderer.includes("data-meal-note-product-id"), "meal ordering should support per-item notes");
 
 assert(index.includes('id="recordsCard"') && renderer.includes("function renderRecordsPage"), "records page should be present");
 assert(reportRecords.includes("personalRecords") && reportRecords.includes("mealStats"), "reports should include personal records and meal stats");

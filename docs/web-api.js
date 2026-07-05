@@ -870,7 +870,8 @@
     });
   }
 
-  function mapDepartmentRows(rows = []) {
+  function mapDepartmentRows(rows = [], attendanceSettings = []) {
+    const settingsByDepartment = new Map((attendanceSettings || []).map((item) => [item.department_id, item]));
     return (rows || [])
       .filter((row) => row.id)
       .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.name || "").localeCompare(String(b.name || "")))
@@ -883,7 +884,7 @@
         address: row.address || "",
         latitude: row.latitude ?? "",
         longitude: row.longitude ?? "",
-        publicIp: hasAdminAccess(currentProfile?.role) ? row.public_ip || "" : "",
+        publicIp: hasAdminAccess(currentProfile?.role) ? settingsByDepartment.get(row.id)?.public_ip || "" : "",
         attendanceEnabled: Boolean(row.attendance_enabled)
       }));
   }
@@ -901,10 +902,24 @@
       row.address = department.address || null;
       row.latitude = department.latitude === "" || department.latitude === null || department.latitude === undefined ? null : Number(department.latitude);
       row.longitude = department.longitude === "" || department.longitude === null || department.longitude === undefined ? null : Number(department.longitude);
-      row.public_ip = department.publicIp || null;
       row.attendance_enabled = Boolean(department.attendanceEnabled);
     }
     return row;
+  }
+
+  async function saveDepartmentAttendanceSettings(departments) {
+    if (!hasAdminAccess(currentProfile?.role)) {
+      return;
+    }
+    await restRpc("save_department_attendance_settings_bulk", {
+      settings: (departments || []).map((department) => ({
+        department_id: department.id,
+        public_ip: department.publicIp || ""
+      }))
+    }, {
+      auth: true,
+      prefer: "return=minimal"
+    });
   }
 
   function mapShiftRows(rows = []) {
@@ -980,11 +995,12 @@
     const auth = Boolean(currentSession?.access_token);
     try {
       const departmentSelect = hasAdminAccess(currentProfile?.role)
-        ? "*"
+        ? "id,name,start_date,end_date,hidden_from_schedule,address,latitude,longitude,attendance_enabled,sort_order,created_at,updated_at"
         : "id,name,start_date,end_date,hidden_from_schedule,address,latitude,longitude,attendance_enabled,sort_order,created_at,updated_at";
       const [
         settingsRows,
         departmentRows,
+        departmentAttendanceRows,
         profileRows,
         shiftRows,
         leaveRows,
@@ -993,6 +1009,7 @@
       ] = await Promise.all([
         restSelect("scheduler_settings", { select: "*", filters: { id: `eq.${documentId}` }, limit: "1", auth }),
         restSelect("set_departments", { select: departmentSelect, order: "sort_order.asc,name.asc", auth }),
+        hasAdminAccess(currentProfile?.role) ? restRpc("get_department_attendance_settings", {}, { auth: true }) : Promise.resolve([]),
         restSelect("set_employee", { select: "*", filters: { is_active: "eq.true" }, order: "employee_code.asc", auth }),
         restSelect("set_shift", { select: "*", order: "sort_order.asc,name.asc", auth }),
         restSelect("set_leave", { select: "*", order: "sort_order.asc,code.asc", auth }),
@@ -1040,7 +1057,7 @@
         tableDeptScopeFilter: settings.table_dept_scope_filter || "all",
         tableStatsVisible: settings.table_stats_visible !== false,
         scheduleStartDate: settings.schedule_start_date || "",
-        departments: mapDepartmentRows(departmentRows),
+        departments: mapDepartmentRows(departmentRows, departmentAttendanceRows),
         members,
         shifts: mapShiftRows(shiftRows),
         leaves: mapLeaveRows(leaveRows),
@@ -1209,6 +1226,7 @@
         onConflict: "id",
         prefer: "resolution=merge-duplicates,return=minimal"
       });
+      await saveDepartmentAttendanceSettings(departments);
     }
     await deleteRowsNotIn("set_departments", departments.map((department) => department.id));
     const departmentMap = await fetchRowsById("set_departments");
@@ -1445,6 +1463,7 @@
       onConflict: "id",
       prefer: "resolution=merge-duplicates,return=minimal"
     });
+    await saveDepartmentAttendanceSettings([department]);
     return { ok: true };
   }
 

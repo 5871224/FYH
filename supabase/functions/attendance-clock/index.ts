@@ -86,12 +86,22 @@ async function getTodayRecord(ctx: any, userId: string, workDate = taipeiDateStr
 }
 
 async function getEnabledDepartments(ctx: any) {
-  const { data, error } = await ctx.supabaseAdmin
+  const [{ data, error }, { data: settings, error: settingsError }] = await Promise.all([
+    ctx.supabaseAdmin
     .from("set_departments")
-    .select("id, name, address, latitude, longitude, public_ip, attendance_enabled")
-    .eq("attendance_enabled", true);
+      .select("id, name, address, latitude, longitude, attendance_enabled")
+      .eq("attendance_enabled", true),
+    ctx.supabaseAdmin
+      .from("department_attendance_settings")
+      .select("department_id, public_ip")
+  ]);
   if (error) throw error;
-  return data || [];
+  if (settingsError) throw settingsError;
+  const settingsByDepartment = new Map((settings || []).map((item: any) => [item.department_id, item]));
+  return (data || []).map((department: any) => ({
+    ...department,
+    public_ip: settingsByDepartment.get(department.id)?.public_ip || ""
+  }));
 }
 
 async function resolveClockLocation(ctx: any, req: Request, body: any) {

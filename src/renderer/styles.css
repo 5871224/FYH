@@ -453,6 +453,12 @@ body.is-records-view .app-shell {
   text-align: center;
 }
 
+.meal-product-row textarea {
+  grid-column: 1 / -1;
+  min-height: 56px;
+  resize: vertical;
+}
+
 .meal-summary-row {
   display: flex;
   align-items: center;

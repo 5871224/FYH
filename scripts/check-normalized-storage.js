@@ -92,7 +92,10 @@ assert(schema.includes("address text") && schema.includes("attendance_enabled bo
 assert(schema.includes("create table if not exists public.attendance_records"), "schema should create attendance records");
 assert(schema.includes("create table if not exists public.attendance_action_logs"), "schema should create attendance action logs");
 assert(schema.includes("employee_code_snapshot text") && schema.includes("employee_name_snapshot text"), "attendance records should snapshot employee identity");
+assert(schema.includes("create table if not exists public.department_attendance_settings"), "schema should move sensitive public IP settings out of set_departments");
+assert(schema.includes("NEW.public_ip := null"), "set_departments should not retain public IP values");
 assert(schema.includes("create table if not exists public.attendance_overtime_requests"), "schema should create independent attendance overtime requests");
+assert(schema.includes("is_deleted_by_employee boolean not null default false"), "overtime deletes should be soft deletes");
 assert(schema.includes("create table if not exists public.overtime_review_logs"), "schema should create overtime review logs");
 assert(schema.includes("create table if not exists public.meal_products"), "schema should create meal products");
 assert(schema.includes("create table if not exists public.meal_settings"), "schema should create meal settings");
@@ -105,6 +108,8 @@ assert(schema.includes("create policy read_schedule_entries") && schema.includes
 assert(schema.includes("create or replace function public.protect_admin_member"), "current schema should protect the last admin at database level");
 assert(schema.includes("create or replace function public.save_attendance_clock"), "current schema should create the atomic clock RPC");
 assert(schema.includes("create or replace function public.save_meal_order"), "current schema should create the meal transaction RPC");
+assert(!schema.includes("and clock_in_at is not null\n      and clock_out_at is null"), "clock-out should not require a clock-in record");
+assert(schema.includes("訂餐數量必須是 0 或正整數"), "meal order RPC should reject invalid quantities instead of rounding them");
 assert(!schema.includes("create table if not exists public.clock_locations"), "current schema should not create retired clock_locations");
 assert(!schema.includes("create table if not exists public.attendance_logs"), "current schema should not create retired attendance_logs");
 assert(!schema.includes("scheduler_item_id text unique"), "active catalog tables should not keep scheduler_item_id");

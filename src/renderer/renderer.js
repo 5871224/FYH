@@ -2700,10 +2700,15 @@ async function loadTodayMealOrder() {
 }
 
 function readMealOrderItems() {
-  return Array.from(document.querySelectorAll("[data-meal-product-id]")).map((input) => ({
-    productId: input.dataset.mealProductId,
-    quantity: Math.max(0, Math.floor(Number(input.value || 0)))
-  }));
+  return Array.from(document.querySelectorAll("[data-meal-product-id]")).map((input) => {
+    const productId = input.dataset.mealProductId || "";
+    const noteInput = document.querySelector(`[data-meal-note-product-id="${CSS.escape(productId)}"]`);
+    return {
+      productId,
+      quantity: Number(input.value || 0),
+      note: noteInput?.value || ""
+    };
+  });
 }
 
 async function saveTodayMealOrder() {
@@ -2711,11 +2716,10 @@ async function saveTodayMealOrder() {
     return;
   }
   const items = readMealOrderItems();
-  const note = document.getElementById("mealOrderNote")?.value || "";
   mealOrderState = { ...mealOrderState, loading: true, error: "" };
   renderAll();
   try {
-    const status = await window.schedulerApi.saveTodayMealOrder({ items, note });
+    const status = await window.schedulerApi.saveTodayMealOrder({ items });
     mealOrderState = { loading: false, status, error: "" };
     showInfoMessage(items.some((item) => item.quantity > 0) ? "訂餐已儲存" : "今日訂餐已取消");
   } catch (error) {
@@ -3865,7 +3869,7 @@ function renderMealPage() {
   const products = status?.products || [];
   const orders = status?.orders || [];
   const orderQuantityMap = new Map(orders.map((item) => [item.product_id, Number(item.quantity || 0)]));
-  const orderNote = orders[0]?.note || "";
+  const orderNoteMap = new Map(orders.map((item) => [item.product_id, item.note || ""]));
   const disabled = mealOrderState.loading || !status?.orderingOpen || !status?.attendance?.clock_in_at;
   const unavailableReason = !status
     ? ""
@@ -3891,15 +3895,12 @@ function renderMealPage() {
           <div class="meal-product-row">
             <div>
               <strong>${escapeHtml(product.name || "")}</strong>
-              <span>$${Number(product.price || 0).toFixed(0)}</span>
+              <span>$${Number(product.price || 0).toFixed(0)}${product.is_active === false ? "（已停用）" : ""}</span>
             </div>
             <input type="number" min="0" step="1" value="${orderQuantityMap.get(product.id) || 0}" data-meal-product-id="${escapeHtml(product.id)}" ${disabled ? "disabled" : ""}>
+            <textarea rows="2" placeholder="此品項備註" data-meal-note-product-id="${escapeHtml(product.id)}" ${disabled ? "disabled" : ""}>${escapeHtml(orderNoteMap.get(product.id) || "")}</textarea>
           </div>
         `).join("")}
-      </div>
-      <div class="form-row">
-        <label for="mealOrderNote">訂餐備註</label>
-        <textarea id="mealOrderNote" rows="3" ${disabled ? "disabled" : ""}>${escapeHtml(orderNote)}</textarea>
       </div>
       <div class="meal-summary-row">
         <span>目前合計 ${Number(status?.summary?.totalQuantity || 0)} 份，$${Number(status?.summary?.totalAmount || 0).toFixed(0)}</span>
@@ -3930,7 +3931,7 @@ function renderRecordsPage() {
       <div>
         <p class="home-eyebrow">記錄</p>
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
-        <p class="home-subtitle">個人記錄顯示最近 30 日；主管及管理員額外顯示今日訂餐統計。</p>
+        <p class="home-subtitle">個人記錄顯示最近 50 日；主管及管理員額外顯示今日訂餐統計。</p>
       </div>
     </div>
     ${recordsState.error ? `<div class="auth-error clock-error">${escapeHtml(recordsState.error)}</div>` : ""}
@@ -6101,6 +6102,11 @@ async function deleteMember(memberId) {
     await window.schedulerApi.deleteMemberProfile(member?.code || "");
   } catch (error) {
     showInfoMessage(error.message || "刪除人員失敗");
+    return;
+  }
+  if (member?.code && member.code === currentProfile?.employee_code) {
+    await signOut();
+    showInfoMessage("目前登入帳號已刪除，已自動登出。");
     return;
   }
   state.members = state.members.filter((member) => member.id !== memberId);

@@ -59,15 +59,24 @@ async function getMealSettings(ctx: any) {
 
 async function getTodayContext(ctx: any, profile: any) {
   const orderDate = taipeiDateString();
-  const [{ data: attendance, error: attendanceError }, { data: products, error: productsError }, { data: orders, error: ordersError }, settings] = await Promise.all([
+  const [{ data: attendance, error: attendanceError }, { data: orders, error: ordersError }, settings] = await Promise.all([
     ctx.supabaseAdmin.from("attendance_records").select("*").eq("user_id", profile.id).eq("work_date", orderDate).maybeSingle(),
-    ctx.supabaseAdmin.from("meal_products").select("*").eq("is_active", true).order("sort_order", { ascending: true }).order("name", { ascending: true }),
     ctx.supabaseAdmin.from("meal_orders").select("*").eq("user_id", profile.id).eq("order_date", orderDate),
     getMealSettings(ctx)
   ]);
   if (attendanceError) throw attendanceError;
-  if (productsError) throw productsError;
   if (ordersError) throw ordersError;
+
+  const orderedProductIds = [...new Set((orders || []).map((order: any) => order.product_id).filter(Boolean))];
+  const productQuery = ctx.supabaseAdmin
+    .from("meal_products")
+    .select("*")
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+  const { data: products, error: productsError } = orderedProductIds.length
+    ? await productQuery.or(`is_active.eq.true,id.in.(${orderedProductIds.join(",")})`)
+    : await productQuery.eq("is_active", true);
+  if (productsError) throw productsError;
 
   const nowTime = taipeiTimeString();
   const cutoffTime = String(settings.daily_cutoff_time || "10:30").slice(0, 5);

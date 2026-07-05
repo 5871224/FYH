@@ -43,10 +43,10 @@ async function getProfile(ctx: any) {
 async function personalRecords(ctx: any) {
   const profile = await getProfile(ctx);
   const today = taipeiDateString();
-  const fromDate = addDays(today, -29);
+  const fromDate = addDays(today, -49);
   const [attendanceResult, overtimeResult, mealResult, scheduleResult] = await Promise.all([
     ctx.supabaseAdmin.from("attendance_records").select("*").eq("user_id", profile.id).gte("work_date", fromDate).lte("work_date", today),
-    ctx.supabaseAdmin.from("attendance_overtime_requests").select("*").eq("user_id", profile.id).gte("work_date", fromDate).lte("work_date", today),
+    ctx.supabaseAdmin.from("attendance_overtime_requests").select("*").eq("user_id", profile.id).eq("is_deleted_by_employee", false).gte("work_date", fromDate).lte("work_date", today),
     ctx.supabaseAdmin.from("meal_orders").select("*").eq("user_id", profile.id).gte("order_date", fromDate).lte("order_date", today),
     ctx.supabaseAdmin.from("schedule_entries").select("work_date, shift:shift_type_id(name,start_time,end_time)").eq("member_id", profile.id).gte("work_date", fromDate).lte("work_date", today)
   ]);
@@ -55,7 +55,7 @@ async function personalRecords(ctx: any) {
   }
 
   const byDate = new Map<string, any>();
-  for (let index = 0; index < 30; index += 1) {
+  for (let index = 0; index < 50; index += 1) {
     const date = addDays(today, -index);
     byDate.set(date, {
       date,

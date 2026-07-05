@@ -73,7 +73,7 @@ async function getTodayContext(ctx: any, userId: string) {
   const workDate = taipeiDateString();
   const [{ data: attendance, error: attendanceError }, { data: request, error: requestError }, { data: schedule, error: scheduleError }] = await Promise.all([
     ctx.supabaseAdmin.from("attendance_records").select("*").eq("user_id", userId).eq("work_date", workDate).maybeSingle(),
-    ctx.supabaseAdmin.from("attendance_overtime_requests").select("*").eq("user_id", userId).eq("work_date", workDate).maybeSingle(),
+    ctx.supabaseAdmin.from("attendance_overtime_requests").select("*").eq("user_id", userId).eq("work_date", workDate).eq("is_deleted_by_employee", false).maybeSingle(),
     ctx.supabaseAdmin.from("schedule_entries").select("shift_type_id").eq("member_id", userId).eq("work_date", workDate).maybeSingle()
   ]);
   if (attendanceError) throw attendanceError;
@@ -151,6 +151,9 @@ async function submitRequest(ctx: any, body: any) {
   }
   const earlyHours = normalizeHours(body?.earlyHours);
   const lateHours = normalizeHours(body?.lateHours);
+  if (earlyHours + lateHours <= 0) {
+    throw new Error("加班申請時數必須大於 0");
+  }
   if (earlyHours > eligibility.earlyHours || lateHours > eligibility.lateHours) {
     throw new Error("員工申請時數不可高於系統計算值");
   }
@@ -164,6 +167,9 @@ async function submitRequest(ctx: any, body: any) {
       late_overtime_hours: lateHours,
       total_overtime_hours: earlyHours + lateHours,
       employee_note: String(body?.note || "").trim(),
+      is_deleted_by_employee: false,
+      deleted_at: null,
+      deleted_by: null,
       created_by_type: "employee",
       created_by_user_id: profile.id
     })
@@ -184,7 +190,12 @@ async function deleteRequest(ctx: any) {
   }
   const { error } = await ctx.supabaseAdmin
     .from("attendance_overtime_requests")
-    .delete()
+    .update({
+      is_deleted_by_employee: true,
+      deleted_at: new Date().toISOString(),
+      deleted_by: profile.id,
+      updated_at: new Date().toISOString()
+    })
     .eq("id", context.request.id);
   if (error) throw error;
   return { ok: true, deleted: true };

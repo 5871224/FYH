@@ -33,6 +33,13 @@ create table if not exists public.set_departments (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.department_attendance_settings (
+  department_id uuid primary key references public.set_departments (id) on delete cascade,
+  public_ip text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.set_employee (
   id uuid primary key default gen_random_uuid(),
   employee_code text not null unique,
@@ -100,6 +107,20 @@ begin
       on delete set null;
   end if;
 end $$;
+
+insert into public.department_attendance_settings (department_id, public_ip, updated_at)
+select id, public_ip, now()
+from public.set_departments
+where public_ip is not null
+  and btrim(public_ip) <> ''
+on conflict (department_id)
+do update set
+  public_ip = excluded.public_ip,
+  updated_at = now();
+
+update public.set_departments
+set public_ip = null
+where public_ip is not null;
 
 create table if not exists public.set_shift (
   id uuid primary key default gen_random_uuid(),
@@ -245,15 +266,23 @@ create table if not exists public.attendance_overtime_requests (
   total_overtime_hours numeric(5, 2) not null default 0 check (total_overtime_hours >= 0),
   employee_note text,
   attendance_changed_warning boolean not null default false,
+  is_deleted_by_employee boolean not null default false,
+  deleted_at timestamptz,
+  deleted_by uuid references public.set_employee (id) on delete set null,
   created_by_type text not null default 'employee' check (created_by_type in ('employee', 'admin')),
   created_by_user_id uuid references public.set_employee (id) on delete set null,
   submitted_at timestamptz not null default now(),
   reviewed_at timestamptz,
   reviewed_by uuid references public.set_employee (id) on delete set null,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (user_id, work_date)
+  updated_at timestamptz not null default now()
 );
+
+alter table public.attendance_overtime_requests
+  drop constraint if exists attendance_overtime_requests_user_id_work_date_key,
+  add column if not exists is_deleted_by_employee boolean not null default false,
+  add column if not exists deleted_at timestamptz,
+  add column if not exists deleted_by uuid references public.set_employee (id) on delete set null;
 
 create table if not exists public.overtime_review_logs (
   id uuid primary key default gen_random_uuid(),
@@ -309,6 +338,7 @@ create table if not exists public.meal_orders (
 create index if not exists idx_set_employee_active_code on public.set_employee (is_active, employee_code);
 create index if not exists idx_set_employee_home_department on public.set_employee (home_department_id);
 create index if not exists idx_set_departments_attendance_enabled on public.set_departments (attendance_enabled);
+create index if not exists idx_department_attendance_settings_ip on public.department_attendance_settings (department_id);
 create index if not exists idx_schedule_entries_work_date on public.schedule_entries (work_date);
 create index if not exists idx_schedule_entries_member_date on public.schedule_entries (member_id, work_date);
 create index if not exists idx_attendance_records_user_date on public.attendance_records (user_id, work_date desc);
@@ -316,6 +346,9 @@ create index if not exists idx_attendance_records_work_date on public.attendance
 create index if not exists idx_attendance_action_logs_record on public.attendance_action_logs (attendance_record_id, created_at desc);
 create index if not exists idx_attendance_overtime_requests_user_date on public.attendance_overtime_requests (user_id, work_date desc);
 create index if not exists idx_attendance_overtime_requests_status_date on public.attendance_overtime_requests (status, work_date desc);
+create unique index if not exists idx_attendance_overtime_active_user_date
+  on public.attendance_overtime_requests (user_id, work_date)
+  where is_deleted_by_employee = false;
 create index if not exists idx_overtime_review_logs_request on public.overtime_review_logs (overtime_request_id, created_at desc);
 create index if not exists idx_meal_products_active_sort on public.meal_products (is_active, sort_order, name);
 create index if not exists idx_meal_orders_date_department on public.meal_orders (order_date, department_id);
@@ -324,6 +357,7 @@ create index if not exists idx_meal_orders_order_id on public.meal_orders (order
 
 alter table public.scheduler_settings enable row level security;
 alter table public.set_departments enable row level security;
+alter table public.department_attendance_settings enable row level security;
 alter table public.set_employee enable row level security;
 alter table public.set_shift enable row level security;
 alter table public.set_leave enable row level security;
@@ -351,6 +385,8 @@ as $$
     where e.id = p_user_id
       and e.role in ('admin', 'manager')
       and e.is_active = true
+      and (e.hire_date is null or e.hire_date <= (timezone('Asia/Taipei', now()))::date)
+      and (e.leave_date is null or (timezone('Asia/Taipei', now()))::date <= e.leave_date + 5)
   )
 $$;
 
@@ -367,6 +403,8 @@ as $$
     where e.id = p_user_id
       and e.role = 'admin'
       and e.is_active = true
+      and (e.hire_date is null or e.hire_date <= (timezone('Asia/Taipei', now()))::date)
+      and (e.leave_date is null or (timezone('Asia/Taipei', now()))::date <= e.leave_date + 5)
   )
 $$;
 
@@ -383,6 +421,9 @@ declare
   v_changed_admin_row boolean;
 begin
   if TG_OP = 'INSERT' then
+    if auth.uid() is not null and NEW.role <> 'employee' and not public.is_admin(auth.uid()) then
+      raise exception '只有管理員可以新增主管或管理員帳號' using errcode = '42501';
+    end if;
     return NEW;
   end if;
 
@@ -414,7 +455,16 @@ begin
     v_changed_admin_row := OLD.role = 'admin';
   end if;
 
-  if v_changed_admin_row and auth.uid() is not null and not public.is_admin(auth.uid()) then
+  if TG_OP = 'UPDATE'
+    and auth.uid() is not null
+    and NEW.role is distinct from OLD.role
+    and not public.is_admin(auth.uid()) then
+    raise exception '只有管理員可以變更帳號權限' using errcode = '42501';
+  end if;
+
+  if auth.uid() is not null
+    and (v_changed_admin_row or (TG_OP = 'UPDATE' and NEW.role = 'admin'))
+    and not public.is_admin(auth.uid()) then
     raise exception '只有管理員可以修改管理員帳號' using errcode = '42501';
   end if;
 
@@ -442,10 +492,57 @@ create trigger protect_admin_member_trigger
 before update or delete on public.set_employee
 for each row execute function public.protect_admin_member();
 
+create or replace function public.protect_department_attendance_settings()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if TG_OP = 'UPDATE'
+    and auth.uid() is not null
+    and not public.is_admin(auth.uid())
+    and (
+      NEW.address is distinct from OLD.address
+      or NEW.latitude is distinct from OLD.latitude
+      or NEW.longitude is distinct from OLD.longitude
+      or NEW.public_ip is distinct from OLD.public_ip
+      or NEW.attendance_enabled is distinct from OLD.attendance_enabled
+      or NEW.attendance_settings_updated_at is distinct from OLD.attendance_settings_updated_at
+      or NEW.attendance_settings_updated_by is distinct from OLD.attendance_settings_updated_by
+    ) then
+    raise exception '只有管理員可以修改打卡設定' using errcode = '42501';
+  end if;
+  if TG_OP = 'INSERT'
+    and auth.uid() is not null
+    and not public.is_admin(auth.uid())
+    and (
+      NEW.address is not null
+      or NEW.latitude is not null
+      or NEW.longitude is not null
+      or NEW.public_ip is not null
+      or NEW.attendance_enabled is true
+      or NEW.attendance_settings_updated_at is not null
+      or NEW.attendance_settings_updated_by is not null
+    ) then
+    raise exception '只有管理員可以新增打卡設定' using errcode = '42501';
+  end if;
+  NEW.public_ip := null;
+  return NEW;
+end;
+$$;
+
+drop trigger if exists protect_department_attendance_settings_trigger on public.set_departments;
+create trigger protect_department_attendance_settings_trigger
+before insert or update on public.set_departments
+for each row execute function public.protect_department_attendance_settings();
+
 drop policy if exists read_scheduler_settings on public.scheduler_settings;
 drop policy if exists write_scheduler_settings on public.scheduler_settings;
 drop policy if exists read_set_departments on public.set_departments;
 drop policy if exists write_set_departments on public.set_departments;
+drop policy if exists read_department_attendance_settings on public.department_attendance_settings;
+drop policy if exists write_department_attendance_settings on public.department_attendance_settings;
 drop policy if exists read_set_employee on public.set_employee;
 drop policy if exists insert_set_employee on public.set_employee;
 drop policy if exists update_set_employee on public.set_employee;
@@ -480,6 +577,9 @@ create policy write_scheduler_settings on public.scheduler_settings for all to a
 create policy read_set_departments on public.set_departments for select to authenticated using (true);
 create policy write_set_departments on public.set_departments for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
 
+create policy read_department_attendance_settings on public.department_attendance_settings for select to authenticated using (public.is_admin(auth.uid()));
+create policy write_department_attendance_settings on public.department_attendance_settings for all to authenticated using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
+
 create policy read_set_employee on public.set_employee for select to authenticated using (true);
 create policy insert_set_employee on public.set_employee for insert to authenticated with check (public.is_manager(auth.uid()));
 create policy update_set_employee on public.set_employee for update to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
@@ -499,8 +599,8 @@ create policy write_holidays on public.holidays for all to authenticated using (
 create policy read_schedule_entries on public.schedule_entries for select to authenticated using (true);
 create policy write_schedule_entries on public.schedule_entries for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
 
-create policy read_attendance_records on public.attendance_records for select to authenticated using (user_id = auth.uid() or public.is_manager(auth.uid()));
-create policy write_attendance_records on public.attendance_records for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
+create policy read_attendance_records on public.attendance_records for select to authenticated using (user_id = auth.uid() or public.is_admin(auth.uid()));
+create policy write_attendance_records on public.attendance_records for all to authenticated using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
 
 create policy read_attendance_logs on public.attendance_action_logs for select to authenticated using (
   public.is_manager(auth.uid())
@@ -516,8 +616,8 @@ create policy write_attendance_logs on public.attendance_action_logs for all to 
 create policy read_overtime_requests on public.attendance_overtime_requests for select to authenticated using (user_id = auth.uid() or public.is_manager(auth.uid()));
 create policy write_overtime_requests on public.attendance_overtime_requests for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
 
-create policy read_overtime_review_logs on public.overtime_review_logs for select to authenticated using (public.is_manager(auth.uid()));
-create policy write_overtime_review_logs on public.overtime_review_logs for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
+create policy read_overtime_review_logs on public.overtime_review_logs for select to authenticated using (public.is_admin(auth.uid()));
+create policy write_overtime_review_logs on public.overtime_review_logs for all to authenticated using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
 
 create policy read_meal_products on public.meal_products for select to authenticated using (true);
 create policy write_meal_products on public.meal_products for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
@@ -527,6 +627,57 @@ create policy write_meal_settings on public.meal_settings for all to authenticat
 
 create policy read_meal_orders on public.meal_orders for select to authenticated using (user_id = auth.uid() or public.is_manager(auth.uid()));
 create policy write_meal_orders on public.meal_orders for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
+
+create or replace function public.get_department_attendance_settings()
+returns table(department_id uuid, public_ip text)
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  if auth.uid() is null or not public.is_admin(auth.uid()) then
+    raise exception 'admin permission required' using errcode = '42501';
+  end if;
+
+  return query
+  select s.department_id, s.public_ip
+  from public.department_attendance_settings s;
+end;
+$$;
+
+revoke all on function public.get_department_attendance_settings() from public, anon;
+grant execute on function public.get_department_attendance_settings() to authenticated;
+
+create or replace function public.save_department_attendance_settings_bulk(settings jsonb)
+returns void
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  if auth.uid() is null or not public.is_admin(auth.uid()) then
+    raise exception 'admin permission required' using errcode = '42501';
+  end if;
+  if settings is null or jsonb_typeof(settings) <> 'array' then
+    raise exception 'settings must be a json array' using errcode = '22023';
+  end if;
+
+  insert into public.department_attendance_settings (department_id, public_ip, updated_at)
+  select
+    item.department_id,
+    nullif(btrim(coalesce(item.public_ip, '')), ''),
+    now()
+  from jsonb_to_recordset(settings) as item(department_id uuid, public_ip text)
+  where item.department_id is not null
+  on conflict (department_id)
+  do update set
+    public_ip = excluded.public_ip,
+    updated_at = now();
+end;
+$$;
+
+revoke all on function public.save_department_attendance_settings_bulk(jsonb) from public, anon;
+grant execute on function public.save_department_attendance_settings_bulk(jsonb) to authenticated;
 
 create or replace function public.save_attendance_clock(
   p_user_id uuid,
@@ -639,7 +790,6 @@ begin
       updated_at = v_now
     where user_id = p_user_id
       and work_date = p_work_date
-      and clock_in_at is not null
       and clock_out_at is null
     returning * into v_record;
   end if;
@@ -653,9 +803,6 @@ begin
 
     if p_kind = 'clock_in' and v_record.clock_out_at is not null then
       raise exception '已有下班打卡紀錄，無法再補上班打卡' using errcode = '23514';
-    end if;
-    if p_kind = 'clock_out' and v_record.clock_in_at is null then
-      raise exception '尚未上班打卡，無法下班打卡' using errcode = '23514';
     end if;
 
     return jsonb_build_object(
@@ -750,7 +897,7 @@ begin
     with incoming as (
       select
         nullif(raw.item->>'productId', '')::uuid as product_id,
-        greatest(floor(coalesce(nullif(raw.item->>'quantity', '')::numeric, 0)), 0)::integer as quantity
+        coalesce(nullif(raw.item->>'quantity', '')::integer, 0) as quantity
       from jsonb_array_elements(v_items) as raw(item)
     ),
     aggregated as (
@@ -801,7 +948,7 @@ begin
   with incoming as (
     select
       nullif(raw.item->>'productId', '')::uuid as product_id,
-      greatest(floor(coalesce(nullif(raw.item->>'quantity', '')::numeric, 0)), 0)::integer as quantity
+      coalesce(nullif(raw.item->>'quantity', '')::integer, 0) as quantity
     from jsonb_array_elements(v_items) as raw(item)
   ),
   aggregated as (
@@ -829,6 +976,205 @@ begin
     v_now
   from aggregated a
   join public.meal_products p on p.id = a.product_id and p.is_active = true;
+
+  return jsonb_build_object('ok', true, 'orderDate', v_order_date::text, 'orderId', v_order_id::text);
+end;
+$$;
+
+revoke all on function public.save_meal_order(uuid, jsonb, text) from public, anon, authenticated;
+grant execute on function public.save_meal_order(uuid, jsonb, text) to service_role;
+
+create or replace function public.save_meal_order(
+  p_user_id uuid,
+  p_items jsonb,
+  p_note text default ''
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_now timestamptz := now();
+  v_order_date date := (timezone('Asia/Taipei', v_now))::date;
+  v_now_time time := (timezone('Asia/Taipei', v_now))::time;
+  v_items jsonb := coalesce(p_items, '[]'::jsonb);
+  v_employee public.set_employee%rowtype;
+  v_attendance public.attendance_records%rowtype;
+  v_cutoff time;
+  v_order_id uuid;
+  v_submitted_at timestamptz;
+  v_existing_count integer := 0;
+  v_new_count integer := 0;
+begin
+  if p_user_id is null then
+    raise exception '缺少訂餐人員' using errcode = '23502';
+  end if;
+  if jsonb_typeof(v_items) <> 'array' then
+    raise exception '訂餐品項格式錯誤' using errcode = '22023';
+  end if;
+
+  select *
+  into v_employee
+  from public.set_employee
+  where id = p_user_id;
+  if not found
+    or v_employee.is_active is not true
+    or (v_employee.hire_date is not null and v_order_date < v_employee.hire_date)
+    or (v_employee.leave_date is not null and v_order_date > v_employee.leave_date + 5) then
+    raise exception '帳號不在有效任職期間，無法訂餐' using errcode = '42501';
+  end if;
+
+  select *
+  into v_attendance
+  from public.attendance_records
+  where user_id = p_user_id
+    and work_date = v_order_date;
+  if not found or v_attendance.clock_in_at is null or v_attendance.clock_in_department_id is null then
+    raise exception '請先完成上班打卡後再訂餐' using errcode = '23514';
+  end if;
+
+  select daily_cutoff_time
+  into v_cutoff
+  from public.meal_settings
+  where id = 'default';
+  v_cutoff := coalesce(v_cutoff, '10:30'::time);
+  if v_now_time > v_cutoff then
+    raise exception '今日訂餐已超過截止時間' using errcode = '23514';
+  end if;
+
+  select count(*)
+  into v_existing_count
+  from public.meal_orders
+  where user_id = p_user_id
+    and order_date = v_order_date;
+
+  select order_id, submitted_at
+  into v_order_id, v_submitted_at
+  from public.meal_orders
+  where user_id = p_user_id
+    and order_date = v_order_date
+  order by submitted_at asc
+  limit 1;
+  v_order_id := coalesce(v_order_id, gen_random_uuid());
+  v_submitted_at := coalesce(v_submitted_at, v_now);
+
+  if exists (
+    select 1
+    from jsonb_array_elements(v_items) as raw(item)
+    where nullif(raw.item->>'quantity', '') is not null
+      and (
+        (raw.item->>'quantity')::numeric < 0
+        or floor((raw.item->>'quantity')::numeric) <> (raw.item->>'quantity')::numeric
+      )
+  ) then
+    raise exception '訂餐數量必須是 0 或正整數' using errcode = '22023';
+  end if;
+
+  with incoming as (
+    select
+      nullif(raw.item->>'productId', '')::uuid as product_id,
+      coalesce(nullif(raw.item->>'quantity', '')::integer, 0) as quantity
+    from jsonb_array_elements(v_items) as raw(item)
+  )
+  select count(*)
+  into v_new_count
+  from incoming
+  where product_id is not null
+    and quantity > 0;
+
+  if v_existing_count = 0 and v_new_count = 0 then
+    raise exception '尚未選擇訂餐品項' using errcode = '23514';
+  end if;
+
+  if exists (
+    with incoming as (
+      select
+        nullif(raw.item->>'productId', '')::uuid as product_id,
+        coalesce(nullif(raw.item->>'quantity', '')::integer, 0) as quantity
+      from jsonb_array_elements(v_items) as raw(item)
+    ),
+    aggregated as (
+      select product_id, sum(quantity)::integer as quantity
+      from incoming
+      where product_id is not null
+        and quantity > 0
+      group by product_id
+    )
+    select 1
+    from aggregated a
+    left join public.meal_products p on p.id = a.product_id
+    where p.id is null
+      or (
+        p.is_active is not true
+        and not exists (
+          select 1
+          from public.meal_orders old_order
+          where old_order.user_id = p_user_id
+            and old_order.order_date = v_order_date
+            and old_order.product_id = a.product_id
+        )
+      )
+  ) then
+    raise exception '訂餐品項不存在或已停用' using errcode = '23503';
+  end if;
+
+  delete from public.meal_orders
+  where user_id = p_user_id
+    and order_date = v_order_date;
+
+  insert into public.meal_orders (
+    order_id,
+    user_id,
+    employee_code_snapshot,
+    employee_name_snapshot,
+    order_date,
+    department_id,
+    department_name_snapshot,
+    clock_location_id,
+    product_id,
+    product_name_snapshot,
+    quantity,
+    unit_price,
+    note,
+    submitted_at,
+    updated_at
+  )
+  with incoming as (
+    select
+      nullif(raw.item->>'productId', '')::uuid as product_id,
+      coalesce(nullif(raw.item->>'quantity', '')::integer, 0) as quantity,
+      nullif(trim(coalesce(raw.item->>'note', p_note, '')), '') as item_note
+    from jsonb_array_elements(v_items) as raw(item)
+  ),
+  aggregated as (
+    select
+      product_id,
+      sum(quantity)::integer as quantity,
+      max(item_note) filter (where item_note is not null) as item_note
+    from incoming
+    where product_id is not null
+      and quantity > 0
+    group by product_id
+  )
+  select
+    v_order_id,
+    p_user_id,
+    coalesce(v_employee.employee_code, ''),
+    coalesce(v_employee.full_name, ''),
+    v_order_date,
+    v_attendance.clock_in_department_id,
+    coalesce(v_attendance.clock_in_department_name_snapshot, ''),
+    v_attendance.clock_in_department_id,
+    p.id,
+    coalesce(p.name, ''),
+    a.quantity,
+    p.price,
+    a.item_note,
+    v_submitted_at,
+    v_now
+  from aggregated a
+  join public.meal_products p on p.id = a.product_id;
 
   return jsonb_build_object('ok', true, 'orderDate', v_order_date::text, 'orderId', v_order_id::text);
 end;

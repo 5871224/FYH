@@ -58,6 +58,7 @@ assert(webApi.includes("getTodayMealOrder") && webApi.includes("saveTodayMealOrd
 assert(mealOrder.includes('rpc("save_meal_order"') && schema.includes("create or replace function public.save_meal_order"), "meal order should use the transaction RPC");
 assert(schema.includes("clock_in_department_id"), "meal order should snapshot the clock-in department");
 assert(schema.includes("請先完成上班打卡後再訂餐") && schema.includes("今日訂餐已超過截止時間"), "meal order should require clock-in and cutoff checks");
+assert(renderer.includes("data-meal-note-product-id"), "meal order should send per-item notes");
 
 assert(index.includes('id="recordsCard"'), "reports should have a records page container");
 assert(renderer.includes("function renderRecordsPage"), "renderer should render the records page");
