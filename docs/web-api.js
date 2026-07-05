@@ -675,6 +675,23 @@
     });
   }
 
+  async function getTodayAttendance() {
+    ensureSignedIn();
+    return requestFunction("attendance-clock", {
+      action: "today"
+    });
+  }
+
+  async function clockAttendance(action, position = {}) {
+    ensureSignedIn();
+    return requestFunction("attendance-clock", {
+      action,
+      latitude: position.latitude,
+      longitude: position.longitude,
+      accuracy: position.accuracy
+    });
+  }
+
   async function fetchRowsById(table) {
     const rows = await restSelect(table, {
       select: "*",
@@ -1616,6 +1633,8 @@
     signIn,
     signOut,
     changePassword,
+    getTodayAttendance,
+    clockAttendance,
     loadState,
     loadScheduleEntries,
     saveState,

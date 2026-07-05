@@ -8,6 +8,7 @@ const index = fs.readFileSync(path.join(rootDir, "src", "renderer", "index.html"
 const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js"), "utf8");
 const schema = fs.readFileSync(path.join(rootDir, "supabase", "001_current_schema.sql"), "utf8");
 const memberAuthAdmin = fs.readFileSync(path.join(rootDir, "supabase", "functions", "member-auth-admin", "index.ts"), "utf8");
+const attendanceClock = fs.readFileSync(path.join(rootDir, "supabase", "functions", "attendance-clock", "index.ts"), "utf8");
 
 assert(index.includes("weekStartSettingsButton"), "floating function menu should show month/week settings");
 assert(renderer.includes("monthStartDay: 1") && renderer.includes("monthStartSetting"), "renderer should persist month start day");
@@ -27,6 +28,13 @@ assert(renderer.includes("function renderHomeDashboard"), "renderer should rende
 assert(renderer.includes("if (!currentSession?.user)") && renderer.includes("authModalOpen = true"), "renderer should not load schedule data before login");
 assert(webApi.includes("mobileSessionMaxIdleMs") && webApi.includes("desktopSessionMaxIdleMs"), "web api should enforce device-specific login idle windows");
 assert(webApi.includes("function assertProfileCanLogin"), "web api should reject inactive or out-of-period accounts");
+assert(index.includes('id="clockCard"'), "attendance should have a clock page container");
+assert(renderer.includes("function renderClockPage") && renderer.includes('data-clock-action="clock_in"'), "renderer should render attendance clock buttons");
+assert(renderer.includes("async function submitAttendanceClock") && renderer.includes("navigator.geolocation"), "renderer should submit clock actions with browser location when available");
+assert(webApi.includes("getTodayAttendance") && webApi.includes("clockAttendance"), "web api should expose attendance clock calls");
+assert(attendanceClock.includes("MAX_GPS_DISTANCE_METERS = 300"), "attendance clock should enforce the 300m GPS distance");
+assert(attendanceClock.includes("MAX_GPS_ACCURACY_METERS = 300"), "attendance clock should enforce the 300m GPS accuracy");
+assert(attendanceClock.includes('action === "clock_in"') && attendanceClock.includes('action === "clock_out"'), "attendance clock should support clock in and clock out");
 assert(renderer.includes("monthlyRestDays"), "member settings should include monthly rest days");
 assert(!renderer.includes('data-set-department-view="member"') && !renderer.includes("人員檢視"), "department settings should keep only the department view");
 assert(webApi.includes("scheduleShiftIds") && webApi.includes("required_staff_count"), "web api should sync auto schedule settings");

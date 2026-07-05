@@ -152,6 +152,12 @@ let departmentSettingsView = "department";
 let currentSession = null;
 let currentProfile = null;
 let currentMember = null;
+let attendanceState = {
+  loading: false,
+  record: null,
+  serverDate: "",
+  error: ""
+};
 let memberSettingsFilters = {
   name: "",
   department: "all",
@@ -2514,6 +2520,96 @@ function canEditMemberAccount(member) {
   return isAdmin() || normalizeRole(member?.role) !== "admin";
 }
 
+function formatClockTime(value) {
+  if (!value) {
+    return "--:--";
+  }
+  return new Intl.DateTimeFormat("zh-TW", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Taipei"
+  }).format(new Date(value));
+}
+
+function getBrowserPosition() {
+  if (!navigator.geolocation) {
+    return Promise.resolve({});
+  }
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy
+      }),
+      () => resolve({}),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+    );
+  });
+}
+
+async function loadTodayAttendance() {
+  if (!isLoggedIn()) {
+    return;
+  }
+  attendanceState = { ...attendanceState, loading: true, error: "" };
+  renderAll();
+  try {
+    const result = await window.schedulerApi.getTodayAttendance();
+    attendanceState = {
+      loading: false,
+      record: result.record || null,
+      serverDate: result.serverDate || getTodayDateString(),
+      error: ""
+    };
+  } catch (error) {
+    attendanceState = {
+      loading: false,
+      record: null,
+      serverDate: getTodayDateString(),
+      error: error.message || "讀取打卡狀態失敗"
+    };
+  }
+  renderAll();
+}
+
+async function submitAttendanceClock(action) {
+  if (!isLoggedIn()) {
+    openSignInDialog();
+    return;
+  }
+  if (attendanceState.loading) {
+    return;
+  }
+  if (action === "clock_out") {
+    const confirmed = await confirmAction("確定要下班打卡嗎？");
+    if (!confirmed) {
+      return;
+    }
+  }
+  attendanceState = { ...attendanceState, loading: true, error: "" };
+  renderAll();
+  try {
+    const position = await getBrowserPosition();
+    const result = await window.schedulerApi.clockAttendance(action, position);
+    attendanceState = {
+      loading: false,
+      record: result.record || null,
+      serverDate: result.serverDate || getTodayDateString(),
+      error: ""
+    };
+    showInfoMessage(action === "clock_in" ? "上班打卡完成" : "下班打卡完成");
+  } catch (error) {
+    attendanceState = {
+      ...attendanceState,
+      loading: false,
+      error: error.message || "打卡失敗"
+    };
+  }
+  renderAll();
+}
+
 function resolveCurrentMember() {
   if (!currentProfile?.employee_code) {
     return null;
@@ -3484,14 +3580,74 @@ function renderHomeDashboard() {
   `;
 }
 
+function renderClockPage() {
+  const clockCard = document.getElementById("clockCard");
+  if (!clockCard) {
+    return;
+  }
+  if (!isLoggedIn()) {
+    clockCard.innerHTML = "";
+    return;
+  }
+  const record = attendanceState.record || {};
+  const clockInDone = Boolean(record.clock_in_at);
+  const clockOutDone = Boolean(record.clock_out_at);
+  const disableClockIn = attendanceState.loading || clockInDone || clockOutDone;
+  const disableClockOut = attendanceState.loading || clockOutDone;
+  clockCard.innerHTML = `
+    <div class="clock-page-header">
+      <button class="ghost-btn" type="button" data-home-action="home">返回首頁</button>
+      <div>
+        <p class="home-eyebrow">打卡</p>
+        <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
+        <p class="home-subtitle">今日日期：${escapeHtml(attendanceState.serverDate || getTodayDateString())}</p>
+      </div>
+    </div>
+    ${attendanceState.error ? `<div class="auth-error clock-error">${escapeHtml(attendanceState.error)}</div>` : ""}
+    <div class="clock-action-grid">
+      <button class="clock-action-btn clock-in-btn" type="button" data-clock-action="clock_in" ${disableClockIn ? "disabled" : ""}>
+        <span>上班打卡</span>
+        <strong>${clockInDone ? `已於 ${formatClockTime(record.clock_in_at)} 上班打卡` : "尚未打卡"}</strong>
+      </button>
+      <button class="clock-action-btn clock-out-btn" type="button" data-clock-action="clock_out" ${disableClockOut ? "disabled" : ""}>
+        <span>下班打卡</span>
+        <strong>${clockOutDone ? `已於 ${formatClockTime(record.clock_out_at)} 下班打卡` : "尚未打卡"}</strong>
+      </button>
+    </div>
+    <div class="clock-status-grid">
+      <div>
+        <span>上班地點</span>
+        <strong>${escapeHtml(record.clock_in_department_name_snapshot || "-")}</strong>
+      </div>
+      <div>
+        <span>上班方式</span>
+        <strong>${escapeHtml(record.clock_in_source || "-")}</strong>
+      </div>
+      <div>
+        <span>下班地點</span>
+        <strong>${escapeHtml(record.clock_out_department_name_snapshot || "-")}</strong>
+      </div>
+      <div>
+        <span>下班方式</span>
+        <strong>${escapeHtml(record.clock_out_source || "-")}</strong>
+      </div>
+    </div>
+    ${attendanceState.loading ? '<p class="clock-loading">處理中，請稍候...</p>' : ""}
+  `;
+}
+
 function syncAppView() {
   const loggedIn = isLoggedIn();
   const homeCard = document.getElementById("homeCard");
+  const clockCard = document.getElementById("clockCard");
   const scheduleCard = document.getElementById("scheduleCard");
   const toolbarCard = document.querySelector(".toolbar-card");
   const showSchedule = loggedIn && appView === "schedule";
   if (homeCard) {
     homeCard.hidden = !loggedIn || appView !== "home";
+  }
+  if (clockCard) {
+    clockCard.hidden = !loggedIn || appView !== "clock";
   }
   if (scheduleCard) {
     scheduleCard.hidden = !showSchedule;
@@ -3501,6 +3657,7 @@ function syncAppView() {
   }
   document.body.classList.toggle("is-authenticated", loggedIn);
   document.body.classList.toggle("is-home-view", loggedIn && appView === "home");
+  document.body.classList.toggle("is-clock-view", loggedIn && appView === "clock");
   document.body.classList.toggle("is-schedule-view", showSchedule);
 }
 
@@ -3508,6 +3665,7 @@ function renderAll() {
   renderHeader();
   renderToolbar();
   renderHomeDashboard();
+  renderClockPage();
   renderTable();
   syncAppView();
   renderAuthGate();
@@ -5822,6 +5980,7 @@ async function handleSignOut() {
   currentSession = null;
   currentProfile = null;
   currentMember = null;
+  attendanceState = { loading: false, record: null, serverDate: "", error: "" };
   appInfo = null;
   closeModal();
   closeCoreActionsMenu();
@@ -6087,6 +6246,11 @@ function bindEvents() {
         renderAll();
         return;
       }
+      if (target.dataset.homeAction === "clock") {
+        appView = "clock";
+        await loadTodayAttendance();
+        return;
+      }
       if (target.dataset.homeAction === "schedule") {
         appView = "schedule";
         renderAll();
@@ -6098,6 +6262,10 @@ function bindEvents() {
         records: "記錄頁會在報表階段開放"
       };
       showInfoMessage(comingSoon[target.dataset.homeAction] || "此功能尚未開放");
+      return;
+    }
+    if (target.dataset.clockAction) {
+      await submitAttendanceClock(target.dataset.clockAction);
       return;
     }
     if (target.id === "coreActionsToggle") {
@@ -6623,6 +6791,7 @@ async function loadApp() {
     if (!currentSession?.user) {
       state = createEmptyState();
       currentMember = null;
+      attendanceState = { loading: false, record: null, serverDate: "", error: "" };
       appInfo = null;
       appView = "home";
       authModalOpen = true;
@@ -6644,6 +6813,7 @@ async function loadApp() {
     currentSession = null;
     currentProfile = null;
     currentMember = null;
+    attendanceState = { loading: false, record: null, serverDate: "", error: "" };
     appInfo = null;
     renderAll();
     syncCoreActionsMenu();
