@@ -11,6 +11,7 @@ const memberAuthAdmin = fs.readFileSync(path.join(rootDir, "supabase", "function
 const attendanceClock = fs.readFileSync(path.join(rootDir, "supabase", "functions", "attendance-clock", "index.ts"), "utf8");
 const attendanceOvertime = fs.readFileSync(path.join(rootDir, "supabase", "functions", "attendance-overtime", "index.ts"), "utf8");
 const mealOrder = fs.readFileSync(path.join(rootDir, "supabase", "functions", "meal-order", "index.ts"), "utf8");
+const reportRecords = fs.readFileSync(path.join(rootDir, "supabase", "functions", "report-records", "index.ts"), "utf8");
 
 assert(index.includes("weekStartSettingsButton"), "floating function menu should show month/week settings");
 assert(renderer.includes("monthStartDay: 1") && renderer.includes("monthStartSetting"), "renderer should persist month start day");
@@ -49,6 +50,11 @@ assert(webApi.includes("getTodayMealOrder") && webApi.includes("saveTodayMealOrd
 assert(mealOrder.includes("今日需先完成上班打卡才能訂餐"), "meal order should require clock-in before ordering");
 assert(mealOrder.includes("daily_cutoff_time") && mealOrder.includes("orderingOpen"), "meal order should enforce the daily cutoff time");
 assert(mealOrder.includes("clock_in_department_id"), "meal order should snapshot the clock-in department");
+assert(index.includes('id="recordsCard"'), "reports should have a records page container");
+assert(renderer.includes("function renderRecordsPage"), "renderer should render the records page");
+assert(webApi.includes("getPersonalRecords") && webApi.includes("getMealStatsReport"), "web api should expose report actions");
+assert(reportRecords.includes("personalRecords") && reportRecords.includes("mealStats"), "report records function should provide personal records and meal stats");
+assert(reportRecords.includes("此功能限主管或管理員使用"), "meal stats should require manager-level access");
 assert(renderer.includes("monthlyRestDays"), "member settings should include monthly rest days");
 assert(!renderer.includes('data-set-department-view="member"') && !renderer.includes("人員檢視"), "department settings should keep only the department view");
 assert(webApi.includes("scheduleShiftIds") && webApi.includes("required_staff_count"), "web api should sync auto schedule settings");

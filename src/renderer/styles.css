@@ -272,6 +272,16 @@ body.is-home-view .app-shell {
   box-shadow: var(--shadow);
 }
 
+.records-card {
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  padding: clamp(18px, 4vw, 34px);
+  border-radius: 28px;
+  background: linear-gradient(150deg, #fffdf8 0%, #f4ecdf 100%);
+  border: 1px solid rgba(166, 143, 111, 0.24);
+  box-shadow: var(--shadow);
+}
+
 .clock-page-header {
   display: flex;
   flex-direction: column;
@@ -405,6 +415,11 @@ body.is-meal-view .app-shell {
   padding-bottom: 20px;
 }
 
+body.is-records-view .app-shell {
+  justify-content: center;
+  padding-bottom: 20px;
+}
+
 .meal-product-list {
   display: flex;
   flex-direction: column;
@@ -446,6 +461,71 @@ body.is-meal-view .app-shell {
   margin-top: 14px;
   color: var(--muted);
   font-weight: 700;
+}
+
+.records-section {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 253, 248, 0.82);
+  border: 1px solid rgba(166, 143, 111, 0.18);
+}
+
+.records-section h2 {
+  margin: 0 0 14px;
+  font-size: 22px;
+}
+
+.records-table-wrap {
+  overflow-x: auto;
+}
+
+.records-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.records-table th,
+.records-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  font-size: 13px;
+}
+
+.records-table th {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.records-table span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.meal-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.meal-stats-grid > div {
+  padding: 14px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid rgba(166, 143, 111, 0.18);
+}
+
+.meal-stats-grid strong,
+.meal-stats-grid span {
+  display: block;
+}
+
+.meal-stats-grid span {
+  margin-top: 6px;
+  color: var(--muted);
 }
 
 .toolbar-floating-card {
@@ -2703,6 +2783,10 @@ thead th.today,
     padding: 12px;
   }
 
+  body.is-records-view .app-shell {
+    padding: 12px;
+  }
+
   .home-card {
     min-height: calc(100dvh - 24px);
     display: flex;
@@ -2741,6 +2825,11 @@ thead th.today,
   }
 
   .meal-card {
+    min-height: calc(100dvh - 24px);
+    border-radius: 24px;
+  }
+
+  .records-card {
     min-height: calc(100dvh - 24px);
     border-radius: 24px;
   }

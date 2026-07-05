@@ -168,6 +168,12 @@ let mealOrderState = {
   status: null,
   error: ""
 };
+let recordsState = {
+  loading: false,
+  personal: [],
+  mealStats: null,
+  error: ""
+};
 let memberSettingsFilters = {
   name: "",
   department: "all",
@@ -2713,6 +2719,34 @@ async function saveTodayMealOrder() {
   renderAll();
 }
 
+async function loadRecordsPage() {
+  if (!isLoggedIn()) {
+    return;
+  }
+  recordsState = { ...recordsState, loading: true, error: "" };
+  renderAll();
+  try {
+    const personal = await window.schedulerApi.getPersonalRecords();
+    let mealStats = null;
+    if (isManager()) {
+      try {
+        mealStats = await window.schedulerApi.getMealStatsReport();
+      } catch (error) {
+        mealStats = { error: error.message || "讀取訂餐統計失敗" };
+      }
+    }
+    recordsState = {
+      loading: false,
+      personal: personal.records || [],
+      mealStats,
+      error: ""
+    };
+  } catch (error) {
+    recordsState = { loading: false, personal: [], mealStats: null, error: error.message || "讀取記錄失敗" };
+  }
+  renderAll();
+}
+
 function resolveCurrentMember() {
   if (!currentProfile?.employee_code) {
     return null;
@@ -3741,6 +3775,7 @@ function renderClockPage() {
 }
 
 function getOvertimeStatusLabel(status) {
+  if (!status) return "-";
   if (status === "approved") return "已核准";
   if (status === "returned") return "退回";
   return "待審";
@@ -3870,11 +3905,84 @@ function renderMealPage() {
   `;
 }
 
+function formatRecordDateTime(value) {
+  return value ? formatClockTime(value) : "-";
+}
+
+function renderRecordsPage() {
+  const recordsCard = document.getElementById("recordsCard");
+  if (!recordsCard) {
+    return;
+  }
+  if (!isLoggedIn()) {
+    recordsCard.innerHTML = "";
+    return;
+  }
+  const mealStats = recordsState.mealStats;
+  recordsCard.innerHTML = `
+    <div class="clock-page-header">
+      <button class="ghost-btn" type="button" data-home-action="home">返回首頁</button>
+      <div>
+        <p class="home-eyebrow">記錄</p>
+        <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
+        <p class="home-subtitle">個人記錄顯示最近 30 日；主管及管理員額外顯示今日訂餐統計。</p>
+      </div>
+    </div>
+    ${recordsState.error ? `<div class="auth-error clock-error">${escapeHtml(recordsState.error)}</div>` : ""}
+    <section class="records-section">
+      <h2>個人記錄</h2>
+      <div class="records-table-wrap">
+        <table class="records-table">
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>班別</th>
+              <th>上班</th>
+              <th>下班</th>
+              <th>加班</th>
+              <th>訂餐</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${recordsState.personal.map((record) => `
+              <tr>
+                <td>${escapeHtml(record.date || "")}</td>
+                <td>${escapeHtml(record.shiftName || "-")}<br><span>${escapeHtml(record.shiftTime || "")}</span></td>
+                <td>${formatRecordDateTime(record.clockIn)}<br><span>${escapeHtml(record.clockInDepartment || "")}</span></td>
+                <td>${formatRecordDateTime(record.clockOut)}<br><span>${escapeHtml(record.clockOutDepartment || "")}</span></td>
+                <td>${escapeHtml(getOvertimeStatusLabel(record.overtimeStatus || ""))}<br><span>${Number(record.overtimeHours || 0)} 小時</span></td>
+                <td>${escapeHtml(record.mealText || "-")}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    ${isManager() ? `
+      <section class="records-section">
+        <h2>今日訂餐統計</h2>
+        ${mealStats?.error ? `<div class="auth-error">${escapeHtml(mealStats.error)}</div>` : `
+          <div class="meal-stats-grid">
+            ${(mealStats?.summary || []).map((item) => `
+              <div>
+                <strong>${escapeHtml(item.productName || "")}</strong>
+                <span>${Number(item.quantity || 0)} 份，$${Number(item.amount || 0).toFixed(0)}</span>
+              </div>
+            `).join("") || '<div><strong>今日尚無訂餐</strong><span>0 份</span></div>'}
+          </div>
+        `}
+      </section>
+    ` : ""}
+    ${recordsState.loading ? '<p class="clock-loading">讀取中，請稍候...</p>' : ""}
+  `;
+}
+
 function syncAppView() {
   const loggedIn = isLoggedIn();
   const homeCard = document.getElementById("homeCard");
   const clockCard = document.getElementById("clockCard");
   const mealCard = document.getElementById("mealCard");
+  const recordsCard = document.getElementById("recordsCard");
   const scheduleCard = document.getElementById("scheduleCard");
   const toolbarCard = document.querySelector(".toolbar-card");
   const showSchedule = loggedIn && appView === "schedule";
@@ -3887,6 +3995,9 @@ function syncAppView() {
   if (mealCard) {
     mealCard.hidden = !loggedIn || appView !== "meal";
   }
+  if (recordsCard) {
+    recordsCard.hidden = !loggedIn || appView !== "records";
+  }
   if (scheduleCard) {
     scheduleCard.hidden = !showSchedule;
   }
@@ -3897,6 +4008,7 @@ function syncAppView() {
   document.body.classList.toggle("is-home-view", loggedIn && appView === "home");
   document.body.classList.toggle("is-clock-view", loggedIn && appView === "clock");
   document.body.classList.toggle("is-meal-view", loggedIn && appView === "meal");
+  document.body.classList.toggle("is-records-view", loggedIn && appView === "records");
   document.body.classList.toggle("is-schedule-view", showSchedule);
 }
 
@@ -3906,6 +4018,7 @@ function renderAll() {
   renderHomeDashboard();
   renderClockPage();
   renderMealPage();
+  renderRecordsPage();
   renderTable();
   syncAppView();
   renderAuthGate();
@@ -6223,6 +6336,7 @@ async function handleSignOut() {
   attendanceState = { loading: false, record: null, serverDate: "", error: "" };
   attendanceOvertimeState = { loading: false, status: null, error: "" };
   mealOrderState = { loading: false, status: null, error: "" };
+  recordsState = { loading: false, personal: [], mealStats: null, error: "" };
   appInfo = null;
   closeModal();
   closeCoreActionsMenu();
@@ -6503,8 +6617,12 @@ function bindEvents() {
         await loadTodayMealOrder();
         return;
       }
+      if (target.dataset.homeAction === "records") {
+        appView = "records";
+        await loadRecordsPage();
+        return;
+      }
       const comingSoon = {
-        records: "記錄頁會在報表階段開放"
       };
       showInfoMessage(comingSoon[target.dataset.homeAction] || "此功能尚未開放");
       return;
@@ -7051,6 +7169,7 @@ async function loadApp() {
       attendanceState = { loading: false, record: null, serverDate: "", error: "" };
       attendanceOvertimeState = { loading: false, status: null, error: "" };
       mealOrderState = { loading: false, status: null, error: "" };
+      recordsState = { loading: false, personal: [], mealStats: null, error: "" };
       appInfo = null;
       appView = "home";
       authModalOpen = true;
@@ -7075,6 +7194,7 @@ async function loadApp() {
     attendanceState = { loading: false, record: null, serverDate: "", error: "" };
     attendanceOvertimeState = { loading: false, status: null, error: "" };
     mealOrderState = { loading: false, status: null, error: "" };
+    recordsState = { loading: false, personal: [], mealStats: null, error: "" };
     appInfo = null;
     renderAll();
     syncCoreActionsMenu();

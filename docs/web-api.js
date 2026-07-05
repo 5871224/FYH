@@ -732,6 +732,20 @@
     });
   }
 
+  async function getPersonalRecords() {
+    ensureSignedIn();
+    return requestFunction("report-records", {
+      action: "personal"
+    });
+  }
+
+  async function getMealStatsReport() {
+    ensureSignedIn();
+    return requestFunction("report-records", {
+      action: "meal_stats"
+    });
+  }
+
   async function fetchRowsById(table) {
     const rows = await restSelect(table, {
       select: "*",
@@ -1680,6 +1694,8 @@
     deleteAttendanceOvertime,
     getTodayMealOrder,
     saveTodayMealOrder,
+    getPersonalRecords,
+    getMealStatsReport,
     loadState,
     loadScheduleEntries,
     saveState,
