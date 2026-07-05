@@ -10,6 +10,7 @@ const schema = fs.readFileSync(path.join(rootDir, "supabase", "001_current_schem
 const memberAuthAdmin = fs.readFileSync(path.join(rootDir, "supabase", "functions", "member-auth-admin", "index.ts"), "utf8");
 const attendanceClock = fs.readFileSync(path.join(rootDir, "supabase", "functions", "attendance-clock", "index.ts"), "utf8");
 const attendanceOvertime = fs.readFileSync(path.join(rootDir, "supabase", "functions", "attendance-overtime", "index.ts"), "utf8");
+const mealOrder = fs.readFileSync(path.join(rootDir, "supabase", "functions", "meal-order", "index.ts"), "utf8");
 
 assert(index.includes("weekStartSettingsButton"), "floating function menu should show month/week settings");
 assert(renderer.includes("monthStartDay: 1") && renderer.includes("monthStartSetting"), "renderer should persist month start day");
@@ -42,6 +43,12 @@ assert(webApi.includes("submitAttendanceOvertime") && webApi.includes("deleteAtt
 assert(attendanceOvertime.includes("function buildEligibility"), "attendance overtime should calculate request eligibility");
 assert(attendanceOvertime.includes("Math.floor(minutes / 30) * 0.5"), "attendance overtime should round down to half-hour increments");
 assert(attendanceOvertime.includes("員工申請時數不可高於系統計算值"), "attendance overtime should reject employee hours above system calculation");
+assert(index.includes('id="mealCard"'), "meal ordering should have a page container");
+assert(renderer.includes("function renderMealPage") && renderer.includes("data-save-today-meal"), "renderer should render today's meal order page");
+assert(webApi.includes("getTodayMealOrder") && webApi.includes("saveTodayMealOrder"), "web api should expose meal order actions");
+assert(mealOrder.includes("今日需先完成上班打卡才能訂餐"), "meal order should require clock-in before ordering");
+assert(mealOrder.includes("daily_cutoff_time") && mealOrder.includes("orderingOpen"), "meal order should enforce the daily cutoff time");
+assert(mealOrder.includes("clock_in_department_id"), "meal order should snapshot the clock-in department");
 assert(renderer.includes("monthlyRestDays"), "member settings should include monthly rest days");
 assert(!renderer.includes('data-set-department-view="member"') && !renderer.includes("人員檢視"), "department settings should keep only the department view");
 assert(webApi.includes("scheduleShiftIds") && webApi.includes("required_staff_count"), "web api should sync auto schedule settings");

@@ -716,6 +716,22 @@
     });
   }
 
+  async function getTodayMealOrder() {
+    ensureSignedIn();
+    return requestFunction("meal-order", {
+      action: "today_status"
+    });
+  }
+
+  async function saveTodayMealOrder(payload = {}) {
+    ensureSignedIn();
+    return requestFunction("meal-order", {
+      action: "save",
+      items: Array.isArray(payload.items) ? payload.items : [],
+      note: payload.note || ""
+    });
+  }
+
   async function fetchRowsById(table) {
     const rows = await restSelect(table, {
       select: "*",
@@ -1662,6 +1678,8 @@
     getTodayAttendanceOvertime,
     submitAttendanceOvertime,
     deleteAttendanceOvertime,
+    getTodayMealOrder,
+    saveTodayMealOrder,
     loadState,
     loadScheduleEntries,
     saveState,

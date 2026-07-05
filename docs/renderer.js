@@ -163,6 +163,11 @@ let attendanceOvertimeState = {
   status: null,
   error: ""
 };
+let mealOrderState = {
+  loading: false,
+  status: null,
+  error: ""
+};
 let memberSettingsFilters = {
   name: "",
   department: "all",
@@ -2668,6 +2673,46 @@ async function deleteTodayOvertimeRequest() {
   renderAll();
 }
 
+async function loadTodayMealOrder() {
+  if (!isLoggedIn()) {
+    return;
+  }
+  mealOrderState = { ...mealOrderState, loading: true, error: "" };
+  renderAll();
+  try {
+    const status = await window.schedulerApi.getTodayMealOrder();
+    mealOrderState = { loading: false, status, error: "" };
+  } catch (error) {
+    mealOrderState = { loading: false, status: null, error: error.message || "讀取訂餐狀態失敗" };
+  }
+  renderAll();
+}
+
+function readMealOrderItems() {
+  return Array.from(document.querySelectorAll("[data-meal-product-id]")).map((input) => ({
+    productId: input.dataset.mealProductId,
+    quantity: Math.max(0, Math.floor(Number(input.value || 0)))
+  }));
+}
+
+async function saveTodayMealOrder() {
+  if (mealOrderState.loading) {
+    return;
+  }
+  const items = readMealOrderItems();
+  const note = document.getElementById("mealOrderNote")?.value || "";
+  mealOrderState = { ...mealOrderState, loading: true, error: "" };
+  renderAll();
+  try {
+    const status = await window.schedulerApi.saveTodayMealOrder({ items, note });
+    mealOrderState = { loading: false, status, error: "" };
+    showInfoMessage(items.some((item) => item.quantity > 0) ? "訂餐已儲存" : "今日訂餐已取消");
+  } catch (error) {
+    mealOrderState = { ...mealOrderState, loading: false, error: error.message || "儲存訂餐失敗" };
+  }
+  renderAll();
+}
+
 function resolveCurrentMember() {
   if (!currentProfile?.employee_code) {
     return null;
@@ -3767,10 +3812,69 @@ function renderTodayOvertimePanel() {
   `;
 }
 
+function renderMealPage() {
+  const mealCard = document.getElementById("mealCard");
+  if (!mealCard) {
+    return;
+  }
+  if (!isLoggedIn()) {
+    mealCard.innerHTML = "";
+    return;
+  }
+  const status = mealOrderState.status;
+  const products = status?.products || [];
+  const orders = status?.orders || [];
+  const orderQuantityMap = new Map(orders.map((item) => [item.product_id, Number(item.quantity || 0)]));
+  const orderNote = orders[0]?.note || "";
+  const disabled = mealOrderState.loading || !status?.orderingOpen || !status?.attendance?.clock_in_at;
+  const unavailableReason = !status
+    ? ""
+    : !status.attendance?.clock_in_at
+      ? "今日需先完成上班打卡才能訂餐"
+      : !status.orderingOpen
+        ? `今日訂餐已於 ${status.cutoffTime} 截止`
+        : "";
+  mealCard.innerHTML = `
+    <div class="clock-page-header">
+      <button class="ghost-btn" type="button" data-home-action="home">返回首頁</button>
+      <div>
+        <p class="home-eyebrow">今日訂餐</p>
+        <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
+        <p class="home-subtitle">訂餐日期：${escapeHtml(status?.orderDate || getTodayDateString())}，截止時間：${escapeHtml(status?.cutoffTime || "--:--")}</p>
+      </div>
+    </div>
+    ${mealOrderState.error ? `<div class="auth-error clock-error">${escapeHtml(mealOrderState.error)}</div>` : ""}
+    ${unavailableReason ? `<div class="auth-error clock-error">${escapeHtml(unavailableReason)}</div>` : ""}
+    ${products.length ? `
+      <div class="meal-product-list">
+        ${products.map((product) => `
+          <div class="meal-product-row">
+            <div>
+              <strong>${escapeHtml(product.name || "")}</strong>
+              <span>$${Number(product.price || 0).toFixed(0)}</span>
+            </div>
+            <input type="number" min="0" step="1" value="${orderQuantityMap.get(product.id) || 0}" data-meal-product-id="${escapeHtml(product.id)}" ${disabled ? "disabled" : ""}>
+          </div>
+        `).join("")}
+      </div>
+      <div class="form-row">
+        <label for="mealOrderNote">訂餐備註</label>
+        <textarea id="mealOrderNote" rows="3" ${disabled ? "disabled" : ""}>${escapeHtml(orderNote)}</textarea>
+      </div>
+      <div class="meal-summary-row">
+        <span>目前合計 ${Number(status?.summary?.totalQuantity || 0)} 份，$${Number(status?.summary?.totalAmount || 0).toFixed(0)}</span>
+        <button class="btn-primary" type="button" data-save-today-meal="true" ${disabled ? "disabled" : ""}>儲存訂餐</button>
+      </div>
+    ` : '<div class="empty-state">目前沒有可訂購的商品</div>'}
+    ${mealOrderState.loading ? '<p class="clock-loading">處理中，請稍候...</p>' : ""}
+  `;
+}
+
 function syncAppView() {
   const loggedIn = isLoggedIn();
   const homeCard = document.getElementById("homeCard");
   const clockCard = document.getElementById("clockCard");
+  const mealCard = document.getElementById("mealCard");
   const scheduleCard = document.getElementById("scheduleCard");
   const toolbarCard = document.querySelector(".toolbar-card");
   const showSchedule = loggedIn && appView === "schedule";
@@ -3779,6 +3883,9 @@ function syncAppView() {
   }
   if (clockCard) {
     clockCard.hidden = !loggedIn || appView !== "clock";
+  }
+  if (mealCard) {
+    mealCard.hidden = !loggedIn || appView !== "meal";
   }
   if (scheduleCard) {
     scheduleCard.hidden = !showSchedule;
@@ -3789,6 +3896,7 @@ function syncAppView() {
   document.body.classList.toggle("is-authenticated", loggedIn);
   document.body.classList.toggle("is-home-view", loggedIn && appView === "home");
   document.body.classList.toggle("is-clock-view", loggedIn && appView === "clock");
+  document.body.classList.toggle("is-meal-view", loggedIn && appView === "meal");
   document.body.classList.toggle("is-schedule-view", showSchedule);
 }
 
@@ -3797,6 +3905,7 @@ function renderAll() {
   renderToolbar();
   renderHomeDashboard();
   renderClockPage();
+  renderMealPage();
   renderTable();
   syncAppView();
   renderAuthGate();
@@ -6113,6 +6222,7 @@ async function handleSignOut() {
   currentMember = null;
   attendanceState = { loading: false, record: null, serverDate: "", error: "" };
   attendanceOvertimeState = { loading: false, status: null, error: "" };
+  mealOrderState = { loading: false, status: null, error: "" };
   appInfo = null;
   closeModal();
   closeCoreActionsMenu();
@@ -6388,9 +6498,12 @@ function bindEvents() {
         renderAll();
         return;
       }
+      if (target.dataset.homeAction === "meal") {
+        appView = "meal";
+        await loadTodayMealOrder();
+        return;
+      }
       const comingSoon = {
-        clock: "打卡頁會在下一階段開放",
-        meal: "訂餐頁會在訂餐階段開放",
         records: "記錄頁會在報表階段開放"
       };
       showInfoMessage(comingSoon[target.dataset.homeAction] || "此功能尚未開放");
@@ -6406,6 +6519,10 @@ function bindEvents() {
     }
     if (target.dataset.deleteTodayOvertime) {
       await deleteTodayOvertimeRequest();
+      return;
+    }
+    if (target.dataset.saveTodayMeal) {
+      await saveTodayMealOrder();
       return;
     }
     if (target.id === "coreActionsToggle") {
@@ -6933,6 +7050,7 @@ async function loadApp() {
       currentMember = null;
       attendanceState = { loading: false, record: null, serverDate: "", error: "" };
       attendanceOvertimeState = { loading: false, status: null, error: "" };
+      mealOrderState = { loading: false, status: null, error: "" };
       appInfo = null;
       appView = "home";
       authModalOpen = true;
@@ -6956,6 +7074,7 @@ async function loadApp() {
     currentMember = null;
     attendanceState = { loading: false, record: null, serverDate: "", error: "" };
     attendanceOvertimeState = { loading: false, status: null, error: "" };
+    mealOrderState = { loading: false, status: null, error: "" };
     appInfo = null;
     renderAll();
     syncCoreActionsMenu();
