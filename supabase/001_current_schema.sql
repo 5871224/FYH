@@ -332,7 +332,7 @@ alter table public.meal_products enable row level security;
 alter table public.meal_settings enable row level security;
 alter table public.meal_orders enable row level security;
 
-create or replace function public.is_manager(user_id uuid)
+create or replace function public.is_manager(p_user_id uuid)
 returns boolean
 language sql
 security definer
@@ -342,13 +342,13 @@ as $$
   select exists (
     select 1
     from public.set_employee e
-    where e.id = user_id
+    where e.id = p_user_id
       and e.role in ('admin', 'manager')
       and e.is_active = true
   )
 $$;
 
-create or replace function public.is_admin(user_id uuid)
+create or replace function public.is_admin(p_user_id uuid)
 returns boolean
 language sql
 security definer
@@ -358,7 +358,7 @@ as $$
   select exists (
     select 1
     from public.set_employee e
-    where e.id = user_id
+    where e.id = p_user_id
       and e.role = 'admin'
       and e.is_active = true
   )

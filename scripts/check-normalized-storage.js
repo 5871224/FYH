@@ -98,7 +98,7 @@ assert(schema.includes("create table if not exists public.meal_settings"), "sche
 assert(schema.includes("create table if not exists public.meal_orders"), "schema should create meal order item rows");
 assert(schema.includes("unique (user_id, work_date)"), "attendance and overtime should be unique by user/date where required");
 assert(schema.includes("unique (user_id, order_date, product_id)"), "meal orders should be unique by user/date/product");
-assert(schema.includes("create or replace function public.is_admin(user_id uuid)"), "schema should expose an admin helper");
+assert(schema.includes("create or replace function public.is_admin(p_user_id uuid)"), "schema should expose an admin helper");
 assert(schema.includes("alter table public.meal_orders enable row level security"), "new meal tables should have RLS enabled");
 assert(!schema.includes("create table if not exists public.clock_locations"), "current schema should not create retired clock_locations");
 assert(!schema.includes("create table if not exists public.attendance_logs"), "current schema should not create retired attendance_logs");
