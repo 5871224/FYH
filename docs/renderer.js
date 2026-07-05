@@ -1006,7 +1006,12 @@ function sanitizeDepartment(department, fallbackIndex) {
     name: department?.name || `單位 ${fallbackIndex + 1}`,
     startDate: department?.startDate || "",
     endDate: department?.endDate || "",
-    hiddenFromSchedule: Boolean(department?.hiddenFromSchedule)
+    hiddenFromSchedule: Boolean(department?.hiddenFromSchedule),
+    address: department?.address || "",
+    latitude: department?.latitude ?? "",
+    longitude: department?.longitude ?? "",
+    publicIp: department?.publicIp || "",
+    attendanceEnabled: Boolean(department?.attendanceEnabled)
   };
 }
 
@@ -5171,16 +5176,75 @@ function openDepartmentSettings() {
     hideFooterClose: true
   });
 }
+
+function renderDepartmentAttendanceFields(department, disabledAttr) {
+  return `
+      <div class="settings-form-divider"></div>
+      <div class="form-row">
+        <label for="departmentAddress">地址</label>
+        <input id="departmentAddress" type="text" value="${escapeHtml(department.address || "")}" placeholder="打卡地點地址" ${disabledAttr}>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label for="departmentLatitude">緯度</label>
+          <input id="departmentLatitude" type="number" step="0.000001" min="-90" max="90" value="${escapeHtml(String(department.latitude ?? ""))}" placeholder="例如 25.033964" ${disabledAttr}>
+        </div>
+        <div class="form-row">
+          <label for="departmentLongitude">經度</label>
+          <input id="departmentLongitude" type="number" step="0.000001" min="-180" max="180" value="${escapeHtml(String(department.longitude ?? ""))}" placeholder="例如 121.564468" ${disabledAttr}>
+        </div>
+      </div>
+      <div class="form-row">
+        <label for="departmentPublicIp">固定對外 IP</label>
+        <input id="departmentPublicIp" type="text" value="${escapeHtml(department.publicIp || "")}" placeholder="可用逗號或空白分隔多組 IP" ${disabledAttr}>
+      </div>
+      <div class="form-row checkbox-row checkbox-row-left">
+        <label>
+          <input id="departmentAttendanceEnabled" type="checkbox" ${department.attendanceEnabled ? "checked" : ""} ${disabledAttr}>
+          是否啟用打卡
+        </label>
+      </div>
+      ${isAdmin() ? "" : '<p class="modal-description">打卡地址、座標、固定 IP 與是否啟用打卡只有管理員可以修改。</p>'}
+  `;
+}
+
+function renderDepartmentFormBody(department, attendanceFieldsDisabled) {
+  return `
+      <div class="form-row">
+        <label for="departmentName">單位名稱</label>
+        <input id="departmentName" type="text" maxlength="12" value="${escapeHtml(department.name)}" placeholder="請輸入單位名稱">
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label for="departmentStartDate">開始日期</label>
+          <input id="departmentStartDate" type="date" value="${escapeHtml(department.startDate || "")}">
+        </div>
+        <div class="form-row">
+          <label for="departmentEndDate">結束日期</label>
+          <input id="departmentEndDate" type="date" value="${escapeHtml(department.endDate || "")}">
+        </div>
+      </div>
+      <div class="form-row checkbox-row checkbox-row-left">
+        <label>
+          <input id="departmentHiddenFromSchedule" type="checkbox" ${department.hiddenFromSchedule ? "checked" : ""}>
+          不顯示於班表
+        </label>
+      </div>
+      ${renderDepartmentAttendanceFields(department, attendanceFieldsDisabled)}
+  `;
+}
+
 function openDepartmentForm(mode, departmentId = "") {
   const returnTo = modalContext?.category === "department-settings"
     ? captureSettingsReturnContext({ category: "department-settings", view: departmentSettingsView })
     : null;
   const department = mode === "edit"
     ? state.departments.find((item) => item.id === departmentId)
-    : { id: "", name: "", startDate: "", endDate: "", hiddenFromSchedule: false };
+    : { id: "", name: "", startDate: "", endDate: "", hiddenFromSchedule: false, address: "", latitude: "", longitude: "", publicIp: "", attendanceEnabled: false };
   if (!department) {
     return;
   }
+  const attendanceFieldsDisabled = isAdmin() ? "" : "disabled";
   modalContext = { mode, category: "department", targetId: departmentId, returnTo };
   openEntityListModal({
     title: `${mode === "edit" ? "修改" : "新增"}單位`,
@@ -5208,6 +5272,7 @@ function openDepartmentForm(mode, departmentId = "") {
       </div>
     `,
     headerButtons: `<button class="btn-primary" type="button" data-save-department="${mode}">${mode === "edit" ? "儲存修改" : "新增單位"}</button>`,
+    body: renderDepartmentFormBody(department, attendanceFieldsDisabled),
     hideFooterClose: true
   });
 }
@@ -5218,6 +5283,13 @@ async function saveDepartment(mode) {
   const startDate = document.getElementById("departmentStartDate")?.value || "";
   const endDate = document.getElementById("departmentEndDate")?.value || "";
   const hiddenFromSchedule = Boolean(document.getElementById("departmentHiddenFromSchedule")?.checked);
+  const previousDepartment = mode === "edit"
+    ? state.departments.find((department) => department.id === modalContext.targetId) || null
+    : null;
+  const latitudeInput = document.getElementById("departmentLatitude")?.value.trim() || "";
+  const longitudeInput = document.getElementById("departmentLongitude")?.value.trim() || "";
+  const latitude = latitudeInput === "" ? "" : Number(latitudeInput);
+  const longitude = longitudeInput === "" ? "" : Number(longitudeInput);
   if (!name) {
     document.getElementById("departmentName")?.focus();
     return;
@@ -5226,7 +5298,30 @@ async function saveDepartment(mode) {
     reportValidationError("開始日期必須早於結束日期");
     return;
   }
-  const payload = { id: mode === "edit" ? modalContext.targetId : uid("d"), name, startDate, endDate, hiddenFromSchedule };
+  if (isAdmin() && latitude !== "" && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) {
+    reportValidationError("緯度必須介於 -90 到 90");
+    return;
+  }
+  if (isAdmin() && longitude !== "" && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) {
+    reportValidationError("經度必須介於 -180 到 180");
+    return;
+  }
+  const attendancePayload = isAdmin()
+    ? {
+      address: document.getElementById("departmentAddress")?.value.trim() || "",
+      latitude,
+      longitude,
+      publicIp: document.getElementById("departmentPublicIp")?.value.trim() || "",
+      attendanceEnabled: Boolean(document.getElementById("departmentAttendanceEnabled")?.checked)
+    }
+    : {
+      address: previousDepartment?.address || "",
+      latitude: previousDepartment?.latitude ?? "",
+      longitude: previousDepartment?.longitude ?? "",
+      publicIp: previousDepartment?.publicIp || "",
+      attendanceEnabled: Boolean(previousDepartment?.attendanceEnabled)
+    };
+  const payload = { id: mode === "edit" ? modalContext.targetId : uid("d"), name, startDate, endDate, hiddenFromSchedule, ...attendancePayload };
   const sortOrder = mode === "edit"
     ? state.departments.findIndex((department) => department.id === payload.id)
     : state.departments.length;

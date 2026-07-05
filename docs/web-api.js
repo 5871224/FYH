@@ -824,7 +824,12 @@
         name: row.name || "",
         startDate: row.start_date || "",
         endDate: row.end_date || "",
-        hiddenFromSchedule: Boolean(row.hidden_from_schedule)
+        hiddenFromSchedule: Boolean(row.hidden_from_schedule),
+        address: row.address || "",
+        latitude: row.latitude ?? "",
+        longitude: row.longitude ?? "",
+        publicIp: row.public_ip || "",
+        attendanceEnabled: Boolean(row.attendance_enabled)
       }));
   }
 
@@ -1120,6 +1125,11 @@
         start_date: nullableDate(department.startDate),
         end_date: nullableDate(department.endDate),
         hidden_from_schedule: Boolean(department.hiddenFromSchedule),
+        address: department.address || null,
+        latitude: department.latitude === "" || department.latitude === null || department.latitude === undefined ? null : Number(department.latitude),
+        longitude: department.longitude === "" || department.longitude === null || department.longitude === undefined ? null : Number(department.longitude),
+        public_ip: department.publicIp || null,
+        attendance_enabled: Boolean(department.attendanceEnabled),
         sort_order: index
       })), {
         auth: true,
@@ -1363,6 +1373,11 @@
       start_date: nullableDate(department.startDate),
       end_date: nullableDate(department.endDate),
       hidden_from_schedule: Boolean(department.hiddenFromSchedule),
+      address: department.address || null,
+      latitude: department.latitude === "" || department.latitude === null || department.latitude === undefined ? null : Number(department.latitude),
+      longitude: department.longitude === "" || department.longitude === null || department.longitude === undefined ? null : Number(department.longitude),
+      public_ip: department.publicIp || null,
+      attendance_enabled: Boolean(department.attendanceEnabled),
       sort_order: sortOrder
     }], {
       auth: true,

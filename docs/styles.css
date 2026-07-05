@@ -2516,6 +2516,12 @@ thead th.today,
   white-space: nowrap;
 }
 
+.settings-form-divider {
+  height: 1px;
+  margin: 8px 0 2px;
+  background: var(--line);
+}
+
 .settings-table-meta {
   color: var(--muted);
   font-size: 12px;
