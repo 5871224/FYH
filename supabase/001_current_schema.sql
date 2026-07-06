@@ -556,6 +556,8 @@ drop policy if exists read_holidays on public.holidays;
 drop policy if exists write_holidays on public.holidays;
 drop policy if exists read_schedule_entries on public.schedule_entries;
 drop policy if exists write_schedule_entries on public.schedule_entries;
+drop policy if exists v2_restrict_employee_directory on public.set_employee;
+drop policy if exists v2_restrict_schedule_visibility on public.schedule_entries;
 drop policy if exists read_attendance_records on public.attendance_records;
 drop policy if exists write_attendance_records on public.attendance_records;
 drop policy if exists read_attendance_logs on public.attendance_action_logs;

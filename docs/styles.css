@@ -3262,12 +3262,54 @@ thead th.today,
   }
 
   .calendar-nav {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .calendar-nav-left,
+  .month-title-wrap,
+  .nav-actions {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .calendar-nav-left,
+  .nav-actions {
+    flex-wrap: wrap;
+  }
+
+  .month-title-wrap {
+    min-width: 0;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .month-title-wrap h2 {
+    font-size: 20px;
+  }
+
+  .nav-actions {
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  .nav-actions .nav-btn,
+  .nav-actions .compact-btn,
+  .core-actions-shell {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 0;
+  }
+
+  .core-actions-toggle {
+    width: 100%;
   }
 
   .calendar-nav-left select {
     min-width: 0;
+    max-width: none;
     width: auto;
+    flex: 1 1 calc(50% - 8px);
     font-size: 12px;
   }
 

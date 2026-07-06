@@ -105,6 +105,7 @@ assert(schema.includes("unique (user_id, order_date, product_id)"), "meal orders
 assert(schema.includes("create or replace function public.is_admin(p_user_id uuid)"), "schema should expose an admin helper");
 assert(schema.includes("alter table public.meal_orders enable row level security"), "new meal tables should have RLS enabled");
 assert(schema.includes("create policy read_schedule_entries") && schema.includes("create policy read_meal_orders"), "current schema should create RLS policies");
+assert(schema.includes("drop policy if exists v2_restrict_employee_directory") && schema.includes("drop policy if exists v2_restrict_schedule_visibility"), "schema should remove old employee-only schedule visibility policies");
 assert(schema.includes("create or replace function public.protect_admin_member"), "current schema should protect the last admin at database level");
 assert(schema.includes("create or replace function public.save_attendance_clock"), "current schema should create the atomic clock RPC");
 assert(schema.includes("create or replace function public.save_meal_order"), "current schema should create the meal transaction RPC");

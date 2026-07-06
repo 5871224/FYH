@@ -56,9 +56,10 @@ assert(security.includes("drop policy if exists write_meal_orders"), "尚未移�
 assert(security.includes("public.is_effective_user"), "缺少有效任職期間資料庫檢查");
 
 const visibility = read("supabase/033_v2_employee_visibility.sql");
-assert(visibility.includes("as restrictive"), "員工資料／班表可見範圍未使用限制型政策");
-assert(visibility.includes("member_id = auth.uid()"), "員工仍可能讀取他人班表");
-assert(visibility.includes("id = auth.uid()"), "員工仍可能讀取他人人員資料");
+assert(visibility.includes("drop policy if exists v2_restrict_employee_directory"), "未移除員工目錄限制政策");
+assert(visibility.includes("drop policy if exists v2_restrict_schedule_visibility"), "未移除班表限制政策");
+assert(visibility.includes("create policy read_set_employee") && visibility.includes("using (true)"), "員工應可讀取完整人員目錄以顯示完整班表");
+assert(visibility.includes("create policy read_schedule_entries") && visibility.includes("using (true)"), "員工應可讀取完整班表資料");
 
 const reapply = read("supabase/034_v2_overtime_reapply.sql");
 assert(reapply.includes("where is_deleted_by_employee = false"), "軟刪除後重新申請的部分唯一索引缺失");
@@ -142,6 +143,7 @@ assert(!sourceExport.includes("員工工號"), "訂餐 Excel 不應顯示員工�
 assert(sourceExport.includes("此訂單所依據的上班打卡已被刪除"), "訂餐 Excel 缺少打卡刪除警告");
 
 const readme = read("README.md");
+assert(readme.includes("查看完整班表"), "規格書未明確標示員工可查看完整班表");
 assert(readme.includes("本次異動原因為選填"), "規格書未明確標示打卡異動原因為選填");
 assert(readme.includes("不顯示員工工號、首次下訂時間及最後修改時間"), "規格書未明確標示訂餐報表隱藏欄位");
 assert(readme.includes("主管可刪除員工或主管帳號"), "規格書未明確標示主管刪除權限");
