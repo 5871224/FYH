@@ -40,7 +40,7 @@
   api.createAdminOvertimeRequest = (payload = {}) => callFunction("attendance-overtime-admin-action", { action: "create", ...payload });
 
   window.addEventListener("load", () => {
-    ["v2-overtime-admin.js", "v2-meal.js"].forEach((file) => {
+    ["v2-overtime-admin.js", "v2-meal.js", "v2-attendance-admin.js"].forEach((file) => {
       if (document.querySelector(`script[data-v2-module="${file}"]`)) return;
       const script = document.createElement("script");
       script.src = `./${file}?v=20260706v2`;
