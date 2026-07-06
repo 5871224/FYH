@@ -429,7 +429,7 @@ body.is-records-view .app-shell {
 
 .meal-product-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
+  grid-template-columns: minmax(120px, 1fr) 86px minmax(180px, 1.4fr);
   gap: 12px;
   align-items: center;
   padding: 14px;
@@ -454,8 +454,7 @@ body.is-records-view .app-shell {
 }
 
 .meal-product-row textarea {
-  grid-column: 1 / -1;
-  min-height: 56px;
+  min-height: 48px;
   resize: vertical;
 }
 
@@ -3136,6 +3135,10 @@ thead th.today,
 }
 
 @media (max-width: 640px) {
+  .meal-product-row {
+    grid-template-columns: 1fr;
+  }
+
   .toolbar-grid {
     grid-template-columns: 1fr;
   }

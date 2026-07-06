@@ -2721,6 +2721,23 @@ function readMealOrderItems() {
   });
 }
 
+function getMealOrderLiveSummary() {
+  return Array.from(document.querySelectorAll("[data-meal-product-id]")).reduce((summary, input) => {
+    const quantity = Math.max(0, Math.floor(Number(input.value || 0) || 0));
+    const price = Number(input.dataset.mealProductPrice || 0) || 0;
+    summary.quantity += quantity;
+    summary.amount += quantity * price;
+    return summary;
+  }, { quantity: 0, amount: 0 });
+}
+
+function updateMealOrderLiveSummary() {
+  const summaryElement = document.querySelector("[data-meal-live-summary]");
+  if (!summaryElement) return;
+  const summary = getMealOrderLiveSummary();
+  summaryElement.textContent = `目前合計 ${summary.quantity} 份，$${summary.amount.toFixed(0)}`;
+}
+
 async function saveTodayMealOrder() {
   if (mealOrderState.loading) {
     return;
@@ -3986,6 +4003,7 @@ function renderMealPage() {
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
         <p class="home-subtitle">訂餐日期：${escapeHtml(status?.orderDate || getTodayDateString())}，截止時間：${escapeHtml(status?.cutoffTime || "--:--")}</p>
       </div>
+      ${isManager() ? '<button class="ghost-btn" type="button" data-open-meal-settings-page="true">訂餐設定</button>' : ""}
     </div>
     ${mealOrderState.error ? `<div class="auth-error clock-error">${escapeHtml(mealOrderState.error)}</div>` : ""}
     ${unavailableReason ? `<div class="auth-error clock-error">${escapeHtml(unavailableReason)}</div>` : ""}
@@ -3993,17 +4011,17 @@ function renderMealPage() {
       <div class="meal-product-list">
         ${products.map((product) => `
           <div class="meal-product-row">
-            <div>
+            <div class="meal-product-info">
               <strong>${escapeHtml(product.name || "")}</strong>
               <span>$${Number(product.price || 0).toFixed(0)}${product.is_active === false ? "（已停用）" : ""}</span>
             </div>
-            <input type="number" min="0" step="1" value="${orderQuantityMap.get(product.id) || 0}" data-meal-product-id="${escapeHtml(product.id)}" ${disabled ? "disabled" : ""}>
+            <input type="number" min="0" step="1" value="${orderQuantityMap.get(product.id) || 0}" data-meal-product-id="${escapeHtml(product.id)}" data-meal-product-price="${Number(product.price || 0)}" ${disabled ? "disabled" : ""}>
             <textarea rows="2" placeholder="此品項備註" data-meal-note-product-id="${escapeHtml(product.id)}" ${disabled ? "disabled" : ""}>${escapeHtml(orderNoteMap.get(product.id) || "")}</textarea>
           </div>
         `).join("")}
       </div>
       <div class="meal-summary-row">
-        <span>目前合計 ${Number(status?.summary?.totalQuantity || 0)} 份，$${Number(status?.summary?.totalAmount || 0).toFixed(0)}</span>
+        <span data-meal-live-summary>目前合計 ${Number(status?.summary?.totalQuantity || 0)} 份，$${Number(status?.summary?.totalAmount || 0).toFixed(0)}</span>
         <button class="btn-primary" type="button" data-save-today-meal="true" ${disabled ? "disabled" : ""}>儲存訂餐</button>
       </div>
     ` : '<div class="empty-state">目前沒有可訂購的商品</div>'}
@@ -4020,10 +4038,9 @@ function renderRecordsTabs() {
     ["personal", "個人記錄", true],
     ["meal", "訂餐統計", isManager()],
     ["overtime", "加班審核", isAdmin()],
-    ["attendance", "打卡管理", isAdmin()],
-    ["meal-settings", "訂餐設定", isManager()]
+    ["attendance", "打卡管理", isAdmin()]
   ].filter((tab) => tab[2]);
-  if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
+  if (recordsState.activeTab !== "meal-settings" && !tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
   return `<div class="record-tabs">${tabs.map(([id, label]) => `<button class="ghost-btn compact-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
 }
 
@@ -7018,6 +7035,13 @@ function bindEvents() {
       await saveTodayMealOrder();
       return;
     }
+    if (target.dataset.openMealSettingsPage) {
+      recordsState.activeTab = "meal-settings";
+      appView = "records";
+      await loadMealAdminSettings(false);
+      renderAll();
+      return;
+    }
     if (target.dataset.recordsTab) {
       recordsState.activeTab = target.dataset.recordsTab;
       if (recordsState.activeTab === "meal-settings") {
@@ -7327,6 +7351,11 @@ function bindEvents() {
     if (target.dataset.memberSettingsFilterField === "name") {
       memberSettingsFilters.name = target.value || "";
       refreshMemberSettingsList();
+      return;
+    }
+    if (target.dataset.mealProductId) {
+      target.value = String(Math.max(0, Math.floor(Number(target.value || 0) || 0)));
+      updateMealOrderLiveSummary();
       return;
     }
     if (target.id === "shiftName") {
