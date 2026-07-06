@@ -22,7 +22,9 @@ function addDaysToDateString(dateString: string, count: number) {
 
 function isProfileEffective(profile: any, today = taipeiDateString()) {
   const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
-  return Boolean(profile?.is_active && (!profile.hire_date || today >= profile.hire_date) && (!effectiveEndDate || today <= effectiveEndDate));
+  return Boolean(profile?.is_active
+    && (!profile.hire_date || today >= profile.hire_date)
+    && (!effectiveEndDate || today <= effectiveEndDate));
 }
 
 function getClientIp(req: Request) {
@@ -32,6 +34,21 @@ function getClientIp(req: Request) {
       || req.headers.get("x-forwarded-for")?.split(",")[0]
       || ""
   ).trim();
+}
+
+function isPhoneRequest(req: Request, requestedDeviceType: unknown) {
+  const userAgent = req.headers.get("user-agent") || "";
+  const clientHintMobile = req.headers.get("sec-ch-ua-mobile") === "?1";
+  const isIPad = /iPad/i.test(userAgent)
+    || (/Macintosh/i.test(userAgent) && /Mobile/i.test(userAgent));
+  const isAndroidTablet = /Android/i.test(userAgent) && !/Mobile/i.test(userAgent);
+  const isTablet = isIPad || isAndroidTablet || /Tablet|Silk/i.test(userAgent);
+
+  if (isTablet) return false;
+  if (clientHintMobile) return true;
+  if (/iPhone|iPod|Windows Phone|Mobi|Mobile/i.test(userAgent)) return true;
+
+  return requestedDeviceType === "phone";
 }
 
 function toNumber(value: unknown) {
@@ -58,6 +75,28 @@ function ipMatches(allowedIp: string, clientIp: string) {
     .includes(clientIp);
 }
 
+function safeAttendanceRecord(record: any) {
+  if (!record) return null;
+  return {
+    id: record.id,
+    user_id: record.user_id,
+    work_date: record.work_date,
+    employee_code_snapshot: record.employee_code_snapshot || "",
+    employee_name_snapshot: record.employee_name_snapshot || "",
+    clock_in_at: record.clock_in_at || null,
+    clock_in_department_id: record.clock_in_department_id || null,
+    clock_in_department_name_snapshot: record.clock_in_department_name_snapshot || "",
+    clock_in_source: record.clock_in_source || "",
+    clock_out_at: record.clock_out_at || null,
+    clock_out_department_id: record.clock_out_department_id || null,
+    clock_out_department_name_snapshot: record.clock_out_department_name_snapshot || "",
+    clock_out_source: record.clock_out_source || "",
+    attendance_note: record.attendance_note || "",
+    created_at: record.created_at,
+    updated_at: record.updated_at
+  };
+}
+
 async function getProfile(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!userId) throw new Error("請先登入");
@@ -82,13 +121,13 @@ async function getTodayRecord(ctx: any, userId: string, workDate = taipeiDateStr
     .eq("work_date", workDate)
     .maybeSingle();
   if (error) throw error;
-  return data || null;
+  return safeAttendanceRecord(data);
 }
 
 async function getEnabledDepartments(ctx: any) {
   const [{ data, error }, { data: settings, error: settingsError }] = await Promise.all([
     ctx.supabaseAdmin
-    .from("set_departments")
+      .from("set_departments")
       .select("id, name, address, latitude, longitude, attendance_enabled")
       .eq("attendance_enabled", true),
     ctx.supabaseAdmin
@@ -110,11 +149,12 @@ async function resolveClockLocation(ctx: any, req: Request, body: any) {
     throw new Error("目前沒有啟用打卡的單位，請先到修改單位設定打卡資料");
   }
 
-  const allowGps = body?.deviceType === "phone";
+  const allowGps = isPhoneRequest(req, body?.deviceType);
   const latitude = toNumber(body?.latitude);
   const longitude = toNumber(body?.longitude);
   const accuracy = toNumber(body?.accuracy);
-  if (allowGps && latitude !== null && longitude !== null && accuracy !== null && accuracy <= MAX_GPS_ACCURACY_METERS) {
+  if (allowGps && latitude !== null && longitude !== null
+    && accuracy !== null && accuracy <= MAX_GPS_ACCURACY_METERS) {
     const gpsMatch = departments
       .map((department: any) => {
         const departmentLatitude = toNumber(department.latitude);
@@ -178,7 +218,10 @@ async function clock(ctx: any, req: Request, body: any, kind: "clock_in" | "cloc
     }
   });
   if (error) throw error;
-  return data;
+  return {
+    ...data,
+    record: safeAttendanceRecord(data?.record)
+  };
 }
 
 export default {
