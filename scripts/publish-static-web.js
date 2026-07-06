@@ -22,8 +22,7 @@ const cacheBustedAssets = [
   "renderer.js"
 ];
 
-async function recreateDir(dirPath) {
-  await fs.rm(dirPath, { recursive: true, force: true });
+async function ensureDir(dirPath) {
   await fs.mkdir(dirPath, { recursive: true });
 }
 
@@ -70,7 +69,7 @@ async function writeDeployReadme() {
 }
 
 async function main() {
-  await recreateDir(outputDir);
+  await ensureDir(outputDir);
   await Promise.all(files.map(copyFile));
   await rewriteIndexCacheBusters();
   await writeNoJekyll();

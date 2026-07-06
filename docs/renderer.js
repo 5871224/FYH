@@ -3815,28 +3815,23 @@ function renderHomeDashboard() {
   homeCard.innerHTML = `
     <div class="home-hero">
       <div>
-        <p class="home-eyebrow">福圓號排班系統</p>
-        <h1>${escapeHtml(getCurrentProfileName() || "使用者")}，您好</h1>
-        <p class="home-subtitle">${escapeHtml(getCurrentRoleLabel())}登入中，請選擇今天要使用的功能。</p>
+        <p class="home-eyebrow">福圓號</p>
+        <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
       </div>
       <button class="ghost-btn home-signout-btn" type="button" id="homeSignOutButton">登出</button>
     </div>
     <div class="home-action-grid">
       <button class="home-action-card home-action-card-primary" type="button" data-home-action="clock">
         <span class="home-action-title">打卡</span>
-        <span class="home-action-text">進入上班、下班打卡頁</span>
       </button>
       <button class="home-action-card" type="button" data-home-action="schedule">
         <span class="home-action-title">班表</span>
-        <span class="home-action-text">查看或管理既有班表</span>
       </button>
       <button class="home-action-card" type="button" data-home-action="meal">
         <span class="home-action-title">訂餐</span>
-        <span class="home-action-text">進入今日訂餐頁面</span>
       </button>
       <button class="home-action-card" type="button" data-home-action="records">
         <span class="home-action-title">記錄</span>
-        <span class="home-action-text">查看個人記錄與權限頁籤</span>
       </button>
     </div>
   `;
