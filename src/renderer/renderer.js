@@ -7020,7 +7020,7 @@ function bindEvents() {
     }
     if (target.dataset.recordsTab) {
       recordsState.activeTab = target.dataset.recordsTab;
-      if (recordsState.activeTab === "meal-settings" && !recordsState.mealAdmin.products.length) {
+      if (recordsState.activeTab === "meal-settings") {
         await loadMealAdminSettings(false);
       }
       renderAll();
