@@ -1,0 +1,84 @@
+const fs = require("node:fs");
+const path = require("node:path");
+
+const root = path.resolve(__dirname, "..");
+const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
+const exists = (relativePath) => fs.existsSync(path.join(root, relativePath));
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
+const requiredFiles = [
+  "supabase/027_v2_security.sql",
+  "supabase/028_v2_attendance_clock.sql",
+  "supabase/029_v2_attendance_admin.sql",
+  "supabase/030_v2_meal_snapshot.sql",
+  "supabase/031_v2_role_department_protection.sql",
+  "supabase/functions/attendance-overtime-employee/index.ts",
+  "supabase/functions/attendance-overtime-admin-list/index.ts",
+  "supabase/functions/attendance-overtime-admin-action/index.ts",
+  "supabase/functions/attendance-admin-list-v2/index.ts",
+  "supabase/functions/attendance-admin-action-v2/index.ts",
+  "supabase/functions/department-attendance-v2/index.ts",
+  "supabase/functions/member-delete-v2/index.ts",
+  "supabase/functions/personal-records-v2/index.ts",
+  "supabase/functions/meal-report-v2/index.ts",
+  "supabase/functions/meal-cancel-v2/index.ts",
+  "src/renderer/v2-api.js",
+  "src/renderer/v2-overtime-employee.js",
+  "src/renderer/v2-overtime-admin.js",
+  "src/renderer/v2-meal.js",
+  "src/renderer/v2-account.js",
+  "src/renderer/v2-attendance-admin.js",
+  "src/renderer/v2-records.js"
+];
+
+requiredFiles.forEach((file) => assert(exists(file), `Missing V2 file: ${file}`));
+
+const reportRecords = read("supabase/functions/report-records/index.ts");
+assert(!reportRecords.includes("full_name, department_id"), "report-records still queries retired set_employee.department_id");
+
+const security = read("supabase/027_v2_security.sql");
+assert(security.includes("drop policy if exists write_overtime_requests"), "Direct overtime writes are still enabled");
+assert(security.includes("drop policy if exists write_meal_orders"), "Direct meal-order writes are still enabled");
+assert(security.includes("using (public.is_admin(auth.uid()))"), "Admin-only attendance policies are missing");
+
+const clock = read("supabase/028_v2_attendance_clock.sql");
+assert(clock.includes("clock_in_company_latitude"), "Clock-in company-coordinate snapshot is missing");
+assert(clock.includes("clock_out_company_longitude"), "Clock-out company-coordinate snapshot is missing");
+assert(clock.includes("and clock_out_at is null"), "Clock-out idempotency check is missing");
+
+const attendanceAdmin = read("supabase/029_v2_attendance_admin.sql");
+assert(attendanceAdmin.includes("p_reason text default ''"), "Attendance admin reason is missing");
+assert(attendanceAdmin.includes("old_record, new_record"), "Full attendance old/new audit snapshots are missing");
+assert(attendanceAdmin.includes("if v_in_changed or v_out_changed then"), "Attendance note-only edits may still reset overtime");
+
+const overtimeEmployee = read("supabase/functions/attendance-overtime-employee/index.ts");
+assert(overtimeEmployee.includes("APPLY_DAYS = 5"), "Five-day overtime application window is missing");
+assert(!overtimeEmployee.includes("不可高於系統計算值"), "Employee overtime still has the retired calculated-hours cap");
+assert(overtimeEmployee.includes("加班申請時數必須大於 0"), "Zero-hour overtime rejection is missing");
+
+const mealOrder = read("supabase/functions/meal-order/index.ts");
+assert(mealOrder.includes('rpc("save_meal_order_v2"'), "Meal order does not preserve the first department snapshot");
+assert(mealOrder.includes("停用品項只能減少或取消"), "Disabled meal-item increase protection is missing");
+
+const sourceApi = read("src/renderer/v2-api.js");
+const publishedApi = read("docs/v2-api.js");
+assert(sourceApi === publishedApi, "src/renderer/v2-api.js and docs/v2-api.js are not synchronized");
+assert(sourceApi.includes("safeDepartmentColumns"), "Safe department projection is missing");
+assert(sourceApi.includes("runManagerSafeWrite"), "Manager-safe department write wrapper is missing");
+
+const sourceIndex = read("src/renderer/index.html");
+const docsIndex = read("docs/index.html");
+assert(sourceIndex.includes("v2-api.js"), "Source index does not load v2-api.js");
+assert(docsIndex.includes("v2-api.js"), "Published index does not load v2-api.js");
+assert(sourceIndex.includes("v2-overtime-employee.js"), "Source index does not load the employee overtime module");
+assert(docsIndex.includes("v2-overtime-employee.js"), "Published index does not load the employee overtime module");
+
+const docsRecords = read("docs/v2-records.js");
+const docsAttendance = read("docs/v2-attendance-admin.js");
+assert(!docsRecords.includes("document.write"), "Published records loader may overwrite the page");
+assert(!docsAttendance.includes("document.write"), "Published attendance loader may overwrite the page");
+
+console.log(`V2 alignment checks passed (${requiredFiles.length} required files).`);
