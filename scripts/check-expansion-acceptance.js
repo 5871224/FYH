@@ -36,6 +36,7 @@ assert(renderer.includes("home-password-btn") && !index.includes('data-open-chan
 assert(renderer.includes("const showToolbar = showSchedule && isManager()"), "schedule floating toolbar should be manager-only");
 assert(styles.includes(".toolbar-top-row") && styles.includes("left: 10px;"), "toolbar collapse button should sit at the left edge");
 assert(index.includes('<path d="M6 9l6 6 6-6"></path>') && renderer.includes('<path d="M6 15l6-6 6 6"></path>'), "toolbar collapse and expand icons should be swapped");
+assert(styles.includes("grid-template-columns: minmax(0, 1.66fr) minmax(0, 0.78fr) minmax(0, 0.52fr);"), "floating toolbar should give overtime width to shift");
 
 assert(index.includes('id="clockCard"') && renderer.includes("function renderClockPage"), "clock page should be present");
 assert(attendanceClock.includes("MAX_GPS_DISTANCE_METERS = 300"), "clocking should enforce GPS distance");
