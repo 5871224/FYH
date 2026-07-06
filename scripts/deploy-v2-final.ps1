@@ -16,15 +16,18 @@ $functions = @(
   "meal-cancel-v2"
 )
 
-Write-Host "福圓號 V2 Edge Functions 部署" -ForegroundColor Cyan
-Write-Host "此腳本不會執行 SQL。請先完成 supabase/V2_SQL_ORDER_FINAL.md。" -ForegroundColor Yellow
+Write-Host "FYH V2 Edge Functions deployment" -ForegroundColor Cyan
+Write-Host "This script does not run SQL migrations." -ForegroundColor Yellow
+Write-Host "Complete supabase/V2_SQL_ORDER_FINAL.md before deployment." -ForegroundColor Yellow
 
 foreach ($functionName in $functions) {
-  Write-Host "`nDeploying $functionName ..." -ForegroundColor Cyan
-  & npx supabase@latest functions deploy $functionName --use-api
+  Write-Host ""
+  Write-Host "Deploying $functionName ..." -ForegroundColor Cyan
+  & npx.cmd supabase@latest functions deploy $functionName --use-api
   if ($LASTEXITCODE -ne 0) {
-    throw "部署失敗：$functionName"
+    throw "Deployment failed: $functionName"
   }
 }
 
-Write-Host "`n全部 V2 Edge Functions 部署完成。" -ForegroundColor Green
+Write-Host ""
+Write-Host "All V2 Edge Functions deployed successfully." -ForegroundColor Green
