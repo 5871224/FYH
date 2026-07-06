@@ -35,16 +35,17 @@
     note: payload.note || ""
   });
   api.deleteAttendanceOvertime = (workDate) => callFunction("attendance-overtime-employee", { action: "delete", workDate });
-
   api.getOvertimeReviewList = (filters = {}) => callFunction("attendance-overtime-admin-list", filters);
   api.reviewOvertimeRequest = (payload = {}) => callFunction("attendance-overtime-admin-action", { action: "review", ...payload });
   api.createAdminOvertimeRequest = (payload = {}) => callFunction("attendance-overtime-admin-action", { action: "create", ...payload });
 
   window.addEventListener("load", () => {
-    if (document.querySelector('script[data-v2-overtime-admin]')) return;
-    const script = document.createElement("script");
-    script.src = "./v2-overtime-admin.js?v=20260706v2";
-    script.dataset.v2OvertimeAdmin = "true";
-    document.body.appendChild(script);
+    ["v2-overtime-admin.js", "v2-meal.js"].forEach((file) => {
+      if (document.querySelector(`script[data-v2-module="${file}"]`)) return;
+      const script = document.createElement("script");
+      script.src = `./${file}?v=20260706v2`;
+      script.dataset.v2Module = file;
+      document.body.appendChild(script);
+    });
   }, { once: true });
 })();
