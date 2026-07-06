@@ -19,6 +19,7 @@ const required = [
   "supabase/033_v2_employee_visibility.sql",
   "supabase/034_v2_overtime_reapply.sql",
   "supabase/035_v2_last_admin.sql",
+  "supabase/036_v2_synchronized_member_delete.sql",
   "supabase/functions/attendance-clock/index.ts",
   "supabase/functions/attendance-clock-safe/index.ts",
   "supabase/functions/attendance-overtime-employee/index.ts",
@@ -36,6 +37,7 @@ const required = [
   "src/renderer/v2-overtime-employee.js",
   "src/renderer/v2-overtime-admin.js",
   "src/renderer/v2-meal.js",
+  "docs/v2-meal.js",
   "src/renderer/v2-account.js",
   "src/renderer/v2-attendance-admin.js",
   "src/renderer/v2-records.js",
@@ -65,6 +67,18 @@ const lastAdmin = read("supabase/035_v2_last_admin.sql");
 assert(lastAdmin.includes("protect_last_effective_admin_v2"), "最後有效管理員保護缺失");
 assert(lastAdmin.includes("before update or delete"), "最後管理員更新／刪除觸發器缺失");
 
+const synchronizedDelete = read("supabase/036_v2_synchronized_member_delete.sql");
+assert(synchronizedDelete.includes("references auth.users (id)"), "人員資料尚未連結 Auth 使用者");
+assert(synchronizedDelete.includes("on delete cascade"), "Auth 與人員資料未使用同交易級聯刪除");
+assert(synchronizedDelete.includes("has_synchronized_member_delete_v2"), "同步刪除 migration 檢查函式缺失");
+
+const memberDelete = read("supabase/functions/member-delete-v2/index.ts");
+assert(memberDelete.includes("員工沒有刪除帳號權限"), "後端未明確禁止員工刪除帳號");
+assert(memberDelete.includes('actor.role === "manager" && target.role === "admin"'), "主管刪除權限未限制為管理員帳號以外");
+assert(memberDelete.includes('rpc("has_synchronized_member_delete_v2")'), "刪除前未確認同步刪除 migration");
+assert(memberDelete.includes("auth.admin.deleteUser(target.id)"), "帳號刪除未由 Auth 端啟動級聯交易");
+assert(!memberDelete.includes('.from("set_employee").delete()'), "仍存在先刪人員資料再刪 Auth 的不同步流程");
+
 const clockSql = read("supabase/028_v2_attendance_clock.sql");
 assert(clockSql.includes("clock_in_company_latitude"), "上班公司座標快照缺失");
 assert(clockSql.includes("clock_out_company_longitude"), "下班公司座標快照缺失");
@@ -83,7 +97,7 @@ assert(!safeClock.includes("clock_in_ip:"), "備援安全打卡回應仍暴露 I
 assert(!safeClock.includes("clock_in_latitude:"), "備援安全打卡回應仍暴露 GPS");
 
 const adminSql = read("supabase/029_v2_attendance_admin.sql");
-assert(adminSql.includes("p_reason text default ''"), "打卡管理異動原因缺失");
+assert(adminSql.includes("p_reason text default ''"), "打卡異動原因未設為選填");
 assert(adminSql.includes("old_record, new_record"), "打卡完整新舊快照稽核缺失");
 assert(adminSql.includes("if v_in_changed or v_out_changed then"), "只改備註仍可能重置加班");
 
@@ -107,6 +121,17 @@ const sourceApi = read("src/renderer/v2-api.js");
 const publishedApi = read("docs/v2-api.js");
 assert(sourceApi === publishedApi, "src/renderer/v2-api.js 與 docs/v2-api.js 不同步");
 assert(sourceApi.includes("safeDepartmentColumns"), "一般單位查詢仍可能包含敏感打卡欄位");
+assert(sourceApi.includes("installTabletSessionPolicy"), "平板登入 Session 規則未同步修正");
+assert(sourceApi.includes("isAndroidTablet"), "Android 平板 Session 判斷缺失");
+assert(sourceApi.includes("isIPad"), "iPad Session 判斷缺失");
+assert(sourceApi.includes("30 * 60 * 1000"), "平板未使用電腦版 30 分鐘閒置期限");
+
+const sourceMeal = read("src/renderer/v2-meal.js");
+const publishedMeal = read("docs/v2-meal.js");
+assert(sourceMeal === publishedMeal, "訂餐輸入驗證來源版與發布版不同步");
+assert(sourceMeal.includes('addEventListener("beforeinput"'), "訂餐數量未在輸入前拒絕小數或負數");
+assert(sourceMeal.includes('addEventListener("paste"'), "訂餐數量未拒絕貼上無效內容");
+assert(sourceMeal.includes("lastValidMealQuantity"), "訂餐無效輸入未保留最後有效整數");
 
 const sourceExport = read("src/renderer/v2-meal-export.js");
 const publishedExport = read("docs/v2-meal-export.js");
@@ -115,6 +140,11 @@ assert(!sourceExport.includes("首次下訂時間"), "訂餐 Excel 不應顯示�
 assert(!sourceExport.includes("最後修改時間"), "訂餐 Excel 不應顯示最後修改時間");
 assert(!sourceExport.includes("員工工號"), "訂餐 Excel 不應顯示員工工號");
 assert(sourceExport.includes("此訂單所依據的上班打卡已被刪除"), "訂餐 Excel 缺少打卡刪除警告");
+
+const readme = read("README.md");
+assert(readme.includes("本次異動原因為選填"), "規格書未明確標示打卡異動原因為選填");
+assert(readme.includes("不顯示員工工號、首次下訂時間及最後修改時間"), "規格書未明確標示訂餐報表隱藏欄位");
+assert(readme.includes("主管可刪除員工或主管帳號"), "規格書未明確標示主管刪除權限");
 
 const sourceIndex = read("src/renderer/index.html");
 const publishedIndex = read("docs/index.html");
