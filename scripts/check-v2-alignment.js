@@ -15,6 +15,7 @@ const requiredFiles = [
   "supabase/029_v2_attendance_admin.sql",
   "supabase/030_v2_meal_snapshot.sql",
   "supabase/031_v2_role_department_protection.sql",
+  "supabase/032_v2_overtime_batch.sql",
   "supabase/functions/attendance-overtime-employee/index.ts",
   "supabase/functions/attendance-overtime-admin-list/index.ts",
   "supabase/functions/attendance-overtime-admin-action/index.ts",
@@ -54,10 +55,17 @@ assert(attendanceAdmin.includes("p_reason text default ''"), "Attendance admin r
 assert(attendanceAdmin.includes("old_record, new_record"), "Full attendance old/new audit snapshots are missing");
 assert(attendanceAdmin.includes("if v_in_changed or v_out_changed then"), "Attendance note-only edits may still reset overtime");
 
+const overtimeBatch = read("supabase/032_v2_overtime_batch.sql");
+assert(overtimeBatch.includes("admin_review_overtime_requests_v2"), "Transactional overtime review RPC is missing");
+assert(overtimeBatch.includes("for update"), "Overtime batch rows are not locked transactionally");
+
 const overtimeEmployee = read("supabase/functions/attendance-overtime-employee/index.ts");
 assert(overtimeEmployee.includes("APPLY_DAYS = 5"), "Five-day overtime application window is missing");
 assert(!overtimeEmployee.includes("不可高於系統計算值"), "Employee overtime still has the retired calculated-hours cap");
 assert(overtimeEmployee.includes("加班申請時數必須大於 0"), "Zero-hour overtime rejection is missing");
+
+const overtimeAdminAction = read("supabase/functions/attendance-overtime-admin-action/index.ts");
+assert(overtimeAdminAction.includes('rpc("admin_review_overtime_requests_v2"'), "Admin overtime review is not using the transactional RPC");
 
 const mealOrder = read("supabase/functions/meal-order/index.ts");
 assert(mealOrder.includes('rpc("save_meal_order_v2"'), "Meal order does not preserve the first department snapshot");
