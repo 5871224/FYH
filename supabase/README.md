@@ -53,6 +53,7 @@ These are legacy artifacts from the old employee request workflow and should not
 
 1. `001_current_schema.sql`: current tables, indexes, RLS policies, admin protection trigger, and attendance/meal RPCs.
 2. `024_schedule_entries_rpc.sql`: bulk RPC for schedule cell writes.
+3. `026_attendance_meal_admin_rpc.sql`: admin attendance edits and meal settings RPCs.
 
 ## Notes For Changes
 
