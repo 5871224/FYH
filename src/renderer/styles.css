@@ -427,9 +427,21 @@ body.is-records-view .app-shell {
   margin-bottom: 16px;
 }
 
+.meal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 16px;
+}
+
+.meal-tabs .active {
+  background: #8b6f47;
+  color: #fff;
+}
+
 .meal-product-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) 86px minmax(180px, 1.4fr);
+  grid-template-columns: minmax(160px, 1fr) 78px minmax(160px, 0.9fr);
   gap: 12px;
   align-items: center;
   padding: 14px;
@@ -438,14 +450,21 @@ body.is-records-view .app-shell {
   border: 1px solid rgba(166, 143, 111, 0.18);
 }
 
-.meal-product-row strong,
-.meal-product-row span {
-  display: block;
+.meal-product-info {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.meal-product-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .meal-product-row span {
-  margin-top: 4px;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .meal-product-row input {
@@ -453,9 +472,8 @@ body.is-records-view .app-shell {
   text-align: center;
 }
 
-.meal-product-row textarea {
-  min-height: 48px;
-  resize: vertical;
+.meal-product-row input[type="text"] {
+  text-align: left;
 }
 
 .meal-summary-row {

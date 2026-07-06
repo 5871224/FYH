@@ -168,6 +168,7 @@ let mealOrderState = {
   status: null,
   error: ""
 };
+let mealPageTab = "order";
 let recordsState = createRecordsState();
 let memberSettingsFilters = {
   name: "",
@@ -4003,8 +4004,14 @@ function renderMealPage() {
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
         <p class="home-subtitle">訂餐日期：${escapeHtml(status?.orderDate || getTodayDateString())}，截止時間：${escapeHtml(status?.cutoffTime || "--:--")}</p>
       </div>
-      ${isManager() ? '<button class="ghost-btn" type="button" data-open-meal-settings-page="true">訂餐設定</button>' : ""}
     </div>
+    ${isManager() ? `
+      <div class="meal-tabs">
+        <button class="ghost-btn compact-btn ${mealPageTab === "order" ? "active" : ""}" type="button" data-meal-tab="order">今日訂餐</button>
+        <button class="ghost-btn compact-btn ${mealPageTab === "settings" ? "active" : ""}" type="button" data-meal-tab="settings">訂餐設定</button>
+      </div>
+    ` : ""}
+    ${isManager() && mealPageTab === "settings" ? renderMealSettingsSection() : `
     ${mealOrderState.error ? `<div class="auth-error clock-error">${escapeHtml(mealOrderState.error)}</div>` : ""}
     ${unavailableReason ? `<div class="auth-error clock-error">${escapeHtml(unavailableReason)}</div>` : ""}
     ${products.length ? `
@@ -4016,7 +4023,7 @@ function renderMealPage() {
               <span>$${Number(product.price || 0).toFixed(0)}${product.is_active === false ? "（已停用）" : ""}</span>
             </div>
             <input type="number" min="0" step="1" value="${orderQuantityMap.get(product.id) || 0}" data-meal-product-id="${escapeHtml(product.id)}" data-meal-product-price="${Number(product.price || 0)}" ${disabled ? "disabled" : ""}>
-            <textarea rows="2" placeholder="此品項備註" data-meal-note-product-id="${escapeHtml(product.id)}" ${disabled ? "disabled" : ""}>${escapeHtml(orderNoteMap.get(product.id) || "")}</textarea>
+            <input type="text" placeholder="此品項備註" value="${escapeHtml(orderNoteMap.get(product.id) || "")}" data-meal-note-product-id="${escapeHtml(product.id)}" ${disabled ? "disabled" : ""}>
           </div>
         `).join("")}
       </div>
@@ -4026,6 +4033,7 @@ function renderMealPage() {
       </div>
     ` : '<div class="empty-state">目前沒有可訂購的商品</div>'}
     ${mealOrderState.loading ? '<p class="clock-loading">處理中，請稍候...</p>' : ""}
+    `}
   `;
 }
 
@@ -4076,7 +4084,7 @@ function renderAttendanceAdminSection() {
 
 function renderMealSettingsSection() {
   const mealAdmin = recordsState.mealAdmin;
-  return `<section class="records-section"><h2>訂餐設定</h2><div class="records-filter-row"><label>截止時間 <input type="time" value="${escapeHtml(String(mealAdmin.settings?.daily_cutoff_time || "10:30").slice(0, 5))}" data-meal-cutoff-time></label><button class="ghost-btn compact-btn" type="button" data-add-meal-product="true">新增商品</button><button class="primary-btn compact-btn" type="button" data-save-meal-settings="true">儲存</button></div>${mealAdmin.error ? `<div class="auth-error">${escapeHtml(mealAdmin.error)}</div>` : ""}<div class="records-table-wrap"><table class="records-table"><thead><tr><th>品項</th><th>價格</th><th>啟用</th></tr></thead><tbody>${mealAdmin.products.map((product, index) => `<tr data-meal-product-row="${index}"><td><input type="text" value="${escapeHtml(product.name || "")}" data-meal-product-field="name"></td><td><input type="number" min="0" step="1" value="${escapeHtml(String(product.price || 0))}" data-meal-product-field="price"></td><td><input type="checkbox" ${product.is_active !== false ? "checked" : ""} data-meal-product-field="isActive"><input type="hidden" value="${escapeHtml(product.id || "")}" data-meal-product-field="id"></td></tr>`).join("") || '<tr><td colspan="3">尚無商品</td></tr>'}</tbody></table></div></section>`;
+  return `<section class="records-section"><h2>訂餐設定</h2><div class="records-filter-row"><label>訂餐截止時間 <input type="time" value="${escapeHtml(String(mealAdmin.settings?.daily_cutoff_time || "10:30").slice(0, 5))}" data-meal-cutoff-time></label><button class="ghost-btn compact-btn" type="button" data-add-meal-product="true">新增商品</button><button class="primary-btn compact-btn" type="button" data-save-meal-settings="true">儲存</button></div>${mealAdmin.error ? `<div class="auth-error">${escapeHtml(mealAdmin.error)}</div>` : ""}<div class="records-table-wrap"><table class="records-table"><thead><tr><th>品項</th><th>價格</th><th>啟用</th></tr></thead><tbody>${mealAdmin.products.map((product, index) => `<tr data-meal-product-row="${index}"><td><input type="text" value="${escapeHtml(product.name || "")}" data-meal-product-field="name"></td><td><input type="number" min="0" step="1" value="${escapeHtml(String(product.price || 0))}" data-meal-product-field="price"></td><td><input type="checkbox" ${product.is_active !== false ? "checked" : ""} data-meal-product-field="isActive"><input type="hidden" value="${escapeHtml(product.id || "")}" data-meal-product-field="id"></td></tr>`).join("") || '<tr><td colspan="3">尚無商品</td></tr>'}</tbody></table></div></section>`;
 }
 
 function timeValueFromIso(value) {
@@ -7006,6 +7014,7 @@ function bindEvents() {
       }
       if (target.dataset.homeAction === "meal") {
         appView = "meal";
+        mealPageTab = "order";
         await loadTodayMealOrder();
         return;
       }
@@ -7035,10 +7044,11 @@ function bindEvents() {
       await saveTodayMealOrder();
       return;
     }
-    if (target.dataset.openMealSettingsPage) {
-      recordsState.activeTab = "meal-settings";
-      appView = "records";
-      await loadMealAdminSettings(false);
+    if (target.dataset.mealTab) {
+      mealPageTab = target.dataset.mealTab === "settings" ? "settings" : "order";
+      if (mealPageTab === "settings") {
+        await loadMealAdminSettings(false);
+      }
       renderAll();
       return;
     }
