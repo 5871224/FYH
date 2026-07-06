@@ -29,6 +29,7 @@ assert(webApi.includes("mobileSessionMaxIdleMs") && webApi.includes("desktopSess
 assert(webApi.includes("function assertSessionActive"), "authenticated requests should enforce idle timeout");
 assert(index.includes('id="homeCard"') && renderer.includes("function renderHomeDashboard"), "login should land on the home dashboard");
 assert(index.includes('id="scheduleCard" hidden'), "schedule table should be hidden until the schedule page is opened");
+assert(renderer.includes('window.addEventListener("popstate", handleAppBackNavigation)') && renderer.includes("function hasClosableModal") && renderer.includes('appView = "home";'), "Android back should close modal first, then return home");
 assert(renderer.includes('[hidden]') || read("src", "renderer", "styles.css").includes("[hidden]"), "hidden sections should stay hidden on mobile");
 assert(renderer.includes('toggle.textContent = "功能"'), "schedule top-right menu should be labelled function");
 assert(index.includes('id="coreHomeButton"') && !index.includes('data-home-action="home">首頁</button>\n              <button'), "schedule home button should sit outside the function menu");

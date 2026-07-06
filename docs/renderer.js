@@ -148,6 +148,7 @@ let dragScheduleShiftId = "";
 let leaveTooltipTimer = null;
 let coreActionsOpen = false;
 let appView = "home";
+const APP_BACK_HISTORY_STATE = { schedulerBackGuard: true };
 let departmentSettingsView = "department";
 let currentSession = null;
 let currentProfile = null;
@@ -3350,6 +3351,30 @@ function closeModal() {
   modalContext = {};
   document.getElementById("modalRoot").innerHTML = "";
   hideLeaveTooltip();
+}
+
+function hasClosableModal() {
+  return Boolean(document.querySelector("#modalRoot .modal-overlay"));
+}
+
+function pushAppBackHistoryGuard() {
+  if (!window.history?.pushState) {
+    return;
+  }
+  if (!window.history.state || window.history.state.schedulerBackGuard !== true) {
+    window.history.replaceState(APP_BACK_HISTORY_STATE, "", window.location.href);
+  }
+  window.history.pushState(APP_BACK_HISTORY_STATE, "", window.location.href);
+}
+
+function handleAppBackNavigation() {
+  if (hasClosableModal()) {
+    closeModal();
+  } else {
+    appView = "home";
+    renderAll();
+  }
+  pushAppBackHistoryGuard();
 }
 
 function reopenModalFromContext(context) {
@@ -6962,6 +6987,7 @@ function bindEvents() {
   document.body.addEventListener("mouseup", endScheduleRangeSelection);
   document.body.addEventListener("mouseleave", endScheduleRangeSelection);
   document.addEventListener("keydown", handleScheduleGridKeydown);
+  window.addEventListener("popstate", handleAppBackNavigation);
   window.addEventListener("scheduler-session-expired", async () => {
     authErrorMessage = "登入已逾時，請重新登入";
     authPromptMessage = "";
@@ -7706,6 +7732,7 @@ function bindEvents() {
 
 async function loadApp() {
   bindEvents();
+  pushAppBackHistoryGuard();
   authErrorMessage = "";
   try {
     const authContext = await window.schedulerApi.initializeAuth();
