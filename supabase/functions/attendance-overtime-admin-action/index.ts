@@ -41,49 +41,25 @@ async function requireAdmin(ctx: any) {
 
 async function review(ctx: any, body: any) {
   const operator = await requireAdmin(ctx);
-  const ids = Array.isArray(body?.ids) ? body.ids.map(String).filter(Boolean) : [String(body?.id || "")].filter(Boolean);
+  const ids = Array.isArray(body?.ids)
+    ? [...new Set(body.ids.map(String).filter(Boolean))]
+    : [String(body?.id || "")].filter(Boolean);
   const status = String(body?.status || "");
   if (!ids.length) throw new Error("缺少加班申請");
   if (!["approved", "returned", "pending"].includes(status)) throw new Error("不支援的審核狀態");
+
   const earlyInput = body?.earlyHours === undefined ? null : hours(body.earlyHours);
   const lateInput = body?.lateHours === undefined ? null : hours(body.lateHours);
-  const now = new Date().toISOString();
-  const output = [];
-
-  for (const id of ids) {
-    const oldResult = await ctx.supabaseAdmin.from("attendance_overtime_requests").select("*").eq("id", id).single();
-    if (oldResult.error) throw oldResult.error;
-    const oldRow = oldResult.data;
-    const early = earlyInput === null ? Number(oldRow.early_overtime_hours || 0) : earlyInput;
-    const late = lateInput === null ? Number(oldRow.late_overtime_hours || 0) : lateInput;
-    if (early + late <= 0) throw new Error("加班時數必須大於 0");
-
-    const updateResult = await ctx.supabaseAdmin.from("attendance_overtime_requests").update({
-      status,
-      early_overtime_hours: early,
-      late_overtime_hours: late,
-      total_overtime_hours: early + late,
-      attendance_changed_warning: false,
-      reviewed_at: now,
-      reviewed_by: operator.id,
-      updated_at: now
-    }).eq("id", id).select("*").single();
-    if (updateResult.error) throw updateResult.error;
-
-    const logResult = await ctx.supabaseAdmin.from("overtime_review_logs").insert({
-      overtime_request_id: id,
-      old_status: oldRow.status,
-      new_status: status,
-      old_early_hours: oldRow.early_overtime_hours,
-      new_early_hours: early,
-      old_late_hours: oldRow.late_overtime_hours,
-      new_late_hours: late,
-      operator_user_id: operator.id
-    });
-    if (logResult.error) throw logResult.error;
-    output.push(updateResult.data);
-  }
-  return { ok: true, requests: output };
+  const result = await ctx.supabaseAdmin.rpc("admin_review_overtime_requests_v2", {
+    p_ids: ids,
+    p_status: status,
+    p_early_hours: earlyInput,
+    p_late_hours: lateInput,
+    p_operator_user_id: operator.id,
+    p_review_note: String(body?.returnReason || body?.reviewNote || "").trim()
+  });
+  if (result.error) throw result.error;
+  return result.data;
 }
 
 async function createRequest(ctx: any, body: any) {
@@ -108,7 +84,8 @@ async function createRequest(ctx: any, body: any) {
     created_by_type: "admin",
     created_by_user_id: operator.id,
     reviewed_at: status === "approved" ? now : null,
-    reviewed_by: status === "approved" ? operator.id : null
+    reviewed_by: status === "approved" ? operator.id : null,
+    review_note: String(body?.reviewNote || "").trim() || null
   }).select("*").single();
   if (result.error) throw result.error;
   return { ok: true, request: result.data };
