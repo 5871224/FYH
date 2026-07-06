@@ -58,7 +58,7 @@ async function getProfile(ctx: any) {
   if (!userId) throw new Error("請先登入");
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id, full_name, is_active, hire_date, leave_date")
+    .select("id, full_name, role, is_active, hire_date, leave_date")
     .eq("id", userId)
     .single();
   if (error) throw error;
@@ -67,6 +67,12 @@ async function getProfile(ctx: any) {
     throw new Error("此帳號目前不在有效期間，無法申請加班");
   }
   return data;
+}
+
+function requireAdmin(profile: any) {
+  if (profile?.role !== "admin") {
+    throw new Error("此功能限管理員使用");
+  }
 }
 
 async function getTodayContext(ctx: any, userId: string) {
@@ -201,6 +207,114 @@ async function deleteRequest(ctx: any) {
   return { ok: true, deleted: true };
 }
 
+function validDate(value: unknown, fallback = taipeiDateString()) {
+  const text = String(value || "");
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : fallback;
+}
+
+async function adminListRequests(ctx: any, body: any) {
+  const profile = await getProfile(ctx);
+  requireAdmin(profile);
+  const today = taipeiDateString();
+  const fromDate = validDate(body?.fromDate, addDaysToDateString(today, -30));
+  const toDate = validDate(body?.toDate, today);
+  const status = String(body?.status || "pending");
+  let query = ctx.supabaseAdmin
+    .from("attendance_overtime_requests")
+    .select("*, employee:user_id(employee_code,full_name,department_id)")
+    .eq("is_deleted_by_employee", false)
+    .gte("work_date", fromDate)
+    .lte("work_date", toDate)
+    .order("work_date", { ascending: false });
+  if (status && status !== "all") query = query.eq("status", status);
+  const { data, error } = await query;
+  if (error) throw error;
+  return { ok: true, requests: data || [] };
+}
+
+async function adminReviewRequest(ctx: any, body: any) {
+  const profile = await getProfile(ctx);
+  requireAdmin(profile);
+  const ids = Array.isArray(body?.ids) ? body.ids.map(String).filter(Boolean) : [String(body?.id || "")].filter(Boolean);
+  const nextStatus = String(body?.status || "");
+  if (!ids.length) throw new Error("缺少加班申請");
+  if (!["approved", "returned", "pending"].includes(nextStatus)) throw new Error("不支援的審核狀態");
+  const earlyHours = body?.earlyHours === undefined ? null : normalizeHours(body.earlyHours);
+  const lateHours = body?.lateHours === undefined ? null : normalizeHours(body.lateHours);
+  const reviewedAt = new Date().toISOString();
+  const updated: any[] = [];
+
+  for (const id of ids) {
+    const { data: oldRow, error: readError } = await ctx.supabaseAdmin
+      .from("attendance_overtime_requests")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (readError) throw readError;
+    const nextEarly = earlyHours === null ? Number(oldRow.early_overtime_hours || 0) : earlyHours;
+    const nextLate = lateHours === null ? Number(oldRow.late_overtime_hours || 0) : lateHours;
+    const { data: newRow, error: updateError } = await ctx.supabaseAdmin
+      .from("attendance_overtime_requests")
+      .update({
+        status: nextStatus,
+        early_overtime_hours: nextEarly,
+        late_overtime_hours: nextLate,
+        total_overtime_hours: nextEarly + nextLate,
+        attendance_changed_warning: false,
+        reviewed_at: reviewedAt,
+        reviewed_by: profile.id,
+        updated_at: reviewedAt
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (updateError) throw updateError;
+    const { error: logError } = await ctx.supabaseAdmin.from("overtime_review_logs").insert({
+      overtime_request_id: id,
+      old_status: oldRow.status,
+      new_status: nextStatus,
+      old_early_hours: oldRow.early_overtime_hours,
+      new_early_hours: nextEarly,
+      old_late_hours: oldRow.late_overtime_hours,
+      new_late_hours: nextLate,
+      operator_user_id: profile.id
+    });
+    if (logError) throw logError;
+    updated.push(newRow);
+  }
+
+  return { ok: true, requests: updated };
+}
+
+async function adminCreateRequest(ctx: any, body: any) {
+  const profile = await getProfile(ctx);
+  requireAdmin(profile);
+  const userId = String(body?.userId || "");
+  const workDate = validDate(body?.workDate);
+  const earlyHours = normalizeHours(body?.earlyHours);
+  const lateHours = normalizeHours(body?.lateHours);
+  if (!userId) throw new Error("缺少加班人員");
+  if (earlyHours + lateHours <= 0) throw new Error("加班時數必須大於 0");
+  const { data, error } = await ctx.supabaseAdmin
+    .from("attendance_overtime_requests")
+    .insert({
+      user_id: userId,
+      work_date: workDate,
+      status: "pending",
+      early_overtime_hours: earlyHours,
+      late_overtime_hours: lateHours,
+      total_overtime_hours: earlyHours + lateHours,
+      employee_note: String(body?.note || "").trim(),
+      is_deleted_by_employee: false,
+      created_by_type: "admin",
+      created_by_user_id: profile.id
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return { ok: true, request: data };
+}
+
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
     if (req.method !== "POST") {
@@ -211,6 +325,9 @@ export default {
       if (body?.action === "today_status") return Response.json(await todayStatus(ctx));
       if (body?.action === "submit") return Response.json(await submitRequest(ctx, body));
       if (body?.action === "delete") return Response.json(await deleteRequest(ctx));
+      if (body?.action === "admin_list") return Response.json(await adminListRequests(ctx, body));
+      if (body?.action === "admin_review") return Response.json(await adminReviewRequest(ctx, body));
+      if (body?.action === "admin_create") return Response.json(await adminCreateRequest(ctx, body));
       return Response.json({ message: "不支援的加班操作" }, { status: 400 });
     } catch (error) {
       return Response.json({ message: error instanceof Error ? error.message : "加班操作失敗" }, { status: 400 });

@@ -800,6 +800,78 @@
     });
   }
 
+  async function getAttendanceAdminRecords(filters = {}) {
+    ensureSignedIn();
+    return requestFunction("report-records", {
+      action: "attendance_admin_list",
+      ...filters
+    });
+  }
+
+  async function getAttendanceAdminHistory(recordId) {
+    ensureSignedIn();
+    return requestFunction("report-records", {
+      action: "attendance_admin_history",
+      recordId
+    });
+  }
+
+  async function saveAttendanceAdminRecord(record) {
+    ensureSignedIn();
+    return requestFunction("report-records", {
+      action: "attendance_admin_save",
+      record
+    });
+  }
+
+  async function getOvertimeReviewList(filters = {}) {
+    ensureSignedIn();
+    return requestFunction("attendance-overtime", {
+      action: "admin_list",
+      ...filters
+    });
+  }
+
+  async function reviewOvertimeRequest(payload = {}) {
+    ensureSignedIn();
+    return requestFunction("attendance-overtime", {
+      action: "admin_review",
+      ...payload
+    });
+  }
+
+  async function createAdminOvertimeRequest(payload = {}) {
+    ensureSignedIn();
+    return requestFunction("attendance-overtime", {
+      action: "admin_create",
+      ...payload
+    });
+  }
+
+  async function getMealAdminSettings() {
+    ensureSignedIn();
+    return requestFunction("meal-order", {
+      action: "admin_settings"
+    });
+  }
+
+  async function saveMealAdminSettings(payload = {}) {
+    ensureSignedIn();
+    return requestFunction("meal-order", {
+      action: "save_admin_settings",
+      products: Array.isArray(payload.products) ? payload.products : [],
+      dailyCutoffTime: payload.dailyCutoffTime || "10:30"
+    });
+  }
+
+  async function getMealReport(filters = {}) {
+    ensureSignedIn();
+    return requestFunction("report-records", {
+      action: "meal_stats",
+      ...filters
+    });
+  }
+
   async function fetchRowsById(table) {
     const rows = await restSelect(table, {
       select: "*",
@@ -1686,6 +1758,33 @@
     return { canceled: false, filePath: fileName };
   }
 
+  async function exportMealReport(report) {
+    const details = Array.isArray(report?.details) ? report.details : [];
+    if (!details.length) {
+      return { canceled: true, empty: true };
+    }
+    const workbook = new ExcelJS.Workbook();
+    const summarySheet = workbook.addWorksheet("每日備餐統計");
+    summarySheet.addRow(["日期", "單位", "品項", "數量", "金額"]);
+    (report.summary || []).forEach((row) => {
+      summarySheet.addRow([row.date, row.departmentName, row.productName, Number(row.quantity || 0), Number(row.amount || 0)]);
+    });
+    const detailSheet = workbook.addWorksheet("員工訂餐明細");
+    detailSheet.addRow(["日期", "單位", "員工", "品項", "數量", "單價", "小計", "備註", "下訂時間"]);
+    details.forEach((row) => {
+      detailSheet.addRow([row.date, row.departmentName, row.employeeName, row.productName, Number(row.quantity || 0), Number(row.unitPrice || 0), Number(row.amount || 0), row.note || "", row.submittedAt || ""]);
+    });
+    [summarySheet, detailSheet].forEach((sheet) => {
+      sheet.columns.forEach((column) => {
+        column.width = 16;
+      });
+    });
+    const blob = await exporter.workbookToBlob(workbook);
+    const fileName = `訂餐報表_${report.fromDate || ""}_${report.toDate || ""}.xlsx`;
+    downloadBlob(blob, fileName);
+    return { canceled: false, filePath: fileName };
+  }
+
   async function exportMembers(payload) {
     const blob = await exporter.workbookToBlob(await exporter.createMemberWorkbook(payload));
     const fileName = "人員資料.xlsx";
@@ -1791,6 +1890,15 @@
     saveTodayMealOrder,
     getPersonalRecords,
     getMealStatsReport,
+    getAttendanceAdminRecords,
+    getAttendanceAdminHistory,
+    saveAttendanceAdminRecord,
+    getOvertimeReviewList,
+    reviewOvertimeRequest,
+    createAdminOvertimeRequest,
+    getMealAdminSettings,
+    saveMealAdminSettings,
+    getMealReport,
     deleteMemberProfile,
     loadState,
     loadScheduleEntries,
@@ -1806,6 +1914,7 @@
     exportSapCsv,
     exportOvertime,
     exportLeave,
+    exportMealReport,
     exportMembers,
     importMembers,
     exportDepartments,

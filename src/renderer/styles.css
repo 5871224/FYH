@@ -486,6 +486,28 @@ body.is-records-view .app-shell {
   overflow-x: auto;
 }
 
+.record-tabs,
+.records-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+}
+
+.record-tabs .active {
+  background: #8b6f47;
+  color: #fff;
+}
+
+.records-filter-row input,
+.records-filter-row select {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
 .records-table {
   width: 100%;
   min-width: 760px;

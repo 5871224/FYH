@@ -37,7 +37,7 @@ async function getProfile(ctx: any) {
 
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id, employee_code, full_name, is_active, hire_date, leave_date")
+    .select("id, employee_code, full_name, role, is_active, hire_date, leave_date")
     .eq("id", userId)
     .single();
   if (error) throw error;
@@ -45,6 +45,16 @@ async function getProfile(ctx: any) {
     throw new Error("帳號不在有效任職期間，無法訂餐");
   }
   return data;
+}
+
+function isManagerRole(role: string) {
+  return role === "admin" || role === "manager";
+}
+
+function requireManager(profile: any) {
+  if (!isManagerRole(profile?.role)) {
+    throw new Error("此功能限主管或管理員使用");
+  }
 }
 
 async function getMealSettings(ctx: any) {
@@ -120,6 +130,37 @@ async function saveOrder(ctx: any, body: any) {
   return todayStatus(ctx);
 }
 
+async function adminSettings(ctx: any) {
+  const profile = await getProfile(ctx);
+  requireManager(profile);
+  const [settings, productsResult] = await Promise.all([
+    getMealSettings(ctx),
+    ctx.supabaseAdmin
+      .from("meal_products")
+      .select("*")
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true })
+  ]);
+  if (productsResult.error) throw productsResult.error;
+  return {
+    ok: true,
+    settings,
+    products: productsResult.data || []
+  };
+}
+
+async function saveAdminSettings(ctx: any, body: any) {
+  const profile = await getProfile(ctx);
+  requireManager(profile);
+  const { data, error } = await ctx.supabaseAdmin.rpc("save_meal_admin_settings", {
+    p_products: Array.isArray(body?.products) ? body.products : [],
+    p_daily_cutoff_time: String(body?.dailyCutoffTime || "").slice(0, 5),
+    p_operator_user_id: profile.id
+  });
+  if (error) throw error;
+  return { ok: true, result: data };
+}
+
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
     if (req.method !== "POST") {
@@ -129,6 +170,8 @@ export default {
       const body = await req.json();
       if (body?.action === "today_status") return Response.json(await todayStatus(ctx));
       if (body?.action === "save") return Response.json(await saveOrder(ctx, body));
+      if (body?.action === "admin_settings") return Response.json(await adminSettings(ctx));
+      if (body?.action === "save_admin_settings") return Response.json(await saveAdminSettings(ctx, body));
       return Response.json({ message: "不支援的訂餐操作" }, { status: 400 });
     } catch (error) {
       return Response.json({ message: error instanceof Error ? error.message : "訂餐失敗" }, { status: 400 });
