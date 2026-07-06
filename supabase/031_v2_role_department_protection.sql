@@ -74,12 +74,13 @@ begin
       new.attendance_enabled := false;
       return new;
     end if;
-    if new.address is distinct from old.address
-      or new.latitude is distinct from old.latitude
-      or new.longitude is distinct from old.longitude
-      or new.attendance_enabled is distinct from old.attendance_enabled then
-      raise exception '只有管理員可以修改打卡地址、座標與啟用設定' using errcode = '42501';
-    end if;
+
+    -- Managers may edit ordinary department fields. Any attendance fields sent by
+    -- an older client are ignored and the current protected values are retained.
+    new.address := old.address;
+    new.latitude := old.latitude;
+    new.longitude := old.longitude;
+    new.attendance_enabled := old.attendance_enabled;
     return new;
   end if;
 
