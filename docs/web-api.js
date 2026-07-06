@@ -79,9 +79,11 @@
 
   function isPhoneDevice() {
     const userAgent = navigator.userAgent || "";
+    const isTablet = /iPad|Tablet|Silk/i.test(userAgent)
+      || (/Android/i.test(userAgent) && !/Mobile|Mobi/i.test(userAgent));
     return Boolean(
       navigator.userAgentData?.mobile
-        || /Android|iPhone|iPod|Windows Phone|Mobi/i.test(userAgent)
+        || (!isTablet && /Android|iPhone|iPod|Windows Phone|Mobi|Mobile/i.test(userAgent))
     );
   }
 

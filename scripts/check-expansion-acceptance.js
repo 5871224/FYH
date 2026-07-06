@@ -43,6 +43,7 @@ assert(styles.includes("grid-template-columns: minmax(0, 1.66fr) minmax(0, 0.78f
 assert(index.includes('id="clockCard"') && renderer.includes("function renderClockPage"), "clock page should be present");
 assert(attendanceClock.includes("MAX_GPS_DISTANCE_METERS = 300"), "clocking should enforce GPS distance");
 assert(attendanceClock.includes("deviceType") && webApi.includes("deviceType: isPhoneDevice() ? \"phone\" : \"desktop\""), "clocking should distinguish phone GPS from desktop IP");
+assert(renderer.includes("timeout: 15000") && renderer.includes("maximumAge: 0"), "phone GPS clocking should wait for a fresh high-accuracy location");
 assert(schema.includes("create or replace function public.save_attendance_clock"), "clocking should use an atomic database RPC");
 assert(attendanceClock.includes('rpc("save_attendance_clock"') && attendanceClock.includes('body?.action === "clock_in"') && attendanceClock.includes('body?.action === "clock_out"'), "clocking should call the atomic clock RPC for clock in and out");
 

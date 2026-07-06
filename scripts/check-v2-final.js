@@ -140,10 +140,20 @@ assert(sourceExport === publishedExport, "訂餐 Excel 來源版與發布版不�
 assert(!sourceExport.includes("首次下訂時間"), "訂餐 Excel 不應顯示首次下訂時間");
 assert(!sourceExport.includes("最後修改時間"), "訂餐 Excel 不應顯示最後修改時間");
 assert(!sourceExport.includes("員工工號"), "訂餐 Excel 不應顯示員工工號");
+assert(!sourceExport.includes('"警告"'), "訂餐 Excel 不應有獨立警告欄");
 assert(sourceExport.includes("此訂單所依據的上班打卡已被刪除"), "訂餐 Excel 缺少打卡刪除警告");
+
+const sourceRecords = read("src/renderer/v2-records.js");
+const publishedRecords = read("docs/v2-records.js");
+assert(sourceRecords === publishedRecords, "記錄頁來源版與發布版不同步");
+assert(!sourceRecords.includes('["meal", "訂餐統計", isManager()]'), "記錄頁不應顯示訂餐統計頁籤");
+assert(sourceRecords.includes("data-meal-report-view"), "訂餐統計缺少報表切換下拉選單");
+assert(sourceRecords.includes('value="item"') && sourceRecords.includes('value="member"'), "訂餐統計缺少品項或人員報表");
+assert(sourceRecords.includes("上班打卡已刪除") && !sourceRecords.includes("<th>警告</th>"), "訂餐統計警告應併入備註欄");
 
 const readme = read("README.md");
 assert(readme.includes("查看完整班表"), "規格書未明確標示員工可查看完整班表");
+assert(readme.includes("警告併入備註欄"), "規格書未明確標示訂餐統計警告併入備註欄");
 assert(readme.includes("本次異動原因為選填"), "規格書未明確標示打卡異動原因為選填");
 assert(readme.includes("不顯示員工工號、首次下訂時間及最後修改時間"), "規格書未明確標示訂餐報表隱藏欄位");
 assert(readme.includes("主管可刪除員工或主管帳號"), "規格書未明確標示主管刪除權限");
@@ -154,5 +164,7 @@ assert(sourceIndex.includes("v2-api.js"), "來源頁未載入 V2 API");
 assert(publishedIndex.includes("v2-api.js"), "發布頁未載入 V2 API");
 assert(sourceIndex.includes("v2-overtime-employee.js"), "來源頁未載入五日加班介面");
 assert(publishedIndex.includes("v2-overtime-employee.js"), "發布頁未載入五日加班介面");
+assert(sourceIndex.includes("v2-records.js") && sourceIndex.includes("v2-meal-export.js"), "來源頁未載入 V2 記錄或訂餐匯出介面");
+assert(publishedIndex.includes("v2-records.js") && publishedIndex.includes("v2-meal-export.js"), "發布頁未載入 V2 記錄或訂餐匯出介面");
 
 console.log(`V2 final checks passed (${required.length} required files).`);

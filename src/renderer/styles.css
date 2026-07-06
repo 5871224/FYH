@@ -217,17 +217,17 @@ button {
 .home-action-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .home-action-card {
-  min-height: 132px;
-  padding: 22px;
+  min-height: 104px;
+  padding: 16px;
   border: 1px solid rgba(156, 107, 47, 0.22);
   border-radius: 24px;
   background: rgba(255, 253, 248, 0.86);
   color: var(--text);
-  text-align: left;
+  text-align: center;
   box-shadow: 0 12px 24px rgba(72, 52, 31, 0.06);
 }
 
@@ -242,9 +242,9 @@ button {
 }
 
 .home-action-title {
-  font-size: 26px;
+  font-size: 23px;
   font-weight: 900;
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 .home-action-text {
@@ -295,15 +295,20 @@ body.is-home-view .app-shell {
 
 .clock-page-header {
   display: flex;
-  flex-direction: column;
   align-items: flex-start;
-  gap: 18px;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 22px;
 }
 
 .clock-page-header h1 {
   margin: 0;
   font-size: clamp(28px, 5vw, 42px);
+}
+
+.page-home-btn {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .clock-action-grid {
@@ -2946,12 +2951,14 @@ thead th.today,
   }
 
   .home-hero {
-    flex-direction: column;
+    flex-direction: row;
+    align-items: flex-start;
   }
 
   .home-header-actions {
     align-self: flex-start;
-    justify-content: flex-start;
+    justify-content: flex-end;
+    margin-left: auto;
   }
 
   .home-action-grid {
@@ -2959,12 +2966,12 @@ thead th.today,
   }
 
   .home-action-card {
-    min-height: 112px;
-    padding: 20px;
+    min-height: 84px;
+    padding: 14px;
   }
 
   .home-action-title {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .clock-card {

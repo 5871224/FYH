@@ -2568,7 +2568,9 @@ function formatClockTime(value) {
 
 function getBrowserPosition() {
   const userAgent = navigator.userAgent || "";
-  const isPhone = Boolean(navigator.userAgentData?.mobile || /Android|iPhone|iPod|Windows Phone|Mobi/i.test(userAgent));
+  const isTablet = /iPad|Tablet|Silk/i.test(userAgent)
+    || (/Android/i.test(userAgent) && !/Mobile|Mobi/i.test(userAgent));
+  const isPhone = Boolean(navigator.userAgentData?.mobile || (!isTablet && /Android|iPhone|iPod|Windows Phone|Mobi|Mobile/i.test(userAgent)));
   if (!isPhone || !navigator.geolocation) {
     return Promise.resolve({});
   }
@@ -2580,7 +2582,7 @@ function getBrowserPosition() {
         accuracy: position.coords.accuracy
       }),
       () => resolve({}),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   });
 }
@@ -3888,12 +3890,12 @@ function renderClockPage() {
   const disableClockOut = attendanceState.loading || clockOutDone;
   clockCard.innerHTML = `
     <div class="clock-page-header">
-      <button class="ghost-btn" type="button" data-home-action="home">返回首頁</button>
       <div>
         <p class="home-eyebrow">打卡</p>
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
         <p class="home-subtitle">今日日期：${escapeHtml(attendanceState.serverDate || getTodayDateString())}</p>
       </div>
+      ${renderHomeIconButton()}
     </div>
     ${attendanceState.error ? `<div class="auth-error clock-error">${escapeHtml(attendanceState.error)}</div>` : ""}
     <div class="clock-action-grid">
@@ -4026,12 +4028,12 @@ function renderMealPage() {
         : "";
   mealCard.innerHTML = `
     <div class="clock-page-header">
-      <button class="ghost-btn" type="button" data-home-action="home">返回首頁</button>
       <div>
         <p class="home-eyebrow">今日訂餐</p>
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
         <p class="home-subtitle">訂餐日期：${escapeHtml(status?.orderDate || getTodayDateString())}，截止時間：${escapeHtml(status?.cutoffTime || "--:--")}</p>
       </div>
+      ${renderHomeIconButton()}
     </div>
     ${isManager() ? `
       <div class="meal-tabs">
@@ -4071,6 +4073,10 @@ function renderMealPage() {
 
 function formatRecordDateTime(value) {
   return value ? formatClockTime(value) : "-";
+}
+
+function renderHomeIconButton() {
+  return `<button class="settings-icon-btn page-home-btn" type="button" data-home-action="home" aria-label="返回首頁" title="返回首頁"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>`;
 }
 
 function renderRecordsTabs() {
@@ -4283,12 +4289,12 @@ function renderRecordsPage() {
         : renderPersonalRecordsSection();
   recordsCard.innerHTML = `
     <div class="clock-page-header">
-      <button class="ghost-btn" type="button" data-home-action="home">返回首頁</button>
       <div>
         <p class="home-eyebrow">記錄</p>
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
         <p class="home-subtitle">個人記錄與管理作業。</p>
       </div>
+      ${renderHomeIconButton()}
     </div>
     ${renderRecordsTabs()}
     ${recordsState.error ? `<div class="auth-error clock-error">${escapeHtml(recordsState.error)}</div>` : ""}

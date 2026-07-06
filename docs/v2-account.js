@@ -66,10 +66,10 @@
     openMemberSettings();
   };
 
-  if (!document.querySelector('script[data-v2-records]')) {
+  if (!document.querySelector('script[data-v2-module="v2-records.js"]')) {
     const script = document.createElement("script");
     script.src = "./v2-records.js?v=20260706v2";
-    script.dataset.v2Records = "true";
+    script.dataset.v2Module = "v2-records.js";
     document.body.appendChild(script);
   }
 })();

@@ -57,10 +57,13 @@
       "數量",
       "單價",
       "小計",
-      "品項備註",
-      "警告"
+      "品項備註"
     ]);
     details.forEach((row) => {
+      const note = [
+        row.note || "",
+        row.clockDeletedWarning ? "此訂單所依據的上班打卡已被刪除" : ""
+      ].filter(Boolean).join("；");
       detailSheet.addRow([
         row.date || "",
         row.departmentName || "",
@@ -69,11 +72,10 @@
         Number(row.quantity || 0),
         Number(row.unitPrice || 0),
         Number(row.amount || 0),
-        row.note || "",
-        row.clockDeletedWarning ? "此訂單所依據的上班打卡已被刪除" : ""
+        note
       ]);
     });
-    setWidths(detailSheet, [14, 20, 18, 24, 10, 12, 14, 24, 36]);
+    setWidths(detailSheet, [14, 20, 18, 24, 10, 12, 14, 36]);
 
     [summarySheet, detailSheet].forEach((sheet) => {
       sheet.getRow(1).font = { bold: true };

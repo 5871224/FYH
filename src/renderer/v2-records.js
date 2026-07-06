@@ -36,6 +36,7 @@
     recordsState.personalTotal = Number(recordsState.personalTotal || 0);
     recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
     recordsState.mealPage = Number(recordsState.mealPage || 1);
+    recordsState.mealReportView = recordsState.mealReportView || "detail";
     return recordsState;
   }
 
@@ -59,7 +60,6 @@
         error: ""
       };
       if (isAdmin()) await Promise.all([loadOvertimeReview(false), loadAttendanceAdmin(false)]);
-      if (isManager() && recordsState.activeTab === "meal") await loadMealReport(false);
     } catch (error) {
       recordsState = { ...recordsState, loading: false, personal: [], error: error.message || "讀取記錄失敗" };
     }
@@ -86,7 +86,6 @@
   renderRecordsTabs = function renderV2RecordsTabs() {
     const tabs = [
       ["personal", "個人記錄", true],
-      ["meal", "訂餐統計", isManager()],
       ["overtime", "加班審核", isAdmin()],
       ["attendance", "打卡管理", isAdmin()]
     ].filter((tab) => tab[2]);
@@ -131,17 +130,45 @@
     ensureState();
     const report = recordsState.mealStats || {};
     const filters = recordsState.mealFilters;
+    const view = recordsState.mealReportView || "detail";
     const page = Number(report.page || recordsState.mealPage || 1);
     const pageSize = Number(report.pageSize || 50);
     const total = Number(report.total || 0);
     const pages = Math.max(1, Math.ceil(total / pageSize));
+    const allDetails = Array.isArray(report.exportDetails) ? report.exportDetails : (report.details || []);
+    const details = report.details || [];
+    const withWarningNote = (row) => [row.note || "", row.clockDeletedWarning ? "上班打卡已刪除" : ""].filter(Boolean).join("；");
+    const itemRows = Array.from(allDetails.reduce((map, row) => {
+      const key = `${row.productName || ""}:${Number(row.unitPrice || 0)}`;
+      const current = map.get(key) || { productName: row.productName || "", quantity: 0, unitPrice: Number(row.unitPrice || 0), amount: 0 };
+      current.quantity += Number(row.quantity || 0);
+      current.amount += Number(row.amount || 0);
+      map.set(key, current);
+      return map;
+    }, new Map()).values()).sort((a, b) => String(a.productName).localeCompare(String(b.productName)));
+    const memberRows = Array.from(allDetails.reduce((map, row) => {
+      const key = row.employeeId || row.employeeName || "";
+      const current = map.get(key) || { employeeName: row.employeeName || "", dates: new Set(), amount: 0 };
+      if (Number(row.quantity || 0) > 0 && row.date) current.dates.add(row.date);
+      current.amount += Number(row.amount || 0);
+      map.set(key, current);
+      return map;
+    }, new Map()).values()).map((row) => {
+      const days = row.dates.size;
+      return { employeeName: row.employeeName, days, amount: row.amount, selfPay: row.amount - days * 55 };
+    }).sort((a, b) => String(a.employeeName).localeCompare(String(b.employeeName)));
+    const table = view === "item"
+      ? `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>品項</th><th>數量</th><th>單價</th><th>小計</th></tr></thead><tbody>${itemRows.map((row) => `<tr><td>${escapeHtml(row.productName)}</td><td>${Number(row.quantity || 0)}</td><td>$${Number(row.unitPrice || 0).toFixed(0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td></tr>`).join("") || '<tr><td colspan="4">沒有訂餐資料</td></tr>'}</tbody></table></div>`
+      : view === "member"
+        ? `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>姓名</th><th>訂餐日數</th><th>金額</th><th>自付額</th></tr></thead><tbody>${memberRows.map((row) => `<tr><td>${escapeHtml(row.employeeName)}</td><td>${Number(row.days || 0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td><td>$${Number(row.selfPay || 0).toFixed(0)}</td></tr>`).join("") || '<tr><td colspan="4">沒有訂餐資料</td></tr>'}</tbody></table></div>`
+        : `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>日期</th><th>單位</th><th>員工</th><th>品項</th><th>數量</th><th>單價</th><th>小計</th><th>備註</th></tr></thead><tbody>${details.map((row) => `<tr><td>${escapeHtml(row.date || "")}</td><td>${escapeHtml(row.departmentName || "")}</td><td>${escapeHtml(row.employeeName || "")}</td><td>${escapeHtml(row.productName || "")}</td><td>${Number(row.quantity || 0)}</td><td>$${Number(row.unitPrice || 0).toFixed(0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td><td>${escapeHtml(withWarningNote(row))}</td></tr>`).join("") || '<tr><td colspan="8">沒有訂餐資料</td></tr>'}</tbody></table></div>`;
     return `<section class="records-section">
       <h2>訂餐統計</h2>
-      <div class="records-filter-row"><input type="date" value="${escapeHtml(filters.fromDate)}" data-meal-report-filter="fromDate"><input type="date" value="${escapeHtml(filters.toDate)}" data-meal-report-filter="toDate"><select data-meal-report-filter="departmentId">${departmentOptions(filters.departmentId)}</select><select data-meal-report-filter="memberId">${memberOptions(filters.memberId)}</select><button class="primary-btn compact-btn" type="button" data-load-meal-report="true">查詢</button><button class="ghost-btn compact-btn" type="button" data-export-meal-report="true">匯出</button></div>
+      <div class="records-filter-row"><input type="date" value="${escapeHtml(filters.fromDate)}" data-meal-report-filter="fromDate"><input type="date" value="${escapeHtml(filters.toDate)}" data-meal-report-filter="toDate"><select data-meal-report-filter="departmentId">${departmentOptions(filters.departmentId)}</select><select data-meal-report-filter="memberId">${memberOptions(filters.memberId)}</select><select data-meal-report-view><option value="detail" ${view === "detail" ? "selected" : ""}>明細</option><option value="item" ${view === "item" ? "selected" : ""}>品項</option><option value="member" ${view === "member" ? "selected" : ""}>人員</option></select><button class="primary-btn compact-btn" type="button" data-load-meal-report="true">查詢</button><button class="ghost-btn compact-btn" type="button" data-export-meal-report="true">匯出</button></div>
       ${report.error ? `<div class="auth-error">${escapeHtml(report.error)}</div>` : ""}
       <div class="meal-stats-grid"><div><strong>${Number(report.totals?.quantity || 0)}</strong><span>期間總數量</span></div><div><strong>$${Number(report.totals?.amount || 0).toFixed(0)}</strong><span>期間總金額</span></div></div>
-      <div class="records-table-wrap"><table class="records-table"><thead><tr><th>日期</th><th>單位</th><th>員工</th><th>品項</th><th>數量</th><th>單價</th><th>小計</th><th>備註</th><th>警告</th></tr></thead><tbody>${(report.details || []).map((row) => `<tr><td>${escapeHtml(row.date || "")}</td><td>${escapeHtml(row.departmentName || "")}</td><td>${escapeHtml(row.employeeName || "")}</td><td>${escapeHtml(row.productName || "")}</td><td>${Number(row.quantity || 0)}</td><td>$${Number(row.unitPrice || 0).toFixed(0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td><td>${escapeHtml(row.note || "")}</td><td>${row.clockDeletedWarning ? "上班打卡已刪除" : ""}</td></tr>`).join("") || '<tr><td colspan="9">沒有訂餐資料</td></tr>'}</tbody></table></div>
-      <div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-v2-meal-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-v2-meal-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>
+      ${table}
+      ${view === "detail" ? `<div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-v2-meal-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-v2-meal-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>` : ""}
     </section>`;
   };
 
@@ -149,14 +176,12 @@
     const recordsCard = document.getElementById("recordsCard");
     if (!recordsCard) return;
     if (!isLoggedIn()) { recordsCard.innerHTML = ""; return; }
-    const activeSection = recordsState.activeTab === "meal"
-      ? renderMealReportSection()
-      : recordsState.activeTab === "overtime"
+    const activeSection = recordsState.activeTab === "overtime"
         ? renderOvertimeReviewSection()
         : recordsState.activeTab === "attendance"
           ? renderAttendanceAdminSection()
           : renderPersonalRecordsSection();
-    recordsCard.innerHTML = `<div class="clock-page-header"><button class="ghost-btn" type="button" data-home-action="home">返回首頁</button><div><p class="home-eyebrow">記錄</p><h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1><p class="home-subtitle">個人記錄與管理作業。</p></div></div>${renderRecordsTabs()}${recordsState.error ? `<div class="auth-error clock-error">${escapeHtml(recordsState.error)}</div>` : ""}${activeSection}${recordsState.loading ? '<p class="clock-loading">讀取中，請稍候...</p>' : ""}`;
+    recordsCard.innerHTML = `<div class="clock-page-header"><div><p class="home-eyebrow">記錄</p><h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1><p class="home-subtitle">個人記錄與管理作業。</p></div>${renderHomeIconButton()}</div>${renderRecordsTabs()}${recordsState.error ? `<div class="auth-error clock-error">${escapeHtml(recordsState.error)}</div>` : ""}${activeSection}${recordsState.loading ? '<p class="clock-loading">讀取中，請稍候...</p>' : ""}`;
   };
 
   async function cancelMeal() {
@@ -179,6 +204,10 @@
     }
     if ((target instanceof HTMLInputElement || target instanceof HTMLSelectElement) && target.dataset.mealReportFilter) {
       recordsState.mealPage = 1;
+    }
+    if (target instanceof HTMLSelectElement && target.dataset.mealReportView !== undefined) {
+      recordsState.mealReportView = target.value || "detail";
+      renderAll();
     }
   });
 
@@ -203,6 +232,5 @@
       })();
     }
     if (target.dataset.v2CancelRecordMeal) void cancelMeal();
-    if (target.dataset.recordsTab === "meal") queueMicrotask(() => loadMealReport());
   });
 })();

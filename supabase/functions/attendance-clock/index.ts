@@ -45,10 +45,11 @@ function isPhoneRequest(req: Request, requestedDeviceType: unknown) {
   const isTablet = isIPad || isAndroidTablet || /Tablet|Silk/i.test(userAgent);
 
   if (isTablet) return false;
+  if (requestedDeviceType === "phone") return true;
   if (clientHintMobile) return true;
   if (/iPhone|iPod|Windows Phone|Mobi|Mobile/i.test(userAgent)) return true;
 
-  return requestedDeviceType === "phone";
+  return false;
 }
 
 function toNumber(value: unknown) {
