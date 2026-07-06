@@ -6,6 +6,7 @@ const rootDir = path.resolve(__dirname, "..");
 const read = (...parts) => fs.readFileSync(path.join(rootDir, ...parts), "utf8");
 
 const schema = read("supabase", "001_current_schema.sql");
+const mealV2Schema = read("supabase", "030_v2_meal_snapshot.sql");
 const index = read("src", "renderer", "index.html");
 const renderer = read("src", "renderer", "renderer.js");
 const webApi = read("src", "renderer", "web-api.js");
@@ -28,6 +29,9 @@ assert(webApi.includes("function assertSessionActive"), "authenticated requests 
 assert(index.includes('id="homeCard"') && renderer.includes("function renderHomeDashboard"), "login should land on the home dashboard");
 assert(index.includes('id="scheduleCard" hidden'), "schedule table should be hidden until the schedule page is opened");
 assert(renderer.includes('[hidden]') || read("src", "renderer", "styles.css").includes("[hidden]"), "hidden sections should stay hidden on mobile");
+assert(renderer.includes('toggle.textContent = "功能"'), "schedule top-right menu should be labelled function");
+assert(index.includes('id="coreHomeButton"') && !index.includes('data-home-action="home">首頁</button>\n              <button'), "schedule home button should sit outside the function menu");
+assert(renderer.includes("home-password-btn") && !index.includes('data-open-change-password="true">修改密碼</button>'), "change password should live on the home dashboard");
 
 assert(index.includes('id="clockCard"') && renderer.includes("function renderClockPage"), "clock page should be present");
 assert(attendanceClock.includes("MAX_GPS_DISTANCE_METERS = 300"), "clocking should enforce GPS distance");
@@ -46,8 +50,8 @@ assert(renderer.includes('data-meal-tab="stats"') && renderer.includes("renderMe
 assert(!renderer.includes('["meal", "訂餐統計", isManager()]'), "records page should not expose the meal stats tab");
 assert(renderer.includes('<table class="meal-order-table">'), "today meal order should render as a table");
 assert(renderer.includes("data-meal-product-row") && renderer.includes("commitMealProductOrderFromDom"), "meal settings should support drag ordering");
-assert(schema.includes("create or replace function public.save_meal_order"), "meal ordering should use a database transaction RPC");
-assert(mealOrder.includes('rpc("save_meal_order"'), "meal ordering should call the transaction RPC");
+assert(schema.includes("create or replace function public.save_meal_order") || mealV2Schema.includes("create or replace function public.save_meal_order_v2"), "meal ordering should use a database transaction RPC");
+assert(mealOrder.includes('rpc("save_meal_order"') || mealOrder.includes('rpc("save_meal_order_v2"'), "meal ordering should call the transaction RPC");
 assert(schema.includes("請先完成上班打卡後再訂餐") && schema.includes("今日訂餐已超過截止時間"), "meal ordering should require clock-in and cutoff checks in the transaction");
 assert(renderer.includes("data-meal-note-product-id"), "meal ordering should support per-item notes");
 

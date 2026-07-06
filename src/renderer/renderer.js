@@ -3039,7 +3039,7 @@ function syncRoleUi() {
   syncToolbarCollapseUi();
   const coreActionsShell = document.getElementById("coreActionsShell");
   if (coreActionsShell) {
-    coreActionsShell.style.display = "";
+    coreActionsShell.style.display = isManager() ? "" : "none";
   }
   document.querySelectorAll(".manager-action").forEach((element) => {
     element.style.display = isManager() ? "" : "none";
@@ -3075,14 +3075,19 @@ function syncRoleUi() {
 function renderAuthBar() {
   const toggle = document.getElementById("coreActionsToggle");
   const menu = document.getElementById("coreActionsMenu");
+  const homeButton = document.getElementById("coreHomeButton");
   if (!toggle || !menu) {
     return;
   }
   const loggedIn = isLoggedIn();
   const manager = loggedIn && isManager();
   const hasProfile = Boolean(currentProfile);
-  toggle.textContent = loggedIn ? getCurrentProfileName() || "已登入" : "登入";
-  toggle.title = loggedIn ? "開啟使用者功能" : "登入";
+  toggle.textContent = "功能";
+  toggle.title = "開啟功能";
+  toggle.style.display = manager ? "" : "none";
+  if (homeButton) {
+    homeButton.style.display = loggedIn ? "" : "none";
+  }
   menu.querySelectorAll(".user-menu-login").forEach((element) => {
     element.style.display = loggedIn ? "none" : "";
   });
@@ -3098,6 +3103,8 @@ function renderAuthBar() {
     element.disabled = !manager;
   });
   if (!loggedIn) {
+    closeCoreActionsMenu();
+  } else if (!manager) {
     closeCoreActionsMenu();
   }
 }
@@ -3818,7 +3825,10 @@ function renderHomeDashboard() {
         <p class="home-eyebrow">福圓號</p>
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
       </div>
-      <button class="ghost-btn home-signout-btn" type="button" id="homeSignOutButton">登出</button>
+      <div class="home-header-actions">
+        <button class="ghost-btn home-password-btn" type="button" data-open-change-password="true">修改密碼</button>
+        <button class="ghost-btn home-signout-btn" type="button" id="homeSignOutButton">登出</button>
+      </div>
     </div>
     <div class="home-action-grid">
       <button class="home-action-card home-action-card-primary" type="button" data-home-action="clock">

@@ -187,6 +187,13 @@ button {
   margin-bottom: 24px;
 }
 
+.home-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .home-eyebrow {
   margin: 0 0 8px;
   color: var(--accent-strong);
@@ -2942,8 +2949,9 @@ thead th.today,
     flex-direction: column;
   }
 
-  .home-signout-btn {
+  .home-header-actions {
     align-self: flex-start;
+    justify-content: flex-start;
   }
 
   .home-action-grid {

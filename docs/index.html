@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>班表</title>
-  <link rel="stylesheet" href="./styles.css?v=20260706172422">
+  <link rel="stylesheet" href="./styles.css?v=20260706173601">
 </head>
 <body>
   <div class="app-shell">
@@ -61,8 +61,6 @@
           <div class="core-actions-shell" id="coreActionsShell">
             <button class="ghost-btn core-actions-toggle" id="coreActionsToggle" type="button" aria-expanded="false">登入</button>
             <div class="core-actions-menu" id="coreActionsMenu" aria-hidden="true">
-              <button class="ghost-btn ops-btn user-menu-login" type="button" data-open-sign-in="true">登入</button>
-              <button class="ghost-btn ops-btn user-menu-auth" type="button" data-home-action="home">首頁</button>
               <button class="ghost-btn ops-btn manager-action" id="weekStartSettingsButton" type="button">週期設定</button>
               <button class="ghost-btn ops-btn manager-action" id="autoSchedulePreviewButton" type="button">自動排班預覽</button>
               <button class="primary-btn ops-btn manager-action" id="autoScheduleApplyButton" type="button">套用預覽</button>
@@ -70,10 +68,10 @@
               <button class="primary-btn ops-btn manager-action" id="exportSapButton" type="button">匯出休例假</button>
               <button class="primary-btn ops-btn manager-action" id="exportLeaveButton" type="button">匯出請假</button>
               <button class="primary-btn ops-btn manager-action" id="exportOvertimeButton" type="button">匯出加班</button>
-              <button class="ghost-btn ops-btn user-menu-auth" type="button" data-open-change-password="true">修改密碼</button>
               <button class="ghost-btn ops-btn user-menu-auth" id="signOutButton" type="button">登出</button>
             </div>
           </div>
+          <button class="ghost-btn compact-btn user-menu-auth" id="coreHomeButton" type="button" data-home-action="home">首頁</button>
         </div>
       </div>
 
@@ -92,12 +90,12 @@
   <div id="authRoot"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-  <script src="./app-config.js?v=20260706172422"></script>
-  <script src="./browser-exporter.js?v=20260706172422"></script>
-  <script src="./rest-compliance.js?v=20260706172422"></script>
-  <script src="./web-api.js?v=20260706172422"></script>
+  <script src="./app-config.js?v=20260706173601"></script>
+  <script src="./browser-exporter.js?v=20260706173601"></script>
+  <script src="./rest-compliance.js?v=20260706173601"></script>
+  <script src="./web-api.js?v=20260706173601"></script>
   <script src="./v2-api.js?v=20260706v2"></script>
-  <script src="./renderer.js?v=20260706172422"></script>
+  <script src="./renderer.js?v=20260706173601"></script>
   <script src="./v2-overtime-employee.js?v=20260706v2"></script>
   <script src="./v2-account.js?v=20260706v2"></script>
 </body>
