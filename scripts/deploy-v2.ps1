@@ -17,7 +17,7 @@ $functions = @(
 
 Write-Host "Deploying V2 Edge Functions..." -ForegroundColor Cyan
 Write-Host "This script does not apply SQL migrations." -ForegroundColor Yellow
-Write-Host "Apply supabase/027 through supabase/031 in SQL Editor first." -ForegroundColor Yellow
+Write-Host "Apply supabase/027 through supabase/032 in SQL Editor first." -ForegroundColor Yellow
 
 foreach ($functionName in $functions) {
   Write-Host "`nDeploying $functionName" -ForegroundColor Cyan
