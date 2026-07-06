@@ -3003,12 +3003,12 @@ function syncToolbarCollapseUi() {
   toggle.innerHTML = toolbarCollapsed
     ? `
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M6 9l6 6 6-6"></path>
+        <path d="M6 15l6-6 6 6"></path>
       </svg>
     `
     : `
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M6 15l6-6 6 6"></path>
+        <path d="M6 9l6 6 6-6"></path>
       </svg>
     `;
 }
@@ -4281,6 +4281,7 @@ function syncAppView() {
   const scheduleCard = document.getElementById("scheduleCard");
   const toolbarCard = document.querySelector(".toolbar-card");
   const showSchedule = loggedIn && appView === "schedule";
+  const showToolbar = showSchedule && isManager();
   if (homeCard) {
     homeCard.hidden = !loggedIn || appView !== "home";
   }
@@ -4297,7 +4298,7 @@ function syncAppView() {
     scheduleCard.hidden = !showSchedule;
   }
   if (toolbarCard) {
-    toolbarCard.hidden = !showSchedule;
+    toolbarCard.hidden = !showToolbar;
   }
   document.body.classList.toggle("is-authenticated", loggedIn);
   document.body.classList.toggle("is-home-view", loggedIn && appView === "home");

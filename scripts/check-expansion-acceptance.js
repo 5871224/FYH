@@ -9,6 +9,7 @@ const schema = read("supabase", "001_current_schema.sql");
 const mealV2Schema = read("supabase", "030_v2_meal_snapshot.sql");
 const index = read("src", "renderer", "index.html");
 const renderer = read("src", "renderer", "renderer.js");
+const styles = read("src", "renderer", "styles.css");
 const webApi = read("src", "renderer", "web-api.js");
 const attendanceClock = read("supabase", "functions", "attendance-clock", "index.ts");
 const attendanceOvertime = read("supabase", "functions", "attendance-overtime", "index.ts");
@@ -32,6 +33,9 @@ assert(renderer.includes('[hidden]') || read("src", "renderer", "styles.css").in
 assert(renderer.includes('toggle.textContent = "功能"'), "schedule top-right menu should be labelled function");
 assert(index.includes('id="coreHomeButton"') && !index.includes('data-home-action="home">首頁</button>\n              <button'), "schedule home button should sit outside the function menu");
 assert(renderer.includes("home-password-btn") && !index.includes('data-open-change-password="true">修改密碼</button>'), "change password should live on the home dashboard");
+assert(renderer.includes("const showToolbar = showSchedule && isManager()"), "schedule floating toolbar should be manager-only");
+assert(styles.includes(".toolbar-top-row") && styles.includes("left: 10px;"), "toolbar collapse button should sit at the left edge");
+assert(index.includes('<path d="M6 9l6 6 6-6"></path>') && renderer.includes('<path d="M6 15l6-6 6 6"></path>'), "toolbar collapse and expand icons should be swapped");
 
 assert(index.includes('id="clockCard"') && renderer.includes("function renderClockPage"), "clock page should be present");
 assert(attendanceClock.includes("MAX_GPS_DISTANCE_METERS = 300"), "clocking should enforce GPS distance");
