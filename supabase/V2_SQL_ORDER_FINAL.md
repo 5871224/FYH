@@ -4,7 +4,7 @@ Edge Functions 部署不會自動執行 SQL。請在 Supabase SQL Editor 依序�
 
 1. `001_current_schema.sql`
 2. `024_schedule_entries_rpc.sql`
-3. `026_attendance_meal_admin_rpc.sql`
+3. `026_meal_admin_settings_rpc.sql`
 4. `027_v2_security.sql`
 5. `028_v2_attendance_clock.sql`
 6. `029_v2_attendance_admin.sql`

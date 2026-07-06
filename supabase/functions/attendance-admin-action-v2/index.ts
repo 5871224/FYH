@@ -43,7 +43,6 @@ async function save(ctx: any, body: any) {
   const operator = await requireAdmin(ctx);
   const row = body?.record || {};
   const reason = String(row.reason || "").trim();
-  if (!reason) throw new Error("請填寫本次打卡異動原因");
   const workDate = validDate(row.workDate || row.work_date);
   const result = await ctx.supabaseAdmin.rpc("admin_update_attendance_record", {
     p_record_id: row.id || null,

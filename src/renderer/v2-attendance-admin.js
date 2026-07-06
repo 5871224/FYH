@@ -101,7 +101,7 @@
         <div class="form-row"><label>下班時間</label><input id="adminClockOutTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_out_at))}"></div>
         <div class="form-row"><label>下班單位</label><select id="adminClockOutDepartment"><option value="">未指定</option>${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${row.clock_out_department_id === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}</select></div>
         <div class="form-row form-row-wide"><label>每日打卡備註</label><textarea id="adminAttendanceNote" rows="3">${escapeHtml(row.attendance_note || "")}</textarea></div>
-        <div class="form-row form-row-wide"><label>本次異動原因</label><textarea id="adminAttendanceReason" rows="2" required placeholder="必填，會保存於修改歷程"></textarea></div>
+        <div class="form-row form-row-wide"><label>本次異動原因</label><textarea id="adminAttendanceReason" rows="2" placeholder="選填，會保存於修改歷程"></textarea></div>
       </div>`,
       footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-attendance-edit="${escapeHtml(userId)}:${escapeHtml(workDate)}:${escapeHtml(row.id || "")}">儲存</button>`
     });
@@ -110,10 +110,6 @@
   saveAttendanceEdit = async function saveV2AttendanceEdit(token) {
     const [userId, workDate, recordId] = String(token || "").split(":");
     const reason = document.getElementById("adminAttendanceReason")?.value.trim() || "";
-    if (!reason) {
-      showInfoMessage("請填寫本次打卡異動原因");
-      return;
-    }
     try {
       await window.schedulerApi.saveAttendanceAdminRecord({
         id: recordId || "",

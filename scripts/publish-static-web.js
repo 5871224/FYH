@@ -11,7 +11,15 @@ const files = [
   "rest-compliance.js",
   "web-api.js",
   "browser-exporter.js",
-  "app-config.js"
+  "app-config.js",
+  "v2-account.js",
+  "v2-api.js",
+  "v2-attendance-admin.js",
+  "v2-meal-export.js",
+  "v2-meal.js",
+  "v2-overtime-admin.js",
+  "v2-overtime-employee.js",
+  "v2-records.js"
 ];
 const cacheBustedAssets = [
   "styles.css",
@@ -19,7 +27,15 @@ const cacheBustedAssets = [
   "browser-exporter.js",
   "rest-compliance.js",
   "web-api.js",
-  "renderer.js"
+  "v2-account.js",
+  "v2-api.js",
+  "renderer.js",
+  "v2-attendance-admin.js",
+  "v2-meal-export.js",
+  "v2-meal.js",
+  "v2-overtime-admin.js",
+  "v2-overtime-employee.js",
+  "v2-records.js"
 ];
 
 async function ensureDir(dirPath) {

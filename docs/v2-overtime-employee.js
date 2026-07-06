@@ -1,6 +1,117 @@
-(() => {
-  const script = document.createElement("script");
-  script.src = "https://cdn.jsdelivr.net/gh/5871224/FYH@7b8b678fbd9cd8029b4ed7ded4f5a121fc500bfb/src/renderer/v2-overtime-employee.js";
-  script.defer = false;
-  document.head.appendChild(script);
+(function installV2EmployeeOvertimeUi() {
+  if (!window.schedulerApi || typeof renderAll !== "function") return;
+
+  function selectedDate() {
+    return attendanceOvertimeState.selectedWorkDate || getTodayDateString();
+  }
+
+  loadTodayAttendanceOvertime = async function loadV2AttendanceOvertime(shouldRender = true) {
+    if (!isLoggedIn()) return;
+    const workDate = selectedDate();
+    attendanceOvertimeState = { ...attendanceOvertimeState, loading: true, error: "", selectedWorkDate: workDate };
+    if (shouldRender) renderAll();
+    try {
+      const [dateResult, status] = await Promise.all([
+        window.schedulerApi.getEmployeeOvertimeDates(),
+        window.schedulerApi.getAttendanceOvertimeForDate(workDate)
+      ]);
+      attendanceOvertimeState = {
+        loading: false,
+        status,
+        dates: dateResult.dates || [],
+        selectedWorkDate: workDate,
+        error: ""
+      };
+    } catch (error) {
+      attendanceOvertimeState = {
+        ...attendanceOvertimeState,
+        loading: false,
+        status: null,
+        selectedWorkDate: workDate,
+        error: error.message || "讀取加班申請狀態失敗"
+      };
+    }
+    if (shouldRender) renderAll();
+  };
+
+  submitTodayOvertimeRequest = async function submitV2OvertimeRequest() {
+    if (attendanceOvertimeState.loading) return;
+    const workDate = selectedDate();
+    const earlyHours = Number(document.getElementById("overtimeEarlyHours")?.value || 0);
+    const lateHours = Number(document.getElementById("overtimeLateHours")?.value || 0);
+    const note = document.getElementById("overtimeEmployeeNote")?.value || "";
+    attendanceOvertimeState = { ...attendanceOvertimeState, loading: true, error: "" };
+    renderAll();
+    try {
+      await window.schedulerApi.submitAttendanceOvertime({ workDate, earlyHours, lateHours, note });
+      await loadTodayAttendanceOvertime(false);
+      showInfoMessage(`${workDate} 加班申請已送出`);
+    } catch (error) {
+      attendanceOvertimeState = { ...attendanceOvertimeState, loading: false, error: error.message || "送出加班申請失敗" };
+    }
+    renderAll();
+  };
+
+  deleteTodayOvertimeRequest = async function deleteV2OvertimeRequest() {
+    const workDate = selectedDate();
+    const confirmed = await confirmAction(`確定要刪除 ${workDate} 的加班申請嗎？`);
+    if (!confirmed) return;
+    attendanceOvertimeState = { ...attendanceOvertimeState, loading: true, error: "" };
+    renderAll();
+    try {
+      await window.schedulerApi.deleteAttendanceOvertime(workDate);
+      await loadTodayAttendanceOvertime(false);
+      showInfoMessage("加班申請已刪除");
+    } catch (error) {
+      attendanceOvertimeState = { ...attendanceOvertimeState, loading: false, error: error.message || "刪除加班申請失敗" };
+    }
+    renderAll();
+  };
+
+  renderTodayOvertimePanel = function renderV2OvertimePanel() {
+    const stateValue = attendanceOvertimeState.status;
+    const eligibility = stateValue?.eligibility || null;
+    const request = stateValue?.request || null;
+    const workDate = selectedDate();
+    const dateRows = attendanceOvertimeState.dates || [];
+    const dateValues = [...new Set([workDate, ...dateRows.map((row) => row.workDate).filter(Boolean)])];
+    const selector = `<div class="form-row"><label for="overtimeWorkDate">申請日期</label><select id="overtimeWorkDate">${dateValues.map((date) => `<option value="${escapeHtml(date)}" ${date === workDate ? "selected" : ""}>${escapeHtml(date)}</option>`).join("")}</select></div>`;
+
+    if (attendanceOvertimeState.loading) return `<section class="overtime-request-panel">${selector}<p class="clock-loading">讀取加班狀態...</p></section>`;
+    if (attendanceOvertimeState.error) return `<section class="overtime-request-panel">${selector}<div class="auth-error">${escapeHtml(attendanceOvertimeState.error)}</div></section>`;
+    if (!stateValue) return `<section class="overtime-request-panel">${selector}</section>`;
+
+    if (request) {
+      const canDelete = request.status === "pending" || request.status === "returned";
+      return `<section class="overtime-request-panel">
+        <div class="overtime-panel-header"><div><h2>${escapeHtml(workDate)} 加班申請</h2><p>${getOvertimeStatusLabel(request.status)}，合計 ${Number(request.total_overtime_hours || 0)} 小時</p></div>${canDelete ? '<button class="ghost-btn" type="button" data-delete-today-overtime="true">刪除申請</button>' : ""}</div>
+        ${request.attendance_changed_warning ? '<div class="auth-error">打卡時間已異動，需重新審核</div>' : ""}
+        <div class="clock-status-grid"><div><span>提早上班</span><strong>${Number(request.early_overtime_hours || 0)} 小時</strong></div><div><span>延後下班</span><strong>${Number(request.late_overtime_hours || 0)} 小時</strong></div></div>
+        ${selector}
+      </section>`;
+    }
+
+    if (!eligibility?.eligible) {
+      return `<section class="overtime-request-panel"><h2>${escapeHtml(workDate)} 加班申請</h2>${selector}<p class="home-subtitle">${escapeHtml(eligibility?.reasons?.[0] || "目前不可申請加班")}</p>${eligibility?.deadlineDate ? `<p class="home-subtitle">申請期限：${escapeHtml(eligibility.deadlineDate)} 23:59</p>` : ""}</section>`;
+    }
+
+    return `<section class="overtime-request-panel">
+      <div class="overtime-panel-header"><div><h2>${escapeHtml(workDate)} 加班申請</h2><p>系統計算 ${Number(eligibility.totalHours || 0)} 小時；可依實際情況向上或向下調整。</p></div></div>
+      <div class="form-grid two-col">${selector}
+        <div class="form-row"><label for="overtimeEarlyHours">提早上班時數</label><input id="overtimeEarlyHours" type="number" min="0" step="0.5" value="${Number(eligibility.earlyHours || 0)}"></div>
+        <div class="form-row"><label for="overtimeLateHours">延後下班時數</label><input id="overtimeLateHours" type="number" min="0" step="0.5" value="${Number(eligibility.lateHours || 0)}"></div>
+        <div class="form-row form-row-wide"><label for="overtimeEmployeeNote">加班備註</label><textarea id="overtimeEmployeeNote" rows="3" placeholder="可填寫加班原因或補充說明"></textarea></div>
+      </div>
+      <p class="home-subtitle">申請期限：${escapeHtml(eligibility.deadlineDate || "")} 23:59</p>
+      <button class="btn-primary overtime-submit-btn" type="button" data-submit-today-overtime="true">送出加班申請</button>
+    </section>`;
+  };
+
+  document.addEventListener("change", (event) => {
+    const target = event.target;
+    if (target instanceof HTMLSelectElement && target.id === "overtimeWorkDate") {
+      attendanceOvertimeState = { ...attendanceOvertimeState, selectedWorkDate: target.value };
+      void loadTodayAttendanceOvertime();
+    }
+  });
 })();

@@ -52,34 +52,28 @@
     detailSheet.addRow([
       "日期",
       "單位",
-      "員工工號",
-      "員工姓名",
+      "員工",
       "品項",
       "數量",
       "單價",
       "小計",
       "品項備註",
-      "首次下訂時間",
-      "最後修改時間",
       "警告"
     ]);
     details.forEach((row) => {
       detailSheet.addRow([
         row.date || "",
         row.departmentName || "",
-        row.employeeCode || "",
         row.employeeName || "",
         row.productName || "",
         Number(row.quantity || 0),
         Number(row.unitPrice || 0),
         Number(row.amount || 0),
         row.note || "",
-        row.submittedAt || "",
-        row.updatedAt || "",
         row.clockDeletedWarning ? "此訂單所依據的上班打卡已被刪除" : ""
       ]);
     });
-    setWidths(detailSheet, [14, 20, 14, 18, 24, 10, 12, 14, 24, 22, 22, 36]);
+    setWidths(detailSheet, [14, 20, 18, 24, 10, 12, 14, 24, 36]);
 
     [summarySheet, detailSheet].forEach((sheet) => {
       sheet.getRow(1).font = { bold: true };

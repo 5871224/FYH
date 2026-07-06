@@ -111,7 +111,9 @@ assert(sourceApi.includes("safeDepartmentColumns"), "一般單位查詢仍可能
 const sourceExport = read("src/renderer/v2-meal-export.js");
 const publishedExport = read("docs/v2-meal-export.js");
 assert(sourceExport === publishedExport, "訂餐 Excel 來源版與發布版不同步");
-assert(sourceExport.includes("最後修改時間"), "訂餐 Excel 缺少最後修改時間");
+assert(!sourceExport.includes("首次下訂時間"), "訂餐 Excel 不應顯示首次下訂時間");
+assert(!sourceExport.includes("最後修改時間"), "訂餐 Excel 不應顯示最後修改時間");
+assert(!sourceExport.includes("員工工號"), "訂餐 Excel 不應顯示員工工號");
 assert(sourceExport.includes("此訂單所依據的上班打卡已被刪除"), "訂餐 Excel 缺少打卡刪除警告");
 
 const sourceIndex = read("src/renderer/index.html");
