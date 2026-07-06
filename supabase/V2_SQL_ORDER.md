@@ -1,15 +1,7 @@
 # V2 SQL application order
 
-Apply in Supabase SQL Editor:
+The authoritative deployment order is maintained in `V2_SQL_ORDER_FINAL.md`.
 
-1. `001_current_schema.sql`
-2. `024_schedule_entries_rpc.sql`
-3. `026_meal_admin_settings_rpc.sql`
-4. `027_v2_security.sql`
-5. `028_v2_attendance_clock.sql`
-6. `029_v2_attendance_admin.sql`
-7. `030_v2_meal_snapshot.sql`
-8. `031_v2_role_department_protection.sql`
-9. `032_v2_overtime_batch.sql`
+Do not use an older partial list. The current final order includes migrations through `036_v2_synchronized_member_delete.sql`.
 
-Deploying Edge Functions does not execute these SQL files.
+Deploying Edge Functions does not execute SQL files.
