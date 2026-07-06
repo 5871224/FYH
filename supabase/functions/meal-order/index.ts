@@ -34,16 +34,13 @@ function taipeiTimeString(date = new Date()) {
 async function getProfile(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!userId) throw new Error("請先登入");
-
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
     .select("id, employee_code, full_name, role, is_active, hire_date, leave_date")
     .eq("id", userId)
     .single();
   if (error) throw error;
-  if (!isProfileEffective(data)) {
-    throw new Error("帳號不在有效任職期間，無法訂餐");
-  }
+  if (!isProfileEffective(data)) throw new Error("帳號不在有效任職期間，無法訂餐");
   return data;
 }
 
@@ -52,9 +49,7 @@ function isManagerRole(role: string) {
 }
 
 function requireManager(profile: any) {
-  if (!isManagerRole(profile?.role)) {
-    throw new Error("此功能限主管或管理員使用");
-  }
+  if (!isManagerRole(profile?.role)) throw new Error("此功能限主管或管理員使用");
 }
 
 async function getMealSettings(ctx: any) {
@@ -112,19 +107,77 @@ function summarizeOrder(orders: any[]) {
 async function todayStatus(ctx: any) {
   const profile = await getProfile(ctx);
   const context = await getTodayContext(ctx, profile);
-  return {
-    ok: true,
-    ...context,
-    summary: summarizeOrder(context.orders)
-  };
+  return { ok: true, ...context, summary: summarizeOrder(context.orders) };
+}
+
+type NormalizedMealItem = { productId: string; quantity: number; note: string };
+
+function normalizeIncomingItems(items: any[]): NormalizedMealItem[] {
+  const byProduct = new Map<string, NormalizedMealItem>();
+  for (const raw of Array.isArray(items) ? items : []) {
+    const productId = String(raw?.productId || "").trim();
+    if (!productId) continue;
+    const quantity = Number(raw?.quantity ?? 0);
+    if (!Number.isFinite(quantity) || quantity < 0 || !Number.isInteger(quantity)) {
+      throw new Error("訂餐數量必須是 0 或正整數");
+    }
+    const previous = byProduct.get(productId);
+    byProduct.set(productId, {
+      productId,
+      quantity: (previous?.quantity || 0) + quantity,
+      note: String(raw?.note ?? previous?.note ?? "").trim()
+    });
+  }
+  return [...byProduct.values()];
+}
+
+function buildEffectiveItems(context: any, incoming: NormalizedMealItem[]) {
+  const products = new Map((context.products || []).map((product: any) => [String(product.id), product]));
+  const oldOrders = new Map((context.orders || []).map((order: any) => [String(order.product_id), order]));
+  const effective = new Map(incoming.map((item) => [item.productId, { ...item }]));
+
+  for (const item of incoming) {
+    const product: any = products.get(item.productId);
+    const oldOrder: any = oldOrders.get(item.productId);
+    if (!product && item.quantity > 0) throw new Error("訂餐品項不存在");
+    if (product?.is_active === false) {
+      if (!oldOrder && item.quantity > 0) throw new Error("停用品項不可新增");
+      if (oldOrder && item.quantity > Number(oldOrder.quantity || 0)) {
+        throw new Error("停用品項只能減少或取消，不可增加數量");
+      }
+    }
+  }
+
+  for (const [productId, oldOrder] of oldOrders) {
+    const product: any = products.get(productId);
+    if (product?.is_active === false && !effective.has(productId)) {
+      effective.set(productId, {
+        productId,
+        quantity: Number((oldOrder as any).quantity || 0),
+        note: String((oldOrder as any).note || "")
+      });
+    }
+  }
+  return [...effective.values()];
 }
 
 async function saveOrder(ctx: any, body: any) {
   const profile = await getProfile(ctx);
-  const { error } = await ctx.supabaseAdmin.rpc("save_meal_order", {
+  const context = await getTodayContext(ctx, profile);
+  if (!context.attendance?.clock_in_at || !context.attendance?.clock_in_department_id) {
+    throw new Error("請先完成上班打卡後再訂餐");
+  }
+  if (!context.orderingOpen) throw new Error(`今日訂餐已於 ${context.cutoffTime} 截止`);
+
+  const incoming = normalizeIncomingItems(body?.items);
+  const items = buildEffectiveItems(context, incoming);
+  const positiveCount = items.filter((item) => item.quantity > 0).length;
+  if (!(context.orders || []).length && positiveCount === 0) throw new Error("尚未選擇訂餐品項");
+
+  const { error } = await ctx.supabaseAdmin.rpc("save_meal_order_v2", {
     p_user_id: profile.id,
-    p_items: Array.isArray(body?.items) ? body.items : [],
-    p_note: String(body?.note || "").trim()
+    p_items: items,
+    p_note: ""
   });
   if (error) throw error;
   return todayStatus(ctx);
@@ -135,18 +188,10 @@ async function adminSettings(ctx: any) {
   requireManager(profile);
   const [settings, productsResult] = await Promise.all([
     getMealSettings(ctx),
-    ctx.supabaseAdmin
-      .from("meal_products")
-      .select("*")
-      .order("sort_order", { ascending: true })
-      .order("name", { ascending: true })
+    ctx.supabaseAdmin.from("meal_products").select("*").order("sort_order", { ascending: true }).order("name", { ascending: true })
   ]);
   if (productsResult.error) throw productsResult.error;
-  return {
-    ok: true,
-    settings,
-    products: productsResult.data || []
-  };
+  return { ok: true, settings, products: productsResult.data || [] };
 }
 
 async function saveAdminSettings(ctx: any, body: any) {
@@ -163,9 +208,7 @@ async function saveAdminSettings(ctx: any, body: any) {
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
-    if (req.method !== "POST") {
-      return Response.json({ message: "Method Not Allowed" }, { status: 405 });
-    }
+    if (req.method !== "POST") return Response.json({ message: "Method Not Allowed" }, { status: 405 });
     try {
       const body = await req.json();
       if (body?.action === "today_status") return Response.json(await todayStatus(ctx));
