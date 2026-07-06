@@ -209,7 +209,7 @@ function buildAttendanceIssues(record: any, schedule: any, nowDate = taipeiDateS
 async function listMembers(ctx: any) {
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id, employee_code, full_name, department_id, role")
+    .select("id, employee_code, full_name, role")
     .order("employee_code", { ascending: true });
   if (error) throw error;
   return data || [];
