@@ -2,6 +2,18 @@
   if (!window.schedulerApi || typeof renderAll !== "function") return;
 
   const originalRenderMealPage = renderMealPage;
+  const quantityError = "訂餐數量只能輸入 0 或正整數";
+
+  function isMealQuantityInput(target) {
+    return target instanceof HTMLInputElement && Boolean(target.dataset.mealProductId);
+  }
+
+  function rejectQuantityInput(input, event) {
+    event?.preventDefault?.();
+    event?.stopImmediatePropagation?.();
+    input.setCustomValidity(quantityError);
+    input.reportValidity();
+  }
 
   function validateItems(items) {
     const products = mealOrderState.status?.products || [];
@@ -22,6 +34,14 @@
     const products = mealOrderState.status?.products || [];
     const orders = mealOrderState.status?.orders || [];
     document.querySelectorAll("[data-meal-product-id]").forEach((input) => {
+      if (!(input instanceof HTMLInputElement)) return;
+      input.min = "0";
+      input.step = "1";
+      input.inputMode = "numeric";
+      input.pattern = "[0-9]*";
+      input.dataset.lastValidMealQuantity = /^\d+$/.test(input.value) ? input.value : "0";
+      input.setCustomValidity("");
+
       const product = products.find((row) => row.id === input.dataset.mealProductId);
       const oldOrder = orders.find((row) => row.product_id === input.dataset.mealProductId);
       if (product?.is_active === false) {
@@ -35,6 +55,44 @@
     originalRenderMealPage();
     applyLimits();
   };
+
+  document.addEventListener("keydown", (event) => {
+    const input = event.target;
+    if (!isMealQuantityInput(input)) return;
+    if (["-", "+", ".", ",", "e", "E"].includes(event.key)) {
+      rejectQuantityInput(input, event);
+    }
+  }, true);
+
+  document.addEventListener("beforeinput", (event) => {
+    const input = event.target;
+    if (!isMealQuantityInput(input) || !String(event.inputType || "").startsWith("insert")) return;
+    if (event.inputType === "insertFromPaste") return;
+    const start = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
+    const end = Number.isInteger(input.selectionEnd) ? input.selectionEnd : start;
+    const nextValue = `${input.value.slice(0, start)}${event.data || ""}${input.value.slice(end)}`;
+    if (!/^\d*$/.test(nextValue)) rejectQuantityInput(input, event);
+  }, true);
+
+  document.addEventListener("paste", (event) => {
+    const input = event.target;
+    if (!isMealQuantityInput(input)) return;
+    const pasted = event.clipboardData?.getData("text")?.trim() || "";
+    if (!/^\d+$/.test(pasted)) rejectQuantityInput(input, event);
+  }, true);
+
+  document.addEventListener("input", (event) => {
+    const input = event.target;
+    if (!isMealQuantityInput(input)) return;
+    const raw = input.value.trim();
+    if (raw !== "" && !/^\d+$/.test(raw)) {
+      input.value = input.dataset.lastValidMealQuantity || "0";
+      rejectQuantityInput(input, event);
+      return;
+    }
+    input.setCustomValidity("");
+    input.dataset.lastValidMealQuantity = raw || "0";
+  }, true);
 
   saveTodayMealOrder = async function saveV2MealOrder() {
     if (mealOrderState.loading) return;
