@@ -4,61 +4,40 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>班表</title>
-  <link rel="stylesheet" href="./styles.css?v=20260627b">
+  <link rel="stylesheet" href="./styles.css?v=20260706v2">
 </head>
 <body>
   <div class="app-shell">
     <section class="toolbar-card toolbar-floating-card">
       <div class="toolbar-top-row">
         <button class="ghost-btn toolbar-collapse-toggle" id="toolbarCollapseToggle" type="button" aria-expanded="true" aria-label="收合工具列" title="收合工具列">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M6 15l6-6 6 6"></path>
-          </svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg>
         </button>
       </div>
-
       <div class="toolbar-grid" id="toolbarGrid" style="display:none">
         <div class="toolbar-section toolbar-section-combined">
           <div class="toolbar-title-row toolbar-title-row-combined">
             <span class="toolbar-title">班別</span>
             <select id="deptFilter"></select>
-            <button class="settings-icon-btn toolbar-settings-btn" id="shiftSettingsButton" type="button" aria-label="班別設定" title="班別設定">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path>
-                <path d="M13.5 6.5l4 4"></path>
-              </svg>
-            </button>
+            <button class="settings-icon-btn toolbar-settings-btn" id="shiftSettingsButton" type="button" aria-label="班別設定" title="班別設定"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
           </div>
           <div id="shiftChips" class="chips chips-shift"></div>
         </div>
-
         <div class="toolbar-section toolbar-section-leave">
           <div class="toolbar-title-row">
             <span class="toolbar-title">假別</span>
             <button class="ghost-btn compact-btn toolbar-inline-action" id="restComplianceButton" type="button">例休檢查</button>
-            <button class="settings-icon-btn toolbar-settings-btn" id="leaveSettingsButton" type="button" aria-label="假別設定" title="假別設定">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path>
-                <path d="M13.5 6.5l4 4"></path>
-              </svg>
-            </button>
+            <button class="settings-icon-btn toolbar-settings-btn" id="leaveSettingsButton" type="button" aria-label="假別設定" title="假別設定"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
           </div>
           <div id="leaveChips" class="chips"></div>
         </div>
-
         <div class="toolbar-section toolbar-section-overtime">
           <div class="toolbar-title-row">
             <span class="toolbar-title">加班</span>
-            <button class="settings-icon-btn toolbar-settings-btn" id="overtimeSettingsButton" type="button" aria-label="加班設定" title="加班設定">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path>
-                <path d="M13.5 6.5l4 4"></path>
-              </svg>
-            </button>
+            <button class="settings-icon-btn toolbar-settings-btn" id="overtimeSettingsButton" type="button" aria-label="加班設定" title="加班設定"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
           </div>
           <div id="overtimeChips" class="chips"></div>
         </div>
-
       </div>
     </section>
 
@@ -70,16 +49,10 @@
     <section class="calendar-card" id="scheduleCard" hidden>
       <div class="calendar-nav">
         <div class="calendar-nav-left">
-          <select id="tableViewSelect" aria-label="班表檢視">
-            <option value="member">人員檢視</option>
-            <option value="member-stats">人員檢視-統計欄</option>
-            <option value="shift">班別檢視</option>
-          </select>
+          <select id="tableViewSelect" aria-label="班表檢視"><option value="member">人員檢視</option><option value="member-stats">人員檢視-統計欄</option><option value="shift">班別檢視</option></select>
           <select id="tableDeptScopeFilter" aria-label="班表顯示範圍"></select>
         </div>
-        <div class="month-title-wrap">
-          <h2 id="monthTitle"></h2>
-        </div>
+        <div class="month-title-wrap"><h2 id="monthTitle"></h2></div>
         <div class="nav-actions">
           <button class="nav-btn" id="prevPeriodButton" type="button">前八週</button>
           <button class="nav-btn" id="prevWeekButton" type="button">前一週</button>
@@ -104,33 +77,14 @@
         </div>
       </div>
 
-      <div class="table-top-scrollbar" id="tableTopScrollbar" aria-hidden="true">
-        <div class="table-top-scrollbar-content" id="tableTopScrollbarContent"></div>
-      </div>
+      <div class="table-top-scrollbar" id="tableTopScrollbar" aria-hidden="true"><div class="table-top-scrollbar-content" id="tableTopScrollbarContent"></div></div>
       <div class="table-sticky-header" id="tableStickyHeader">
-        <div class="table-sticky-header-left">
-          <div class="table-sticky-cell table-sticky-cell-dept">單位</div>
-          <div class="table-sticky-cell table-sticky-cell-person">人員</div>
-          <div class="table-sticky-cell table-sticky-cell-stats">統計</div>
-        </div>
-        <div class="table-sticky-header-scroll">
-          <div class="table-sticky-header-days" id="tableStickyHeaderDays"></div>
-        </div>
-        <button class="table-week-jump table-week-jump-prev" id="tablePrevWeekButton" type="button" aria-label="前一週" title="前一週">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M15 6l-6 6 6 6"></path>
-          </svg>
-        </button>
-        <button class="table-week-jump table-week-jump-next" id="tableNextWeekButton" type="button" aria-label="後一週" title="後一週">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M9 6l6 6-6 6"></path>
-          </svg>
-        </button>
+        <div class="table-sticky-header-left"><div class="table-sticky-cell table-sticky-cell-dept">單位</div><div class="table-sticky-cell table-sticky-cell-person">人員</div><div class="table-sticky-cell table-sticky-cell-stats">統計</div></div>
+        <div class="table-sticky-header-scroll"><div class="table-sticky-header-days" id="tableStickyHeaderDays"></div></div>
+        <button class="table-week-jump table-week-jump-prev" id="tablePrevWeekButton" type="button" aria-label="前一週" title="前一週"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+        <button class="table-week-jump table-week-jump-next" id="tableNextWeekButton" type="button" aria-label="後一週" title="後一週"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
       </div>
-
-      <div class="table-wrap" id="tableWrap">
-        <table id="mainTable"></table>
-      </div>
+      <div class="table-wrap" id="tableWrap"><table id="mainTable"></table></div>
     </section>
   </div>
 
@@ -138,10 +92,12 @@
   <div id="authRoot"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-  <script src="./app-config.js?v=20260627b"></script>
-  <script src="./browser-exporter.js?v=20260627b"></script>
-  <script src="./rest-compliance.js?v=20260627b"></script>
-  <script src="./web-api.js?v=20260627b"></script>
-  <script src="./renderer.js?v=20260627b"></script>
+  <script src="./app-config.js?v=20260706v2"></script>
+  <script src="./browser-exporter.js?v=20260706v2"></script>
+  <script src="./rest-compliance.js?v=20260706v2"></script>
+  <script src="./web-api.js?v=20260706v2"></script>
+  <script src="./v2-api.js?v=20260706v2"></script>
+  <script src="./renderer.js?v=20260706v2"></script>
+  <script src="./v2-overtime-employee.js?v=20260706v2"></script>
 </body>
 </html>
