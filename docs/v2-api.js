@@ -42,21 +42,23 @@
 
     function keepSessionInTab() {
       const stored = localStorage.getItem(sessionKey);
-      if (stored) {
-        const meta = parse(stored);
-        if (meta) {
-          meta.device = "desktop";
-          sessionStorage.setItem(sessionKey, JSON.stringify(meta));
-        }
-      }
-      localStorage.removeItem(sessionKey);
+      if (!stored) return;
+      const meta = parse(stored);
+      if (!meta) return;
+      meta.device = "desktop";
+      const serialized = JSON.stringify(meta);
+      sessionStorage.setItem(sessionKey, serialized);
+      // web-api.js still classifies some tablets as phones. Keep an in-page mirror
+      // so its own idle timer does not expire the session, then remove the mirror
+      // on pagehide. The authoritative tablet copy remains in sessionStorage.
+      localStorage.setItem(sessionKey, serialized);
     }
 
     const oldLocalSession = localStorage.getItem(sessionKey);
     if (oldLocalSession && !sessionStorage.getItem(sessionKey)) {
       sessionStorage.setItem(sessionKey, oldLocalSession);
     }
-    localStorage.removeItem(sessionKey);
+    prepareSession();
 
     Object.entries(api).forEach(([name, original]) => {
       if (typeof original !== "function" || original.constructor?.name !== "AsyncFunction") return;
@@ -80,8 +82,9 @@
       if (!session?.access_token) return;
       meta.lastActivityAt = now;
       meta.device = "desktop";
-      sessionStorage.setItem(sessionKey, JSON.stringify(meta));
-      localStorage.removeItem(sessionKey);
+      const serialized = JSON.stringify(meta);
+      sessionStorage.setItem(sessionKey, serialized);
+      localStorage.setItem(sessionKey, serialized);
       lastTouchWrite = now;
     }
 
@@ -253,7 +256,7 @@
     ["v2-overtime-admin.js", "v2-meal.js", "v2-attendance-admin.js"].forEach((file) => {
       if (document.querySelector(`script[data-v2-module="${file}"]`)) return;
       const script = document.createElement("script");
-      script.src = `./${file}?v=20260706v2`;
+      script.src = `./${file}?v=20260706v4`;
       script.dataset.v2Module = file;
       document.body.appendChild(script);
     });
