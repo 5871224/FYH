@@ -27,6 +27,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -420,13 +424,6 @@ body.is-records-view .app-shell {
   padding-bottom: 20px;
 }
 
-.meal-product-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
 .meal-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -439,41 +436,68 @@ body.is-records-view .app-shell {
   color: #fff;
 }
 
-.meal-product-row {
-  display: grid;
-  grid-template-columns: minmax(160px, 1fr) 78px minmax(160px, 0.9fr);
-  gap: 12px;
-  align-items: center;
-  padding: 14px;
-  border-radius: 18px;
+.meal-order-table-wrap {
+  margin-bottom: 16px;
+}
+
+.meal-order-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+  table-layout: fixed;
+}
+
+.meal-order-table th,
+.meal-order-table td {
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.meal-order-table th {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.meal-order-table .meal-price-col,
+.meal-order-table .meal-quantity-col {
+  width: 92px;
+}
+
+.meal-order-table td {
   background: rgba(255, 253, 248, 0.82);
-  border: 1px solid rgba(166, 143, 111, 0.18);
+  border-top: 1px solid rgba(166, 143, 111, 0.18);
+  border-bottom: 1px solid rgba(166, 143, 111, 0.18);
 }
 
-.meal-product-info {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-}
-
-.meal-product-row strong {
-  min-width: 0;
+.meal-order-table td:first-child {
+  border-left: 1px solid rgba(166, 143, 111, 0.18);
+  border-radius: 12px 0 0 12px;
+  font-weight: 800;
   overflow-wrap: anywhere;
 }
 
-.meal-product-row span {
+.meal-order-table td:last-child {
+  border-right: 1px solid rgba(166, 143, 111, 0.18);
+  border-radius: 0 12px 12px 0;
+}
+
+.meal-order-table .meal-product-price {
   color: var(--muted);
   white-space: nowrap;
 }
 
-.meal-product-row input {
+.meal-order-table input {
   width: 100%;
-  text-align: center;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
 }
 
-.meal-product-row input[type="text"] {
-  text-align: left;
+.meal-order-table input[type="number"] {
+  text-align: center;
 }
 
 .meal-summary-row {
@@ -3153,8 +3177,8 @@ thead th.today,
 }
 
 @media (max-width: 640px) {
-  .meal-product-row {
-    grid-template-columns: 1fr;
+  .meal-order-table {
+    min-width: 520px;
   }
 
   .toolbar-grid {

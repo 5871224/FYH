@@ -53,6 +53,10 @@ function normalizeHours(value: unknown) {
   return hours;
 }
 
+function errorMessage(error: any, fallback: string) {
+  return error?.message || error?.error_description || (typeof error === "string" ? error : fallback);
+}
+
 async function getProfile(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!userId) throw new Error("請先登入");
@@ -221,7 +225,7 @@ async function adminListRequests(ctx: any, body: any) {
   const status = String(body?.status || "pending");
   let query = ctx.supabaseAdmin
     .from("attendance_overtime_requests")
-    .select("*, employee:user_id(employee_code,full_name,department_id)")
+    .select("*")
     .eq("is_deleted_by_employee", false)
     .gte("work_date", fromDate)
     .lte("work_date", toDate)
@@ -229,7 +233,13 @@ async function adminListRequests(ctx: any, body: any) {
   if (status && status !== "all") query = query.eq("status", status);
   const { data, error } = await query;
   if (error) throw error;
-  return { ok: true, requests: data || [] };
+  const userIds = [...new Set((data || []).map((row: any) => row.user_id).filter(Boolean))];
+  const { data: employees, error: employeesError } = userIds.length
+    ? await ctx.supabaseAdmin.from("set_employee").select("id,employee_code,full_name,department_id").in("id", userIds)
+    : { data: [], error: null };
+  if (employeesError) throw employeesError;
+  const employeeMap = new Map((employees || []).map((employee: any) => [employee.id, employee]));
+  return { ok: true, requests: (data || []).map((row: any) => ({ ...row, employee: employeeMap.get(row.user_id) || null })) };
 }
 
 async function adminReviewRequest(ctx: any, body: any) {
@@ -330,7 +340,7 @@ export default {
       if (body?.action === "admin_create") return Response.json(await adminCreateRequest(ctx, body));
       return Response.json({ message: "不支援的加班操作" }, { status: 400 });
     } catch (error) {
-      return Response.json({ message: error instanceof Error ? error.message : "加班操作失敗" }, { status: 400 });
+      return Response.json({ message: errorMessage(error, "加班操作失敗") }, { status: 400 });
     }
   })
 };

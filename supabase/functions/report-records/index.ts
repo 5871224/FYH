@@ -63,6 +63,10 @@ function localDateTime(date: string, time: string) {
   return new Date(`${date}T${String(time).slice(0, 8)}+08:00`).toISOString();
 }
 
+function errorMessage(error: any, fallback: string) {
+  return error?.message || error?.error_description || (typeof error === "string" ? error : fallback);
+}
+
 async function getProfile(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!userId) throw new Error("請先登入");
@@ -96,11 +100,17 @@ async function personalRecords(ctx: any, body: any = {}) {
     ctx.supabaseAdmin.from("attendance_records").select("*").eq("user_id", profile.id).gte("work_date", fromDate).lte("work_date", toDate),
     ctx.supabaseAdmin.from("attendance_overtime_requests").select("*").eq("user_id", profile.id).eq("is_deleted_by_employee", false).gte("work_date", fromDate).lte("work_date", toDate),
     ctx.supabaseAdmin.from("meal_orders").select("*").eq("user_id", profile.id).gte("order_date", fromDate).lte("order_date", toDate),
-    ctx.supabaseAdmin.from("schedule_entries").select("work_date, shift:shift_type_id(name,start_time,end_time)").eq("member_id", profile.id).gte("work_date", fromDate).lte("work_date", toDate)
+    ctx.supabaseAdmin.from("schedule_entries").select("work_date, shift_type_id").eq("member_id", profile.id).gte("work_date", fromDate).lte("work_date", toDate)
   ]);
   for (const result of [attendanceResult, overtimeResult, mealResult, scheduleResult]) {
     if (result.error) throw result.error;
   }
+  const shiftIds = [...new Set((scheduleResult.data || []).map((row: any) => row.shift_type_id).filter(Boolean))];
+  const { data: shifts, error: shiftsError } = shiftIds.length
+    ? await ctx.supabaseAdmin.from("set_shift").select("id,name,start_time,end_time").in("id", shiftIds)
+    : { data: [], error: null };
+  if (shiftsError) throw shiftsError;
+  const shiftMap = new Map((shifts || []).map((shift: any) => [shift.id, shift]));
 
   const byDate = new Map<string, any>();
   for (let date = toDate, count = 0; date >= fromDate && count < 366; date = addDays(date, -1), count += 1) {
@@ -121,9 +131,10 @@ async function personalRecords(ctx: any, body: any = {}) {
   }
   (scheduleResult.data || []).forEach((row: any) => {
     const record = byDate.get(row.work_date);
-    if (record && row.shift) {
-      record.shiftName = row.shift.name || "";
-      record.shiftTime = `${String(row.shift.start_time || "").slice(0, 5)}-${String(row.shift.end_time || "").slice(0, 5)}`;
+    const shift = shiftMap.get(row.shift_type_id);
+    if (record && shift) {
+      record.shiftName = shift.name || "";
+      record.shiftTime = `${String(shift.start_time || "").slice(0, 5)}-${String(shift.end_time || "").slice(0, 5)}`;
     }
   });
   (attendanceResult.data || []).forEach((row: any) => {
@@ -221,15 +232,21 @@ async function attendanceAdminList(ctx: any, body: any) {
     ctx.supabaseAdmin.from("attendance_records").select("*").gte("work_date", fromDate).lte("work_date", toDate),
     ctx.supabaseAdmin
       .from("schedule_entries")
-      .select("member_id, work_date, shift:shift_type_id(id,name,start_time,end_time,applicable_department_id)")
+      .select("member_id, work_date, shift_type_id")
       .gte("work_date", fromDate)
       .lte("work_date", toDate)
   ]);
   if (attendanceResult.error) throw attendanceResult.error;
   if (scheduleResult.error) throw scheduleResult.error;
+  const shiftIds = [...new Set((scheduleResult.data || []).map((row: any) => row.shift_type_id).filter(Boolean))];
+  const { data: shifts, error: shiftsError } = shiftIds.length
+    ? await ctx.supabaseAdmin.from("set_shift").select("id,name,start_time,end_time,applicable_department_id").in("id", shiftIds)
+    : { data: [], error: null };
+  if (shiftsError) throw shiftsError;
+  const shiftMap = new Map((shifts || []).map((shift: any) => [shift.id, shift]));
 
   const memberMap = new Map(members.map((item: any) => [item.id, item]));
-  const scheduleMap = new Map((scheduleResult.data || []).map((row: any) => [`${row.member_id}:${row.work_date}`, row]));
+  const scheduleMap = new Map((scheduleResult.data || []).map((row: any) => [`${row.member_id}:${row.work_date}`, { ...row, shift: shiftMap.get(row.shift_type_id) || null }]));
   const attendanceMap = new Map((attendanceResult.data || []).map((row: any) => [`${row.user_id}:${row.work_date}`, row]));
   const rows: any[] = [];
 
@@ -379,7 +396,7 @@ export default {
       if (body?.action === "attendance_admin_save") return Response.json(await attendanceAdminSave(ctx, body));
       return Response.json({ message: "不支援的報表操作" }, { status: 400 });
     } catch (error) {
-      return Response.json({ message: error instanceof Error ? error.message : "讀取報表失敗" }, { status: 400 });
+      return Response.json({ message: errorMessage(error, "讀取報表失敗") }, { status: 400 });
     }
   })
 };

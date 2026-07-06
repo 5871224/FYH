@@ -2770,9 +2770,6 @@ async function loadRecordsPage() {
       personal: personal.records || [],
       error: ""
     };
-    if (isManager()) {
-      await loadMealReport(false);
-    }
     if (isAdmin()) {
       await Promise.all([loadOvertimeReview(false), loadAttendanceAdmin(false)]);
     }
@@ -2812,7 +2809,7 @@ async function loadOvertimeReview(shouldRender = true) {
   } catch (error) {
     recordsState = {
       ...recordsState,
-      overtimeReview: { ...recordsState.overtimeReview, loading: false, requests: [], error: error.message || "讀取加班審核失敗" }
+      overtimeReview: { ...recordsState.overtimeReview, loading: false, requests: [], error: error.message === "加班操作失敗" ? "讀取加班審核失敗" : (error.message || "讀取加班審核失敗") }
     };
   }
   if (shouldRender) renderAll();
@@ -2846,7 +2843,7 @@ async function loadAttendanceAdmin(shouldRender = true) {
   } catch (error) {
     recordsState = {
       ...recordsState,
-      attendanceAdmin: { ...recordsState.attendanceAdmin, loading: false, rows: [], error: error.message || "讀取打卡管理失敗" }
+      attendanceAdmin: { ...recordsState.attendanceAdmin, loading: false, rows: [], error: error.message === "讀取報表失敗" ? "讀取打卡管理失敗" : (error.message || "讀取打卡管理失敗") }
     };
   }
   if (shouldRender) renderAll();
@@ -4008,24 +4005,28 @@ function renderMealPage() {
     ${isManager() ? `
       <div class="meal-tabs">
         <button class="ghost-btn compact-btn ${mealPageTab === "order" ? "active" : ""}" type="button" data-meal-tab="order">今日訂餐</button>
+        <button class="ghost-btn compact-btn ${mealPageTab === "stats" ? "active" : ""}" type="button" data-meal-tab="stats">訂餐統計</button>
         <button class="ghost-btn compact-btn ${mealPageTab === "settings" ? "active" : ""}" type="button" data-meal-tab="settings">訂餐設定</button>
       </div>
     ` : ""}
-    ${isManager() && mealPageTab === "settings" ? renderMealSettingsSection() : `
+    ${isManager() && mealPageTab === "settings" ? renderMealSettingsSection() : isManager() && mealPageTab === "stats" ? renderMealReportSection() : `
     ${mealOrderState.error ? `<div class="auth-error clock-error">${escapeHtml(mealOrderState.error)}</div>` : ""}
     ${unavailableReason ? `<div class="auth-error clock-error">${escapeHtml(unavailableReason)}</div>` : ""}
     ${products.length ? `
-      <div class="meal-product-list">
+      <div class="records-table-wrap meal-order-table-wrap">
+        <table class="meal-order-table">
+          <thead><tr><th>商品</th><th class="meal-price-col">價格</th><th class="meal-quantity-col">數量</th><th>備註</th></tr></thead>
+          <tbody>
         ${products.map((product) => `
-          <div class="meal-product-row">
-            <div class="meal-product-info">
-              <strong>${escapeHtml(product.name || "")}</strong>
-              <span>$${Number(product.price || 0).toFixed(0)}${product.is_active === false ? "（已停用）" : ""}</span>
-            </div>
-            <input type="number" min="0" step="1" value="${orderQuantityMap.get(product.id) || 0}" data-meal-product-id="${escapeHtml(product.id)}" data-meal-product-price="${Number(product.price || 0)}" ${disabled ? "disabled" : ""}>
-            <input type="text" placeholder="此品項備註" value="${escapeHtml(orderNoteMap.get(product.id) || "")}" data-meal-note-product-id="${escapeHtml(product.id)}" ${disabled ? "disabled" : ""}>
-          </div>
+          <tr>
+            <td>${escapeHtml(product.name || "")}${product.is_active === false ? "（已停用）" : ""}</td>
+            <td><span class="meal-product-price">$${Number(product.price || 0).toFixed(0)}</span></td>
+            <td><input type="number" min="0" step="1" value="${orderQuantityMap.get(product.id) || 0}" data-meal-product-id="${escapeHtml(product.id)}" data-meal-product-price="${Number(product.price || 0)}" ${disabled ? "disabled" : ""}></td>
+            <td><input type="text" placeholder="此品項備註" value="${escapeHtml(orderNoteMap.get(product.id) || "")}" data-meal-note-product-id="${escapeHtml(product.id)}" ${disabled ? "disabled" : ""}></td>
+          </tr>
         `).join("")}
+          </tbody>
+        </table>
       </div>
       <div class="meal-summary-row">
         <span data-meal-live-summary>目前合計 ${Number(status?.summary?.totalQuantity || 0)} 份，$${Number(status?.summary?.totalAmount || 0).toFixed(0)}</span>
@@ -4044,11 +4045,10 @@ function formatRecordDateTime(value) {
 function renderRecordsTabs() {
   const tabs = [
     ["personal", "個人記錄", true],
-    ["meal", "訂餐統計", isManager()],
     ["overtime", "加班審核", isAdmin()],
     ["attendance", "打卡管理", isAdmin()]
   ].filter((tab) => tab[2]);
-  if (recordsState.activeTab !== "meal-settings" && !tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
+  if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
   return `<div class="record-tabs">${tabs.map(([id, label]) => `<button class="ghost-btn compact-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
 }
 
@@ -4236,22 +4236,18 @@ function renderRecordsPage() {
     recordsCard.innerHTML = "";
     return;
   }
-  const activeSection = recordsState.activeTab === "meal"
-    ? renderMealReportSection()
-    : recordsState.activeTab === "overtime"
+  const activeSection = recordsState.activeTab === "overtime"
       ? renderOvertimeReviewSection()
       : recordsState.activeTab === "attendance"
         ? renderAttendanceAdminSection()
-        : recordsState.activeTab === "meal-settings"
-          ? renderMealSettingsSection()
-          : renderPersonalRecordsSection();
+        : renderPersonalRecordsSection();
   recordsCard.innerHTML = `
     <div class="clock-page-header">
       <button class="ghost-btn" type="button" data-home-action="home">返回首頁</button>
       <div>
         <p class="home-eyebrow">記錄</p>
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
-        <p class="home-subtitle">個人記錄、訂餐統計與管理作業。</p>
+        <p class="home-subtitle">個人記錄與管理作業。</p>
       </div>
     </div>
     ${renderRecordsTabs()}
@@ -7045,18 +7041,17 @@ function bindEvents() {
       return;
     }
     if (target.dataset.mealTab) {
-      mealPageTab = target.dataset.mealTab === "settings" ? "settings" : "order";
+      mealPageTab = ["settings", "stats"].includes(target.dataset.mealTab) ? target.dataset.mealTab : "order";
       if (mealPageTab === "settings") {
         await loadMealAdminSettings(false);
+      } else if (mealPageTab === "stats") {
+        await loadMealReport(false);
       }
       renderAll();
       return;
     }
     if (target.dataset.recordsTab) {
       recordsState.activeTab = target.dataset.recordsTab;
-      if (recordsState.activeTab === "meal-settings") {
-        await loadMealAdminSettings(false);
-      }
       renderAll();
       return;
     }
