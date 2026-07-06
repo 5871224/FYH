@@ -186,6 +186,7 @@ let dragSortCategory = "";
 let dragPreviewElement = null;
 let dragScheduleTableDeptId = "";
 let dragScheduleTableMemberId = "";
+let dragMealProductIndex = "";
 let toolbarCollapsed = false;
 let toolbarCollapseInitialized = false;
 let measureTextContext = null;
@@ -203,7 +204,7 @@ function createRecordsState() {
     personal: [],
     mealStats: null,
     mealFilters: { fromDate: today, toDate: today, departmentId: "", memberId: "" },
-    overtimeReview: { loading: false, requests: [], filters: { status: "pending", fromDate: addDaysToDateString(today, -30), toDate: today }, error: "" },
+    overtimeReview: { loading: false, requests: [], members: [], filters: { status: "pending", fromDate: addDaysToDateString(today, -30), toDate: today }, error: "" },
     attendanceAdmin: { loading: false, rows: [], members: [], issueTypes: [], total: 0, page: 1, filters: { fromDate: today, toDate: today, memberId: "", abnormalOnly: true, issueType: "" }, error: "" },
     mealAdmin: { loading: false, products: [], settings: { daily_cutoff_time: "10:30" }, error: "" },
     error: ""
@@ -2804,7 +2805,7 @@ async function loadOvertimeReview(shouldRender = true) {
     const result = await window.schedulerApi.getOvertimeReviewList(recordsState.overtimeReview.filters);
     recordsState = {
       ...recordsState,
-      overtimeReview: { ...recordsState.overtimeReview, loading: false, requests: result.requests || [], error: "" }
+      overtimeReview: { ...recordsState.overtimeReview, loading: false, requests: result.requests || [], members: result.members || [], error: "" }
     };
   } catch (error) {
     recordsState = {
@@ -4084,7 +4085,7 @@ function renderAttendanceAdminSection() {
 
 function renderMealSettingsSection() {
   const mealAdmin = recordsState.mealAdmin;
-  return `<section class="records-section"><h2>訂餐設定</h2><div class="records-filter-row"><label>訂餐截止時間 <input type="time" value="${escapeHtml(String(mealAdmin.settings?.daily_cutoff_time || "10:30").slice(0, 5))}" data-meal-cutoff-time></label><button class="ghost-btn compact-btn" type="button" data-add-meal-product="true">新增商品</button><button class="primary-btn compact-btn" type="button" data-save-meal-settings="true">儲存</button></div>${mealAdmin.error ? `<div class="auth-error">${escapeHtml(mealAdmin.error)}</div>` : ""}<div class="records-table-wrap"><table class="records-table"><thead><tr><th>品項</th><th>價格</th><th>啟用</th></tr></thead><tbody>${mealAdmin.products.map((product, index) => `<tr data-meal-product-row="${index}"><td><input type="text" value="${escapeHtml(product.name || "")}" data-meal-product-field="name"></td><td><input type="number" min="0" step="1" value="${escapeHtml(String(product.price || 0))}" data-meal-product-field="price"></td><td><input type="checkbox" ${product.is_active !== false ? "checked" : ""} data-meal-product-field="isActive"><input type="hidden" value="${escapeHtml(product.id || "")}" data-meal-product-field="id"></td></tr>`).join("") || '<tr><td colspan="3">尚無商品</td></tr>'}</tbody></table></div></section>`;
+  return `<section class="records-section"><h2>訂餐設定</h2><div class="records-filter-row"><label>訂餐截止時間 <input type="time" value="${escapeHtml(String(mealAdmin.settings?.daily_cutoff_time || "10:30").slice(0, 5))}" data-meal-cutoff-time></label><button class="ghost-btn compact-btn" type="button" data-add-meal-product="true">新增商品</button><button class="primary-btn compact-btn" type="button" data-save-meal-settings="true">儲存</button></div>${mealAdmin.error ? `<div class="auth-error">${escapeHtml(mealAdmin.error)}</div>` : ""}<div class="meal-settings-table-wrap"><table class="meal-settings-table"><thead><tr><th class="meal-settings-drag-col"></th><th>品項</th><th class="meal-settings-price-col">價格</th><th class="meal-settings-active-col">啟用</th></tr></thead><tbody>${mealAdmin.products.map((product, index) => `<tr draggable="true" data-meal-product-row="${index}"><td class="meal-settings-drag-col"><span class="meal-drag-handle" title="拖曳排序">≡</span></td><td><input type="text" value="${escapeHtml(product.name || "")}" data-meal-product-field="name"></td><td><input type="number" min="0" step="1" value="${escapeHtml(String(product.price || 0))}" data-meal-product-field="price"></td><td><input type="checkbox" ${product.is_active !== false ? "checked" : ""} data-meal-product-field="isActive"><input type="hidden" value="${escapeHtml(product.id || "")}" data-meal-product-field="id"></td></tr>`).join("") || '<tr><td colspan="4">尚無商品</td></tr>'}</tbody></table></div></section>`;
 }
 
 function timeValueFromIso(value) {
@@ -4180,10 +4181,13 @@ async function reviewOvertime(id, status, readHours = false) {
 }
 
 function openAdminOvertimeCreateModal() {
+  const members = recordsState.overtimeReview.members?.length
+    ? recordsState.overtimeReview.members
+    : recordsState.attendanceAdmin.members;
   openEntityListModal({
     title: "代為申請加班",
     hideFooterClose: true,
-    body: `<div class="form-grid two-col"><div class="form-row"><label>人員</label><select id="adminOvertimeUser">${memberOptions("", recordsState.attendanceAdmin.members)}</select></div><div class="form-row"><label>日期</label><input id="adminOvertimeDate" type="date" value="${escapeHtml(getTodayDateString())}"></div><div class="form-row"><label>提早上班</label><input id="adminOvertimeEarly" type="number" min="0" step="0.5" value="0"></div><div class="form-row"><label>延後下班</label><input id="adminOvertimeLate" type="number" min="0" step="0.5" value="0"></div><div class="form-row form-row-wide"><label>備註</label><textarea id="adminOvertimeNote" rows="3"></textarea></div></div>`,
+    body: `<div class="form-grid two-col"><div class="form-row"><label>人員</label><select id="adminOvertimeUser">${memberOptions("", members)}</select></div><div class="form-row"><label>日期</label><input id="adminOvertimeDate" type="date" value="${escapeHtml(getTodayDateString())}"></div><div class="form-row"><label>提早上班</label><input id="adminOvertimeEarly" type="number" min="0" step="0.5" value="0"></div><div class="form-row"><label>延後下班</label><input id="adminOvertimeLate" type="number" min="0" step="0.5" value="0"></div><div class="form-row form-row-wide"><label>備註</label><textarea id="adminOvertimeNote" rows="3"></textarea></div></div>`,
     footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-admin-overtime-create="true">建立</button>`
   });
 }
@@ -4210,8 +4214,14 @@ function readMealAdminProducts() {
     id: row.querySelector('[data-meal-product-field="id"]')?.value || "",
     name: row.querySelector('[data-meal-product-field="name"]')?.value || "",
     price: Number(row.querySelector('[data-meal-product-field="price"]')?.value || 0),
-    isActive: Boolean(row.querySelector('[data-meal-product-field="isActive"]')?.checked)
+    isActive: Boolean(row.querySelector('[data-meal-product-field="isActive"]')?.checked),
+    is_active: Boolean(row.querySelector('[data-meal-product-field="isActive"]')?.checked)
   })).filter((item) => item.name.trim());
+}
+
+function commitMealProductOrderFromDom() {
+  recordsState.mealAdmin.products = readMealAdminProducts();
+  renderAll();
 }
 
 async function saveMealSettingsFromPage() {
@@ -7514,6 +7524,13 @@ function bindEvents() {
       event.dataTransfer.setData("text/plain", dragMemberId);
       return;
     }
+    const mealProductRow = event.target.closest("[data-meal-product-row]");
+    if (mealProductRow) {
+      dragMealProductIndex = mealProductRow.dataset.mealProductRow || "";
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", dragMealProductIndex);
+      return;
+    }
     const sortItem = event.target.closest("[data-sort-item]");
     if (sortItem) {
       dragSortItemId = sortItem.dataset.sortItem || "";
@@ -7555,6 +7572,17 @@ function bindEvents() {
       event.preventDefault();
       event.dataTransfer.dropEffect = "move";
       previewDepartmentMember(memberTarget, event.clientY);
+      return;
+    }
+    const mealProductRow = event.target.closest("[data-meal-product-row]");
+    if (mealProductRow && dragMealProductIndex) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      const draggedElement = document.querySelector(`[data-meal-product-row="${cssEscapeValue(dragMealProductIndex)}"]`);
+      if (draggedElement instanceof HTMLElement) {
+        draggedElement.classList.add("drag-preview-active");
+        moveDragPreviewElement(draggedElement, mealProductRow, event.clientY);
+      }
       return;
     }
     const sortItem = event.target.closest("[data-sort-item]");
@@ -7615,6 +7643,14 @@ function bindEvents() {
       dragMemberId = "";
       return;
     }
+    const mealProductRow = event.target.closest("[data-meal-product-row]");
+    if (mealProductRow && dragMealProductIndex) {
+      event.preventDefault();
+      commitMealProductOrderFromDom();
+      clearDragPreviewState();
+      dragMealProductIndex = "";
+      return;
+    }
     const sortItem = event.target.closest("[data-sort-item]");
     if (sortItem && dragSortItemId && dragSortCategory === (sortItem.dataset.sortCategory || "")) {
       event.preventDefault();
@@ -7642,6 +7678,7 @@ function bindEvents() {
     dragSortCategory = "";
     dragScheduleTableDeptId = "";
     dragScheduleTableMemberId = "";
+    dragMealProductIndex = "";
   });
 
   document.addEventListener("click", (event) => {

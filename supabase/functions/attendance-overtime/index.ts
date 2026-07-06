@@ -235,11 +235,20 @@ async function adminListRequests(ctx: any, body: any) {
   if (error) throw error;
   const userIds = [...new Set((data || []).map((row: any) => row.user_id).filter(Boolean))];
   const { data: employees, error: employeesError } = userIds.length
-    ? await ctx.supabaseAdmin.from("set_employee").select("id,employee_code,full_name,department_id").in("id", userIds)
+    ? await ctx.supabaseAdmin.from("set_employee").select("id,employee_code,full_name,home_department_id").in("id", userIds)
     : { data: [], error: null };
   if (employeesError) throw employeesError;
   const employeeMap = new Map((employees || []).map((employee: any) => [employee.id, employee]));
-  return { ok: true, requests: (data || []).map((row: any) => ({ ...row, employee: employeeMap.get(row.user_id) || null })) };
+  const { data: members, error: membersError } = await ctx.supabaseAdmin
+    .from("set_employee")
+    .select("id,employee_code,full_name,home_department_id,is_active,hire_date,leave_date")
+    .order("employee_code", { ascending: true });
+  if (membersError) throw membersError;
+  return {
+    ok: true,
+    requests: (data || []).map((row: any) => ({ ...row, employee: employeeMap.get(row.user_id) || null })),
+    members: (members || []).filter((member: any) => isProfileEffective(member, today))
+  };
 }
 
 async function adminReviewRequest(ctx: any, body: any) {

@@ -574,6 +574,74 @@ body.is-records-view .app-shell {
   font-size: 12px;
 }
 
+.meal-settings-table-wrap {
+  width: 100%;
+}
+
+.meal-settings-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.meal-settings-table th,
+.meal-settings-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.meal-settings-table th {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.meal-settings-table input[type="text"],
+.meal-settings-table input[type="number"] {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.meal-settings-table input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.meal-settings-drag-col {
+  width: 34px;
+  text-align: center;
+}
+
+.meal-settings-price-col {
+  width: 120px;
+}
+
+.meal-settings-active-col {
+  width: 72px;
+}
+
+.meal-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: grab;
+  user-select: none;
+}
+
+.meal-settings-table tr[draggable="true"] {
+  cursor: grab;
+}
+
 .meal-stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

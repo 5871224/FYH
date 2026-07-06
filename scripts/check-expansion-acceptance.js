@@ -38,11 +38,14 @@ assert(attendanceClock.includes('rpc("save_attendance_clock"') && attendanceCloc
 assert(renderer.includes("function renderTodayOvertimePanel"), "overtime request panel should be present");
 assert(attendanceOvertime.includes("function buildEligibility"), "overtime should calculate eligibility");
 assert(attendanceOvertime.includes('status: "pending"'), "overtime requests should start pending");
+assert(!attendanceOvertime.includes("full_name,department_id"), "overtime admin list should not query retired set_employee.department_id");
+assert(attendanceOvertime.includes("members: (members || []).filter"), "admin overtime create should receive effective member options");
 
 assert(index.includes('id="mealCard"') && renderer.includes("function renderMealPage"), "meal order page should be present");
 assert(renderer.includes('data-meal-tab="stats"') && renderer.includes("renderMealReportSection()"), "meal stats should live on the meal page");
 assert(!renderer.includes('["meal", "訂餐統計", isManager()]'), "records page should not expose the meal stats tab");
 assert(renderer.includes('<table class="meal-order-table">'), "today meal order should render as a table");
+assert(renderer.includes("data-meal-product-row") && renderer.includes("commitMealProductOrderFromDom"), "meal settings should support drag ordering");
 assert(schema.includes("create or replace function public.save_meal_order"), "meal ordering should use a database transaction RPC");
 assert(mealOrder.includes('rpc("save_meal_order"'), "meal ordering should call the transaction RPC");
 assert(schema.includes("請先完成上班打卡後再訂餐") && schema.includes("今日訂餐已超過截止時間"), "meal ordering should require clock-in and cutoff checks in the transaction");
