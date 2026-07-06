@@ -19,6 +19,7 @@ const required = [
   "supabase/033_v2_employee_visibility.sql",
   "supabase/034_v2_overtime_reapply.sql",
   "supabase/035_v2_last_admin.sql",
+  "supabase/functions/attendance-clock/index.ts",
   "supabase/functions/attendance-clock-safe/index.ts",
   "supabase/functions/attendance-overtime-employee/index.ts",
   "supabase/functions/attendance-overtime-admin-list/index.ts",
@@ -69,9 +70,17 @@ assert(clockSql.includes("clock_in_company_latitude"), "上班公司座標快照
 assert(clockSql.includes("clock_out_company_longitude"), "下班公司座標快照缺失");
 assert(clockSql.includes("and clock_out_at is null"), "下班打卡冪等條件缺失");
 
+const attendanceClock = read("supabase/functions/attendance-clock/index.ts");
+assert(attendanceClock.includes("safeAttendanceRecord"), "打卡端點未過濾員工可見欄位");
+assert(attendanceClock.includes("record: safeAttendanceRecord"), "打卡回應仍可能直接回傳原始 GPS 或 IP");
+assert(attendanceClock.includes("isAndroidTablet"), "Android 平板判定修正缺失");
+assert(attendanceClock.includes("isIPad"), "iPad 判定修正缺失");
+assert(!attendanceClock.includes("clock_in_ip:"), "員工打卡回應仍暴露上班 IP");
+assert(!attendanceClock.includes("clock_in_latitude:"), "員工打卡回應仍暴露上班 GPS");
+
 const safeClock = read("supabase/functions/attendance-clock-safe/index.ts");
-assert(!safeClock.includes("clock_in_ip:"), "員工安全打卡回應仍暴露 IP");
-assert(!safeClock.includes("clock_in_latitude:"), "員工安全打卡回應仍暴露 GPS");
+assert(!safeClock.includes("clock_in_ip:"), "備援安全打卡回應仍暴露 IP");
+assert(!safeClock.includes("clock_in_latitude:"), "備援安全打卡回應仍暴露 GPS");
 
 const adminSql = read("supabase/029_v2_attendance_admin.sql");
 assert(adminSql.includes("p_reason text default ''"), "打卡管理異動原因缺失");
@@ -97,8 +106,6 @@ assert(mealOrder.includes("停用品項只能減少或取消"), "停用品項增
 const sourceApi = read("src/renderer/v2-api.js");
 const publishedApi = read("docs/v2-api.js");
 assert(sourceApi === publishedApi, "src/renderer/v2-api.js 與 docs/v2-api.js 不同步");
-assert(sourceApi.includes("attendance-clock-safe"), "前端打卡未使用安全回應函式");
-assert(sourceApi.includes("isAndroidTablet"), "平板判定修正缺失");
 assert(sourceApi.includes("safeDepartmentColumns"), "一般單位查詢仍可能包含敏感打卡欄位");
 
 const sourceExport = read("src/renderer/v2-meal-export.js");
