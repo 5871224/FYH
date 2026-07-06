@@ -5,6 +5,7 @@
   "scripts": {
     "web": "node src/web-server.js",
     "web:check": "node scripts/check-public-supabase.js",
-    "web:publish": "node scripts/publish-static-web.js"
+    "web:publish": "node scripts/publish-static-web.js",
+    "v2:check": "node scripts/check-v2-alignment.js"
   }
 }
