@@ -19,7 +19,9 @@ function addDays(value: string, count: number) {
 
 function effective(profile: any, today = dateText()) {
   const end = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
-  return Boolean(profile?.is_active && (!profile.hire_date || today >= profile.hire_date) && (!end || today <= end));
+  return Boolean(profile?.is_active
+    && (!profile.hire_date || today >= profile.hire_date)
+    && (!end || today <= end));
 }
 
 function loginEmail(employeeCode: string) {
@@ -40,7 +42,9 @@ async function actorProfile(ctx: any) {
     .eq("id", actorId).single();
   if (result.error) throw result.error;
   if (!effective(result.data)) throw new Error("此帳號目前不在有效期間");
-  if (!["manager", "admin"].includes(result.data.role)) throw new Error("此功能限主管或管理員使用");
+  if (!["manager", "admin"].includes(result.data.role)) {
+    throw new Error("員工沒有刪除帳號權限");
+  }
   return result.data;
 }
 
@@ -58,7 +62,9 @@ async function verifyPassword(employeeCode: string, password: string) {
 }
 
 async function countRows(ctx: any, table: string, column: string, value: string) {
-  const result = await ctx.supabaseAdmin.from(table).select("id", { count: "exact", head: true }).eq(column, value);
+  const result = await ctx.supabaseAdmin.from(table)
+    .select("id", { count: "exact", head: true })
+    .eq(column, value);
   if (result.error) throw result.error;
   return result.count || 0;
 }
@@ -68,6 +74,13 @@ async function effectiveAdminCount(ctx: any) {
     .select("id,role,is_active,hire_date,leave_date").eq("role", "admin");
   if (result.error) throw result.error;
   return (result.data || []).filter((row: any) => effective(row)).length;
+}
+
+async function assertSynchronizedDeleteReady(ctx: any) {
+  const result = await ctx.supabaseAdmin.rpc("has_synchronized_member_delete_v2");
+  if (result.error || result.data !== true) {
+    throw new Error("尚未套用 036_v2_synchronized_member_delete.sql，為避免帳號資料不同步，已取消刪除");
+  }
 }
 
 async function removeMember(ctx: any, body: any) {
@@ -83,9 +96,8 @@ async function removeMember(ctx: any, body: any) {
   if (!target) return { ok: true, deleted: false };
 
   const selfDelete = target.id === actor.id;
-  if (target.role === "admin" && actor.role !== "admin") throw new Error("只有管理員可以刪除管理員帳號");
-  if (!selfDelete && actor.role === "manager" && target.role !== "employee") {
-    throw new Error("主管只能刪除員工帳號");
+  if (actor.role === "manager" && target.role === "admin") {
+    throw new Error("主管不可刪除管理員帳號");
   }
   if (selfDelete) await verifyPassword(target.employee_code, String(body?.currentPassword || ""));
   if (target.role === "admin" && await effectiveAdminCount(ctx) <= 1) {
@@ -104,22 +116,36 @@ async function removeMember(ctx: any, body: any) {
     throw new Error("此人員已有班表、打卡、稽核、加班審核或訂餐資料，為保留歷史紀錄，無法刪除。");
   }
 
-  const profileDelete = await ctx.supabaseAdmin.from("set_employee").delete().eq("id", target.id);
-  if (profileDelete.error) throw profileDelete.error;
+  await assertSynchronizedDeleteReady(ctx);
+
+  // set_employee.id is linked to auth.users.id with ON DELETE CASCADE.
+  // The Auth deletion and employee-profile deletion therefore commit or roll back together.
   const authDelete = await ctx.supabaseAdmin.auth.admin.deleteUser(target.id);
   if (authDelete.error && !/not found/i.test(String(authDelete.error.message || authDelete.error))) {
     throw authDelete.error;
   }
+
+  const remaining = await ctx.supabaseAdmin.from("set_employee")
+    .select("id", { count: "exact", head: true }).eq("id", target.id);
+  if (remaining.error) throw remaining.error;
+  if ((remaining.count || 0) > 0) {
+    throw new Error("登入帳號已刪除，但人員資料未同步刪除；請立即停止操作並檢查 036 migration");
+  }
+
   return { ok: true, deleted: true, selfDelete, employeeCode };
 }
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
-    if (req.method !== "POST") return Response.json({ message: "Method Not Allowed" }, { status: 405 });
+    if (req.method !== "POST") {
+      return Response.json({ message: "Method Not Allowed" }, { status: 405 });
+    }
     try {
       return Response.json(await removeMember(ctx, await req.json()));
     } catch (error) {
-      return Response.json({ message: error instanceof Error ? error.message : "刪除人員失敗" }, { status: 400 });
+      return Response.json({
+        message: error instanceof Error ? error.message : "刪除人員失敗"
+      }, { status: 400 });
     }
   })
 };
