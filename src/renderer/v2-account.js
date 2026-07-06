@@ -65,4 +65,11 @@
     renderAll();
     openMemberSettings();
   };
+
+  if (!document.querySelector('script[data-v2-records]')) {
+    const script = document.createElement("script");
+    script.src = "./v2-records.js?v=20260706v2";
+    script.dataset.v2Records = "true";
+    document.body.appendChild(script);
+  }
 })();
