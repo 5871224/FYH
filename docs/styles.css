@@ -306,6 +306,12 @@ body.is-home-view .app-shell {
   font-size: clamp(28px, 5vw, 42px);
 }
 
+.clock-today-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
 .page-home-btn {
   flex: 0 0 auto;
   margin-left: auto;
@@ -400,6 +406,10 @@ body.is-home-view .app-shell {
 .overtime-request-panel h2 {
   margin: 0 0 8px;
   font-size: 22px;
+}
+
+.overtime-request-toggle-only {
+  padding: 14px 18px;
 }
 
 .overtime-panel-header {

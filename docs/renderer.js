@@ -162,6 +162,7 @@ let attendanceState = {
 };
 let attendanceOvertimeState = {
   loading: false,
+  expanded: false,
   status: null,
   error: ""
 };
@@ -2567,6 +2568,26 @@ function formatClockTime(value) {
   }).format(new Date(value));
 }
 
+function getTodayShiftSummary() {
+  const member = currentMember || resolveCurrentMember();
+  const dateString = attendanceState.serverDate || getTodayDateString();
+  const shift = getItem("shift", getSlot(member?.id || "", dateString)?.shift);
+  if (!shift) {
+    return "今日未排班";
+  }
+  return `${shift.name || "班別"}：${shift.startTime || "--:--"} ~ ${shift.endTime || "--:--"}`;
+}
+
+function formatClockButtonStatus(record, kind) {
+  const at = kind === "in" ? record.clock_in_at : record.clock_out_at;
+  if (!at) {
+    return "尚未打卡";
+  }
+  const departmentName = kind === "in" ? record.clock_in_department_name_snapshot : record.clock_out_department_name_snapshot;
+  const source = kind === "in" ? record.clock_in_source : record.clock_out_source;
+  return `${formatClockTime(at)}在${departmentName || "-"}打卡${source ? `(${source})` : ""}`;
+}
+
 function getBrowserPosition() {
   const userAgent = navigator.userAgent || "";
   const isTablet = /iPad|Tablet|Silk/i.test(userAgent)
@@ -2612,7 +2633,6 @@ async function loadTodayAttendance() {
       serverDate: result.serverDate || getTodayDateString(),
       error: ""
     };
-    await loadTodayAttendanceOvertime(false);
   } catch (error) {
     attendanceState = {
       loading: false,
@@ -2627,17 +2647,42 @@ async function loadTodayAttendance() {
 
 async function loadTodayAttendanceOvertime(shouldRender = true) {
   if (!isLoggedIn()) {
-    return;
+    return null;
   }
   attendanceOvertimeState = { ...attendanceOvertimeState, loading: true, error: "" };
   if (shouldRender) renderAll();
+  let status = null;
   try {
-    const status = await window.schedulerApi.getTodayAttendanceOvertime();
-    attendanceOvertimeState = { loading: false, status, error: "" };
+    status = await window.schedulerApi.getTodayAttendanceOvertime();
+    attendanceOvertimeState = { ...attendanceOvertimeState, loading: false, status, error: "" };
   } catch (error) {
-    attendanceOvertimeState = { loading: false, status: null, error: error.message || "讀取加班申請狀態失敗" };
+    attendanceOvertimeState = { ...attendanceOvertimeState, loading: false, status: null, error: error.message || "讀取加班申請狀態失敗" };
   }
   if (shouldRender) renderAll();
+  return status;
+}
+
+async function maybePromptOvertimeAfterClockOut(status) {
+  const eligibility = status?.eligibility || null;
+  const earlyHours = Number(eligibility?.earlyHours || 0);
+  const lateHours = Number(eligibility?.lateHours || 0);
+  if (!eligibility?.eligible || (earlyHours < 0.5 && lateHours < 0.5)) {
+    return false;
+  }
+  const confirmed = await confirmAction(`偵測到可申請加班：\n提早上班 ${earlyHours} 小時\n延後下班 ${lateHours} 小時\n是否申請加班？`);
+  if (!confirmed) {
+    return true;
+  }
+  attendanceOvertimeState = {
+    ...attendanceOvertimeState,
+    expanded: true,
+    loading: false,
+    status,
+    selectedWorkDate: getTodayDateString(),
+    error: ""
+  };
+  renderAll();
+  return true;
 }
 
 async function submitAttendanceClock(action) {
@@ -2664,8 +2709,11 @@ async function submitAttendanceClock(action) {
       serverDate: result.serverDate || getTodayDateString(),
       error: ""
     };
-    await loadTodayAttendanceOvertime(false);
-    showInfoMessage(action === "clock_in" ? "上班打卡完成" : "下班打卡完成");
+    const overtimeStatus = action === "clock_out" ? await loadTodayAttendanceOvertime(false) : null;
+    const promptedOvertime = action === "clock_out" ? await maybePromptOvertimeAfterClockOut(overtimeStatus) : false;
+    if (!promptedOvertime) {
+      showInfoMessage(action === "clock_in" ? "上班打卡完成" : "下班打卡完成");
+    }
   } catch (error) {
     attendanceState = {
       ...attendanceState,
@@ -3907,7 +3955,7 @@ function renderClockPage() {
       <div>
         <p class="home-eyebrow">打卡</p>
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
-        <p class="home-subtitle">今日日期：${escapeHtml(attendanceState.serverDate || getTodayDateString())}</p>
+        <p class="home-subtitle clock-today-line"><span>今日日期：${escapeHtml(attendanceState.serverDate || getTodayDateString())}</span><span>${escapeHtml(getTodayShiftSummary())}</span></p>
       </div>
       ${renderHomeIconButton()}
     </div>
@@ -3915,30 +3963,12 @@ function renderClockPage() {
     <div class="clock-action-grid">
       <button class="clock-action-btn clock-in-btn" type="button" data-clock-action="clock_in" ${disableClockIn ? "disabled" : ""}>
         <span>上班打卡</span>
-        <strong>${clockInDone ? `已於 ${formatClockTime(record.clock_in_at)} 上班打卡` : "尚未打卡"}</strong>
+        <strong>${formatClockButtonStatus(record, "in")}</strong>
       </button>
       <button class="clock-action-btn clock-out-btn" type="button" data-clock-action="clock_out" ${disableClockOut ? "disabled" : ""}>
         <span>下班打卡</span>
-        <strong>${clockOutDone ? `已於 ${formatClockTime(record.clock_out_at)} 下班打卡` : "尚未打卡"}</strong>
+        <strong>${formatClockButtonStatus(record, "out")}</strong>
       </button>
-    </div>
-    <div class="clock-status-grid">
-      <div>
-        <span>上班地點</span>
-        <strong>${escapeHtml(record.clock_in_department_name_snapshot || "-")}</strong>
-      </div>
-      <div>
-        <span>上班方式</span>
-        <strong>${escapeHtml(record.clock_in_source || "-")}</strong>
-      </div>
-      <div>
-        <span>下班地點</span>
-        <strong>${escapeHtml(record.clock_out_department_name_snapshot || "-")}</strong>
-      </div>
-      <div>
-        <span>下班方式</span>
-        <strong>${escapeHtml(record.clock_out_source || "-")}</strong>
-      </div>
     </div>
     ${renderTodayOvertimePanel()}
     ${attendanceState.saving ? '<p class="clock-loading">處理中，請稍候...</p>' : attendanceState.loading ? '<p class="clock-loading">讀取資料中...</p>' : ""}
@@ -3953,22 +3983,28 @@ function getOvertimeStatusLabel(status) {
 }
 
 function renderTodayOvertimePanel() {
+  const checked = Boolean(attendanceOvertimeState.expanded);
+  const toggle = `<label class="overtime-use-label"><input type="checkbox" data-toggle-overtime-panel="true" ${checked ? "checked" : ""}> 加班申請</label>`;
+  if (!checked) {
+    return `<section class="overtime-request-panel overtime-request-toggle-only">${toggle}</section>`;
+  }
   const stateValue = attendanceOvertimeState.status;
   const eligibility = stateValue?.eligibility || null;
   const request = stateValue?.request || null;
   if (attendanceOvertimeState.loading) {
-    return '<section class="overtime-request-panel"><p class="clock-loading">讀取加班狀態...</p></section>';
+    return `<section class="overtime-request-panel">${toggle}<p class="clock-loading">讀取加班狀態...</p></section>`;
   }
   if (attendanceOvertimeState.error) {
-    return `<section class="overtime-request-panel"><div class="auth-error">${escapeHtml(attendanceOvertimeState.error)}</div></section>`;
+    return `<section class="overtime-request-panel">${toggle}<div class="auth-error">${escapeHtml(attendanceOvertimeState.error)}</div></section>`;
   }
   if (!stateValue) {
-    return "";
+    return `<section class="overtime-request-panel">${toggle}</section>`;
   }
   if (request) {
     const canDelete = request.status === "pending" || request.status === "returned";
     return `
       <section class="overtime-request-panel">
+        ${toggle}
         <div class="overtime-panel-header">
           <div>
             <h2>今日加班申請</h2>
@@ -3986,6 +4022,7 @@ function renderTodayOvertimePanel() {
   if (!eligibility?.eligible) {
     return `
       <section class="overtime-request-panel">
+        ${toggle}
         <h2>今日加班申請</h2>
         <p class="home-subtitle">${escapeHtml(eligibility?.reasons?.[0] || "今日目前不可申請加班")}</p>
       </section>
@@ -3993,6 +4030,7 @@ function renderTodayOvertimePanel() {
   }
   return `
     <section class="overtime-request-panel">
+      ${toggle}
       <div class="overtime-panel-header">
         <div>
           <h2>今日加班申請</h2>
@@ -6773,8 +6811,8 @@ async function handleSignOut() {
   currentSession = null;
   currentProfile = null;
   currentMember = null;
-  attendanceState = { loading: false, record: null, serverDate: "", error: "" };
-  attendanceOvertimeState = { loading: false, status: null, error: "" };
+  attendanceState = { loading: false, saving: false, record: null, serverDate: "", error: "" };
+  attendanceOvertimeState = { loading: false, expanded: false, status: null, error: "" };
   mealOrderState = { loading: false, status: null, error: "" };
   recordsState = createRecordsState();
   appInfo = null;
@@ -7015,8 +7053,8 @@ function bindEvents() {
     currentSession = null;
     currentProfile = null;
     currentMember = null;
-    attendanceState = { loading: false, record: null, serverDate: "", error: "" };
-    attendanceOvertimeState = { loading: false, status: null, error: "" };
+    attendanceState = { loading: false, saving: false, record: null, serverDate: "", error: "" };
+    attendanceOvertimeState = { loading: false, expanded: false, status: null, error: "" };
     mealOrderState = { loading: false, status: null, error: "" };
     recordsState = createRecordsState();
     state = createEmptyState();
@@ -7472,6 +7510,15 @@ function bindEvents() {
       recordsState.attendanceAdmin.filters[target.dataset.attendanceFilter] = target.value || "";
       return;
     }
+    if (target instanceof HTMLInputElement && target.dataset.toggleOvertimePanel) {
+      attendanceOvertimeState = { ...attendanceOvertimeState, expanded: target.checked };
+      if (target.checked && !attendanceOvertimeState.status && !attendanceOvertimeState.loading) {
+        void loadTodayAttendanceOvertime();
+      } else {
+        renderAll();
+      }
+      return;
+    }
     if (!(target instanceof HTMLInputElement)) {
       return;
     }
@@ -7761,8 +7808,8 @@ async function loadApp() {
     if (!currentSession?.user) {
       state = createEmptyState();
       currentMember = null;
-      attendanceState = { loading: false, record: null, serverDate: "", error: "" };
-      attendanceOvertimeState = { loading: false, status: null, error: "" };
+      attendanceState = { loading: false, saving: false, record: null, serverDate: "", error: "" };
+      attendanceOvertimeState = { loading: false, expanded: false, status: null, error: "" };
       mealOrderState = { loading: false, status: null, error: "" };
       recordsState = createRecordsState();
       appInfo = null;
@@ -7786,8 +7833,8 @@ async function loadApp() {
     currentSession = null;
     currentProfile = null;
     currentMember = null;
-    attendanceState = { loading: false, record: null, serverDate: "", error: "" };
-    attendanceOvertimeState = { loading: false, status: null, error: "" };
+    attendanceState = { loading: false, saving: false, record: null, serverDate: "", error: "" };
+    attendanceOvertimeState = { loading: false, expanded: false, status: null, error: "" };
     mealOrderState = { loading: false, status: null, error: "" };
     recordsState = createRecordsState();
     appInfo = null;
