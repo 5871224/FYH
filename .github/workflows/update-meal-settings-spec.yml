@@ -1,0 +1,119 @@
+name: Update Meal Settings Specification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/update-meal-settings-spec.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  update-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch authoritative specification
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('福圓號排班系統擴充規格書.txt')
+          text = path.read_text(encoding='utf-8')
+
+          replacements = [
+            (
+              '''規則：
+
+          * 名稱不可重複。
+          * 價格可以為0。
+          * 價格不得為負數。
+          * 已有歷史訂單的商品不得實體刪除。
+          * 應使用停用。''',
+              '''規則：
+
+          * 名稱不可重複。
+          * 價格可以為0。
+          * 價格不得為負數。
+          * 設定表格在「啟用」右方提供「操作」欄及刪除按鈕。
+          * 尚無任何訂餐記錄的商品，可在確認後實體刪除。
+          * 已有歷史訂單的商品不得實體刪除；刪除時必須拒絕並提示改用停用。
+          * 新增後尚未儲存的空白商品列可直接從畫面移除。'''
+            ),
+            (
+              '''* 修改排序。
+          * 修改每日截止時間。''',
+              '''* 修改排序。
+          * 修改每日截止時間。
+          * 修改公司補助。'''
+            ),
+            (
+              '''7. 以送出當下伺服器時間判定。
+
+          ---
+
+          # 十二、員工訂餐''',
+              '''7. 以送出當下伺服器時間判定。
+
+          ---
+
+          ## 11.4 公司補助
+
+          1. 訂餐設定頁在「新增商品」按鈕左方顯示「公司補助」及輸入框。
+          2. 公司補助為全系統共用設定。
+          3. 只能輸入大於0的正整數；0、負數、小數及文字必須在輸入當下拒絕。
+          4. 既有資料升級時預設值為55。
+          5. 公司補助用於訂餐統計「人員」報表的自付額計算。
+
+          ---
+
+          # 十二、員工訂餐'''
+            ),
+            (
+              '''不得使用整張訂單共用備註。
+
+          ---
+
+          ## 12.5 數量規則''',
+              '''不得使用整張訂單共用備註。
+
+          電腦版整個訂餐頁面的最大內容寬度，必須與記錄頁相同。
+
+          ---
+
+          ## 12.5 數量規則'''
+            ),
+            (
+              '''自付額計算：
+
+          ```text
+          金額 - 訂餐日數 * 55
+          ```''',
+              '''自付額計算：
+
+          ```text
+          金額 -（訂餐日數 * 公司補助）
+          ```
+
+          公司補助取自訂餐設定頁目前保存的全系統設定值。'''
+            )
+          ]
+
+          changed = False
+          for old, new in replacements:
+              if old in text:
+                  text = text.replace(old, new, 1)
+                  changed = True
+              elif new not in text:
+                  raise SystemExit('Target specification block was not found')
+
+          if changed:
+              path.write_text(text, encoding='utf-8')
+          PY
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Document meal subsidy and product deletion rules
+          file_pattern: "福圓號排班系統擴充規格書.txt"
