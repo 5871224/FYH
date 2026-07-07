@@ -50,6 +50,10 @@ async function review(ctx: any, body: any) {
 
   const earlyInput = body?.earlyHours === undefined ? null : hours(body.earlyHours);
   const lateInput = body?.lateHours === undefined ? null : hours(body.lateHours);
+  const employeeNoteInput = body?.employeeNote === undefined
+    ? undefined
+    : String(body.employeeNote || "").trim();
+
   const result = await ctx.supabaseAdmin.rpc("admin_review_overtime_requests_v2", {
     p_ids: ids,
     p_status: status,
@@ -59,6 +63,14 @@ async function review(ctx: any, body: any) {
     p_review_note: String(body?.returnReason || body?.reviewNote || "").trim()
   });
   if (result.error) throw result.error;
+
+  if (employeeNoteInput !== undefined) {
+    const noteResult = await ctx.supabaseAdmin
+      .from("attendance_overtime_requests")
+      .update({ employee_note: employeeNoteInput })
+      .in("id", ids);
+    if (noteResult.error) throw noteResult.error;
+  }
   return result.data;
 }
 
