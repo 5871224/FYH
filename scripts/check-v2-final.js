@@ -20,6 +20,7 @@ const required = [
   "supabase/034_v2_overtime_reapply.sql",
   "supabase/035_v2_last_admin.sql",
   "supabase/036_v2_synchronized_member_delete.sql",
+  "supabase/037_v2_meal_subsidy_and_product_delete.sql",
   "supabase/functions/attendance-clock/index.ts",
   "supabase/functions/attendance-clock-safe/index.ts",
   "supabase/functions/attendance-overtime-employee/index.ts",
@@ -30,6 +31,7 @@ const required = [
   "supabase/functions/department-attendance-v2/index.ts",
   "supabase/functions/member-delete-v2/index.ts",
   "supabase/functions/personal-records-v2/index.ts",
+  "supabase/functions/meal-order/index.ts",
   "supabase/functions/meal-report-v2/index.ts",
   "supabase/functions/meal-cancel-v2/index.ts",
   "src/renderer/v2-api.js",
@@ -38,9 +40,12 @@ const required = [
   "src/renderer/v2-overtime-admin.js",
   "src/renderer/v2-meal.js",
   "docs/v2-meal.js",
+  "src/renderer/v2-meal-api.js",
+  "docs/v2-meal-api.js",
   "src/renderer/v2-account.js",
   "src/renderer/v2-attendance-admin.js",
   "src/renderer/v2-records.js",
+  "docs/v2-records.js",
   "src/renderer/v2-meal-export.js",
   "docs/v2-meal-export.js"
 ];
@@ -118,6 +123,18 @@ const mealOrder = read("supabase/functions/meal-order/index.ts");
 assert(mealOrder.includes('rpc("save_meal_order_v2"'), "訂餐未保留第一次訂餐單位快照");
 assert(mealOrder.includes("停用品項只能減少或取消"), "停用品項增加數量限制缺失");
 
+const mealSettingsSql = read("supabase/037_v2_meal_subsidy_and_product_delete.sql");
+assert(mealSettingsSql.includes("company_subsidy integer"), "公司補助資料庫欄位缺失");
+assert(mealSettingsSql.includes("check (company_subsidy > 0)"), "公司補助正整數資料庫限制缺失");
+assert(mealSettingsSql.includes("delete_meal_product_v2"), "安全刪除訂餐品項 RPC 缺失");
+assert(mealSettingsSql.includes("此品項已有訂餐記錄"), "已有訂餐歷史的品項刪除保護缺失");
+assert(mealOrder.includes("delete_admin_product"), "訂餐 Edge Function 缺少刪除品項操作");
+assert(mealOrder.includes("公司補助只能輸入正整數"), "訂餐 Edge Function 缺少公司補助驗證");
+
+const mealReport = read("supabase/functions/meal-report-v2/index.ts");
+assert(mealReport.includes("companySubsidy"), "訂餐報表未讀取公司補助");
+assert(mealReport.includes("row.amount - days * companySubsidy"), "人員報表自付額未使用公司補助");
+
 const sourceApi = read("src/renderer/v2-api.js");
 const publishedApi = read("docs/v2-api.js");
 assert(sourceApi === publishedApi, "src/renderer/v2-api.js 與 docs/v2-api.js 不同步");
@@ -145,6 +162,15 @@ assert(sourceMeal === publishedMeal, "訂餐輸入驗證來源版與發布版不
 assert(sourceMeal.includes('addEventListener("beforeinput"'), "訂餐數量未在輸入前拒絕小數或負數");
 assert(sourceMeal.includes('addEventListener("paste"'), "訂餐數量未拒絕貼上無效內容");
 assert(sourceMeal.includes("lastValidMealQuantity"), "訂餐無效輸入未保留最後有效整數");
+assert(sourceMeal.includes("data-meal-company-subsidy"), "訂餐設定缺少公司補助輸入框");
+assert(sourceMeal.includes("data-delete-meal-product"), "訂餐設定缺少品項刪除按鈕");
+assert(sourceMeal.includes("width: min(1100px, 100%)"), "電腦版訂餐頁寬度未與記錄頁一致");
+
+const sourceMealApi = read("src/renderer/v2-meal-api.js");
+const publishedMealApi = read("docs/v2-meal-api.js");
+assert(sourceMealApi === publishedMealApi, "訂餐設定 API 來源版與發布版不同步");
+assert(sourceMealApi.includes("deleteMealProduct"), "前端 API 缺少刪除品項操作");
+assert(sourceMealApi.includes("companySubsidy"), "前端 API 未傳送公司補助");
 
 const sourceExport = read("src/renderer/v2-meal-export.js");
 const publishedExport = read("docs/v2-meal-export.js");
@@ -162,6 +188,14 @@ assert(!sourceRecords.includes('["meal", "訂餐統計", isManager()]'), "記錄
 assert(sourceRecords.includes("data-meal-report-view"), "訂餐統計缺少報表切換下拉選單");
 assert(sourceRecords.includes('value="item"') && sourceRecords.includes('value="member"'), "訂餐統計缺少品項或人員報表");
 assert(sourceRecords.includes("上班打卡已刪除") && !sourceRecords.includes("<th>警告</th>"), "訂餐統計警告應併入備註欄");
+assert(sourceRecords.includes("report.memberSummary"), "人員訂餐報表未使用後端公司補助計算結果");
+assert(!sourceRecords.includes("days * 55"), "人員訂餐報表仍硬編碼55元補助");
+
+const authoritativeSpec = read("福圓號排班系統擴充規格書.txt");
+assert(authoritativeSpec.includes("## 11.4 公司補助"), "正式規格書缺少公司補助規則");
+assert(authoritativeSpec.includes("尚無任何訂餐記錄的商品，可在確認後實體刪除"), "正式規格書缺少品項刪除規則");
+assert(authoritativeSpec.includes("金額 -（訂餐日數 * 公司補助）"), "正式規格書自付額公式未更新");
+assert(authoritativeSpec.includes("最大內容寬度，必須與記錄頁相同"), "正式規格書未記載訂餐頁寬度");
 
 const readme = read("README.md");
 assert(readme.includes("查看完整班表"), "規格書未明確標示員工可查看完整班表");
@@ -178,5 +212,7 @@ assert(sourceIndex.includes("v2-overtime-employee.js"), "來源頁未載入五�
 assert(publishedIndex.includes("v2-overtime-employee.js"), "發布頁未載入五日加班介面");
 assert(sourceIndex.includes("v2-records.js") && sourceIndex.includes("v2-meal-export.js"), "來源頁未載入 V2 記錄或訂餐匯出介面");
 assert(publishedIndex.includes("v2-records.js") && publishedIndex.includes("v2-meal-export.js"), "發布頁未載入 V2 記錄或訂餐匯出介面");
+assert(sourceIndex.includes("v2-meal-api.js"), "來源頁未載入 V2 訂餐設定 API");
+assert(publishedIndex.includes("v2-meal-api.js"), "發布頁未載入 V2 訂餐設定 API");
 
 console.log(`V2 final checks passed (${required.length} required files).`);
