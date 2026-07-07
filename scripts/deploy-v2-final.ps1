@@ -11,6 +11,7 @@ $functions = @(
   "attendance-admin-action-v2",
   "department-attendance-v2",
   "member-delete-v2",
+  "member-order-v2",
   "personal-records-v2",
   "meal-report-v2",
   "meal-cancel-v2"
