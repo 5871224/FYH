@@ -155,6 +155,7 @@ let currentProfile = null;
 let currentMember = null;
 let attendanceState = {
   loading: false,
+  saving: false,
   record: null,
   serverDate: "",
   error: ""
@@ -2606,6 +2607,7 @@ async function loadTodayAttendance() {
     const result = await window.schedulerApi.getTodayAttendance();
     attendanceState = {
       loading: false,
+      saving: false,
       record: result.record || null,
       serverDate: result.serverDate || getTodayDateString(),
       error: ""
@@ -2614,6 +2616,7 @@ async function loadTodayAttendance() {
   } catch (error) {
     attendanceState = {
       loading: false,
+      saving: false,
       record: null,
       serverDate: getTodayDateString(),
       error: error.message || "讀取打卡狀態失敗"
@@ -2642,20 +2645,21 @@ async function submitAttendanceClock(action) {
     openSignInDialog();
     return;
   }
-  if (attendanceState.loading) {
+  if (attendanceState.saving) {
     return;
   }
   const confirmed = await confirmAction(action === "clock_in" ? "確定要上班打卡嗎？" : "確定要下班打卡嗎？");
   if (!confirmed) {
     return;
   }
-  attendanceState = { ...attendanceState, loading: true, error: "" };
+  attendanceState = { ...attendanceState, saving: true, error: "" };
   renderAll();
   try {
     const position = await getBrowserPosition();
     const result = await window.schedulerApi.clockAttendance(action, position);
     attendanceState = {
       loading: false,
+      saving: false,
       record: result.record || null,
       serverDate: result.serverDate || getTodayDateString(),
       error: ""
@@ -2666,6 +2670,7 @@ async function submitAttendanceClock(action) {
     attendanceState = {
       ...attendanceState,
       loading: false,
+      saving: false,
       error: error.message || "打卡失敗"
     };
   }
@@ -3895,8 +3900,8 @@ function renderClockPage() {
   const record = attendanceState.record || {};
   const clockInDone = Boolean(record.clock_in_at);
   const clockOutDone = Boolean(record.clock_out_at);
-  const disableClockIn = attendanceState.loading || clockInDone || clockOutDone;
-  const disableClockOut = attendanceState.loading || clockOutDone;
+  const disableClockIn = attendanceState.saving || clockInDone || clockOutDone;
+  const disableClockOut = attendanceState.saving || clockOutDone;
   clockCard.innerHTML = `
     <div class="clock-page-header">
       <div>
@@ -3936,7 +3941,7 @@ function renderClockPage() {
       </div>
     </div>
     ${renderTodayOvertimePanel()}
-    ${attendanceState.loading ? '<p class="clock-loading">處理中，請稍候...</p>' : ""}
+    ${attendanceState.saving ? '<p class="clock-loading">處理中，請稍候...</p>' : attendanceState.loading ? '<p class="clock-loading">讀取資料中...</p>' : ""}
   `;
 }
 
