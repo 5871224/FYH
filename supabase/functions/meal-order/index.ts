@@ -31,6 +31,11 @@ function taipeiTimeString(date = new Date()) {
   }).format(date);
 }
 
+function positiveInteger(value: unknown, fallback = 55) {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : fallback;
+}
+
 async function getProfile(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!userId) throw new Error("請先登入");
@@ -59,7 +64,12 @@ async function getMealSettings(ctx: any) {
     .eq("id", "default")
     .maybeSingle();
   if (error) throw error;
-  return data || { id: "default", daily_cutoff_time: "10:30" };
+  return {
+    id: "default",
+    daily_cutoff_time: data?.daily_cutoff_time || "10:30",
+    company_subsidy: positiveInteger(data?.company_subsidy, 55),
+    ...(data || {})
+  };
 }
 
 async function getTodayContext(ctx: any, profile: any) {
@@ -89,6 +99,7 @@ async function getTodayContext(ctx: any, profile: any) {
     orderDate,
     nowTime,
     cutoffTime,
+    companySubsidy: positiveInteger(settings.company_subsidy, 55),
     orderingOpen: nowTime <= cutoffTime,
     attendance: attendance || null,
     products: products || [],
@@ -197,9 +208,27 @@ async function adminSettings(ctx: any) {
 async function saveAdminSettings(ctx: any, body: any) {
   const profile = await getProfile(ctx);
   requireManager(profile);
+  const companySubsidy = Number(body?.companySubsidy);
+  if (!Number.isInteger(companySubsidy) || companySubsidy <= 0) {
+    throw new Error("公司補助只能輸入正整數");
+  }
   const { data, error } = await ctx.supabaseAdmin.rpc("save_meal_admin_settings", {
     p_products: Array.isArray(body?.products) ? body.products : [],
     p_daily_cutoff_time: String(body?.dailyCutoffTime || "").slice(0, 5),
+    p_company_subsidy: companySubsidy,
+    p_operator_user_id: profile.id
+  });
+  if (error) throw error;
+  return { ok: true, result: data };
+}
+
+async function deleteAdminProduct(ctx: any, body: any) {
+  const profile = await getProfile(ctx);
+  requireManager(profile);
+  const productId = String(body?.productId || "").trim();
+  if (!productId) throw new Error("缺少品項ID");
+  const { data, error } = await ctx.supabaseAdmin.rpc("delete_meal_product_v2", {
+    p_product_id: productId,
     p_operator_user_id: profile.id
   });
   if (error) throw error;
@@ -215,6 +244,7 @@ export default {
       if (body?.action === "save") return Response.json(await saveOrder(ctx, body));
       if (body?.action === "admin_settings") return Response.json(await adminSettings(ctx));
       if (body?.action === "save_admin_settings") return Response.json(await saveAdminSettings(ctx, body));
+      if (body?.action === "delete_admin_product") return Response.json(await deleteAdminProduct(ctx, body));
       return Response.json({ message: "不支援的訂餐操作" }, { status: 400 });
     } catch (error) {
       return Response.json({ message: error instanceof Error ? error.message : "訂餐失敗" }, { status: 400 });
