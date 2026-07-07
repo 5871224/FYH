@@ -21,6 +21,10 @@
         width: 100%;
         min-height: 36px;
       }
+      .v2-personal-record-table .personal-record-schedule-cell .seg-label {
+        color: inherit;
+        font-size: inherit;
+      }
       .personal-punch-stack {
         min-width: 118px;
         white-space: nowrap;
