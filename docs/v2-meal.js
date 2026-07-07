@@ -10,8 +10,28 @@
     style.id = "v2MealLayoutStyle";
     style.textContent = `
       .meal-card { width: min(1100px, 100%); }
-      .meal-settings-operation-col { width: 1%; white-space: nowrap; text-align: center; }
+      .meal-settings-table { width: 100%; table-layout: fixed; }
+      .meal-settings-table th,
+      .meal-settings-table td { min-width: 0; }
+      .meal-settings-drag-col { width: 42px; text-align: center; }
+      .meal-settings-name-col { width: auto; }
+      .meal-settings-price-col { width: 104px; }
+      .meal-settings-active-col { width: 70px; text-align: center; }
+      .meal-settings-operation-col { width: 72px; white-space: nowrap; text-align: center; }
+      .meal-settings-name-col input,
+      .meal-settings-price-col input { width: 100%; min-width: 0; }
       .meal-settings-operation-col .ghost-btn { padding: 7px 12px; }
+      .meal-drag-handle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        cursor: grab;
+        user-select: none;
+        touch-action: none;
+      }
+      .meal-drag-handle:active { cursor: grabbing; }
       .meal-settings-toolbar-label { display: inline-flex; align-items: center; gap: 8px; }
       .meal-settings-toolbar-label input[type="number"] { width: 92px; }
     `;
@@ -87,12 +107,12 @@
       ${mealAdmin.error ? `<div class="auth-error">${escapeHtml(mealAdmin.error)}</div>` : ""}
       <div class="meal-settings-table-wrap">
         <table class="meal-settings-table">
-          <thead><tr><th class="meal-settings-drag-col"></th><th>品項</th><th class="meal-settings-price-col">價格</th><th class="meal-settings-active-col">啟用</th><th class="meal-settings-operation-col">操作</th></tr></thead>
-          <tbody>${mealAdmin.products.map((product, index) => `<tr draggable="true" data-meal-product-row="${index}">
-            <td class="meal-settings-drag-col"><span class="meal-drag-handle" title="拖曳排序">≡</span></td>
-            <td><input type="text" value="${escapeHtml(product.name || "")}" data-meal-product-field="name"></td>
-            <td><input type="number" min="0" step="1" value="${escapeHtml(String(product.price || 0))}" data-meal-product-field="price"></td>
-            <td><input type="checkbox" ${product.is_active !== false ? "checked" : ""} data-meal-product-field="isActive"><input type="hidden" value="${escapeHtml(product.id || "")}" data-meal-product-field="id"></td>
+          <thead><tr><th class="meal-settings-drag-col"></th><th class="meal-settings-name-col">品項</th><th class="meal-settings-price-col">價格</th><th class="meal-settings-active-col">啟用</th><th class="meal-settings-operation-col">操作</th></tr></thead>
+          <tbody>${mealAdmin.products.map((product, index) => `<tr data-meal-product-row="${index}">
+            <td class="meal-settings-drag-col"><span class="meal-drag-handle" draggable="true" title="拖曳排序" aria-label="拖曳排序">≡</span></td>
+            <td class="meal-settings-name-col"><input type="text" value="${escapeHtml(product.name || "")}" data-meal-product-field="name"></td>
+            <td class="meal-settings-price-col"><input type="number" min="0" step="1" value="${escapeHtml(String(product.price || 0))}" data-meal-product-field="price"></td>
+            <td class="meal-settings-active-col"><input type="checkbox" ${product.is_active !== false ? "checked" : ""} data-meal-product-field="isActive"><input type="hidden" value="${escapeHtml(product.id || "")}" data-meal-product-field="id"></td>
             <td class="meal-settings-operation-col"><button class="ghost-btn compact-btn" type="button" data-delete-meal-product="${escapeHtml(String(index))}">刪除</button></td>
           </tr>`).join("") || '<tr><td colspan="5">尚無商品</td></tr>'}</tbody>
         </table>
@@ -149,6 +169,16 @@
       showInfoMessage(error.message || "刪除品項失敗");
     }
   }
+
+  document.addEventListener("dragstart", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const mealProductRow = target.closest("[data-meal-product-row]");
+    if (mealProductRow && !target.closest(".meal-drag-handle")) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  }, true);
 
   document.addEventListener("keydown", (event) => {
     const input = event.target;
