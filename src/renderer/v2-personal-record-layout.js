@@ -5,26 +5,21 @@
     const style = document.createElement("style");
     style.id = "v2PersonalRecordLayoutStyle";
     style.textContent = `
-      .v2-personal-record-table .personal-shift-icon-col {
-        width: 58px;
-        min-width: 58px;
+      .v2-personal-record-table .personal-schedule-icon-col {
+        width: var(--day-col-width);
+        min-width: var(--day-col-width);
+        max-width: var(--day-col-width);
+        padding: 2px;
         text-align: center;
+        vertical-align: middle;
       }
-      .personal-shift-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 36px;
-        max-width: 52px;
-        min-height: 30px;
-        padding: 4px 7px;
-        border-radius: 9px;
-        font-size: 12px;
-        font-weight: 800;
-        line-height: 1.2;
-        text-align: center;
-        white-space: normal;
-        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .05);
+      .v2-personal-record-table th.personal-schedule-icon-col {
+        padding-left: 2px;
+        padding-right: 2px;
+      }
+      .personal-record-schedule-cell {
+        width: 100%;
+        min-height: 36px;
       }
       .personal-punch-stack {
         min-width: 118px;
@@ -36,28 +31,42 @@
     document.head.appendChild(style);
   }
 
-  function shiftTextColor(color) {
-    const hex = String(color || "").trim();
-    if (!/^#[0-9a-f]{6}$/i.test(hex)) return "#ffffff";
-    const red = parseInt(hex.slice(1, 3), 16);
-    const green = parseInt(hex.slice(3, 5), 16);
-    const blue = parseInt(hex.slice(5, 7), 16);
-    return (red * 299 + green * 587 + blue * 114) / 1000 > 150 ? "#000000" : "#ffffff";
+  function findSegmentItem(segment) {
+    const itemId = String(segment?.itemId || "");
+    if (!itemId) return null;
+    if (segment.category === "shift") return (state.shifts || []).find((item) => item.id === itemId) || null;
+    if (segment.category === "leave") return (state.leaves || []).find((item) => item.id === itemId) || null;
+    if (segment.category === "overtime") return (state.overtime || []).find((item) => item.id === itemId) || null;
+    return null;
   }
 
-  function findRecordShift(record) {
-    const name = String(record?.shiftName || "");
-    return (state.shifts || []).find((shift) => shift.name === name) || null;
+  function normalizeScheduleSegments(record) {
+    const source = Array.isArray(record?.scheduleSegments) ? record.scheduleSegments : [];
+    if (source.length) return source.slice(0, 3);
+    if (!record?.shiftName) return [];
+    const shift = (state.shifts || []).find((item) => item.name === record.shiftName) || null;
+    return [{
+      category: "shift",
+      itemId: shift?.id || "",
+      name: record.shiftName,
+      color: shift?.color || "#888780",
+      textColor: shift?.textColor || ""
+    }];
   }
 
-  function renderShiftIcon(record) {
-    const shift = findRecordShift(record);
-    if (!shift || !record.shiftName) return "-";
-    const background = shift.color || "#888780";
-    const foreground = shift.autoTextColor === false && shift.textColor
-      ? shift.textColor
-      : shift.textColor || shiftTextColor(background);
-    return `<span class="personal-shift-icon" style="background:${escapeHtml(background)};color:${escapeHtml(foreground)}">${escapeHtml(record.shiftName)}</span>`;
+  function renderScheduleIcon(record) {
+    const segments = normalizeScheduleSegments(record);
+    if (!segments.length) return '<div class="cell-inner personal-record-schedule-cell"></div>';
+    const hasShift = segments.some((segment) => segment.category === "shift");
+    return `<div class="cell-inner personal-record-schedule-cell">${segments.map((segment) => {
+      const item = findSegmentItem(segment);
+      const color = item?.color || segment.color || (segment.category === "overtime" ? "#D85A30" : "#888780");
+      const itemText = item ? getItemTextColor(item, color) : (segment.textColor || textColor(color));
+      const specialLeaveText = segment.category === "leave" && String(segment.code || item?.code || "") === "0047" && hasShift;
+      const foreground = specialLeaveText ? "rgb(112, 112, 112)" : itemText;
+      const name = item?.name || segment.name || (segment.category === "overtime" ? "加班" : "");
+      return `<div class="seg" style="background-color:${escapeHtml(color)};color:${escapeHtml(foreground)}"><span class="seg-label ${getScheduleSegmentSizeClass({ name }, segments.length)}">${escapeHtml(name)}</span></div>`;
+    }).join("")}</div>`;
   }
 
   function punchLine(value, department) {
@@ -89,10 +98,10 @@
         <button class="primary-btn compact-btn" type="button" data-v2-personal-search>查詢</button>
       </div>
       <div class="records-table-wrap"><table class="records-table v2-personal-record-table">
-        <thead><tr><th>日期</th><th class="personal-shift-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>異常</th><th>加班</th><th>打卡備註</th><th>加班備註</th><th>訂餐</th></tr></thead>
+        <thead><tr><th>日期</th><th class="personal-schedule-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>異常</th><th>加班</th><th>打卡備註</th><th>加班備註</th><th>訂餐</th></tr></thead>
         <tbody>${(recordsState.personal || []).map((record) => `<tr>
           <td>${escapeHtml(record.date || "")}</td>
-          <td class="personal-shift-icon-col">${renderShiftIcon(record)}</td>
+          <td class="personal-schedule-icon-col">${renderScheduleIcon(record)}</td>
           <td>${escapeHtml(record.shiftName || "-")}<br><span>${escapeHtml(record.shiftTime || "")}</span></td>
           <td class="personal-punch-stack"><div>${punchLine(record.clockIn, record.clockInDepartment)}</div><div>${punchLine(record.clockOut, record.clockOutDepartment)}</div></td>
           <td>${escapeHtml((record.issues || []).join("、") || "正常")}</td>
