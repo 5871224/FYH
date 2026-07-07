@@ -127,6 +127,13 @@ assert(sourceApi.includes("isAndroidTablet"), "Android 平板 Session 判斷缺�
 assert(sourceApi.includes("isIPad"), "iPad Session 判斷缺失");
 assert(sourceApi.includes("30 * 60 * 1000"), "平板未使用電腦版 30 分鐘閒置期限");
 
+const sourceRenderer = read("src/renderer/renderer.js");
+const publishedRenderer = read("docs/renderer.js");
+const sourceWebApi = read("src/renderer/web-api.js");
+const attendanceClockSource = read("supabase/functions/attendance-clock/index.ts");
+assert(sourceRenderer.includes("geolocationError") && sourceWebApi.includes("geolocationError"), "手機定位錯誤未送到打卡 API");
+assert(attendanceClockSource.includes("手機 GPS 精度約") && attendanceClockSource.includes("目前距離最近可打卡單位"), "打卡 GPS 失敗原因未明確回報");
+
 const sourceMeal = read("src/renderer/v2-meal.js");
 const publishedMeal = read("docs/v2-meal.js");
 assert(sourceMeal === publishedMeal, "訂餐輸入驗證來源版與發布版不同步");

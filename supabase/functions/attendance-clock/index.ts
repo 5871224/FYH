@@ -144,6 +144,7 @@ async function resolveClockLocation(ctx: any, req: Request, body: any) {
   const latitude = toNumber(body?.latitude);
   const longitude = toNumber(body?.longitude);
   const accuracy = toNumber(body?.accuracy);
+  let gpsFailure = "";
   if (allowGps && latitude !== null && longitude !== null
     && accuracy !== null && accuracy <= MAX_GPS_ACCURACY_METERS) {
     const gpsMatch = departments
@@ -169,6 +170,19 @@ async function resolveClockLocation(ctx: any, req: Request, body: any) {
         ip: getClientIp(req)
       };
     }
+    if (gpsMatch) {
+      gpsFailure = `目前距離最近可打卡單位約 ${Math.round(gpsMatch.distance)} 公尺，需在 ${MAX_GPS_DISTANCE_METERS} 公尺內`;
+    } else {
+      gpsFailure = "已啟用打卡的單位尚未設定經緯度";
+    }
+  } else if (allowGps) {
+    if (body?.geolocationError) {
+      gpsFailure = String(body.geolocationError);
+    } else if (latitude === null || longitude === null || accuracy === null) {
+      gpsFailure = "手機沒有提供 GPS 定位，請允許瀏覽器定位後再打卡";
+    } else if (accuracy > MAX_GPS_ACCURACY_METERS) {
+      gpsFailure = `手機 GPS 精度約 ${Math.round(accuracy)} 公尺，需小於 ${MAX_GPS_ACCURACY_METERS} 公尺`;
+    }
   }
 
   const clientIp = getClientIp(req);
@@ -185,9 +199,9 @@ async function resolveClockLocation(ctx: any, req: Request, body: any) {
     };
   }
 
-  throw new Error(clientIp
+  throw new Error(gpsFailure || (clientIp
     ? `目前 IP ${clientIp} 不在可打卡單位設定內，請改用手機 GPS 或請管理員確認固定 IP`
-    : "目前無法取得可用的 GPS 或固定 IP 打卡位置");
+    : "目前無法取得可用的 GPS 或固定 IP 打卡位置"));
 }
 
 async function clock(ctx: any, req: Request, body: any, kind: "clock_in" | "clock_out") {

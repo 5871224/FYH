@@ -81,8 +81,11 @@
     const userAgent = navigator.userAgent || "";
     const isTablet = /iPad|Tablet|Silk/i.test(userAgent)
       || (/Android/i.test(userAgent) && !/Mobile|Mobi/i.test(userAgent));
+    const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
+    const narrowTouch = !isTablet && coarsePointer && navigator.maxTouchPoints > 0 && Math.min(window.screen?.width || window.innerWidth, window.screen?.height || window.innerHeight) <= 820;
     return Boolean(
       navigator.userAgentData?.mobile
+        || narrowTouch
         || (!isTablet && /Android|iPhone|iPod|Windows Phone|Mobi|Mobile/i.test(userAgent))
     );
   }
@@ -744,7 +747,8 @@
       deviceType: isPhoneDevice() ? "phone" : "desktop",
       latitude: position.latitude,
       longitude: position.longitude,
-      accuracy: position.accuracy
+      accuracy: position.accuracy,
+      geolocationError: position.geolocationError || ""
     });
   }
 
