@@ -29,6 +29,11 @@ function pageNumber(value: unknown) {
   return Number.isFinite(number) && number > 0 ? Math.floor(number) : 1;
 }
 
+function positiveInteger(value: unknown, fallback = 55) {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : fallback;
+}
+
 async function requireManager(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   const result = await ctx.supabaseAdmin.from("set_employee")
@@ -45,6 +50,11 @@ async function report(ctx: any, body: any) {
   const departmentId = String(body?.departmentId || "");
   const memberId = String(body?.memberId || "");
   const page = pageNumber(body?.page);
+
+  const settingsResult = await ctx.supabaseAdmin.from("meal_settings")
+    .select("company_subsidy").eq("id", "default").maybeSingle();
+  if (settingsResult.error) throw settingsResult.error;
+  const companySubsidy = positiveInteger(settingsResult.data?.company_subsidy, 55);
 
   let query = ctx.supabaseAdmin.from("meal_orders").select("*")
     .gte("order_date", fromDate).lte("order_date", toDate)
@@ -65,6 +75,7 @@ async function report(ctx: any, body: any) {
 
   const summaryMap = new Map<string, any>();
   const dailyMap = new Map<string, any>();
+  const memberMap = new Map<string, any>();
   const totals = { quantity: 0, amount: 0 };
   const details = orders.map((row: any) => {
     const quantity = Number(row.quantity || 0);
@@ -99,6 +110,17 @@ async function report(ctx: any, body: any) {
     daily.amount += amount;
     dailyMap.set(dailyKey, daily);
 
+    const memberKey = String(row.user_id || row.employee_name_snapshot || "");
+    const member = memberMap.get(memberKey) || {
+      employeeId: row.user_id,
+      employeeName: row.employee_name_snapshot,
+      dates: new Set<string>(),
+      amount: 0
+    };
+    if (quantity > 0 && row.order_date) member.dates.add(row.order_date);
+    member.amount += amount;
+    memberMap.set(memberKey, member);
+
     return {
       id: row.id,
       orderId: row.order_id,
@@ -120,13 +142,27 @@ async function report(ctx: any, body: any) {
     };
   });
 
+  const memberSummary = [...memberMap.values()].map((row: any) => {
+    const days = row.dates.size;
+    return {
+      employeeId: row.employeeId,
+      employeeName: row.employeeName,
+      days,
+      amount: row.amount,
+      companySubsidy,
+      selfPay: row.amount - days * companySubsidy
+    };
+  }).sort((a: any, b: any) => String(a.employeeName || "").localeCompare(String(b.employeeName || "")));
+
   const offset = (page - 1) * PAGE_SIZE;
   return {
     ok: true,
     fromDate,
     toDate,
+    companySubsidy,
     summary: [...summaryMap.values()],
     dailySummary: [...dailyMap.values()],
+    memberSummary,
     details: details.slice(offset, offset + PAGE_SIZE),
     exportDetails: details,
     totals,
