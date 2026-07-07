@@ -77,6 +77,19 @@ function attendanceIssues(record: any, shift: any, workDate: string, today: stri
   return output;
 }
 
+function catalogSegment(category: string, item: any) {
+  if (!item) return null;
+  return {
+    category,
+    itemId: item.id || "",
+    code: item.code || "",
+    name: item.name || (category === "overtime" ? "加班" : ""),
+    color: item.color || (category === "overtime" ? "#D85A30" : "#888780"),
+    textColor: item.text_color || "",
+    autoTextColor: item.auto_text_color !== false
+  };
+}
+
 async function profile(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   const result = await ctx.supabaseAdmin.from("set_employee")
@@ -97,33 +110,47 @@ async function list(ctx: any, body: any) {
     ctx.supabaseAdmin.from("attendance_records").select("*").eq("user_id", user.id).gte("work_date", fromDate).lte("work_date", toDate),
     ctx.supabaseAdmin.from("attendance_overtime_requests").select("*").eq("user_id", user.id).eq("is_deleted_by_employee", false).gte("work_date", fromDate).lte("work_date", toDate),
     ctx.supabaseAdmin.from("meal_orders").select("*").eq("user_id", user.id).gte("order_date", fromDate).lte("order_date", toDate),
-    ctx.supabaseAdmin.from("schedule_entries").select("work_date,shift_type_id").eq("member_id", user.id).gte("work_date", fromDate).lte("work_date", toDate),
+    ctx.supabaseAdmin.from("schedule_entries").select("work_date,shift_type_id,leave_type_id,overtime_type_id").eq("member_id", user.id).gte("work_date", fromDate).lte("work_date", toDate),
     ctx.supabaseAdmin.from("meal_settings").select("daily_cutoff_time").eq("id", "default").maybeSingle()
   ]);
   for (const result of [attendanceResult, overtimeResult, mealResult, scheduleResult, mealSettingResult]) if (result.error) throw result.error;
 
-  const shiftIds = [...new Set((scheduleResult.data || []).map((row: any) => row.shift_type_id).filter(Boolean))];
-  const shiftResult = shiftIds.length
-    ? await ctx.supabaseAdmin.from("set_shift").select("id,name,start_time,end_time,applicable_department_id").in("id", shiftIds)
-    : { data: [], error: null };
-  if (shiftResult.error) throw shiftResult.error;
+  const scheduleRows = scheduleResult.data || [];
+  const shiftIds = [...new Set(scheduleRows.map((row: any) => row.shift_type_id).filter(Boolean))];
+  const leaveIds = [...new Set(scheduleRows.map((row: any) => row.leave_type_id).filter(Boolean))];
+  const overtimeTypeIds = [...new Set(scheduleRows.map((row: any) => row.overtime_type_id).filter(Boolean))];
+
+  const [shiftResult, leaveResult, overtimeTypeResult] = await Promise.all([
+    shiftIds.length
+      ? ctx.supabaseAdmin.from("set_shift").select("id,name,start_time,end_time,applicable_department_id,color,text_color,auto_text_color").in("id", shiftIds)
+      : Promise.resolve({ data: [], error: null }),
+    leaveIds.length
+      ? ctx.supabaseAdmin.from("set_leave").select("id,code,name,color,text_color,auto_text_color").in("id", leaveIds)
+      : Promise.resolve({ data: [], error: null }),
+    overtimeTypeIds.length
+      ? ctx.supabaseAdmin.from("set_overtime").select("id,name,color,text_color,auto_text_color").in("id", overtimeTypeIds)
+      : Promise.resolve({ data: [], error: null })
+  ]);
+  for (const result of [shiftResult, leaveResult, overtimeTypeResult]) if (result.error) throw result.error;
 
   const attendance = new Map((attendanceResult.data || []).map((row: any) => [row.work_date, row]));
   const overtime = new Map((overtimeResult.data || []).map((row: any) => [row.work_date, row]));
-  const schedules = new Map((scheduleResult.data || []).map((row: any) => [row.work_date, row]));
+  const schedules = new Map(scheduleRows.map((row: any) => [row.work_date, row]));
   const shifts = new Map((shiftResult.data || []).map((row: any) => [row.id, row]));
+  const leaves = new Map((leaveResult.data || []).map((row: any) => [row.id, row]));
+  const overtimeTypes = new Map((overtimeTypeResult.data || []).map((row: any) => [row.id, row]));
   const meals = new Map<string, any[]>();
   for (const row of mealResult.data || []) {
-    const list = meals.get(row.order_date) || [];
-    list.push(row);
-    meals.set(row.order_date, list);
+    const mealRows = meals.get(row.order_date) || [];
+    mealRows.push(row);
+    meals.set(row.order_date, mealRows);
   }
 
   const dates = new Set<string>();
   for (const row of attendanceResult.data || []) dates.add(row.work_date);
   for (const row of overtimeResult.data || []) dates.add(row.work_date);
   for (const row of mealResult.data || []) dates.add(row.order_date);
-  for (const row of scheduleResult.data || []) dates.add(row.work_date);
+  for (const row of scheduleRows) dates.add(row.work_date);
 
   const cutoff = String(mealSettingResult.data?.daily_cutoff_time || "10:30").slice(0, 5);
   const nowTime = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
@@ -132,11 +159,19 @@ async function list(ctx: any, body: any) {
     const overtimeRow: any = overtime.get(date) || null;
     const schedule: any = schedules.get(date) || null;
     const shift: any = schedule?.shift_type_id ? shifts.get(schedule.shift_type_id) || null : null;
+    const leave: any = schedule?.leave_type_id ? leaves.get(schedule.leave_type_id) || null : null;
+    const overtimeType: any = schedule?.overtime_type_id ? overtimeTypes.get(schedule.overtime_type_id) || null : null;
     const mealRows = meals.get(date) || [];
+    const scheduleSegments = [
+      catalogSegment("shift", shift),
+      catalogSegment("leave", leave),
+      catalogSegment("overtime", overtimeType)
+    ].filter(Boolean);
     return {
       date,
       shiftName: shift?.name || "",
       shiftTime: shift ? `${String(shift.start_time || "").slice(0, 5)}-${String(shift.end_time || "").slice(0, 5)}` : "",
+      scheduleSegments,
       clockIn: attendanceRow?.clock_in_at || null,
       clockInDepartment: attendanceRow?.clock_in_department_name_snapshot || "",
       clockInSource: attendanceRow?.clock_in_source || "",
