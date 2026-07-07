@@ -1,6 +1,51 @@
 (function installV2OvertimeAdminUi() {
   if (!window.schedulerApi || typeof renderAll !== "function") return;
 
+  if (!document.getElementById("v2OvertimeAdminStyle")) {
+    const style = document.createElement("style");
+    style.id = "v2OvertimeAdminStyle";
+    style.textContent = `
+      .v2-overtime-review-table .v2-overtime-check-col {
+        width: 40px;
+        min-width: 40px;
+        max-width: 40px;
+        padding-left: 9px;
+        padding-right: 9px;
+        text-align: center;
+        white-space: nowrap;
+      }
+      .v2-overtime-review-table .v2-overtime-date-col {
+        width: 112px;
+        min-width: 112px;
+        padding-left: 12px;
+        padding-right: 12px;
+        white-space: nowrap;
+      }
+      .v2-overtime-review-table .v2-overtime-status-col {
+        width: 62px;
+        min-width: 62px;
+        max-width: 62px;
+        padding-left: 6px;
+        padding-right: 6px;
+        text-align: center;
+        white-space: nowrap;
+      }
+      .v2-overtime-review-table .v2-overtime-action-col {
+        width: 116px;
+        min-width: 116px;
+      }
+      .v2-overtime-review-table .v2-overtime-action-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+      }
+      .v2-overtime-review-table .v2-overtime-action-buttons .compact-btn {
+        padding: 6px 10px;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   function ensureReviewState() {
     const current = recordsState.overtimeReview || {};
     const filters = current.filters || {};
@@ -87,7 +132,6 @@
     const review = ensureReviewState();
     const filters = review.filters;
     const rows = review.requests || [];
-    const checkColumnStyle = "width:1%;min-width:28px;max-width:28px;padding-left:4px;padding-right:4px;text-align:center;white-space:nowrap";
     return `<section class="records-section">
       <h2>加班審核</h2>
       <div class="records-filter-row">
@@ -107,23 +151,55 @@
       </div>
       ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
       <div class="records-table-wrap">
-        <table class="records-table">
-          <thead><tr><th style="${checkColumnStyle}"><input type="checkbox" data-v2-overtime-check-all></th><th>日期</th><th>員工</th><th>班別</th><th>打卡時間</th><th>加班時數</th><th>備註</th><th>狀態</th><th>操作</th></tr></thead>
+        <table class="records-table v2-overtime-review-table">
+          <thead><tr><th class="v2-overtime-check-col"><input type="checkbox" data-v2-overtime-check-all></th><th class="v2-overtime-date-col">日期</th><th>員工</th><th>班別</th><th>打卡時間</th><th>加班時數</th><th>備註</th><th class="v2-overtime-status-col">狀態</th><th class="v2-overtime-action-col">操作</th></tr></thead>
           <tbody>${rows.map((row) => `<tr>
-            <td style="${checkColumnStyle}"><input type="checkbox" data-v2-overtime-check="${escapeHtml(row.id)}"></td>
-            <td>${escapeHtml(row.work_date || "")}${row.attendance_changed_warning ? '<br><span class="auth-error-inline">打卡時間已異動</span>' : ""}</td>
+            <td class="v2-overtime-check-col"><input type="checkbox" data-v2-overtime-check="${escapeHtml(row.id)}"></td>
+            <td class="v2-overtime-date-col">${escapeHtml(row.work_date || "")}${row.attendance_changed_warning ? '<br><span class="auth-error-inline">打卡時間已異動</span>' : ""}</td>
             <td>${escapeHtml(row.employee?.full_name || "")}</td>
             <td>${escapeHtml(row.shift?.name || "-")}<br><span>${escapeHtml(`${String(row.shift?.start_time || "").slice(0, 5)}-${String(row.shift?.end_time || "").slice(0, 5)}`)}</span></td>
             <td>上班 ${formatPunchTime(row.attendance?.clock_in_at)}<br>下班 ${formatPunchTime(row.attendance?.clock_out_at)}</td>
             <td>${formatHours(row.early_overtime_hours)}＋${formatHours(row.late_overtime_hours)}=${formatHours(row.total_overtime_hours)}</td>
             <td>${escapeHtml(row.employee_note || "")}</td>
-            <td>${escapeHtml(getOvertimeStatusLabel(row.status || ""))}</td>
-            <td><button class="ghost-btn compact-btn" type="button" data-open-overtime-review="${escapeHtml(row.id)}">調整</button><button class="primary-btn compact-btn" type="button" data-approve-overtime="${escapeHtml(row.id)}">核准</button><button class="ghost-btn compact-btn" type="button" data-return-overtime="${escapeHtml(row.id)}">退回</button></td>
+            <td class="v2-overtime-status-col">${escapeHtml(getOvertimeStatusLabel(row.status || ""))}</td>
+            <td class="v2-overtime-action-col"><div class="v2-overtime-action-buttons"><button class="ghost-btn compact-btn" type="button" data-open-overtime-review="${escapeHtml(row.id)}">調整</button><button class="primary-btn compact-btn" type="button" data-approve-overtime="${escapeHtml(row.id)}">核准</button><button class="ghost-btn compact-btn" type="button" data-return-overtime="${escapeHtml(row.id)}">退回</button></div></td>
           </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
         </table>
       </div>
       ${pageButtons(review)}
     </section>`;
+  };
+
+  openOvertimeReviewModal = function openV2OvertimeReviewModal(id) {
+    const row = ensureReviewState().requests.find((item) => item.id === id);
+    if (!row) return;
+    openEntityListModal({
+      title: "調整加班",
+      hideFooterClose: true,
+      body: `<div class="form-grid two-col">
+        <div class="form-row"><label>提早上班</label><input id="reviewEarlyHours" type="number" min="0" step="0.5" value="${Number(row.early_overtime_hours || 0)}"></div>
+        <div class="form-row"><label>延後下班</label><input id="reviewLateHours" type="number" min="0" step="0.5" value="${Number(row.late_overtime_hours || 0)}"></div>
+        <div class="form-row form-row-wide"><label>備註</label><textarea id="reviewEmployeeNote" rows="4">${escapeHtml(row.employee_note || "")}</textarea></div>
+      </div>`,
+      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-overtime-review="${escapeHtml(id)}">儲存為待審</button>`
+    });
+  };
+
+  reviewOvertime = async function reviewV2Overtime(id, status, readHours = false) {
+    try {
+      await window.schedulerApi.reviewOvertimeRequest({
+        id,
+        status,
+        earlyHours: readHours ? document.getElementById("reviewEarlyHours")?.value : undefined,
+        lateHours: readHours ? document.getElementById("reviewLateHours")?.value : undefined,
+        employeeNote: readHours ? document.getElementById("reviewEmployeeNote")?.value || "" : undefined
+      });
+      closeModal();
+      await loadOvertimeReview();
+      showInfoMessage("加班審核已更新");
+    } catch (error) {
+      setSaveStatus(`加班審核失敗：${error.message}`);
+    }
   };
 
   openAdminOvertimeCreateModal = function openV2AdminOvertimeCreateModal() {
