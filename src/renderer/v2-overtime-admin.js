@@ -62,8 +62,13 @@
     if (shouldRender) renderAll();
   };
 
-  function formatDateTime(value) {
-    return value ? `${String(value).slice(0, 10)} ${formatClockTime(value)}` : "-";
+  function formatHours(value) {
+    const hours = Number(value || 0);
+    return Number.isFinite(hours) ? String(hours) : "0";
+  }
+
+  function formatPunchTime(value) {
+    return value ? formatClockTime(value) : "-";
   }
 
   function pageButtons(review) {
@@ -82,6 +87,7 @@
     const review = ensureReviewState();
     const filters = review.filters;
     const rows = review.requests || [];
+    const checkColumnStyle = "width:1%;min-width:28px;max-width:28px;padding-left:4px;padding-right:4px;text-align:center;white-space:nowrap";
     return `<section class="records-section">
       <h2>加班審核</h2>
       <div class="records-filter-row">
@@ -102,20 +108,18 @@
       ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
       <div class="records-table-wrap">
         <table class="records-table">
-          <thead><tr><th><input type="checkbox" data-v2-overtime-check-all></th><th>日期</th><th>員工</th><th>班別</th><th>最新打卡</th><th>狀態</th><th>提早</th><th>延後</th><th>合計</th><th>備註</th><th>操作</th></tr></thead>
+          <thead><tr><th style="${checkColumnStyle}"><input type="checkbox" data-v2-overtime-check-all></th><th>日期</th><th>員工</th><th>班別</th><th>打卡時間</th><th>加班時數</th><th>備註</th><th>狀態</th><th>操作</th></tr></thead>
           <tbody>${rows.map((row) => `<tr>
-            <td><input type="checkbox" data-v2-overtime-check="${escapeHtml(row.id)}"></td>
+            <td style="${checkColumnStyle}"><input type="checkbox" data-v2-overtime-check="${escapeHtml(row.id)}"></td>
             <td>${escapeHtml(row.work_date || "")}${row.attendance_changed_warning ? '<br><span class="auth-error-inline">打卡時間已異動</span>' : ""}</td>
-            <td>${escapeHtml(row.employee?.full_name || "")}<br><span>${escapeHtml(row.employee?.employee_code || "")}</span></td>
+            <td>${escapeHtml(row.employee?.full_name || "")}</td>
             <td>${escapeHtml(row.shift?.name || "-")}<br><span>${escapeHtml(`${String(row.shift?.start_time || "").slice(0, 5)}-${String(row.shift?.end_time || "").slice(0, 5)}`)}</span></td>
-            <td>上班 ${formatDateTime(row.attendance?.clock_in_at)}<br>下班 ${formatDateTime(row.attendance?.clock_out_at)}</td>
-            <td>${escapeHtml(getOvertimeStatusLabel(row.status || ""))}</td>
-            <td>${Number(row.early_overtime_hours || 0)}</td>
-            <td>${Number(row.late_overtime_hours || 0)}</td>
-            <td>${Number(row.total_overtime_hours || 0)}</td>
+            <td>上班 ${formatPunchTime(row.attendance?.clock_in_at)}<br>下班 ${formatPunchTime(row.attendance?.clock_out_at)}</td>
+            <td>${formatHours(row.early_overtime_hours)}＋${formatHours(row.late_overtime_hours)}=${formatHours(row.total_overtime_hours)}</td>
             <td>${escapeHtml(row.employee_note || "")}</td>
+            <td>${escapeHtml(getOvertimeStatusLabel(row.status || ""))}</td>
             <td><button class="ghost-btn compact-btn" type="button" data-open-overtime-review="${escapeHtml(row.id)}">調整</button><button class="primary-btn compact-btn" type="button" data-approve-overtime="${escapeHtml(row.id)}">核准</button><button class="ghost-btn compact-btn" type="button" data-return-overtime="${escapeHtml(row.id)}">退回</button></td>
-          </tr>`).join("") || '<tr><td colspan="11">沒有資料</td></tr>'}</tbody>
+          </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
         </table>
       </div>
       ${pageButtons(review)}
