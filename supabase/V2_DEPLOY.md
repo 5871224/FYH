@@ -4,7 +4,7 @@ Edge Function deployment does not apply database SQL automatically.
 
 ## SQL order
 
-Use `V2_SQL_ORDER_FINAL.md` as the only authoritative SQL application order. It currently includes migrations through `036_v2_synchronized_member_delete.sql`.
+Use `V2_SQL_ORDER_FINAL.md` as the only authoritative SQL application order. It currently includes migrations through `037_v2_meal_subsidy_and_product_delete.sql`.
 
 Apply every listed SQL file successfully before deploying Edge Functions. Stop immediately when SQL Editor reports an error; do not skip ahead.
 
@@ -20,4 +20,5 @@ The deployment script includes attendance, meal, overtime, account deletion, per
 - Do not allow direct authenticated writes to attendance, attendance overtime, or meal order tables.
 - Keep attendance overtime independent from schedule overtime.
 - Account deletion must start from the Auth user and use the database cascade defined in migration 036; never delete only `set_employee`.
+- Company subsidy and meal product deletion depend on migration 037 and the latest `meal-order` and `meal-report-v2` Edge Functions.
 - Keep `src/renderer/` and `docs/` synchronized when publishing web changes.
