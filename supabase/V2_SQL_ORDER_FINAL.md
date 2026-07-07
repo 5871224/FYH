@@ -16,11 +16,11 @@ Edge Functions 部署不會自動執行 SQL。請在 Supabase SQL Editor 依序�
 12. `035_v2_last_admin.sql`
 13. `036_v2_synchronized_member_delete.sql`
 14. `037_v2_meal_subsidy_and_product_delete.sql`
+15. `038_v2_employee_sort_order.sql`
 
 ## 重要說明
 
 - 必須照順序執行，後面的函式會依賴前面新增的欄位或函式。
-- `036_v2_synchronized_member_delete.sql` 會把 `set_employee.id` 連結到 `auth.users.id`，刪除 Auth 使用者時由資料庫交易同步級聯刪除人員資料。
-- `037_v2_meal_subsidy_and_product_delete.sql` 新增公司補助設定、安全刪除品項及新版訂餐設定 RPC。
+- `038_v2_employee_sort_order.sql` 新增人員排序欄位。
 - 執行完成後，再部署 `scripts/deploy-v2-final.ps1` 所列的 Edge Functions。
 - SQL Editor 顯示錯誤時不要繼續執行後續檔案，先保留完整錯誤訊息。
