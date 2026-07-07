@@ -1,0 +1,38 @@
+name: Merge 20260707 Spec Supplement
+
+on:
+  push:
+    paths:
+      - '福圓號排班系統擴充規格書_20260707補充規格.txt'
+      - '.github/workflows/merge-spec-supplement.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  merge-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Append supplement to canonical specification
+        shell: bash
+        run: |
+          set -euo pipefail
+          SPEC='福圓號排班系統擴充規格書.txt'
+          SUPPLEMENT='福圓號排班系統擴充規格書_20260707補充規格.txt'
+          MARKER='# 福圓號排班系統擴充規格書－2026-07-07 補充規格'
+          if ! grep -Fq "$MARKER" "$SPEC"; then
+            printf '\n\n---\n\n' >> "$SPEC"
+            cat "$SUPPLEMENT" >> "$SPEC"
+          fi
+          rm -f '.github/workflows/merge-spec-supplement.yml'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$SPEC" '.github/workflows/merge-spec-supplement.yml'
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'Merge 20260707 supplement into canonical specification'
+          git push
