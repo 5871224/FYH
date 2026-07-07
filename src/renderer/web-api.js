@@ -735,9 +735,22 @@
 
   async function getTodayAttendance() {
     ensureSignedIn();
-    return requestFunction("attendance-clock", {
-      action: "today"
+    const serverDate = taipeiDateString();
+    const rows = await restSelect("attendance_records", {
+      select: "*",
+      filters: {
+        user_id: `eq.${currentSession.user.id}`,
+        work_date: `eq.${serverDate}`
+      },
+      limit: "1",
+      auth: true
     });
+    return {
+      ok: true,
+      profile: currentProfile,
+      record: rows?.[0] || null,
+      serverDate
+    };
   }
 
   async function clockAttendance(action, position = {}) {

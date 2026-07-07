@@ -133,6 +133,7 @@ const sourceWebApi = read("src/renderer/web-api.js");
 const attendanceClockSource = read("supabase/functions/attendance-clock/index.ts");
 assert(sourceRenderer.includes("geolocationError") && sourceWebApi.includes("geolocationError"), "手機定位錯誤未送到打卡 API");
 assert(attendanceClockSource.includes("手機 GPS 精度約") && attendanceClockSource.includes("目前距離最近可打卡單位"), "打卡 GPS 失敗原因未明確回報");
+assert(sourceWebApi.includes('restSelect("attendance_records"') && sourceWebApi.includes("function getTodayAttendance"), "今日打卡紀錄應直接讀資料庫");
 assert(sourceRenderer.includes("function getTodayShiftSummary") && sourceRenderer.includes("clock-today-line"), "打卡頁未顯示今日班別與時間");
 assert(sourceRenderer.includes("function formatClockButtonStatus") && !sourceRenderer.includes("上班地點</span>"), "打卡地點與方式應顯示在打卡按鈕內");
 assert(sourceRenderer.includes("function maybePromptOvertimeAfterClockOut") && sourceRenderer.includes("是否申請加班"), "下班後未自動詢問加班申請");
