@@ -22,7 +22,7 @@ assert(schema.includes("create table if not exists public.attendance_overtime_re
 assert(schema.includes("create table if not exists public.meal_orders"), "database should include meal orders");
 assert(schema.includes("create policy read_schedule_entries"), "database should include RLS policies");
 assert(schema.includes("create or replace function public.protect_admin_member"), "database should protect the last admin");
-assert(schema.includes("create or replace function public.protect_department_attendance_settings"), "database should protect attendance settings from manager writes");
+assert(schema.includes("create or replace function public.protect_department_attendance_fields"), "database should protect attendance settings from manager writes");
 
 assert(renderer.includes("function isAdmin()") && renderer.includes("function canEditMemberAccount"), "permissions should distinguish admin from manager");
 assert(webApi.includes("mobileSessionMaxIdleMs") && webApi.includes("desktopSessionMaxIdleMs"), "login should have device-specific idle windows");

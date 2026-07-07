@@ -944,8 +944,7 @@
     });
   }
 
-  function mapDepartmentRows(rows = [], attendanceSettings = []) {
-    const settingsByDepartment = new Map((attendanceSettings || []).map((item) => [item.department_id, item]));
+  function mapDepartmentRows(rows = []) {
     return (rows || [])
       .filter((row) => row.id)
       .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.name || "").localeCompare(String(b.name || "")))
@@ -958,13 +957,13 @@
         address: row.address || "",
         latitude: row.latitude ?? "",
         longitude: row.longitude ?? "",
-        publicIp: hasAdminAccess(currentProfile?.role) ? settingsByDepartment.get(row.id)?.public_ip || "" : "",
+        publicIp: hasAdminAccess(currentProfile?.role) ? row.public_ip || "" : "",
         attendanceEnabled: Boolean(row.attendance_enabled)
       }));
   }
 
   function mapDepartmentWriteRow(department, sortOrder) {
-    const row = {
+    return {
       id: department.id,
       name: department.name || department.id,
       start_date: nullableDate(department.startDate),
@@ -972,22 +971,19 @@
       hidden_from_schedule: Boolean(department.hiddenFromSchedule),
       sort_order: sortOrder
     };
-    if (hasAdminAccess(currentProfile?.role)) {
-      row.address = department.address || null;
-      row.latitude = department.latitude === "" || department.latitude === null || department.latitude === undefined ? null : Number(department.latitude);
-      row.longitude = department.longitude === "" || department.longitude === null || department.longitude === undefined ? null : Number(department.longitude);
-      row.attendance_enabled = Boolean(department.attendanceEnabled);
-    }
-    return row;
   }
 
   async function saveDepartmentAttendanceSettings(departments) {
     if (!hasAdminAccess(currentProfile?.role)) {
       return;
     }
-    await restRpc("save_department_attendance_settings_bulk", {
+    await restRpc("save_department_attendance_fields_bulk", {
       settings: (departments || []).map((department) => ({
         department_id: department.id,
+        address: department.address || "",
+        latitude: department.latitude === "" || department.latitude === null || department.latitude === undefined ? null : Number(department.latitude),
+        longitude: department.longitude === "" || department.longitude === null || department.longitude === undefined ? null : Number(department.longitude),
+        attendance_enabled: Boolean(department.attendanceEnabled),
         public_ip: department.publicIp || ""
       }))
     }, {
@@ -1074,7 +1070,6 @@
       const [
         settingsRows,
         departmentRows,
-        departmentAttendanceRows,
         profileRows,
         shiftRows,
         leaveRows,
@@ -1083,7 +1078,6 @@
       ] = await Promise.all([
         restSelect("scheduler_settings", { select: "*", filters: { id: `eq.${documentId}` }, limit: "1", auth }),
         restSelect("set_departments", { select: departmentSelect, order: "sort_order.asc,name.asc", auth }),
-        hasAdminAccess(currentProfile?.role) ? restRpc("get_department_attendance_settings", {}, { auth: true }) : Promise.resolve([]),
         restSelect("set_employee", { select: "*", filters: { is_active: "eq.true" }, order: "employee_code.asc", auth }),
         restSelect("set_shift", { select: "*", order: "sort_order.asc,name.asc", auth }),
         restSelect("set_leave", { select: "*", order: "sort_order.asc,code.asc", auth }),
@@ -1131,7 +1125,7 @@
         tableDeptScopeFilter: settings.table_dept_scope_filter || "all",
         tableStatsVisible: settings.table_stats_visible !== false,
         scheduleStartDate: settings.schedule_start_date || "",
-        departments: mapDepartmentRows(departmentRows, departmentAttendanceRows),
+        departments: mapDepartmentRows(departmentRows),
         members,
         shifts: mapShiftRows(shiftRows),
         leaves: mapLeaveRows(leaveRows),

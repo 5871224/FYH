@@ -12,7 +12,7 @@ Historical one-off migrations were removed after the schema was normalized.
 - Bulk cell writes go through `public.save_schedule_entries_bulk(entries jsonb)`.
 - Attendance clock writes go through `public.save_attendance_clock(...)` so duplicate clicks do not overwrite the first clock time.
 - Meal order saves go through `public.save_meal_order_v2(...)` so delete/insert happens in one database transaction.
-- Department fixed public IP values live in `department_attendance_settings`, not directly in `set_departments`.
+- Department fixed public IP values live in `set_departments.public_ip`; only admins can read or update protected attendance fields.
 - Employee overtime deletes are soft deletes so review/history rows are preserved.
 - Catalog tables use their UUID `id` as the only application identifier; `scheduler_item_id` is retired.
 - Shift applicability uses the required single `set_shift.applicable_department_id` column.
@@ -22,7 +22,6 @@ Historical one-off migrations were removed after the schema was normalized.
 
 - `scheduler_settings`: global scheduler settings.
 - `set_departments`: departments/locations.
-- `department_attendance_settings`: sensitive attendance settings such as fixed public IP.
 - `set_employee`: scheduler members, roles, and ordered schedulable shift IDs.
 - `set_shift`: shift catalog.
 - `set_leave`: leave catalog.

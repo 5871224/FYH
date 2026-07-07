@@ -36,10 +36,6 @@ drop policy if exists read_set_departments on public.set_departments;
 create policy read_set_departments on public.set_departments
 for select to authenticated using (public.is_effective_user(auth.uid()));
 
-drop policy if exists read_department_attendance_settings on public.department_attendance_settings;
-create policy read_department_attendance_settings on public.department_attendance_settings
-for select to authenticated using (public.is_admin(auth.uid()));
-
 drop policy if exists read_set_employee on public.set_employee;
 create policy read_set_employee on public.set_employee
 for select to authenticated using (public.is_effective_user(auth.uid()));

@@ -156,13 +156,6 @@
         const url = new URL(rawUrl, window.location.href);
         const method = String(init?.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
 
-        if (url.pathname.endsWith("/rest/v1/department_attendance_settings") && method !== "GET") {
-          return new Response("[]", {
-            status: 200,
-            headers: { "Content-Type": "application/json" }
-          });
-        }
-
         if (url.pathname.endsWith("/rest/v1/set_departments") && method !== "GET" && typeof init?.body === "string") {
           const body = stripAttendanceFields(JSON.parse(init.body));
           return originalFetch(input, { ...init, body: JSON.stringify(body) });
@@ -234,7 +227,7 @@
 
   const originalSaveDepartmentItem = api.saveDepartmentItem;
   if (typeof originalSaveDepartmentItem === "function") {
-    api.saveDepartmentItem = (department) => runManagerSafeWrite(() => originalSaveDepartmentItem(department));
+    api.saveDepartmentItem = (...args) => runManagerSafeWrite(() => originalSaveDepartmentItem(...args));
   }
 
   api.getEmployeeOvertimeDates = () => callFunction("attendance-overtime-employee", { action: "dates" });

@@ -33,13 +33,6 @@ create table if not exists public.set_departments (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists public.department_attendance_settings (
-  department_id uuid primary key references public.set_departments (id) on delete cascade,
-  public_ip text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
 create table if not exists public.set_employee (
   id uuid primary key default gen_random_uuid(),
   employee_code text not null unique,
@@ -108,19 +101,18 @@ begin
   end if;
 end $$;
 
-insert into public.department_attendance_settings (department_id, public_ip, updated_at)
-select id, public_ip, now()
-from public.set_departments
-where public_ip is not null
-  and btrim(public_ip) <> ''
-on conflict (department_id)
-do update set
-  public_ip = excluded.public_ip,
-  updated_at = now();
+do $$
+begin
+  if to_regclass('public.department_attendance_settings') is not null then
+    update public.set_departments d
+    set public_ip = s.public_ip
+    from public.department_attendance_settings s
+    where s.department_id = d.id
+      and nullif(btrim(coalesce(s.public_ip, '')), '') is not null;
+  end if;
+end $$;
 
-update public.set_departments
-set public_ip = null
-where public_ip is not null;
+drop table if exists public.department_attendance_settings;
 
 create table if not exists public.set_shift (
   id uuid primary key default gen_random_uuid(),
@@ -338,7 +330,6 @@ create table if not exists public.meal_orders (
 create index if not exists idx_set_employee_active_code on public.set_employee (is_active, employee_code);
 create index if not exists idx_set_employee_home_department on public.set_employee (home_department_id);
 create index if not exists idx_set_departments_attendance_enabled on public.set_departments (attendance_enabled);
-create index if not exists idx_department_attendance_settings_ip on public.department_attendance_settings (department_id);
 create index if not exists idx_schedule_entries_work_date on public.schedule_entries (work_date);
 create index if not exists idx_schedule_entries_member_date on public.schedule_entries (member_id, work_date);
 create index if not exists idx_attendance_records_user_date on public.attendance_records (user_id, work_date desc);
@@ -357,7 +348,6 @@ create index if not exists idx_meal_orders_order_id on public.meal_orders (order
 
 alter table public.scheduler_settings enable row level security;
 alter table public.set_departments enable row level security;
-alter table public.department_attendance_settings enable row level security;
 alter table public.set_employee enable row level security;
 alter table public.set_shift enable row level security;
 alter table public.set_leave enable row level security;
@@ -492,7 +482,7 @@ create trigger protect_admin_member_trigger
 before update or delete on public.set_employee
 for each row execute function public.protect_admin_member();
 
-create or replace function public.protect_department_attendance_settings()
+create or replace function public.protect_department_attendance_fields()
 returns trigger
 language plpgsql
 security definer
@@ -527,22 +517,20 @@ begin
     ) then
     raise exception '只有管理員可以新增打卡設定' using errcode = '42501';
   end if;
-  NEW.public_ip := null;
   return NEW;
 end;
 $$;
 
 drop trigger if exists protect_department_attendance_settings_trigger on public.set_departments;
-create trigger protect_department_attendance_settings_trigger
+drop trigger if exists trg_protect_department_attendance_fields on public.set_departments;
+create trigger trg_protect_department_attendance_fields
 before insert or update on public.set_departments
-for each row execute function public.protect_department_attendance_settings();
+for each row execute function public.protect_department_attendance_fields();
 
 drop policy if exists read_scheduler_settings on public.scheduler_settings;
 drop policy if exists write_scheduler_settings on public.scheduler_settings;
 drop policy if exists read_set_departments on public.set_departments;
 drop policy if exists write_set_departments on public.set_departments;
-drop policy if exists read_department_attendance_settings on public.department_attendance_settings;
-drop policy if exists write_department_attendance_settings on public.department_attendance_settings;
 drop policy if exists read_set_employee on public.set_employee;
 drop policy if exists insert_set_employee on public.set_employee;
 drop policy if exists update_set_employee on public.set_employee;
@@ -578,9 +566,6 @@ create policy write_scheduler_settings on public.scheduler_settings for all to a
 
 create policy read_set_departments on public.set_departments for select to authenticated using (true);
 create policy write_set_departments on public.set_departments for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
-
-create policy read_department_attendance_settings on public.department_attendance_settings for select to authenticated using (public.is_admin(auth.uid()));
-create policy write_department_attendance_settings on public.department_attendance_settings for all to authenticated using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
 
 create policy read_set_employee on public.set_employee for select to authenticated using (true);
 create policy insert_set_employee on public.set_employee for insert to authenticated with check (public.is_manager(auth.uid()));
@@ -630,30 +615,13 @@ create policy write_meal_settings on public.meal_settings for all to authenticat
 create policy read_meal_orders on public.meal_orders for select to authenticated using (user_id = auth.uid() or public.is_manager(auth.uid()));
 create policy write_meal_orders on public.meal_orders for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
 
-create or replace function public.get_department_attendance_settings()
-returns table(department_id uuid, public_ip text)
-language plpgsql
-security invoker
-set search_path = public
-as $$
-begin
-  if auth.uid() is null or not public.is_admin(auth.uid()) then
-    raise exception 'admin permission required' using errcode = '42501';
-  end if;
+drop function if exists public.get_department_attendance_settings();
+drop function if exists public.save_department_attendance_settings_bulk(jsonb);
 
-  return query
-  select s.department_id, s.public_ip
-  from public.department_attendance_settings s;
-end;
-$$;
-
-revoke all on function public.get_department_attendance_settings() from public, anon;
-grant execute on function public.get_department_attendance_settings() to authenticated;
-
-create or replace function public.save_department_attendance_settings_bulk(settings jsonb)
+create or replace function public.save_department_attendance_fields_bulk(settings jsonb)
 returns void
 language plpgsql
-security invoker
+security definer
 set search_path = public
 as $$
 begin
@@ -664,22 +632,30 @@ begin
     raise exception 'settings must be a json array' using errcode = '22023';
   end if;
 
-  insert into public.department_attendance_settings (department_id, public_ip, updated_at)
-  select
-    item.department_id,
-    nullif(btrim(coalesce(item.public_ip, '')), ''),
-    now()
-  from jsonb_to_recordset(settings) as item(department_id uuid, public_ip text)
+  update public.set_departments d
+  set
+    address = nullif(btrim(coalesce(item.address, '')), ''),
+    latitude = item.latitude,
+    longitude = item.longitude,
+    public_ip = nullif(btrim(coalesce(item.public_ip, '')), ''),
+    attendance_enabled = coalesce(item.attendance_enabled, false),
+    attendance_settings_updated_at = now(),
+    attendance_settings_updated_by = auth.uid()
+  from jsonb_to_recordset(settings) as item(
+    department_id uuid,
+    address text,
+    latitude double precision,
+    longitude double precision,
+    public_ip text,
+    attendance_enabled boolean
+  )
   where item.department_id is not null
-  on conflict (department_id)
-  do update set
-    public_ip = excluded.public_ip,
-    updated_at = now();
+    and d.id = item.department_id;
 end;
 $$;
 
-revoke all on function public.save_department_attendance_settings_bulk(jsonb) from public, anon;
-grant execute on function public.save_department_attendance_settings_bulk(jsonb) to authenticated;
+revoke all on function public.save_department_attendance_fields_bulk(jsonb) from public, anon;
+grant execute on function public.save_department_attendance_fields_bulk(jsonb) to authenticated;
 
 create or replace function public.save_attendance_clock(
   p_user_id uuid,

@@ -92,8 +92,8 @@ assert(schema.includes("address text") && schema.includes("attendance_enabled bo
 assert(schema.includes("create table if not exists public.attendance_records"), "schema should create attendance records");
 assert(schema.includes("create table if not exists public.attendance_action_logs"), "schema should create attendance action logs");
 assert(schema.includes("employee_code_snapshot text") && schema.includes("employee_name_snapshot text"), "attendance records should snapshot employee identity");
-assert(schema.includes("create table if not exists public.department_attendance_settings"), "schema should move sensitive public IP settings out of set_departments");
-assert(schema.includes("NEW.public_ip := null"), "set_departments should not retain public IP values");
+assert(schema.includes("public_ip text"), "departments should store fixed public IP settings");
+assert(!schema.includes("create table if not exists public.department_attendance_settings"), "department IP settings should stay on set_departments");
 assert(schema.includes("create table if not exists public.attendance_overtime_requests"), "schema should create independent attendance overtime requests");
 assert(schema.includes("is_deleted_by_employee boolean not null default false"), "overtime deletes should be soft deletes");
 assert(schema.includes("create table if not exists public.overtime_review_logs"), "schema should create overtime review logs");

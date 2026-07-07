@@ -25,19 +25,15 @@ export default {
       }
 
       const departments = await ctx.supabaseAdmin.from("set_departments")
-        .select("id,address,latitude,longitude,attendance_enabled");
-      const privateSettings = await ctx.supabaseAdmin.from("department_attendance_settings")
-        .select("department_id,public_ip");
+        .select("id,address,latitude,longitude,attendance_enabled,public_ip");
       if (departments.error) throw departments.error;
-      if (privateSettings.error) throw privateSettings.error;
-      const byDepartment = new Map((privateSettings.data || []).map((row: any) => [row.department_id, row]));
       return Response.json({ ok: true, settings: (departments.data || []).map((row: any) => ({
         departmentId: row.id,
         address: row.address || "",
         latitude: row.latitude,
         longitude: row.longitude,
         attendanceEnabled: Boolean(row.attendance_enabled),
-        publicIp: byDepartment.get(row.id)?.public_ip || ""
+        publicIp: row.public_ip || ""
       })) });
     } catch (error) {
       return Response.json({ message: error instanceof Error ? error.message : "讀取打卡單位設定失敗" }, { status: 400 });

@@ -71,7 +71,10 @@ begin
       new.address := null;
       new.latitude := null;
       new.longitude := null;
+      new.public_ip := null;
       new.attendance_enabled := false;
+      new.attendance_settings_updated_at := null;
+      new.attendance_settings_updated_by := null;
       return new;
     end if;
 
@@ -80,7 +83,10 @@ begin
     new.address := old.address;
     new.latitude := old.latitude;
     new.longitude := old.longitude;
+    new.public_ip := old.public_ip;
     new.attendance_enabled := old.attendance_enabled;
+    new.attendance_settings_updated_at := old.attendance_settings_updated_at;
+    new.attendance_settings_updated_by := old.attendance_settings_updated_by;
     return new;
   end if;
 
