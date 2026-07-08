@@ -2,6 +2,6 @@
 
 The authoritative deployment order is maintained in `V2_SQL_ORDER_FINAL.md`.
 
-Do not use an older partial list. The current final order includes migrations through `040_enforce_employee_code_uniqueness.sql`.
+Do not use an older partial list. The current final order includes migrations through `041_transactional_member_account_delete.sql`.
 
 Deploying Edge Functions does not execute SQL files.
