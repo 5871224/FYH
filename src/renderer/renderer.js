@@ -1,4 +1,4 @@
-const COLORS = [
+﻿const COLORS = [
   { hex: "#378ADD", label: "藍色" },
   { hex: "#185FA5", label: "深藍" },
   { hex: "#23395B", label: "海軍藍" },
@@ -7146,6 +7146,8 @@ function bindEvents() {
         await loadMealAdminSettings(false);
       } else if (mealPageTab === "stats") {
         await loadMealReport(false);
+      } else {
+        await loadTodayMealOrder();
       }
       renderAll();
       return;
