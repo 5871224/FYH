@@ -1,0 +1,160 @@
+name: Force refresh today meal tab
+
+on:
+  push:
+    paths:
+      - '.github/workflows/force-refresh-today-meal-tab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply refresh fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          renderer_files = [Path('src/renderer/renderer.js'), Path('docs/renderer.js')]
+          for path in renderer_files:
+              text = path.read_text(encoding='utf-8-sig')
+
+              old_state = '''let mealOrderState = {
+                loading: false,
+                status: null,
+                error: ""
+              };
+              let mealPageTab = "order";'''
+              new_state = '''let mealOrderState = {
+                loading: false,
+                status: null,
+                error: ""
+              };
+              let mealOrderLoadSequence = 0;
+              let mealPageTab = "order";'''
+              if old_state not in text:
+                  raise SystemExit(f'Expected meal state block not found in {path}')
+              text = text.replace(old_state, new_state, 1)
+
+              old_loader = '''async function loadTodayMealOrder() {
+                if (!isLoggedIn()) {
+                  return;
+                }
+                mealOrderState = { ...mealOrderState, loading: true, error: "" };
+                renderAll();
+                try {
+                  const status = await window.schedulerApi.getTodayMealOrder();
+                  mealOrderState = { loading: false, status, error: "" };
+                } catch (error) {
+                  mealOrderState = { loading: false, status: null, error: error.message || "讀取訂餐狀態失敗" };
+                }
+                renderAll();
+              }'''
+              new_loader = '''async function loadTodayMealOrder() {
+                if (!isLoggedIn()) {
+                  return;
+                }
+                const loadSequence = ++mealOrderLoadSequence;
+                mealOrderState = { ...mealOrderState, loading: true, error: "" };
+                renderAll();
+                try {
+                  const status = await window.schedulerApi.getTodayMealOrder();
+                  if (loadSequence !== mealOrderLoadSequence) return;
+                  mealOrderState = { loading: false, status, error: "" };
+                } catch (error) {
+                  if (loadSequence !== mealOrderLoadSequence) return;
+                  mealOrderState = { loading: false, status: null, error: error.message || "讀取訂餐狀態失敗" };
+                }
+                renderAll();
+              }'''
+              if old_loader not in text:
+                  raise SystemExit(f'Expected today meal loader not found in {path}')
+              text = text.replace(old_loader, new_loader, 1)
+
+              old_tab = '''      } else {
+                await loadTodayMealOrder();
+              }
+              renderAll();'''
+              new_tab = '''      } else {
+                mealOrderState = { ...mealOrderState, status: null, error: "" };
+                await loadTodayMealOrder();
+              }
+              renderAll();'''
+              if old_tab not in text:
+                  raise SystemExit(f'Expected today meal tab handler not found in {path}')
+              text = text.replace(old_tab, new_tab, 1)
+
+              path.write_text(text, encoding='utf-8-sig')
+
+          meal_files = [Path('src/renderer/v2-meal.js'), Path('docs/v2-meal.js')]
+          for path in meal_files:
+              text = path.read_text(encoding='utf-8-sig')
+              old = '''      await loadMealAdminSettings();
+                    showInfoMessage("訂餐設定已儲存");'''
+              new = '''      await loadMealAdminSettings(false);
+                    await loadTodayMealOrder();
+                    showInfoMessage("訂餐設定已儲存");'''
+              if old not in text:
+                  raise SystemExit(f'Expected meal settings refresh block not found in {path}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8-sig')
+
+          api_files = [Path('src/renderer/web-api.js'), Path('docs/web-api.js')]
+          for path in api_files:
+              text = path.read_text(encoding='utf-8-sig')
+              old = '''    const response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
+                    method: "POST",
+                    headers: buildHeaders({'''
+              new = '''    const response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
+                    method: "POST",
+                    cache: "no-store",
+                    headers: buildHeaders({'''
+              if old not in text:
+                  raise SystemExit(f'Expected function fetch block not found in {path}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8-sig')
+
+          index_files = [Path('src/renderer/index.html'), Path('docs/index.html')]
+          for path in index_files:
+              text = path.read_text(encoding='utf-8-sig')
+              replacements = {
+                  './web-api.js?v=20260707v6': './web-api.js?v=20260708v1',
+                  './renderer.js?v=20260708v1': './renderer.js?v=20260708v2',
+                  './v2-meal.js?v=20260707v7': './v2-meal.js?v=20260708v1',
+              }
+              for old, new in replacements.items():
+                  if old not in text:
+                      raise SystemExit(f'Expected asset version {old} not found in {path}')
+                  text = text.replace(old, new, 1)
+              path.write_text(text, encoding='utf-8-sig')
+
+          Path('.github/workflows/force-refresh-today-meal-tab.yml').unlink()
+          PY
+
+      - name: Validate JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check src/renderer/renderer.js
+          node --check docs/renderer.js
+          node --check src/renderer/v2-meal.js
+          node --check docs/v2-meal.js
+          node --check src/renderer/web-api.js
+          node --check docs/web-api.js
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/renderer/renderer.js docs/renderer.js src/renderer/v2-meal.js docs/v2-meal.js src/renderer/web-api.js docs/web-api.js src/renderer/index.html docs/index.html '.github/workflows/force-refresh-today-meal-tab.yml'
+          git commit -m 'Force refresh when opening today meal tab'
+          git push
