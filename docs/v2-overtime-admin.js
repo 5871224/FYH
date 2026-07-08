@@ -144,7 +144,7 @@
           <option value="returned" ${filters.status === "returned" ? "selected" : ""}>退回</option>
           <option value="all" ${filters.status === "all" ? "selected" : ""}>全部</option>
         </select>
-        <button class="primary-btn compact-btn" type="button" data-load-overtime-review="true">查詢</button>
+        
         <button class="ghost-btn compact-btn" type="button" data-open-admin-overtime-create="true">代為申請</button>
         <button class="primary-btn compact-btn" type="button" data-v2-overtime-batch="approved">批次核准</button>
         <button class="ghost-btn compact-btn" type="button" data-v2-overtime-batch="returned">批次退回</button>

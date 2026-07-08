@@ -65,7 +65,7 @@
         <select data-attendance-filter="memberId">${memberOptions(filters.memberId, admin.members)}</select>
         <select data-attendance-filter="issueType"><option value="">全部異常</option>${admin.issueTypes.map((type) => `<option value="${escapeHtml(type)}" ${filters.issueType === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select>
         <label class="overtime-use-label"><input type="checkbox" ${filters.abnormalOnly ? "checked" : ""} data-attendance-filter="abnormalOnly">只顯示異常</label>
-        <button class="primary-btn compact-btn" type="button" data-load-attendance-admin="true">查詢</button>
+        
       </div>
       ${admin.error ? `<div class="auth-error">${escapeHtml(admin.error)}</div>` : ""}
       <div class="records-table-wrap"><table class="records-table">

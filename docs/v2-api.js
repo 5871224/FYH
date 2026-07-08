@@ -270,7 +270,7 @@
     ["v2-overtime-admin.js", "v2-meal.js", "v2-attendance-admin.js"].forEach((file) => {
       if (document.querySelector(`script[data-v2-module="${file}"]`)) return;
       const script = document.createElement("script");
-      script.src = `./${file}?v=20260707v8`;
+      script.src = `./${file}?v=20260708v1`;
       script.dataset.v2Module = file;
       document.body.appendChild(script);
     });
