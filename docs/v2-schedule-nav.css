@@ -6,30 +6,49 @@
   position: relative;
 }
 
-.toolbar-top-row {
-  position: relative;
-  display: block;
-  width: 100%;
-  min-height: 32px;
-}
-
-.toolbar-collapse-toggle {
-  position: absolute !important;
-  top: 0;
-  left: 0;
-  right: auto !important;
-  margin: 0 !important;
-}
-
-.toolbar-history-actions {
+/* Expanded toolbar: keep the control row outside normal flow, preserving the original height. */
+.toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-top-row {
   position: absolute;
-  top: 0;
-  right: 0;
-  left: auto;
+  top: 8px;
+  left: 10px;
+  right: 10px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  width: auto;
+  min-height: 0;
+  gap: 6px;
+  margin: 0;
+}
+
+.toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-collapse-toggle {
+  position: static !important;
+  margin: 0 !important;
+  flex: 0 0 28px;
+}
+
+.toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-history-actions {
+  position: static;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin: 0 0 0 auto;
+}
+
+/* Collapsed toolbar: return to the original shrink-to-button card. */
+.toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row {
+  position: static;
+  display: flex;
+  align-items: center;
+  width: auto;
+  min-height: 0;
   margin: 0;
+  gap: 0;
+}
+
+.toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-collapse-toggle {
+  position: static !important;
+  margin: 0 !important;
 }
 
 .toolbar-history-btn {
