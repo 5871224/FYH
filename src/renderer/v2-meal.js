@@ -1,4 +1,4 @@
-(function installV2MealUi() {
+﻿(function installV2MealUi() {
   if (!window.schedulerApi || typeof renderAll !== "function") return;
 
   const originalRenderMealPage = renderMealPage;
@@ -138,7 +138,8 @@
         companySubsidy: Number(rawSubsidy),
         products: readMealAdminProducts()
       });
-      await loadMealAdminSettings();
+      await loadMealAdminSettings(false);
+      await loadTodayMealOrder();
       showInfoMessage("訂餐設定已儲存");
     } catch (error) {
       setSaveStatus(`訂餐設定儲存失敗：${error.message}`);

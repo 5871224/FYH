@@ -171,6 +171,7 @@ let mealOrderState = {
   status: null,
   error: ""
 };
+let mealOrderLoadSequence = 0;
 let mealPageTab = "order";
 let recordsState = createRecordsState();
 let memberSettingsFilters = {
@@ -2765,12 +2766,15 @@ async function loadTodayMealOrder() {
   if (!isLoggedIn()) {
     return;
   }
+  const loadSequence = ++mealOrderLoadSequence;
   mealOrderState = { ...mealOrderState, loading: true, error: "" };
   renderAll();
   try {
     const status = await window.schedulerApi.getTodayMealOrder();
+    if (loadSequence !== mealOrderLoadSequence) return;
     mealOrderState = { loading: false, status, error: "" };
   } catch (error) {
+    if (loadSequence !== mealOrderLoadSequence) return;
     mealOrderState = { loading: false, status: null, error: error.message || "讀取訂餐狀態失敗" };
   }
   renderAll();
@@ -7147,6 +7151,7 @@ function bindEvents() {
       } else if (mealPageTab === "stats") {
         await loadMealReport(false);
       } else {
+        mealOrderState = { ...mealOrderState, status: null, error: "" };
         await loadTodayMealOrder();
       }
       renderAll();

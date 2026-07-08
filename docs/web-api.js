@@ -1,4 +1,4 @@
-(function installWebSchedulerApi() {
+﻿(function installWebSchedulerApi() {
   if (window.schedulerApi) {
     return;
   }
@@ -223,6 +223,7 @@
     assertSessionActive();
     const response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
       method: "POST",
+      cache: "no-store",
       headers: buildHeaders({
         auth: true,
         extra: {
