@@ -1,3 +1,4 @@
+# retry
 name: Fix member and catalog deletion
 
 on:
