@@ -44,10 +44,14 @@
       }
     }
 
+    let result;
     try {
-      await removeProfile(member.code, currentPassword);
+      result = await removeProfile(member.code, currentPassword);
+      if (!result?.deleted) {
+        throw new Error("找不到這位人員，請重新整理後再試");
+      }
     } catch (error) {
-      showInfoMessage(error.message || "刪除人員失敗");
+      showInfoMessage(`刪除人員失敗：${error.message || error}`);
       return;
     }
 
@@ -64,6 +68,7 @@
     }));
     renderAll();
     openMemberSettings();
+    showInfoMessage(result?.softDeleted ? "人員已停用，歷史紀錄已保留" : "人員已刪除");
   };
 
   if (!document.querySelector('script[data-v2-module="v2-records.js"]')) {
