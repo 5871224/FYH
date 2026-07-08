@@ -1,0 +1,214 @@
+name: Apply live report filters
+
+on:
+  push:
+    paths:
+      - '.github/workflows/live-report-filters.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Remove query buttons and enable live filtering
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'{label}: target text not found')
+              return text.replace(old, new, 1)
+
+          for path_text in ['src/renderer/v2-records.js', 'docs/v2-records.js']:
+              path = Path(path_text)
+              text = path.read_text(encoding='utf-8')
+              text = replace_once(
+                  text,
+                  '<select data-meal-report-view><option value="detail" ${view === "detail" ? "selected" : ""}>明細</option><option value="item" ${view === "item" ? "selected" : ""}>品項</option><option value="member" ${view === "member" ? "selected" : ""}>人員</option></select><button class="primary-btn compact-btn" type="button" data-load-meal-report="true">查詢</button><button class="ghost-btn compact-btn" type="button" data-export-meal-report="true">匯出</button>',
+                  '<select data-meal-report-view><option value="detail" ${view === "detail" ? "selected" : ""}>明細</option><option value="item" ${view === "item" ? "selected" : ""}>品項</option><option value="member" ${view === "member" ? "selected" : ""}>人員</option></select><button class="ghost-btn compact-btn" type="button" data-export-meal-report="true">匯出</button>',
+                  path_text + ' remove meal query button'
+              )
+              text = replace_once(
+                  text,
+                  '''    if ((target instanceof HTMLInputElement || target instanceof HTMLSelectElement) && target.dataset.mealReportFilter) {
+      recordsState.mealPage = 1;
+    }
+    if (target instanceof HTMLSelectElement && target.dataset.mealReportView !== undefined) {
+      recordsState.mealReportView = target.value || "detail";
+      renderAll();
+    }''',
+                  '''    if ((target instanceof HTMLInputElement || target instanceof HTMLSelectElement) && target.dataset.mealReportFilter) {
+      recordsState.mealPage = 1;
+      void loadMealReport();
+    }
+    if (target instanceof HTMLSelectElement && target.dataset.mealReportView !== undefined) {
+      recordsState.mealReportView = target.value || "detail";
+      recordsState.mealPage = 1;
+      renderAll();
+    }''',
+                  path_text + ' live meal filters'
+              )
+              path.write_text(text, encoding='utf-8')
+
+          for path_text in ['src/renderer/v2-overtime-admin.js', 'docs/v2-overtime-admin.js']:
+              path = Path(path_text)
+              text = path.read_text(encoding='utf-8')
+              text = replace_once(
+                  text,
+                  '        <button class="primary-btn compact-btn" type="button" data-load-overtime-review="true">查詢</button>\n',
+                  '',
+                  path_text + ' remove overtime query button'
+              )
+              text = replace_once(
+                  text,
+                  '''    if ((target instanceof HTMLInputElement || target instanceof HTMLSelectElement) && target.dataset.overtimeReviewFilter) {
+      ensureReviewState().page = 1;
+    }''',
+                  '''    if ((target instanceof HTMLInputElement || target instanceof HTMLSelectElement) && target.dataset.overtimeReviewFilter) {
+      ensureReviewState().page = 1;
+      void loadOvertimeReview();
+    }''',
+                  path_text + ' live overtime filters'
+              )
+              path.write_text(text, encoding='utf-8')
+
+          for path_text in ['src/renderer/v2-attendance-admin.js', 'docs/v2-attendance-admin.js']:
+              path = Path(path_text)
+              text = path.read_text(encoding='utf-8')
+              text = replace_once(
+                  text,
+                  '        <button class="primary-btn compact-btn" type="button" data-load-attendance-admin="true">查詢</button>\n',
+                  '',
+                  path_text + ' remove attendance query button'
+              )
+              text = replace_once(
+                  text,
+                  '''    if ((target instanceof HTMLInputElement || target instanceof HTMLSelectElement) && target.dataset.attendanceFilter) {
+      recordsState.attendanceAdmin.page = 1;
+    }''',
+                  '''    if ((target instanceof HTMLInputElement || target instanceof HTMLSelectElement) && target.dataset.attendanceFilter) {
+      recordsState.attendanceAdmin.page = 1;
+      void loadAttendanceAdmin();
+    }''',
+                  path_text + ' live attendance filters'
+              )
+              path.write_text(text, encoding='utf-8')
+
+          for path_text in ['src/renderer/v2-api.js', 'docs/v2-api.js']:
+              path = Path(path_text)
+              text = path.read_text(encoding='utf-8')
+              text = text.replace('script.src = `./${file}?v=20260707v8`;', 'script.src = `./${file}?v=20260708v1`;')
+              path.write_text(text, encoding='utf-8')
+
+          for path_text in ['src/renderer/index.html', 'docs/index.html']:
+              path = Path(path_text)
+              text = path.read_text(encoding='utf-8-sig')
+              text = text.replace('./v2-api.js?v=20260707v8', './v2-api.js?v=20260708v1')
+              text = text.replace('./v2-records.js?v=20260707v6', './v2-records.js?v=20260708v1')
+              text = text.replace('./v2-overtime-admin.js?v=20260707v8', './v2-overtime-admin.js?v=20260708v1')
+              path.write_text(text, encoding='utf-8-sig')
+
+          spec_path = Path('規格書.txt')
+          spec = spec_path.read_text(encoding='utf-8')
+          spec = replace_once(
+              spec,
+              '''1. 日期起日。
+2. 日期迄日。
+3. 單位。
+4. 員工。
+5. 報表類型：
+   - 明細。
+   - 品項。
+   - 人員。
+6. **查詢**：依目前條件重新載入。
+7. **匯出**：依目前篩選條件匯出 Excel。
+8. 上一頁、下一頁與筆數資訊。
+9. 明細預設每頁 50 筆。
+10. 預設日期為今天。''',
+              '''1. 日期起日。
+2. 日期迄日。
+3. 單位。
+4. 員工。
+5. 報表類型：
+   - 明細。
+   - 品項。
+   - 人員。
+6. 日期、單位或員工條件變更後，立即重新查詢並更新統計結果。
+7. 報表類型變更後，立即切換顯示內容。
+8. **匯出**：依目前篩選條件匯出 Excel。
+9. 上一頁、下一頁與筆數資訊。
+10. 明細預設每頁 50 筆。
+11. 預設日期為今天。
+12. 本分頁不顯示查詢按鈕。''',
+              'spec meal report filters'
+          )
+          spec = replace_once(
+              spec,
+              '''1. 日期起日。
+2. 日期迄日。
+3. 人員。
+4. 狀態：待審、核准、退回、全部。
+5. 查詢。
+6. 代為申請。
+7. 批次核准。
+8. 批次退回。
+9. 全選核取方塊與逐筆核取方塊。
+10. 上一頁、下一頁。
+11. 每頁 20 筆。''',
+              '''1. 日期起日。
+2. 日期迄日。
+3. 人員。
+4. 狀態：待審、核准、退回、全部。
+5. 日期、人員或狀態變更後，立即重新查詢並更新審核清單。
+6. 本分頁不顯示查詢按鈕。
+7. 代為申請。
+8. 批次核准。
+9. 批次退回。
+10. 全選核取方塊與逐筆核取方塊。
+11. 上一頁、下一頁。
+12. 每頁 20 筆。''',
+              'spec overtime live filters'
+          )
+          spec = replace_once(
+              spec,
+              '''1. 日期起日。
+2. 日期迄日。
+3. 人員。
+4. 異常類型。
+5. 只顯示異常。
+6. 查詢。
+7. 上一頁、下一頁。
+8. 每頁 50 筆。
+9. 編輯。
+10. 歷程。''',
+              '''1. 日期起日。
+2. 日期迄日。
+3. 人員。
+4. 異常類型。
+5. 只顯示異常。
+6. 日期、人員、異常類型或「只顯示異常」變更後，立即重新查詢並更新清單。
+7. 本分頁不顯示查詢按鈕。
+8. 上一頁、下一頁。
+9. 每頁 50 筆。
+10. 編輯。
+11. 歷程。''',
+              'spec attendance live filters'
+          )
+          spec_path.write_text(spec, encoding='utf-8')
+
+          Path('.github/workflows/live-report-filters.yml').unlink()
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/renderer docs '規格書.txt' '.github/workflows/live-report-filters.yml'
+          git commit -m 'Update report filters immediately on change'
+          git push
