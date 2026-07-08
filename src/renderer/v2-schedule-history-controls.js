@@ -103,9 +103,16 @@
   };
 
   document.addEventListener("keydown", (event) => {
-    if (!event.ctrlKey && !event.metaKey) return;
+    if ((!event.ctrlKey && !event.metaKey) || event.altKey) return;
+    if (typeof isTypingTarget === "function" && isTypingTarget(event.target)) return;
+    if (typeof appView !== "undefined" && appView !== "schedule") return;
     const key = String(event.key || "").toLowerCase();
-    if (key === "z" || key === "y") setTimeout(syncButtons, 0);
+    const redo = key === "y" || (key === "z" && event.shiftKey);
+    const undo = key === "z" && !event.shiftKey;
+    if (!undo && !redo) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    void (redo ? redoSchedule() : undoSchedule());
   }, true);
 
   window.schedulerScheduleHistory = {
