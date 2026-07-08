@@ -1215,7 +1215,7 @@ Android 返回鍵：
 10. 加班審核歷程：`overtime_review_logs`。
 11. 訂餐商品、設定與訂單：`meal_products`、`meal_settings`、`meal_orders`。
 12. 舊 JSON 文件不再作為正式資料來源。
-13. `attendance_logs` 與 `clock_locations` 為資料庫中仍存在的早期模型；目前正式頁面流程以 `attendance_records` 與 `set_departments` 打卡設定為準。
+13. 舊的 `attendance_logs` 與 `clock_locations` 已於 2026-07-08 移除；正式打卡流程只使用 `attendance_records` 與 `set_departments` 的打卡設定。
 14. 外鍵與唯一限制用來保護歷史關聯及每日唯一資料。
 15. 資料表名稱與欄位採英文 snake_case；本規格提供中文意義。
 
@@ -1481,7 +1481,7 @@ Android 返回鍵：
 - `order_date`：訂餐日期。
 - `department_id`：訂餐單位。
 - `department_name_snapshot`：單位名稱快照。
-- `clock_location_id`：早期打卡地點關聯，相容保留。
+- `clock_location_id`：訂餐所依據的上班打卡單位識別；欄名為相容命名，目前外鍵指向 `set_departments.id`。
 - `product_id`：商品。
 - `product_name_snapshot`：商品名稱快照。
 - `quantity`：數量。
@@ -1492,38 +1492,6 @@ Android 返回鍵：
 - `updated_at`：最後修改時間。
 
 唯一限制：`user_id + order_date + product_id`。
-
-### 5.7.16 `attendance_logs`－早期單筆打卡模型
-
-目前正式頁面不以此表作為有效打卡來源，保留供舊資料或相容用途。
-
-- `id`：打卡事件 UUID。
-- `member_id`：人員。
-- `attendance_type`：上班或下班類型。
-- `work_date`：工作日期。
-- `punched_at`：打卡時間。
-- `latitude`：緯度。
-- `longitude`：經度。
-- `clock_location_id`：打卡地點。
-- `distance_m`：距離公尺數。
-- `result`：打卡結果。
-- `linked_schedule_entry_id`：對應班表格。
-- `remark`：備註。
-- `created_at`：建立時間。
-
-### 5.7.17 `clock_locations`－早期打卡地點模型
-
-目前正式打卡設定以 `set_departments` 的地址、座標、固定 IP 與啟用欄位為準。
-
-- `id`：地點 UUID。
-- `department_id`：對應單位。
-- `name`：地點名稱。
-- `latitude`：緯度。
-- `longitude`：經度。
-- `allowed_radius_m`：允許半徑公尺數。
-- `is_active`：是否啟用。
-- `created_at`：建立時間。
-- `updated_at`：最後修改時間。
 
 ## 5.8 稽核、驗收與發佈
 
