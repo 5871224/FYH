@@ -258,6 +258,35 @@
     }
   }
 
+  async function loadPersonalRecordsLive() {
+  if (!api?.getPersonalRecords) return;
+  recordsState = { ...recordsState, loading: true, error: "" };
+  if (typeof renderAll === "function") renderAll();
+  try {
+    const result = await api.getPersonalRecords({
+      ...(recordsState.personalFilters || {}),
+      page: Number(recordsState.personalPage || 1)
+    });
+    recordsState = {
+      ...recordsState,
+      loading: false,
+      personal: result.records || [],
+      personalTotal: Number(result.total || 0),
+      personalPage: Number(result.page || 1),
+      personalPageSize: Number(result.pageSize || 50),
+      error: ""
+    };
+  } catch (error) {
+    recordsState = {
+      ...recordsState,
+      loading: false,
+      personal: [],
+      error: error.message || "讀取記錄失敗"
+    };
+  }
+  if (typeof renderAll === "function") renderAll();
+}
+
   installRangeExporters();
 
   const style = document.createElement("style");
@@ -270,7 +299,7 @@
 
     if (target.dataset.v2PersonalFilter !== undefined) {
       recordsState.personalPage = 1;
-      scheduleReload("personal", typeof loadRecordsPage === "function" ? loadRecordsPage : null);
+      scheduleReload("personal", loadPersonalRecordsLive);
       return;
     }
 
@@ -293,6 +322,7 @@
   });
 
   document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
     const button = event.target.closest("button");
     if (!button) return;
     const type = button.id === "exportSapButton" ? "sap" : button.id === "exportLeaveButton" ? "leave" : button.id === "exportOvertimeButton" ? "overtime" : "";
