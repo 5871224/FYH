@@ -1,0 +1,164 @@
+name: Force refresh today meal tab v2
+
+on:
+  push:
+    paths:
+      - '.github/workflows/force-refresh-today-meal-tab-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply refresh fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              text = path.read_text(encoding='utf-8-sig')
+              if old not in text:
+                  raise SystemExit(f'Expected block not found in {path}: {old[:80]!r}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8-sig')
+
+          old_state = (
+              'let mealOrderState = {\n'
+              '  loading: false,\n'
+              '  status: null,\n'
+              '  error: ""\n'
+              '};\n'
+              'let mealPageTab = "order";'
+          )
+          new_state = (
+              'let mealOrderState = {\n'
+              '  loading: false,\n'
+              '  status: null,\n'
+              '  error: ""\n'
+              '};\n'
+              'let mealOrderLoadSequence = 0;\n'
+              'let mealPageTab = "order";'
+          )
+
+          old_loader = (
+              'async function loadTodayMealOrder() {\n'
+              '  if (!isLoggedIn()) {\n'
+              '    return;\n'
+              '  }\n'
+              '  mealOrderState = { ...mealOrderState, loading: true, error: "" };\n'
+              '  renderAll();\n'
+              '  try {\n'
+              '    const status = await window.schedulerApi.getTodayMealOrder();\n'
+              '    mealOrderState = { loading: false, status, error: "" };\n'
+              '  } catch (error) {\n'
+              '    mealOrderState = { loading: false, status: null, error: error.message || "讀取訂餐狀態失敗" };\n'
+              '  }\n'
+              '  renderAll();\n'
+              '}'
+          )
+          new_loader = (
+              'async function loadTodayMealOrder() {\n'
+              '  if (!isLoggedIn()) {\n'
+              '    return;\n'
+              '  }\n'
+              '  const loadSequence = ++mealOrderLoadSequence;\n'
+              '  mealOrderState = { ...mealOrderState, loading: true, error: "" };\n'
+              '  renderAll();\n'
+              '  try {\n'
+              '    const status = await window.schedulerApi.getTodayMealOrder();\n'
+              '    if (loadSequence !== mealOrderLoadSequence) return;\n'
+              '    mealOrderState = { loading: false, status, error: "" };\n'
+              '  } catch (error) {\n'
+              '    if (loadSequence !== mealOrderLoadSequence) return;\n'
+              '    mealOrderState = { loading: false, status: null, error: error.message || "讀取訂餐狀態失敗" };\n'
+              '  }\n'
+              '  renderAll();\n'
+              '}'
+          )
+
+          old_tab = (
+              '      } else {\n'
+              '        await loadTodayMealOrder();\n'
+              '      }\n'
+              '      renderAll();'
+          )
+          new_tab = (
+              '      } else {\n'
+              '        mealOrderState = { ...mealOrderState, status: null, error: "" };\n'
+              '        await loadTodayMealOrder();\n'
+              '      }\n'
+              '      renderAll();'
+          )
+
+          for path in [Path('src/renderer/renderer.js'), Path('docs/renderer.js')]:
+              replace_once(path, old_state, new_state)
+              replace_once(path, old_loader, new_loader)
+              replace_once(path, old_tab, new_tab)
+
+          old_save = (
+              '      await loadMealAdminSettings();\n'
+              '      showInfoMessage("訂餐設定已儲存");'
+          )
+          new_save = (
+              '      await loadMealAdminSettings(false);\n'
+              '      await loadTodayMealOrder();\n'
+              '      showInfoMessage("訂餐設定已儲存");'
+          )
+          for path in [Path('src/renderer/v2-meal.js'), Path('docs/v2-meal.js')]:
+              replace_once(path, old_save, new_save)
+
+          old_fetch = (
+              '    const response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {\n'
+              '      method: "POST",\n'
+              '      headers: buildHeaders({'
+          )
+          new_fetch = (
+              '    const response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {\n'
+              '      method: "POST",\n'
+              '      cache: "no-store",\n'
+              '      headers: buildHeaders({'
+          )
+          for path in [Path('src/renderer/web-api.js'), Path('docs/web-api.js')]:
+              replace_once(path, old_fetch, new_fetch)
+
+          for path in [Path('src/renderer/index.html'), Path('docs/index.html')]:
+              replace_once(path, './web-api.js?v=20260707v6', './web-api.js?v=20260708v1')
+              replace_once(path, './renderer.js?v=20260708v1', './renderer.js?v=20260708v2')
+              replace_once(path, './v2-meal.js?v=20260707v7', './v2-meal.js?v=20260708v1')
+
+          for workflow in [
+              Path('.github/workflows/force-refresh-today-meal-tab.yml'),
+              Path('.github/workflows/force-refresh-today-meal-tab-v2.yml'),
+          ]:
+              if workflow.exists():
+                  workflow.unlink()
+          PY
+
+      - name: Validate JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check src/renderer/renderer.js
+          node --check docs/renderer.js
+          node --check src/renderer/v2-meal.js
+          node --check docs/v2-meal.js
+          node --check src/renderer/web-api.js
+          node --check docs/web-api.js
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Force refresh when opening today meal tab'
+          git push
