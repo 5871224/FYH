@@ -211,14 +211,10 @@
     if (!label || typeof openEntityListModal !== "function") return;
     openEntityListModal({
       title: label.title,
-      modalClass: "modal modal-wide",
-      body: `<div class="form-grid two-col">
+      modalClass: "modal modal-member-form",
+      body: `<div class="form-grid">
         <div class="form-row"><label for="v2ExportPeriodStart">開始日期</label><input id="v2ExportPeriodStart" type="date" value="${defaults.startDate}"></div>
         <div class="form-row"><label for="v2ExportPeriodEnd">結束日期</label><input id="v2ExportPeriodEnd" type="date" value="${defaults.endDate}"></div>
-      </div>
-      <div class="result-item">
-        <div class="result-title">預設期間</div>
-        <div class="result-detail">依週期設定的每月開始日 ${defaults.startDay} 日，預設為今天所在期間的上一期。</div>
       </div>`,
       footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-v2-run-period-export="${type}">${label.action}</button>`,
       hideFooterClose: true
