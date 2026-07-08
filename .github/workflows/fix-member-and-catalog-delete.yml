@@ -1,0 +1,259 @@
+name: Fix member and catalog deletion
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-member-and-catalog-delete.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch frontend and specification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          web_path = Path('src/renderer/web-api.js')
+          web = web_path.read_text(encoding='utf-8')
+          old_previous = 'previousEmployeeCode: String(previousEmployeeCode || member?.code || "").trim(),'
+          new_previous = 'previousEmployeeCode: String(previousEmployeeCode || "").trim(),'
+          if old_previous not in web:
+              raise SystemExit('syncMemberProfile previous code target not found')
+          web = web.replace(old_previous, new_previous, 1)
+
+          delete_member_api = '''  async function deleteMemberProfile(employeeCode) {
+            ensureManager();
+            return requestFunction("member-auth-admin", {
+              action: "delete_member",
+              employeeCode: String(employeeCode || "").trim()
+            });
+          }
+          '''.replace('          ', '')
+          delete_catalog_api = delete_member_api + '''
+          async function deleteCatalogItem(category, itemId) {
+            ensureManager();
+            return requestFunction("catalog-admin", {
+              action: "delete",
+              category: String(category || "").trim(),
+              itemId: String(itemId || "").trim()
+            });
+          }
+          '''.replace('          ', '')
+          if delete_member_api not in web:
+              raise SystemExit('deleteMemberProfile function target not found')
+          web = web.replace(delete_member_api, delete_catalog_api, 1)
+          if '    deleteMemberProfile,\n    loadState,' not in web:
+              raise SystemExit('schedulerApi export target not found')
+          web = web.replace('    deleteMemberProfile,\n    loadState,', '    deleteMemberProfile,\n    deleteCatalogItem,\n    loadState,', 1)
+          web_path.write_text(web, encoding='utf-8')
+          Path('docs/web-api.js').write_text(web, encoding='utf-8')
+
+          renderer_path = Path('src/renderer/renderer.js')
+          renderer = renderer_path.read_text(encoding='utf-8')
+          validation_old = '''  if (!payload.code || !payload.name) {
+            reportValidationError("請填寫人員編號與姓名");
+            return;
+          }
+          if (!payload.deptId) {'''.replace('          ', '')
+          validation_new = '''  if (!payload.code || !payload.name) {
+            reportValidationError("請填寫人員編號與姓名");
+            return;
+          }
+          const duplicateMember = state.members.find((member) => (
+            member.id !== payload.id
+            && String(member.code || "").trim().toLowerCase() === payload.code.toLowerCase()
+          ));
+          if (duplicateMember) {
+            reportValidationError(`工號 ${payload.code} 已存在，不能重複使用`);
+            return;
+          }
+          if (!payload.deptId) {'''.replace('          ', '')
+          if validation_old not in renderer:
+              raise SystemExit('member duplicate validation target not found')
+          renderer = renderer.replace(validation_old, validation_new, 1)
+
+          import_old = '      const existing = state.members.find((member) => member.code === code) || null;'
+          import_new = '      const existing = state.members.find((member) => String(member.code || "").trim().toLowerCase() === code.toLowerCase()) || null;'
+          if import_old not in renderer:
+              raise SystemExit('member import match target not found')
+          renderer = renderer.replace(import_old, import_new, 1)
+
+          delete_list_new = '''async function deleteListItem(category, id) {
+            const labelMap = {
+              shift: "班別",
+              leave: "假別",
+              overtime: "加班"
+            };
+            const label = labelMap[category] || "項目";
+            const confirmed = await confirmAction(`確定要刪除這個${label}嗎？`);
+            if (!confirmed) {
+              return;
+            }
+            try {
+              const result = await window.schedulerApi.deleteCatalogItem(category, id);
+              if (!result?.deleted) {
+                throw new Error(`${label}不存在或已被刪除，請重新整理後再試`);
+              }
+            } catch (error) {
+              showInfoMessage(`${label}刪除失敗：${error.message || error}`);
+              return;
+            }
+            if (category === "shift") {
+              state.shifts = state.shifts.filter((item) => item.id !== id);
+              state.members = state.members.map((member) => ({
+                ...member,
+                scheduleShiftIds: getMemberScheduleShiftIds(member).filter((shiftId) => shiftId !== id)
+              }));
+            }
+            if (category === "leave") state.leaves = state.leaves.filter((item) => item.id !== id);
+            if (category === "overtime") state.overtime = state.overtime.filter((item) => item.id !== id);
+            if (state.selected.type === category && state.selected.id === id) {
+              state.selected = { type: null, id: null };
+            }
+            removeAssignmentsByItem(category, id);
+            renderAll();
+            openListSettings(category);
+            showInfoMessage(`${label}已刪除`);
+          }
+          '''.replace('          ', '')
+          renderer, count = re.subn(
+              r'async function deleteListItem\(category, id\) \{.*?\n\}\n\nfunction openDepartmentSettings',
+              delete_list_new + '\nfunction openDepartmentSettings',
+              renderer,
+              count=1,
+              flags=re.S
+          )
+          if count != 1:
+              raise SystemExit('deleteListItem function target not found')
+
+          delete_member_new = '''async function deleteMember(memberId) {
+            const member = state.members.find((item) => item.id === memberId);
+            if (member && !canEditMemberAccount(member)) {
+              showInfoMessage("只有管理員可以刪除管理員帳號");
+              return;
+            }
+            const confirmed = await confirmAction("確定要刪除這位人員嗎？");
+            if (!confirmed) {
+              return;
+            }
+            let result;
+            try {
+              result = await window.schedulerApi.deleteMemberProfile(member?.code || "");
+              if (!result?.deleted) {
+                throw new Error("找不到這位人員，請重新整理後再試");
+              }
+            } catch (error) {
+              showInfoMessage(`刪除人員失敗：${error.message || error}`);
+              return;
+            }
+            if (member?.code && member.code === currentProfile?.employee_code) {
+              await signOut();
+              showInfoMessage(result?.softDeleted
+                ? "目前登入帳號已停用並保留歷史紀錄，已自動登出。"
+                : "目前登入帳號已刪除，已自動登出。");
+              return;
+            }
+            state.members = state.members.filter((item) => item.id !== memberId);
+            state.members = state.members.map((item) => ({
+              ...item,
+              proxyMemberId: item.proxyMemberId === memberId ? "" : item.proxyMemberId
+            }));
+            renderAll();
+            openMemberSettings();
+            showInfoMessage(result?.softDeleted ? "人員已停用，歷史紀錄已保留" : "人員已刪除");
+          }
+          '''.replace('          ', '')
+          renderer, count = re.subn(
+              r'async function deleteMember\(memberId\) \{.*?\n\}\n\nasync function resetMemberPasswordFromModal',
+              delete_member_new + '\nasync function resetMemberPasswordFromModal',
+              renderer,
+              count=1,
+              flags=re.S
+          )
+          if count != 1:
+              raise SystemExit('deleteMember function target not found')
+
+          renderer_path.write_text(renderer, encoding='utf-8')
+          Path('docs/renderer.js').write_text(renderer, encoding='utf-8')
+
+          for name in ['src/renderer/index.html', 'docs/index.html']:
+              path = Path(name)
+              text = path.read_text(encoding='utf-8-sig')
+              text = text.replace('./web-api.js?v=20260707v6', './web-api.js?v=20260708v1')
+              text = text.replace('./renderer.js?v=20260707v6', './renderer.js?v=20260708v1')
+              path.write_text(text, encoding='utf-8-sig')
+
+          spec_path = Path('規格書.txt')
+          spec = spec_path.read_text(encoding='utf-8')
+          fields_old = '''- 工號。
+          - 姓名。'''.replace('          ', '')
+          fields_new = '''- 工號；全系統唯一，英文字母大小寫視為相同工號。
+          - 姓名。'''.replace('          ', '')
+          if fields_old not in spec:
+              raise SystemExit('employee code field target not found')
+          spec = spec.replace(fields_old, fields_new, 1)
+
+          delete_rules_old = '''帳號刪除規則：
+
+          1. 有班表、打卡、打卡異動、加班、審核或訂餐歷史時保留人員歷史，後端拒絕刪除。
+          2. 可刪除時，Supabase Auth 與 `set_employee` 必須在同一交易一致完成。
+          3. 系統永遠保留至少一位有效管理員。
+          4. 主管或管理員刪除自己時需再次驗證目前密碼，完成後立即登出。'''.replace('          ', '')
+          delete_rules_new = '''帳號與工號規則：
+
+          1. 新增及修改人員時，前端與後端都必須檢查工號不得重複；英文字母大小寫視為相同。
+          2. 沒有班表、打卡、加班或訂餐歷史的人員，刪除時同步移除 Supabase Auth 與 `set_employee`。
+          3. 已有班表、打卡、加班或訂餐歷史的人員，刪除操作改為停用 `is_active`，從目前人員清單移除並保留全部歷史紀錄。
+          4. 系統永遠保留至少一位有效管理員。
+          5. 刪除自己後立即登出；有歷史資料時同樣改為停用帳號。'''.replace('          ', '')
+          if delete_rules_old not in spec:
+              raise SystemExit('account deletion rules target not found')
+          spec = spec.replace(delete_rules_old, delete_rules_new, 1)
+
+          sorting_marker = '''- 訂餐商品依其表格版面使用較大的操作區。
+
+          ---'''.replace('          ', '')
+          catalog_rules = '''- 訂餐商品依其表格版面使用較大的操作區。
+
+          ### 3.3.10 班別、假別與加班刪除規格
+
+          1. 刪除班別、假別或加班時，必須由後端依識別碼刪除正式資料。
+          2. 後端確認成功後，前端才移除該項目並更新班表；重新整理後不得再次出現。
+          3. 刪除失敗時保留畫面原資料，並顯示明確失敗訊息。
+          4. 刪除班別時，同步從人員的可排班班別清單移除該班別。
+          5. 班表中引用已刪除設定的欄位由資料庫外鍵改為空值，其他班表內容保留。
+
+          ---'''.replace('          ', '')
+          if sorting_marker not in spec:
+              raise SystemExit('catalog deletion specification marker not found')
+          spec = spec.replace(sorting_marker, catalog_rules, 1)
+          spec_path.write_text(spec, encoding='utf-8')
+
+          Path('.github/workflows/fix-member-and-catalog-delete.yml').unlink()
+          PY
+      - name: Validate JavaScript
+        shell: bash
+        run: |
+          node --check src/renderer/web-api.js
+          node --check src/renderer/renderer.js
+          cmp src/renderer/web-api.js docs/web-api.js
+          cmp src/renderer/renderer.js docs/renderer.js
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/renderer docs '規格書.txt' '.github/workflows/fix-member-and-catalog-delete.yml'
+          git commit -m 'Fix member uniqueness and persistent catalog deletion'
+          git push
