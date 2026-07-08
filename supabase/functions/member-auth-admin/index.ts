@@ -38,7 +38,11 @@ function isProfileEffective(profile: any, today = taipeiDateString()) {
 }
 
 function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(String(value || "").trim());
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || "").trim());
+}
+
+function normalizeCodeKey(value: unknown) {
+  return String(value || "").trim().toLocaleLowerCase("en-US");
 }
 
 function buildLoginEmail(employeeCode: string) {
@@ -50,7 +54,6 @@ function buildLoginEmail(employeeCode: string) {
   if (!normalized) {
     throw new Error("工號無法建立登入帳號");
   }
-  // ponytail: 用 local.invalid 建內部登入帳號，完全不依賴真實信箱；日後接公司信箱時再換 email 規則。
   return `${normalized}@local.invalid`;
 }
 
@@ -100,31 +103,21 @@ async function getActorRole(ctx: any) {
     .select("role, is_active, hire_date, leave_date")
     .eq("id", actorId)
     .single();
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
   if (!isProfileEffective(data)) {
     throw new Error("此帳號目前不在有效期間，無法管理人員");
   }
   return data?.role || "";
 }
 
-async function findProfile(ctx: any, currentCode: string, previousCode: string) {
-  const codes = Array.from(new Set([previousCode, currentCode].map((value) => String(value || "").trim()).filter(Boolean)));
-  for (const code of codes) {
-    const { data, error } = await ctx.supabaseAdmin
-      .from("set_employee")
-      .select("id, employee_code, role, is_active, hire_date, leave_date")
-      .eq("employee_code", code)
-      .maybeSingle();
-    if (error) {
-      throw error;
-    }
-    if (data) {
-      return data;
-    }
-  }
-  return null;
+async function findProfileByCode(ctx: any, employeeCode: string) {
+  const key = normalizeCodeKey(employeeCode);
+  if (!key) return null;
+  const { data, error } = await ctx.supabaseAdmin
+    .from("set_employee")
+    .select("id, employee_code, full_name, role, is_active, hire_date, leave_date");
+  if (error) throw error;
+  return (data || []).find((row: any) => normalizeCodeKey(row.employee_code) === key) || null;
 }
 
 async function countEffectiveAdmins(ctx: any) {
@@ -132,16 +125,12 @@ async function countEffectiveAdmins(ctx: any) {
     .from("set_employee")
     .select("id, role, is_active, hire_date, leave_date")
     .eq("role", "admin");
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
   return (data || []).filter((profile: any) => isProfileEffective(profile)).length;
 }
 
 async function assertLastAdminProtected(ctx: any, existingProfile: any, nextMember: any) {
-  if (normalizeRole(existingProfile?.role) !== "admin") {
-    return;
-  }
+  if (normalizeRole(existingProfile?.role) !== "admin") return;
   const nextProfile = {
     ...existingProfile,
     role: nextMember.role,
@@ -149,40 +138,46 @@ async function assertLastAdminProtected(ctx: any, existingProfile: any, nextMemb
     leave_date: nextMember.leaveDate
   };
   const remainsEffectiveAdmin = normalizeRole(nextProfile.role) === "admin" && isProfileEffective(nextProfile);
-  if (remainsEffectiveAdmin) {
-    return;
-  }
-  if (await countEffectiveAdmins(ctx) <= 1) {
+  if (!remainsEffectiveAdmin && await countEffectiveAdmins(ctx) <= 1) {
     throw new Error("系統必須保留至少一個有效管理員");
   }
 }
 
 async function resolveDepartmentUuid(ctx: any, departmentId: string) {
   const itemId = String(departmentId || "").trim();
-  if (!isUuid(itemId)) {
-    return null;
-  }
+  if (!isUuid(itemId)) return null;
   const { data, error } = await ctx.supabaseAdmin
     .from("set_departments")
     .select("id")
     .eq("id", itemId)
     .maybeSingle();
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
   return data?.id || null;
 }
 
 async function upsertMember(ctx: any, body: any) {
   const member = normalizeMember(body?.member || {});
-  const previousEmployeeCode = String(body?.previousEmployeeCode || member.employeeCode).trim();
+  const previousEmployeeCode = String(body?.previousEmployeeCode || "").trim();
   const password = String(body?.defaultPassword || DEFAULT_PASSWORD);
-  const profile = await findProfile(ctx, member.employeeCode, previousEmployeeCode);
-  const homeDepartmentUuid = await resolveDepartmentUuid(ctx, member.homeDepartmentId || "");
   const actorRole = normalizeRole(body?.actorRole);
-  if (profile) {
-    await assertLastAdminProtected(ctx, profile, member);
+  const targetProfile = await findProfileByCode(ctx, member.employeeCode);
+  let profile = null;
+
+  if (previousEmployeeCode) {
+    profile = await findProfileByCode(ctx, previousEmployeeCode);
+    if (!profile) {
+      throw new Error("找不到原人員資料，請重新整理後再試");
+    }
+    if (targetProfile && targetProfile.id !== profile.id) {
+      throw new Error(`工號 ${member.employeeCode} 已存在，不能重複使用`);
+    }
+  } else if (targetProfile) {
+    throw new Error(`工號 ${member.employeeCode} 已存在，不能重複使用`);
   }
+
+  const homeDepartmentUuid = await resolveDepartmentUuid(ctx, member.homeDepartmentId || "");
+  if (profile) await assertLastAdminProtected(ctx, profile, member);
+
   if (!hasAdminAccess(actorRole)) {
     if (!profile && member.role !== "employee") {
       throw new Error("只有管理員可以新增主管或管理員");
@@ -205,13 +200,10 @@ async function upsertMember(ctx: any, body: any) {
         full_name: member.fullName
       }
     });
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
     const userId = data.user?.id;
-    if (!userId) {
-      throw new Error("建立登入帳號失敗");
-    }
+    if (!userId) throw new Error("建立登入帳號失敗");
+
     const { error: insertError } = await ctx.supabaseAdmin
       .from("set_employee")
       .insert({
@@ -225,19 +217,17 @@ async function upsertMember(ctx: any, body: any) {
         fixed_rest_weekday: member.fixedRestWeekday,
         home_department_id: homeDepartmentUuid,
         schedule_shift_ids: member.scheduleShiftIds,
-        monthly_rest_days: member.monthlyRestDays
+        monthly_rest_days: member.monthlyRestDays,
+        is_active: true
       });
     if (insertError) {
+      await ctx.supabaseAdmin.auth.admin.deleteUser(userId).catch(() => undefined);
       throw insertError;
     }
-    return {
-      ok: true,
-      created: true,
-      employeeCode: member.employeeCode,
-      authEmail: member.authEmail
-    };
+    return { ok: true, created: true, employeeCode: member.employeeCode, authEmail: member.authEmail };
   }
 
+  const oldAuthEmail = buildLoginEmail(profile.employee_code);
   const { error: updateAuthError } = await ctx.supabaseAdmin.auth.admin.updateUserById(profile.id, {
     email: member.authEmail,
     email_confirm: true,
@@ -249,6 +239,7 @@ async function upsertMember(ctx: any, body: any) {
   if (updateAuthError && !/not found/i.test(String(updateAuthError.message || updateAuthError))) {
     throw updateAuthError;
   }
+
   const { error: updateProfileError } = await ctx.supabaseAdmin
     .from("set_employee")
     .update({
@@ -261,28 +252,32 @@ async function upsertMember(ctx: any, body: any) {
       fixed_rest_weekday: member.fixedRestWeekday,
       home_department_id: homeDepartmentUuid,
       schedule_shift_ids: member.scheduleShiftIds,
-      monthly_rest_days: member.monthlyRestDays
+      monthly_rest_days: member.monthlyRestDays,
+      is_active: true
     })
     .eq("id", profile.id);
   if (updateProfileError) {
+    if (!updateAuthError) {
+      await ctx.supabaseAdmin.auth.admin.updateUserById(profile.id, {
+        email: oldAuthEmail,
+        email_confirm: true,
+        user_metadata: {
+          employee_code: profile.employee_code,
+          full_name: profile.full_name || ""
+        }
+      }).catch(() => undefined);
+    }
     throw updateProfileError;
   }
 
-  return {
-      ok: true,
-      created: false,
-      employeeCode: member.employeeCode,
-      authEmail: member.authEmail
-  };
+  return { ok: true, created: false, employeeCode: member.employeeCode, authEmail: member.authEmail };
 }
 
 async function resetPassword(ctx: any, body: any) {
   const employeeCode = String(body?.employeeCode || "").trim();
   const password = String(body?.password || DEFAULT_PASSWORD);
-  if (!employeeCode) {
-    throw new Error("缺少工號");
-  }
-  const profile = await findProfile(ctx, employeeCode, employeeCode);
+  if (!employeeCode) throw new Error("缺少工號");
+  const profile = await findProfileByCode(ctx, employeeCode);
   if (!profile?.id) {
     return new Response(JSON.stringify({ message: "找不到這位人員的登入帳號" }), {
       status: 404,
@@ -292,17 +287,9 @@ async function resetPassword(ctx: any, body: any) {
   if (normalizeRole(profile.role) === "admin" && !hasAdminAccess(body?.actorRole)) {
     throw new Error("只有管理員可以重設管理員密碼");
   }
-  const { error } = await ctx.supabaseAdmin.auth.admin.updateUserById(profile.id, {
-    password
-  });
-  if (error) {
-    throw error;
-  }
-  return {
-    ok: true,
-    employeeCode,
-    password
-  };
+  const { error } = await ctx.supabaseAdmin.auth.admin.updateUserById(profile.id, { password });
+  if (error) throw error;
+  return { ok: true, employeeCode, password };
 }
 
 async function countRows(ctx: any, table: string, column: string, value: string) {
@@ -310,22 +297,17 @@ async function countRows(ctx: any, table: string, column: string, value: string)
     .from(table)
     .select("id", { count: "exact", head: true })
     .eq(column, value);
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
   return count || 0;
 }
 
 async function deleteMember(ctx: any, body: any) {
   const employeeCode = String(body?.employeeCode || "").trim();
   const actorRole = normalizeRole(body?.actorRole);
-  if (!employeeCode) {
-    throw new Error("請提供人員工號");
-  }
-  const profile = await findProfile(ctx, employeeCode, employeeCode);
-  if (!profile?.id) {
-    return { ok: true, deleted: false };
-  }
+  if (!employeeCode) throw new Error("請提供人員工號");
+
+  const profile = await findProfileByCode(ctx, employeeCode);
+  if (!profile?.id) return { ok: true, deleted: false, softDeleted: false };
   if (normalizeRole(profile.role) === "admin" && !hasAdminAccess(actorRole)) {
     throw new Error("只有管理員可以刪除管理員帳號");
   }
@@ -333,28 +315,34 @@ async function deleteMember(ctx: any, body: any) {
     throw new Error("系統必須保留至少一個有效管理員");
   }
 
-  const relatedCounts = [
-    await countRows(ctx, "schedule_entries", "member_id", profile.id),
-    await countRows(ctx, "attendance_records", "user_id", profile.id),
-    await countRows(ctx, "attendance_overtime_requests", "user_id", profile.id),
-    await countRows(ctx, "meal_orders", "user_id", profile.id)
-  ];
+  const relatedCounts = await Promise.all([
+    countRows(ctx, "schedule_entries", "member_id", profile.id),
+    countRows(ctx, "attendance_records", "user_id", profile.id),
+    countRows(ctx, "attendance_overtime_requests", "user_id", profile.id),
+    countRows(ctx, "meal_orders", "user_id", profile.id)
+  ]);
+
   if (relatedCounts.some((count) => count > 0)) {
-    throw new Error("此人員已有班表、打卡、加班或訂餐資料，為保留歷史紀錄，無法刪除。");
+    const { error } = await ctx.supabaseAdmin
+      .from("set_employee")
+      .update({ is_active: false })
+      .eq("id", profile.id);
+    if (error) throw error;
+    return { ok: true, deleted: true, softDeleted: true, employeeCode };
   }
 
-  const { error: deleteProfileError } = await ctx.supabaseAdmin
-    .from("set_employee")
-    .delete()
-    .eq("id", profile.id);
-  if (deleteProfileError) {
-    throw deleteProfileError;
-  }
   const { error: deleteUserError } = await ctx.supabaseAdmin.auth.admin.deleteUser(profile.id);
   if (deleteUserError && !/not found/i.test(String(deleteUserError.message || deleteUserError))) {
     throw deleteUserError;
   }
-  return { ok: true, deleted: true, employeeCode };
+  if (deleteUserError) {
+    const { error: deleteProfileError } = await ctx.supabaseAdmin
+      .from("set_employee")
+      .delete()
+      .eq("id", profile.id);
+    if (deleteProfileError) throw deleteProfileError;
+  }
+  return { ok: true, deleted: true, softDeleted: false, employeeCode };
 }
 
 console.assert(buildLoginEmail("SELF_CHECK") === "self_check@local.invalid", "member-auth-admin buildLoginEmail failed");
@@ -379,19 +367,12 @@ export default {
 
       const body = await req.json();
       body.actorRole = actorRole;
-      if (body?.action === "upsert_member") {
-        return Response.json(await upsertMember(ctx, body));
-      }
+      if (body?.action === "upsert_member") return Response.json(await upsertMember(ctx, body));
       if (body?.action === "reset_password") {
         const result = await resetPassword(ctx, body);
-        if (result instanceof Response) {
-          return result;
-        }
-        return Response.json(result);
+        return result instanceof Response ? result : Response.json(result);
       }
-      if (body?.action === "delete_member") {
-        return Response.json(await deleteMember(ctx, body));
-      }
+      if (body?.action === "delete_member") return Response.json(await deleteMember(ctx, body));
 
       return new Response(JSON.stringify({ message: "不支援的操作" }), {
         status: 400,
