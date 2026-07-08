@@ -12,15 +12,73 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  function setWidths(sheet, widths) {
-    widths.forEach((width, index) => {
-      sheet.getColumn(index + 1).width = width;
+  function compactDate(value) {
+    return String(value || "").replace(/[^0-9]/g, "").slice(0, 8);
+  }
+
+  function buildEmployeeRows(report, details) {
+    const companySubsidy = Number(report.companySubsidy || 55);
+    const employees = new Map();
+
+    details.forEach((row) => {
+      const key = String(row.employeeId || row.employeeCode || row.employeeName || "");
+      if (!key) return;
+      const current = employees.get(key) || {
+        employeeName: row.employeeName || "",
+        employeeCode: row.employeeCode || "",
+        dates: new Set(),
+        amount: 0
+      };
+      const quantity = Number(row.quantity || 0);
+      const amount = Number(row.amount ?? (quantity * Number(row.unitPrice || 0))) || 0;
+      if (quantity > 0 && row.date) current.dates.add(row.date);
+      current.amount += amount;
+      if (!current.employeeName && row.employeeName) current.employeeName = row.employeeName;
+      if (!current.employeeCode && row.employeeCode) current.employeeCode = row.employeeCode;
+      employees.set(key, current);
     });
+
+    return [...employees.values()]
+      .map((row) => {
+        const mealDays = row.dates.size;
+        return {
+          employeeName: row.employeeName,
+          employeeCode: row.employeeCode,
+          lunchAmount: row.amount - mealDays * companySubsidy,
+          lunchCount: mealDays
+        };
+      })
+      .sort((a, b) => (
+        String(a.employeeName).localeCompare(String(b.employeeName), "zh-Hant")
+        || String(a.employeeCode).localeCompare(String(b.employeeCode))
+      ));
+  }
+
+  function styleSheet(sheet) {
     sheet.views = [{ state: "frozen", ySplit: 1 }];
     sheet.autoFilter = {
       from: { row: 1, column: 1 },
-      to: { row: 1, column: widths.length }
+      to: { row: 1, column: 10 }
     };
+    sheet.columns = [
+      { width: 18 },
+      { width: 16 },
+      { width: 14 },
+      { width: 14 },
+      { width: 14 },
+      { width: 14 },
+      { width: 14 },
+      { width: 14 },
+      { width: 14 },
+      { width: 14 }
+    ];
+    sheet.getColumn(2).numFmt = "@";
+    sheet.getColumn(10).numFmt = "@";
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) row.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    });
   }
 
   window.schedulerApi.exportMealReport = async function exportV2MealReport(report = {}) {
@@ -31,65 +89,48 @@
         : [];
     if (!details.length) return { canceled: true, empty: true };
 
+    const rows = buildEmployeeRows(report, details);
+    if (!rows.length) return { canceled: true, empty: true };
+
+    const reportDate = compactDate(report.toDate);
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "福圓號";
     workbook.created = new Date();
 
-    const summarySheet = workbook.addWorksheet("每日備餐統計");
-    summarySheet.addRow(["日期", "單位", "品項", "數量", "金額"]);
-    (report.summary || []).forEach((row) => {
-      summarySheet.addRow([
-        row.date || "",
-        row.departmentName || "",
-        row.productName || "",
-        Number(row.quantity || 0),
-        Number(row.amount || 0)
-      ]);
-    });
-    setWidths(summarySheet, [14, 20, 24, 12, 14]);
-
-    const detailSheet = workbook.addWorksheet("員工訂餐明細");
-    detailSheet.addRow([
-      "日期",
-      "單位",
-      "員工",
-      "品項",
-      "數量",
-      "單價",
-      "小計",
-      "品項備註"
+    const sheet = workbook.addWorksheet("訂餐統計");
+    sheet.addRow([
+      "員工姓名",
+      "員工編號",
+      "早餐金額",
+      "午餐金額",
+      "晚餐金額",
+      "早餐份數",
+      "午餐份數",
+      "晚餐份數",
+      "總計",
+      "日期"
     ]);
-    details.forEach((row) => {
-      const note = [
-        row.note || "",
-        row.clockDeletedWarning ? "此訂單所依據的上班打卡已被刪除" : ""
-      ].filter(Boolean).join("；");
-      detailSheet.addRow([
-        row.date || "",
-        row.departmentName || "",
-        row.employeeName || "",
-        row.productName || "",
-        Number(row.quantity || 0),
-        Number(row.unitPrice || 0),
-        Number(row.amount || 0),
-        note
+    rows.forEach((row) => {
+      sheet.addRow([
+        row.employeeName,
+        row.employeeCode,
+        "",
+        row.lunchAmount,
+        "",
+        "",
+        row.lunchCount,
+        "",
+        "",
+        reportDate
       ]);
     });
-    setWidths(detailSheet, [14, 20, 18, 24, 10, 12, 14, 36]);
-
-    [summarySheet, detailSheet].forEach((sheet) => {
-      sheet.getRow(1).font = { bold: true };
-      sheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
-      sheet.eachRow((row, rowNumber) => {
-        if (rowNumber > 1) row.alignment = { vertical: "top", wrapText: true };
-      });
-    });
+    styleSheet(sheet);
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     });
-    const fileName = `訂餐報表_${report.fromDate || ""}_${report.toDate || ""}.xlsx`;
+    const fileName = `訂餐統計_${compactDate(report.fromDate)}-${reportDate}.xlsx`;
     downloadBlob(blob, fileName);
     return { canceled: false, filePath: fileName };
   };
