@@ -1,4 +1,4 @@
-name: Diagnose V2 check
+name: Diagnose V2 checks
 
 on:
   pull_request:
@@ -18,12 +18,14 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
-      - name: Capture final check result
-        run: node scripts/check-v2-final.js > v2-check-diagnostic.txt 2>&1 || true
-      - name: Commit diagnostic
+      - name: Capture check results
+        run: |
+          node scripts/check-v2-alignment.js > v2-alignment-diagnostic.txt 2>&1 || true
+          node scripts/check-v2-final.js > v2-check-diagnostic.txt 2>&1 || true
+      - name: Commit diagnostics
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add v2-check-diagnostic.txt
-          git commit -m "Capture V2 check diagnostic"
+          git add v2-alignment-diagnostic.txt v2-check-diagnostic.txt
+          git commit -m "Capture V2 diagnostics"
           git push origin HEAD:${{ github.head_ref }}
