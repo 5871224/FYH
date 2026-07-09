@@ -828,3 +828,29 @@ input[type="time"] {
   }
 }
 
+/* Keep the sticky member-table header opaque across horizontal scrolling. */
+.member-settings-modal .member-table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.member-settings-modal .member-table-row {
+  width: 100%;
+}
+
+.member-settings-modal .member-table-head {
+  z-index: 4;
+  isolation: isolate;
+  background: var(--ui-surface-muted);
+  background-clip: padding-box;
+  box-shadow: 0 1px 0 var(--ui-border);
+}
+
+.member-settings-modal .member-table-head > * {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ui-surface-muted);
+}
+
