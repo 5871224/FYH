@@ -1035,3 +1035,24 @@ input[type="time"] {
   }
 }
 
+/* Department rows must keep the same four-column order as the header. */
+.department-settings-modal .department-settings-table-department .settings-order-drag-col {
+  grid-column: 1;
+  order: 0;
+}
+
+.department-settings-modal .department-settings-table-department .department-settings-title {
+  grid-column: 2;
+  order: 0;
+}
+
+.department-settings-modal .department-settings-table-department .member-inline-list {
+  grid-column: 3;
+  order: 0;
+}
+
+.department-settings-modal .department-settings-table-department .member-table-actions {
+  grid-column: 4;
+  order: 0;
+}
+
