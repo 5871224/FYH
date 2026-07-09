@@ -6,35 +6,15 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: write
-
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: "22"
       - name: Run V2 alignment checks
         run: npm run v2:check
-      - name: Apply pending current-specification sync
-        if: github.event_name == 'push' && hashFiles('scripts/one-shot-update-pages-spec.py') != ''
-        run: python3 scripts/one-shot-update-pages-spec.py
-      - name: Commit pending specification sync
-        if: github.event_name == 'push'
-        shell: bash
-        run: |
-          if git diff --quiet && git diff --cached --quiet; then
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'Sync current UI and deployment specification'
-          git push
