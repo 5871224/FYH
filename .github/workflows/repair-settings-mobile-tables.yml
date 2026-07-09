@@ -1,0 +1,297 @@
+name: Repair settings tables on mobile
+
+on:
+  push:
+    paths:
+      - '.github/workflows/repair-settings-mobile-tables.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply settings table fixes on current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          css_block = r'''
+
+          /* Settings list modals: match the member-settings layout and scrolling behavior. */
+          .settings-list-modal .modal-header {
+            align-items: center;
+          }
+
+          .settings-list-modal .modal-header-tools {
+            align-items: center;
+          }
+
+          .settings-list-modal .modal-header-actions {
+            justify-content: flex-end;
+          }
+
+          .settings-list-modal .modal-header-actions > button {
+            min-height: var(--ui-control-height);
+            height: var(--ui-control-height);
+            padding: 0 14px;
+            border-radius: var(--ui-control-radius);
+            font-size: 14px;
+          }
+
+          .catalog-settings-modal .settings-table-scroll,
+          .department-settings-modal .department-settings-table-wrap {
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-color: #cdbb9f var(--ui-surface-muted);
+            scrollbar-width: thin;
+          }
+
+          .catalog-settings-modal .settings-table-scroll::-webkit-scrollbar,
+          .department-settings-modal .department-settings-table-wrap::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+          }
+
+          .catalog-settings-modal .settings-table-scroll::-webkit-scrollbar-track,
+          .department-settings-modal .department-settings-table-wrap::-webkit-scrollbar-track {
+            background: var(--ui-surface-muted);
+            border-radius: 999px;
+          }
+
+          .catalog-settings-modal .settings-table-scroll::-webkit-scrollbar-thumb,
+          .department-settings-modal .department-settings-table-wrap::-webkit-scrollbar-thumb {
+            background: #cdbb9f;
+            border-radius: 999px;
+          }
+
+          .catalog-settings-modal .settings-table,
+          .department-settings-modal .department-settings-table {
+            width: max-content;
+            min-width: 100%;
+          }
+
+          .catalog-settings-modal .settings-table-row,
+          .department-settings-modal .department-settings-row {
+            width: 100%;
+          }
+
+          .catalog-settings-modal .settings-table-row-shift {
+            min-width: 1040px;
+            grid-template-columns: 30px 120px 120px 90px minmax(300px, 1fr) 130px 90px 76px;
+          }
+
+          .catalog-settings-modal .settings-table-row-leave {
+            min-width: 880px;
+            grid-template-columns: 30px 130px 100px 150px 100px 100px 90px 76px;
+          }
+
+          .catalog-settings-modal .settings-table-row-overtime {
+            min-width: 1060px;
+            grid-template-columns: 30px 130px 150px 160px 160px 160px 90px 76px;
+          }
+
+          .department-settings-modal .modal-body {
+            overflow: hidden;
+          }
+
+          .department-settings-modal .department-settings-table-wrap {
+            flex: 1 1 auto;
+            min-width: 0;
+            min-height: 0;
+            overflow: auto;
+          }
+
+          .department-settings-modal .department-settings-table-department .department-settings-row {
+            min-width: 720px;
+            grid-template-columns: 30px 120px minmax(390px, 1fr) 90px;
+          }
+
+          .catalog-settings-modal .settings-table-head,
+          .department-settings-modal .department-settings-head {
+            z-index: 5;
+            isolation: isolate;
+            background: var(--ui-surface-muted);
+            background-clip: padding-box;
+            box-shadow: 0 1px 0 var(--ui-border);
+          }
+
+          .catalog-settings-modal .settings-table-head > *,
+          .department-settings-modal .department-settings-head > * {
+            align-self: stretch;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--ui-surface-muted);
+          }
+
+          @media (max-width: 640px) {
+            .settings-list-modal {
+              width: 100%;
+              height: calc(100dvh - 24px);
+              max-height: calc(100dvh - 24px);
+            }
+
+            .settings-list-modal .modal-header {
+              display: grid;
+              grid-template-columns: minmax(0, 1fr) auto;
+              grid-template-areas:
+                "settings-title settings-close"
+                "settings-actions settings-actions";
+              align-items: center;
+              gap: 8px 10px;
+              margin-bottom: 8px;
+              padding-bottom: 10px;
+            }
+
+            .settings-list-modal .modal-header h3 {
+              grid-area: settings-title;
+              min-width: 0;
+              padding-right: 0;
+              font-size: 20px;
+              line-height: 1.2;
+              white-space: nowrap;
+            }
+
+            .settings-list-modal .modal-header-tools {
+              display: contents;
+            }
+
+            .settings-list-modal .modal-header-actions {
+              grid-area: settings-actions;
+              display: grid;
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+              gap: 8px;
+              width: 100%;
+            }
+
+            .settings-list-modal .modal-header-close {
+              grid-area: settings-close;
+            }
+
+            .settings-list-modal .modal-header-actions > button {
+              width: 100%;
+              min-width: 0;
+              min-height: 38px;
+              height: 38px;
+              padding: 0 8px;
+              font-size: 13px;
+            }
+
+            .settings-list-modal .modal-body {
+              min-height: 0;
+              gap: 8px;
+            }
+
+            .catalog-settings-modal .settings-table-wrap,
+            .department-settings-modal .department-settings-table-wrap {
+              min-height: 220px;
+            }
+
+            .department-settings-modal .member-inline-list {
+              flex-wrap: wrap;
+              min-width: 0;
+            }
+
+            .department-settings-modal .member-item {
+              flex: 0 0 auto;
+              max-width: 180px;
+            }
+          }
+          '''
+
+          marker = '/* Settings list modals: match the member-settings layout and scrolling behavior. */'
+          for css_path in [Path('src/renderer/ui-system.css'), Path('docs/ui-system.css')]:
+              text = css_path.read_text(encoding='utf-8-sig')
+              if marker not in text:
+                  text = text.rstrip() + css_block + '\n'
+              css_path.write_text(text, encoding='utf-8-sig')
+
+          for js_path in [Path('src/renderer/renderer.js'), Path('docs/renderer.js')]:
+              text = js_path.read_text(encoding='utf-8-sig')
+              class_replacements = [
+                  ('"modal modal-wide catalog-settings-modal"', '"modal modal-wide catalog-settings-modal settings-list-modal"'),
+                  ('"modal modal-wide department-settings-modal"', '"modal modal-wide department-settings-modal settings-list-modal"'),
+                  ('"modal modal-wide member-settings-modal"', '"modal modal-wide member-settings-modal settings-list-modal"'),
+              ]
+              for old, new in class_replacements:
+                  if new not in text:
+                      if old not in text:
+                          raise SystemExit(f'Expected modal class not found in {js_path}: {old}')
+                      text = text.replace(old, new, 1)
+
+              button_replacements = [
+                  ('<button class="ghost-btn compact-btn" type="button" data-export-settings="${category}">匯出</button>', '<button class="ghost-btn" type="button" data-export-settings="${category}">匯出</button>'),
+                  ('<button class="ghost-btn compact-btn" type="button" data-import-settings="${category}">匯入</button>', '<button class="ghost-btn" type="button" data-import-settings="${category}">匯入</button>'),
+                  ('<button class="ghost-btn compact-btn" type="button" data-export-departments="true">匯出</button>', '<button class="ghost-btn" type="button" data-export-departments="true">匯出</button>'),
+                  ('<button class="ghost-btn compact-btn" type="button" data-import-departments="true">匯入</button>', '<button class="ghost-btn" type="button" data-import-departments="true">匯入</button>'),
+              ]
+              for old, new in button_replacements:
+                  if new not in text:
+                      if old not in text:
+                          raise SystemExit(f'Expected settings button not found in {js_path}: {old}')
+                      text = text.replace(old, new, 1)
+              js_path.write_text(text, encoding='utf-8-sig')
+
+          for html_path in [Path('src/renderer/index.html'), Path('docs/index.html')]:
+              text = html_path.read_text(encoding='utf-8-sig')
+              text, css_count = re.subn(r'\./ui-system\.css\?v=[^"\s]+', './ui-system.css?v=20260709v6', text, count=1)
+              text, js_count = re.subn(r'\./renderer\.js\?v=[^"\s]+', './renderer.js?v=20260709v2', text, count=1)
+              if css_count != 1 or js_count != 1:
+                  raise SystemExit(f'Could not update asset versions in {html_path}')
+              html_path.write_text(text, encoding='utf-8-sig')
+
+          for workflow in [
+              Path('.github/workflows/fix-settings-mobile-tables.yml'),
+              Path('.github/workflows/repair-settings-mobile-tables.yml'),
+          ]:
+              if workflow.exists():
+                  workflow.unlink()
+          PY
+
+      - name: Validate files
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check src/renderer/renderer.js
+          node --check docs/renderer.js
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ['src/renderer/ui-system.css', 'docs/ui-system.css']:
+              text = Path(name).read_text(encoding='utf-8-sig')
+              if text.count('{') != text.count('}'):
+                  raise SystemExit(f'Unbalanced CSS braces: {name}')
+              required = [
+                  '.settings-list-modal .modal-header',
+                  '.catalog-settings-modal .settings-table-row-shift',
+                  '.catalog-settings-modal .settings-table-row-leave',
+                  '.catalog-settings-modal .settings-table-row-overtime',
+                  '.department-settings-modal .department-settings-table-wrap',
+              ]
+              missing = [value for value in required if value not in text]
+              if missing:
+                  raise SystemExit(f'Missing CSS rules in {name}: {missing}')
+          for name in ['src/renderer/renderer.js', 'docs/renderer.js']:
+              text = Path(name).read_text(encoding='utf-8-sig')
+              if text.count('settings-list-modal') < 3:
+                  raise SystemExit(f'Settings modal class not applied to all list modals: {name}')
+          PY
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Fix settings tables and mobile header layout'
+          git push
