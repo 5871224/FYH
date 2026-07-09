@@ -5038,12 +5038,12 @@ function openListSettings(category) {
   openEntityListModal({
     title: titleMap[category],
     modalClass: category === "shift" || category === "leave" || category === "overtime"
-      ? "modal modal-wide catalog-settings-modal"
+      ? "modal modal-wide catalog-settings-modal settings-list-modal"
       : undefined,
     body,
     headerButtons: `
-      <button class="ghost-btn compact-btn" type="button" data-export-settings="${category}">匯出</button>
-      <button class="ghost-btn compact-btn" type="button" data-import-settings="${category}">匯入</button>
+      <button class="ghost-btn" type="button" data-export-settings="${category}">匯出</button>
+      <button class="ghost-btn" type="button" data-import-settings="${category}">匯入</button>
       <button class="btn-primary" type="button" data-open-add="${category}">新增${escapeHtml(titleMap[category].replace("設定", ""))}</button>
     `,
     hideFooterClose: true
@@ -5545,11 +5545,11 @@ function openDepartmentSettings() {
     : '<div class="empty-state">目前還沒有單位</div>';
   openEntityListModal({
     title: "單位設定",
-    modalClass: "modal modal-wide department-settings-modal",
+    modalClass: "modal modal-wide department-settings-modal settings-list-modal",
     body,
     headerButtons: `
-      <button class="ghost-btn compact-btn" type="button" data-export-departments="true">匯出</button>
-      <button class="ghost-btn compact-btn" type="button" data-import-departments="true">匯入</button>
+      <button class="ghost-btn" type="button" data-export-departments="true">匯出</button>
+      <button class="ghost-btn" type="button" data-import-departments="true">匯入</button>
       <button class="btn-primary" type="button" data-open-add-department="true">新增單位</button>
     `,
     hideFooterClose: true
@@ -6185,7 +6185,7 @@ function openMemberSettings() {
     `;
   openEntityListModal({
     title: "人員設定",
-    modalClass: "modal modal-wide member-settings-modal",
+    modalClass: "modal modal-wide member-settings-modal settings-list-modal",
     body,
     headerButtons: `
       <button class="ghost-btn" type="button" data-export-members="true">匯出</button>
