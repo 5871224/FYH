@@ -86,9 +86,8 @@ assert(synchronizedDelete.includes("has_synchronized_member_delete_v2"), "同步
 const memberDelete = read("supabase/functions/member-delete-v2/index.ts");
 assert(memberDelete.includes("員工沒有刪除帳號權限"), "後端未明確禁止員工刪除帳號");
 assert(memberDelete.includes('actor.role === "manager" && target.role === "admin"'), "主管刪除權限未限制為管理員帳號以外");
-assert(memberDelete.includes('rpc("has_synchronized_member_delete_v2")'), "刪除前未確認同步刪除 migration");
-assert(memberDelete.includes("auth.admin.deleteUser(target.id)"), "帳號刪除未由 Auth 端啟動級聯交易");
-assert(!memberDelete.includes('.from("set_employee").delete()'), "仍存在先刪人員資料再刪 Auth 的不同步流程");
+assert(memberDelete.includes('rpc("delete_member_account_v3"'), "帳號刪除未使用交易 RPC");
+assert(!memberDelete.includes('.from("set_employee").delete()'), "仍存在前端直接刪除人員資料的不同步流程");
 
 const clockSql = read("supabase/028_v2_attendance_clock.sql");
 assert(clockSql.includes("clock_in_company_latitude"), "上班公司座標快照缺失");
