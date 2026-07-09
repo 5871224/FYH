@@ -1,0 +1,172 @@
+name: Compact mobile member settings
+
+on:
+  push:
+    paths:
+      - '.github/workflows/compact-mobile-member-settings.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Add compact mobile member settings styles
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          css = r'''
+
+          /* Mobile member settings: compact filters and reserve space for the member table. */
+          @media (max-width: 640px) {
+            .member-settings-modal {
+              width: 100%;
+              height: calc(100dvh - 24px);
+              max-height: calc(100dvh - 24px);
+            }
+
+            .member-settings-modal .modal-header {
+              display: grid;
+              grid-template-columns: minmax(0, 1fr) auto;
+              grid-template-areas:
+                "member-title member-close"
+                "member-actions member-actions";
+              align-items: center;
+              gap: 8px 10px;
+              margin-bottom: 8px;
+              padding-bottom: 10px;
+            }
+
+            .member-settings-modal .modal-header h3 {
+              grid-area: member-title;
+              min-width: 0;
+              padding-right: 0;
+              font-size: 20px;
+              line-height: 1.2;
+              white-space: nowrap;
+            }
+
+            .member-settings-modal .modal-header-tools {
+              display: contents;
+            }
+
+            .member-settings-modal .modal-header-actions {
+              grid-area: member-actions;
+              display: grid;
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+              gap: 8px;
+              width: 100%;
+            }
+
+            .member-settings-modal .modal-header-close {
+              grid-area: member-close;
+            }
+
+            .member-settings-modal .modal-header-actions :where(.ghost-btn, .btn-primary) {
+              width: 100%;
+              min-width: 0;
+              min-height: 38px;
+              height: 38px;
+              padding: 0 8px;
+              font-size: 13px;
+            }
+
+            .member-settings-modal .modal-body {
+              gap: 8px;
+            }
+
+            .member-settings-filters {
+              flex: 0 0 auto;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 8px 10px;
+            }
+
+            .member-settings-filters .form-row {
+              min-width: 0;
+              gap: 4px;
+            }
+
+            .member-settings-filters .form-row:first-child {
+              grid-column: 1 / -1;
+            }
+
+            .member-settings-filters .form-row label {
+              font-size: 11px;
+              line-height: 1.2;
+            }
+
+            .member-settings-filters input,
+            .member-settings-filters select {
+              width: 100%;
+              min-width: 0;
+            }
+
+            .member-settings-list {
+              min-height: 220px;
+            }
+          }
+          '''
+
+          for path in [Path('src/renderer/ui-system.css'), Path('docs/ui-system.css')]:
+              text = path.read_text(encoding='utf-8-sig')
+              marker = '/* Mobile member settings: compact filters and reserve space for the member table. */'
+              if marker in text:
+                  raise SystemExit(f'Mobile member settings styles already exist in {path}')
+              path.write_text(text.rstrip() + css + '\n', encoding='utf-8-sig')
+
+          for path in [Path('src/renderer/index.html'), Path('docs/index.html')]:
+              text = path.read_text(encoding='utf-8-sig')
+              old = './ui-system.css?v=20260709v3'
+              new = './ui-system.css?v=20260709v4'
+              if old not in text:
+                  raise SystemExit(f'Expected UI stylesheet version not found in {path}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8-sig')
+
+          Path('.github/workflows/compact-mobile-member-settings.yml').unlink()
+          PY
+
+      - name: Validate CSS and published copy
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path('src/renderer/ui-system.css').read_text(encoding='utf-8-sig')
+          public = Path('docs/ui-system.css').read_text(encoding='utf-8-sig')
+          if source != public:
+              raise SystemExit('Source and public UI styles differ')
+          if source.count('{') != source.count('}'):
+              raise SystemExit('Unbalanced CSS braces')
+          required = [
+              '.member-settings-modal {',
+              'height: calc(100dvh - 24px);',
+              'grid-template-columns: repeat(2, minmax(0, 1fr));',
+              '.member-settings-filters .form-row:first-child',
+              'min-height: 220px;',
+          ]
+          missing = [item for item in required if item not in source]
+          if missing:
+              raise SystemExit(f'Missing mobile member settings rules: {missing}')
+          for name in ['src/renderer/index.html', 'docs/index.html']:
+              if './ui-system.css?v=20260709v4' not in Path(name).read_text(encoding='utf-8-sig'):
+                  raise SystemExit(f'New stylesheet version missing in {name}')
+          PY
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Compact mobile member settings filters'
+          git push
