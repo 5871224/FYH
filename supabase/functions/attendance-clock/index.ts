@@ -199,9 +199,11 @@ async function resolveClockLocation(ctx: any, req: Request, body: any) {
     };
   }
 
-  throw new Error(gpsFailure || (clientIp
-    ? `目前 IP ${clientIp} 不在可打卡單位設定內，請改用手機 GPS 或請管理員確認固定 IP`
-    : "目前無法取得可用的 GPS 或固定 IP 打卡位置"));
+  console.warn("attendance-location-rejected", {
+    reason: gpsFailure || "IP_NOT_ALLOWED",
+    hasClientIp: Boolean(clientIp)
+  });
+  throw new Error("目前位置或網路不符合打卡條件，請確認定位權限或洽管理員");
 }
 
 async function clock(ctx: any, req: Request, body: any, kind: "clock_in" | "clock_out") {

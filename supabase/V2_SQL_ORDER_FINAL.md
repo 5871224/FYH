@@ -30,5 +30,6 @@ Edge Functions 部署不會自動執行 SQL。請在 Supabase SQL Editor 依序�
 - `040_enforce_employee_code_uniqueness.sql` 以去除前後空白及不分英文字母大小寫的方式，強制工號唯一。
 - `041_transactional_member_account_delete.sql` 以資料庫交易同步處理人員資料與 Auth 帳號刪除；已有歷史資料時改為停用帳號。
 - `042_fix_transactional_member_account_delete_order.sql` 修正無歷史人員的刪除順序，先刪除 Auth 帳號，再由外鍵連動刪除人員資料，避免觸發直接刪除保護。
+- `043_harden_private_data_access.sql` 移除匿名與逾期帳號的資料讀取旁路，並以安全 RPC 提供人員及單位名錄。
 - 執行完成後，再部署 `scripts/deploy-v2-final.ps1` 所列的 Edge Functions。
 - SQL Editor 顯示錯誤時不要繼續執行後續檔案，先保留完整錯誤訊息。

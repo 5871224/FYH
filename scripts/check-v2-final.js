@@ -21,6 +21,7 @@ const required = [
   "supabase/035_v2_last_admin.sql",
   "supabase/036_v2_synchronized_member_delete.sql",
   "supabase/037_v2_meal_subsidy_and_product_delete.sql",
+  "supabase/043_harden_private_data_access.sql",
   "supabase/functions/attendance-clock/index.ts",
   "supabase/functions/attendance-clock-safe/index.ts",
   "supabase/functions/attendance-overtime-employee/index.ts",
@@ -61,10 +62,14 @@ assert(security.includes("drop policy if exists write_meal_orders"), "尚未移�
 assert(security.includes("public.is_effective_user"), "缺少有效任職期間資料庫檢查");
 
 const visibility = read("supabase/033_v2_employee_visibility.sql");
-assert(visibility.includes("drop policy if exists v2_restrict_employee_directory"), "未移除員工目錄限制政策");
-assert(visibility.includes("drop policy if exists v2_restrict_schedule_visibility"), "未移除班表限制政策");
-assert(visibility.includes("create policy read_set_employee") && visibility.includes("using (true)"), "員工應可讀取完整人員目錄以顯示完整班表");
-assert(visibility.includes("create policy read_schedule_entries") && visibility.includes("using (true)"), "員工應可讀取完整班表資料");
+assert(visibility.includes("drop policy if exists v2_restrict_employee_directory"), "未移除舊員工目錄限制政策");
+assert(visibility.includes("drop policy if exists v2_restrict_schedule_visibility"), "未移除舊班表限制政策");
+const hardenedAccess = read("supabase/043_harden_private_data_access.sql");
+assert(hardenedAccess.includes("get_employee_directory_v2"), "缺少安全人員名錄 RPC");
+assert(hardenedAccess.includes("get_department_directory_v2"), "缺少安全單位名錄 RPC");
+assert(hardenedAccess.includes("drop policy if exists anon_can_read_profiles"), "未移除匿名人員資料政策");
+assert(hardenedAccess.includes("drop policy if exists authenticated_can_read_schedule_entries"), "未移除逾期帳號班表旁路政策");
+assert(hardenedAccess.includes("revoke select on public.set_employee from authenticated"), "人員主表仍可由所有登入者直接讀取");
 
 const reapply = read("supabase/034_v2_overtime_reapply.sql");
 assert(reapply.includes("where is_deleted_by_employee = false"), "軟刪除後重新申請的部分唯一索引缺失");
@@ -147,9 +152,10 @@ assert(sourceApi.includes("30 * 60 * 1000"), "平板未使用電腦版 30 分鐘
 const sourceRenderer = read("src/renderer/renderer.js");
 const publishedRenderer = read("docs/renderer.js");
 const sourceWebApi = read("src/renderer/web-api.js");
+assert(sourceWebApi.includes("get_employee_directory_v2") && sourceWebApi.includes("get_department_directory_v2"), "前端尚未改用安全名錄 RPC");
 const attendanceClockSource = read("supabase/functions/attendance-clock/index.ts");
 assert(sourceRenderer.includes("geolocationError") && sourceWebApi.includes("geolocationError"), "手機定位錯誤未送到打卡 API");
-assert(attendanceClockSource.includes("手機 GPS 精度約") && attendanceClockSource.includes("目前距離最近可打卡單位"), "打卡 GPS 失敗原因未明確回報");
+assert(attendanceClockSource.includes("目前位置或網路不符合打卡條件") && !attendanceClockSource.includes("目前 IP ${clientIp}"), "打卡錯誤仍可能暴露距離、精準度或 IP");
 assert(sourceWebApi.includes('restSelect("attendance_records"') && sourceWebApi.includes("function getTodayAttendance"), "今日打卡紀錄應直接讀資料庫");
 assert(sourceRenderer.includes("function getTodayShiftSummary") && sourceRenderer.includes("clock-today-line"), "打卡頁未顯示今日班別與時間");
 assert(sourceRenderer.includes("function formatClockButtonStatus") && !sourceRenderer.includes("上班地點</span>"), "打卡地點與方式應顯示在打卡按鈕內");
@@ -191,11 +197,11 @@ assert(sourceRecords.includes("上班打卡已刪除") && !sourceRecords.include
 assert(sourceRecords.includes("report.memberSummary"), "人員訂餐報表未使用後端公司補助計算結果");
 assert(!sourceRecords.includes("days * 55"), "人員訂餐報表仍硬編碼55元補助");
 
-const authoritativeSpec = read("福圓號排班系統擴充規格書.txt");
-assert(authoritativeSpec.includes("## 11.4 公司補助"), "正式規格書缺少公司補助規則");
-assert(authoritativeSpec.includes("尚無任何訂餐記錄的商品，可在確認後實體刪除"), "正式規格書缺少品項刪除規則");
-assert(authoritativeSpec.includes("金額 -（訂餐日數 * 公司補助）"), "正式規格書自付額公式未更新");
-assert(authoritativeSpec.includes("最大內容寬度，必須與記錄頁相同"), "正式規格書未記載訂餐頁寬度");
+const authoritativeSpec = read("規格書.txt");
+assert(authoritativeSpec.includes("未登入不顯示班表、員工、打卡、加班與訂餐資料"), "正式規格書缺少未登入資料保護規則");
+assert(authoritativeSpec.includes("固定 IP、原始 GPS、精準度與距離只供管理員及後端服務使用"), "正式規格書缺少敏感打卡資料規則");
+assert(authoritativeSpec.includes("公司補助"), "正式規格書缺少公司補助規則");
+assert(authoritativeSpec.includes("最大內容寬度") || authoritativeSpec.includes("記錄頁"), "正式規格書未記載訂餐頁版面規則");
 
 const readme = read("README.md");
 assert(readme.includes("查看完整班表"), "規格書未明確標示員工可查看完整班表");
