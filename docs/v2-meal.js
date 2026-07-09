@@ -5,38 +5,6 @@
   const quantityError = "訂餐數量只能輸入 0 或正整數";
   const subsidyError = "公司補助只能輸入正整數";
 
-  if (!document.getElementById("v2MealLayoutStyle")) {
-    const style = document.createElement("style");
-    style.id = "v2MealLayoutStyle";
-    style.textContent = `
-      .meal-card { width: min(1100px, 100%); }
-      .meal-settings-table { width: 100%; table-layout: fixed; }
-      .meal-settings-table th,
-      .meal-settings-table td { min-width: 0; }
-      .meal-settings-drag-col { width: 42px; text-align: center; }
-      .meal-settings-name-col { width: auto; }
-      .meal-settings-price-col { width: 104px; }
-      .meal-settings-active-col { width: 70px; text-align: center; }
-      .meal-settings-operation-col { width: 72px; white-space: nowrap; text-align: center; }
-      .meal-settings-name-col input,
-      .meal-settings-price-col input { width: 100%; min-width: 0; }
-      .meal-settings-operation-col .ghost-btn { padding: 7px 12px; }
-      .meal-drag-handle {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        cursor: grab;
-        user-select: none;
-        touch-action: none;
-      }
-      .meal-drag-handle:active { cursor: grabbing; }
-      .meal-settings-toolbar-label { display: inline-flex; align-items: center; gap: 8px; }
-      .meal-settings-toolbar-label input[type="number"] { width: 92px; }
-    `;
-    document.head.appendChild(style);
-  }
 
   function isMealQuantityInput(target) {
     return target instanceof HTMLInputElement && Boolean(target.dataset.mealProductId);

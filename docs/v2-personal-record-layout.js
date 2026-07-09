@@ -1,39 +1,6 @@
-(function installV2PersonalRecordLayout() {
+﻿(function installV2PersonalRecordLayout() {
   if (typeof renderPersonalRecordsSection !== "function" || typeof renderAll !== "function") return;
 
-  if (!document.getElementById("v2PersonalRecordLayoutStyle")) {
-    const style = document.createElement("style");
-    style.id = "v2PersonalRecordLayoutStyle";
-    style.textContent = `
-      .v2-personal-record-table .personal-schedule-icon-col {
-        width: var(--day-col-width);
-        min-width: var(--day-col-width);
-        max-width: var(--day-col-width);
-        padding: 2px;
-        text-align: center;
-        vertical-align: middle;
-      }
-      .v2-personal-record-table th.personal-schedule-icon-col {
-        padding-left: 2px;
-        padding-right: 2px;
-      }
-      .personal-record-schedule-cell {
-        width: 100%;
-        min-height: 36px;
-      }
-      .v2-personal-record-table .personal-record-schedule-cell .seg-label {
-        color: inherit;
-        font-size: inherit;
-      }
-      .personal-punch-stack {
-        min-width: 118px;
-        white-space: nowrap;
-        line-height: 1.6;
-      }
-      .personal-punch-stack > div:empty::before { content: "-"; }
-    `;
-    document.head.appendChild(style);
-  }
 
   function findSegmentItem(segment) {
     const itemId = String(segment?.itemId || "");

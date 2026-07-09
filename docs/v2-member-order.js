@@ -1,49 +1,9 @@
-(function installV2MemberOrderUi() {
+﻿(function installV2MemberOrderUi() {
   if (!window.schedulerApi || typeof renderAll !== "function" || typeof renderMemberSettingsList !== "function") return;
 
   let draggedMemberId = "";
   let draggingRow = null;
 
-  if (!document.getElementById("v2MemberOrderStyle")) {
-    const style = document.createElement("style");
-    style.id = "v2MemberOrderStyle";
-    style.textContent = `
-      .member-settings-modal .member-table-row {
-        grid-template-columns: 38px 104px minmax(86px, .9fr) minmax(170px, 1.45fr) 64px 108px 84px 78px 76px;
-      }
-      .member-order-drag-col {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 0;
-      }
-      .member-order-drag-handle {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 30px;
-        border-radius: 8px;
-        color: var(--muted);
-        cursor: grab;
-        user-select: none;
-        touch-action: none;
-        font-size: 18px;
-        line-height: 1;
-      }
-      .member-order-drag-handle:hover { background: #f4eee3; color: var(--accent-strong); }
-      .member-order-drag-handle:active { cursor: grabbing; }
-      .member-order-row.member-order-dragging { opacity: .62; }
-      .member-order-row.member-order-drop-before { box-shadow: inset 0 2px 0 var(--accent); }
-      .member-order-row.member-order-drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
-      @media (max-width: 900px) {
-        .member-settings-modal .member-table-row {
-          grid-template-columns: 34px 92px minmax(72px, .85fr) minmax(150px, 1.25fr) 54px 92px 72px 68px 70px;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-  }
 
   function renderList() {
     const { sourceMembers, filteredMembers } = getFilteredMemberSettingsMembers();

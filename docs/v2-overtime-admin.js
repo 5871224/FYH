@@ -1,50 +1,6 @@
-(function installV2OvertimeAdminUi() {
+﻿(function installV2OvertimeAdminUi() {
   if (!window.schedulerApi || typeof renderAll !== "function") return;
 
-  if (!document.getElementById("v2OvertimeAdminStyle")) {
-    const style = document.createElement("style");
-    style.id = "v2OvertimeAdminStyle";
-    style.textContent = `
-      .v2-overtime-review-table .v2-overtime-check-col {
-        width: 40px;
-        min-width: 40px;
-        max-width: 40px;
-        padding-left: 9px;
-        padding-right: 9px;
-        text-align: center;
-        white-space: nowrap;
-      }
-      .v2-overtime-review-table .v2-overtime-date-col {
-        width: 112px;
-        min-width: 112px;
-        padding-left: 12px;
-        padding-right: 12px;
-        white-space: nowrap;
-      }
-      .v2-overtime-review-table .v2-overtime-status-col {
-        width: 62px;
-        min-width: 62px;
-        max-width: 62px;
-        padding-left: 6px;
-        padding-right: 6px;
-        text-align: center;
-        white-space: nowrap;
-      }
-      .v2-overtime-review-table .v2-overtime-action-col {
-        width: 116px;
-        min-width: 116px;
-      }
-      .v2-overtime-review-table .v2-overtime-action-buttons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 5px;
-      }
-      .v2-overtime-review-table .v2-overtime-action-buttons .compact-btn {
-        padding: 6px 10px;
-      }
-    `;
-    document.head.appendChild(style);
-  }
 
   function ensureReviewState() {
     const current = recordsState.overtimeReview || {};
