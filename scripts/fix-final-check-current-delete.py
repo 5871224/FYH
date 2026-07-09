@@ -23,4 +23,11 @@ if old_width in text:
 elif new_width not in text:
     raise SystemExit("meal width assertion not found")
 
+old_export_warning = 'assert(sourceExport.includes("此訂單所依據的上班打卡已被刪除"), "訂餐 Excel 缺少打卡刪除警告");'
+new_export_check = 'assert(sourceExport.includes("row.amount - mealDays * companySubsidy"), "訂餐 Excel 未依公司補助計算人員自付額");'
+if old_export_warning in text:
+    text = text.replace(old_export_warning, new_export_check, 1)
+elif new_export_check not in text:
+    raise SystemExit("meal export assertion not found")
+
 path.write_text(text, encoding="utf-8")
