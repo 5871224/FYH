@@ -20,7 +20,9 @@ jobs:
         with:
           node-version: "22"
       - name: Apply code fixes
-        run: python scripts/apply-audit-fixes.py
+        run: |
+          python scripts/apply-audit-fixes.py
+          python scripts/fix-audit-check-order.py
       - name: Publish source to docs
         run: npm run web:publish
       - name: Validate JavaScript and specifications
@@ -36,7 +38,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/fix-audit-findings.yml scripts/apply-audit-fixes.py
+          git rm .github/workflows/fix-audit-findings.yml scripts/apply-audit-fixes.py scripts/fix-audit-check-order.py audit-fix-trigger.txt
           git add -A
           git commit -m "Harden data access and deployment checks"
           git push origin HEAD:${{ github.head_ref }}
