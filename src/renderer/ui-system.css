@@ -1374,3 +1374,23 @@ input[type="time"] {
   }
 }
 
+/* Meal order table: keep the product column compact and preserve left breathing room. */
+.meal-order-table th:first-child,
+.meal-order-table td:first-child {
+  width: clamp(150px, 22%, 220px);
+  padding-left: 14px;
+}
+
+.meal-order-table th:last-child,
+.meal-order-table td:last-child {
+  width: auto;
+}
+
+@media (max-width: 640px) {
+  .meal-order-table th:first-child,
+  .meal-order-table td:first-child {
+    width: 150px;
+    padding-left: 10px;
+  }
+}
+

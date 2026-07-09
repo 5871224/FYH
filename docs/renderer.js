@@ -4085,7 +4085,7 @@ function renderMealPage() {
   mealCard.innerHTML = `
     <div class="clock-page-header">
       <div>
-        <p class="home-eyebrow">今日訂餐</p>
+        <p class="home-eyebrow">訂餐</p>
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
         <p class="home-subtitle">訂餐日期：${escapeHtml(status?.orderDate || getTodayDateString())}，截止時間：${escapeHtml(status?.cutoffTime || "--:--")}</p>
       </div>
