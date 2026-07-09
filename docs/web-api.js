@@ -376,6 +376,14 @@
     );
   }
 
+  async function getEmployeeDirectoryRows() {
+    return await restRpc("get_employee_directory_v2", {}, { auth: true }) || [];
+  }
+
+  async function getDepartmentDirectoryRows() {
+    return await restRpc("get_department_directory_v2", {}, { auth: true }) || [];
+  }
+
   function ensureSignedIn() {
     if (!currentSession?.user) {
       throw new Error("請先登入");
@@ -407,14 +415,8 @@
   }
 
   async function fetchProfile(userId) {
-    const rows = await restSelect("set_employee", {
-      select: "*",
-      filters: {
-        id: `eq.${userId}`
-      },
-      auth: true
-    });
-    return rows?.[0] || null;
+    const rows = await getEmployeeDirectoryRows();
+    return rows.find((row) => row.id === userId) || null;
   }
 
   async function refreshAuthContext() {
@@ -893,10 +895,14 @@
   }
 
   async function fetchRowsById(table) {
-    const rows = await restSelect(table, {
-      select: "*",
-      auth: Boolean(currentSession?.access_token)
-    });
+    const rows = table === "set_employee"
+      ? await getEmployeeDirectoryRows()
+      : table === "set_departments"
+        ? await getDepartmentDirectoryRows()
+        : await restSelect(table, {
+          select: "*",
+          auth: Boolean(currentSession?.access_token)
+        });
     return new Map((rows || [])
       .filter((row) => row.id)
       .map((row) => [row.id, row]));
@@ -906,6 +912,12 @@
     const rowId = String(id || "").trim();
     if (!rowId) {
       return null;
+    }
+    if (table === "set_employee") {
+      return (await getEmployeeDirectoryRows()).find((row) => row.id === rowId) || null;
+    }
+    if (table === "set_departments") {
+      return (await getDepartmentDirectoryRows()).find((row) => row.id === rowId) || null;
     }
     const rows = await restSelect(table, {
       select: "*",
@@ -1082,9 +1094,6 @@
   async function loadState() {
     const auth = Boolean(currentSession?.access_token);
     try {
-      const departmentSelect = hasAdminAccess(currentProfile?.role)
-        ? "id,name,start_date,end_date,hidden_from_schedule,address,latitude,longitude,attendance_enabled,sort_order,created_at,updated_at"
-        : "id,name,start_date,end_date,hidden_from_schedule,address,latitude,longitude,attendance_enabled,sort_order,created_at,updated_at";
       const [
         settingsRows,
         departmentRows,
@@ -1095,8 +1104,8 @@
         holidayRows
       ] = await Promise.all([
         restSelect("scheduler_settings", { select: "*", filters: { id: `eq.${documentId}` }, limit: "1", auth }),
-        restSelect("set_departments", { select: departmentSelect, order: "sort_order.asc,name.asc", auth }),
-        restSelect("set_employee", { select: "*", filters: { is_active: "eq.true" }, order: "employee_code.asc", auth }),
+        getDepartmentDirectoryRows(),
+        getEmployeeDirectoryRows(),
         restSelect("set_shift", { select: "*", order: "sort_order.asc,name.asc", auth }),
         restSelect("set_leave", { select: "*", order: "sort_order.asc,code.asc", auth }),
         restSelect("set_overtime", { select: "*", order: "sort_order.asc,name.asc", auth }),
@@ -1255,27 +1264,18 @@
     if (!members.length) {
       return new Map();
     }
-    let rows = await restSelect("set_employee", {
-      select: "id,employee_code",
-      filters: {
-        employee_code: buildInFilter(members.map((member) => member.code))
-      },
-      auth: true
-    });
-    const existingCodes = new Set((rows || []).map((row) => row.employee_code));
+    let rows = await getEmployeeDirectoryRows();
+    const requestedCodes = new Set(members.map((member) => member.code));
+    const existingCodes = new Set((rows || []).map((row) => row.employee_code).filter(Boolean));
     for (const member of members) {
       if (!existingCodes.has(member.code)) {
         await syncMemberProfile(member, member.code);
       }
     }
-    rows = await restSelect("set_employee", {
-      select: "*",
-      filters: {
-        employee_code: buildInFilter(members.map((member) => member.code))
-      },
-      auth: true
-    });
-    return new Map((rows || []).map((row) => [row.employee_code, row]));
+    rows = await getEmployeeDirectoryRows();
+    return new Map((rows || [])
+      .filter((row) => requestedCodes.has(row.employee_code))
+      .map((row) => [row.employee_code, row]));
   }
 
   async function loadScheduleEntries(range = {}) {
@@ -1632,17 +1632,12 @@
     if (!normalizedMemberCode) {
       throw new Error("找不到人員工號");
     }
-    const rows = await restSelect("set_employee", {
-      select: "id,employee_code",
-      filters: {
-        employee_code: `eq.${normalizedMemberCode}`
-      },
-      auth: true
-    });
-    if (!rows?.length || !rows[0]?.id) {
+    const profile = (await getEmployeeDirectoryRows())
+      .find((row) => String(row.employee_code || "").trim() === normalizedMemberCode);
+    if (!profile?.id) {
       throw new Error(`找不到對應的人員資料：${normalizedMemberCode}`);
     }
-    return rows[0].id;
+    return profile.id;
   }
 
   async function pruneEmptyScheduleEntry(rowOrId) {
