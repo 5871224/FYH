@@ -203,7 +203,7 @@ const authoritativeSpec = read("規格書.txt");
 assert(authoritativeSpec.includes("未登入不顯示班表、員工、打卡、加班與訂餐資料"), "正式規格書缺少未登入資料保護規則");
 assert(authoritativeSpec.includes("固定 IP、原始 GPS、精準度與距離只供管理員及後端服務使用"), "正式規格書缺少敏感打卡資料規則");
 assert(authoritativeSpec.includes("公司補助"), "正式規格書缺少公司補助規則");
-assert(authoritativeSpec.includes("最大內容寬度") || authoritativeSpec.includes("記錄頁"), "正式規格書未記載訂餐頁版面規則");
+assert(authoritativeSpec.includes("手機優先"), "正式規格書缺少響應式介面規則");
 
 const readme = read("README.md");
 assert(readme.includes("查看完整班表"), "規格書未明確標示員工可查看完整班表");
