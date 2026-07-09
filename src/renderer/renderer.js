@@ -4197,6 +4197,7 @@ function openAttendanceEditModal(token) {
   const row = findAttendanceAdminRow(userId, workDate, recordId) || { user_id: userId, work_date: workDate };
   openEntityListModal({
     title: "編輯打卡",
+    modalClass: "modal modal-form-compact attendance-edit-modal",
     hideFooterClose: true,
     body: `
       <div class="form-grid two-col">
