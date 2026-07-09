@@ -169,7 +169,10 @@ assert(sourceMeal.includes('addEventListener("paste"'), "訂餐數量未拒絕�
 assert(sourceMeal.includes("lastValidMealQuantity"), "訂餐無效輸入未保留最後有效整數");
 assert(sourceMeal.includes("data-meal-company-subsidy"), "訂餐設定缺少公司補助輸入框");
 assert(sourceMeal.includes("data-delete-meal-product"), "訂餐設定缺少品項刪除按鈕");
-assert(sourceMeal.includes("width: min(1100px, 100%)"), "電腦版訂餐頁寬度未與記錄頁一致");
+const sourceUiSystem = read("src/renderer/ui-system.css");
+const publishedUiSystem = read("docs/ui-system.css");
+assert(sourceUiSystem === publishedUiSystem, "共用介面樣式來源版與發布版不同步");
+assert(sourceUiSystem.includes(".meal-card") && sourceUiSystem.includes("width: min(1100px, 100%)"), "電腦版訂餐頁寬度未與記錄頁一致");
 
 const sourceMealApi = read("src/renderer/v2-meal-api.js");
 const publishedMealApi = read("docs/v2-meal-api.js");
