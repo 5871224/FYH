@@ -2,9 +2,9 @@
   if (!condition) throw new Error(message);
                   ^
 
-Error: 訂餐 Excel 缺少打卡刪除警告
+Error: 正式規格書未記載訂餐頁版面規則
     at assert (/home/runner/work/FYH/FYH/scripts/check-v2-final.js:9:25)
-    at Object.<anonymous> (/home/runner/work/FYH/FYH/scripts/check-v2-final.js:190:1)
+    at Object.<anonymous> (/home/runner/work/FYH/FYH/scripts/check-v2-final.js:206:1)
     at Module._compile (node:internal/modules/cjs/loader:1781:14)
     at Object..js (node:internal/modules/cjs/loader:1913:10)
     at Module.load (node:internal/modules/cjs/loader:1505:32)
