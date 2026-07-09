@@ -187,7 +187,7 @@ assert(!sourceExport.includes("首次下訂時間"), "訂餐 Excel 不應顯示�
 assert(!sourceExport.includes("最後修改時間"), "訂餐 Excel 不應顯示最後修改時間");
 assert(!sourceExport.includes("員工工號"), "訂餐 Excel 不應顯示員工工號");
 assert(!sourceExport.includes('"警告"'), "訂餐 Excel 不應有獨立警告欄");
-assert(sourceExport.includes("此訂單所依據的上班打卡已被刪除"), "訂餐 Excel 缺少打卡刪除警告");
+assert(sourceExport.includes("row.amount - mealDays * companySubsidy"), "訂餐 Excel 未依公司補助計算人員自付額");
 
 const sourceRecords = read("src/renderer/v2-records.js");
 const publishedRecords = read("docs/v2-records.js");
