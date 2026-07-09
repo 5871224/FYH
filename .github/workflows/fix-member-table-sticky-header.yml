@@ -1,0 +1,108 @@
+name: Fix member table sticky header
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-member-table-sticky-header.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fix sticky member table header background
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          css = r'''
+
+          /* Keep the sticky member-table header opaque across horizontal scrolling. */
+          .member-settings-modal .member-table {
+            width: max-content;
+            min-width: 100%;
+          }
+
+          .member-settings-modal .member-table-row {
+            width: 100%;
+          }
+
+          .member-settings-modal .member-table-head {
+            z-index: 4;
+            isolation: isolate;
+            background: var(--ui-surface-muted);
+            background-clip: padding-box;
+            box-shadow: 0 1px 0 var(--ui-border);
+          }
+
+          .member-settings-modal .member-table-head > * {
+            align-self: stretch;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--ui-surface-muted);
+          }
+          '''
+
+          for path in [Path('src/renderer/ui-system.css'), Path('docs/ui-system.css')]:
+              text = path.read_text(encoding='utf-8-sig')
+              marker = '/* Keep the sticky member-table header opaque across horizontal scrolling. */'
+              if marker in text:
+                  raise SystemExit(f'Sticky member header fix already exists in {path}')
+              path.write_text(text.rstrip() + css + '\n', encoding='utf-8-sig')
+
+          for path in [Path('src/renderer/index.html'), Path('docs/index.html')]:
+              text = path.read_text(encoding='utf-8-sig')
+              old = './ui-system.css?v=20260709v4'
+              new = './ui-system.css?v=20260709v5'
+              if old not in text:
+                  raise SystemExit(f'Expected UI stylesheet version not found in {path}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8-sig')
+
+          Path('.github/workflows/fix-member-table-sticky-header.yml').unlink()
+          PY
+
+      - name: Validate CSS and published copy
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path('src/renderer/ui-system.css').read_text(encoding='utf-8-sig')
+          public = Path('docs/ui-system.css').read_text(encoding='utf-8-sig')
+          if source != public:
+              raise SystemExit('Source and public UI styles differ')
+          if source.count('{') != source.count('}'):
+              raise SystemExit('Unbalanced CSS braces')
+          required = [
+              '.member-settings-modal .member-table {',
+              'width: max-content;',
+              '.member-settings-modal .member-table-head > *',
+              'background: var(--ui-surface-muted);',
+          ]
+          missing = [item for item in required if item not in source]
+          if missing:
+              raise SystemExit(f'Missing sticky header rules: {missing}')
+          for name in ['src/renderer/index.html', 'docs/index.html']:
+              if './ui-system.css?v=20260709v5' not in Path(name).read_text(encoding='utf-8-sig'):
+                  raise SystemExit(f'New stylesheet version missing in {name}')
+          PY
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Fix member table sticky header background'
+          git push
