@@ -1,21 +1,20 @@
 name: Apply audit fixes
 
 on:
-  push:
+  pull_request:
     branches: [main]
-    paths:
-      - .github/workflows/fix-audit-findings.yml
-      - scripts/apply-audit-fixes.py
 
 permissions:
   contents: write
 
 jobs:
   fix:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -40,4 +39,4 @@ jobs:
           git rm .github/workflows/fix-audit-findings.yml scripts/apply-audit-fixes.py
           git add -A
           git commit -m "Harden data access and deployment checks"
-          git push
+          git push origin HEAD:${{ github.head_ref }}
