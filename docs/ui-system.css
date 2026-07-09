@@ -1056,3 +1056,20 @@ input[type="time"] {
   order: 0;
 }
 
+/* The department table wrapper itself is the scroll frame; do not scroll a duplicate border overlay. */
+.department-settings-modal .department-settings-table-wrap::after {
+  content: none;
+  display: none;
+}
+
+/* Phones scroll the schedule table directly, so the duplicate scrollbar above the date header is hidden. */
+@media (max-width: 640px) {
+  .table-top-scrollbar {
+    display: none;
+  }
+
+  .table-sticky-header {
+    top: 0;
+  }
+}
+
