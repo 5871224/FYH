@@ -69,6 +69,13 @@ npm run web:publish
 
 修改前端後要執行 `npm run web:publish`，否則 GitHub Pages 可能仍是舊版。
 
+## GitHub Pages 發佈
+
+- Pages 發佈來源為 `docs/`。
+- 自訂工作流程位於 `.github/workflows/deploy-pages.yml`。
+- 工作流程使用 `actions/checkout@v5`、`actions/configure-pages@v5`、`actions/upload-pages-artifact@v5` 與 `actions/deploy-pages@v5`。
+- 網站為靜態檔案，不需要在 Pages 工作流程中執行 npm 建置。
+
 ## 目前儲存模型
 
 目前使用正規化 Supabase 資料表。舊的 JSON 文件儲存已不是正式資料來源。
