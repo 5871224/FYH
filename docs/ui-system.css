@@ -1073,3 +1073,304 @@ input[type="time"] {
   }
 }
 
+/* Unified compact spacing for phone layouts. Keep touch heights, halve visual whitespace. */
+@media (max-width: 640px) {
+  :root {
+    --ui-mobile-page-gutter: 4px;
+    --ui-mobile-card-padding: 10px;
+    --ui-mobile-section-padding: 9px;
+    --ui-mobile-gap: 6px;
+    --ui-mobile-gap-tight: 4px;
+  }
+
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  .app-shell {
+    padding-top: var(--ui-mobile-page-gutter);
+    padding-right: var(--ui-mobile-page-gutter);
+    padding-left: var(--ui-mobile-page-gutter);
+    gap: var(--ui-mobile-gap);
+  }
+
+  body.is-home-view .app-shell,
+  body.is-clock-view .app-shell,
+  body.is-meal-view .app-shell,
+  body.is-records-view .app-shell {
+    padding: var(--ui-mobile-page-gutter);
+  }
+
+  .home-card,
+  .clock-card,
+  .meal-card,
+  .records-card,
+  .calendar-card {
+    padding: var(--ui-mobile-card-padding);
+  }
+
+  .home-card,
+  .clock-card,
+  .meal-card,
+  .records-card {
+    min-height: calc(100dvh - 8px);
+  }
+
+  .calendar-card {
+    padding-right: var(--ui-mobile-page-gutter);
+    padding-left: var(--ui-mobile-page-gutter);
+  }
+
+  .modal-overlay,
+  .auth-overlay {
+    padding: var(--ui-mobile-page-gutter);
+  }
+
+  .modal,
+  .auth-card {
+    max-height: calc(100dvh - 8px);
+    padding: var(--ui-mobile-card-padding);
+  }
+
+  .settings-list-modal,
+  .member-settings-modal {
+    height: calc(100dvh - 8px);
+    max-height: calc(100dvh - 8px);
+  }
+
+  .home-hero,
+  .clock-page-header {
+    gap: 8px;
+    margin-bottom: 11px;
+  }
+
+  .home-subtitle {
+    margin-top: 5px;
+  }
+
+  .home-action-grid,
+  .clock-action-grid,
+  .clock-status-grid,
+  .meal-stats-grid,
+  .form-grid,
+  .request-filter-bar,
+  .member-settings-filters {
+    gap: var(--ui-mobile-gap);
+  }
+
+  .home-action-card {
+    padding: 8px;
+  }
+
+  .clock-action-grid {
+    margin-bottom: 8px;
+  }
+
+  .clock-action-btn {
+    padding: 12px;
+  }
+
+  .clock-action-btn span {
+    margin-bottom: 8px;
+  }
+
+  .clock-status-grid > div,
+  .meal-stats-grid > div {
+    padding: 7px;
+  }
+
+  .clock-status-grid span {
+    margin-bottom: 3px;
+  }
+
+  .overtime-request-panel,
+  .records-section,
+  .form-section {
+    margin-top: 9px;
+    padding: var(--ui-mobile-section-padding);
+  }
+
+  .overtime-request-toggle-only {
+    padding: 7px 9px;
+  }
+
+  .overtime-panel-header {
+    gap: var(--ui-mobile-gap);
+    margin-bottom: 7px;
+  }
+
+  .meal-tabs,
+  .record-tabs {
+    gap: var(--ui-mobile-gap-tight);
+    margin: 5px 0 8px;
+    padding: 2px;
+  }
+
+  .records-filter-row {
+    gap: var(--ui-mobile-gap-tight);
+    margin: 6px 0;
+  }
+
+  .meal-summary-row {
+    gap: var(--ui-mobile-gap);
+    margin-top: 7px;
+  }
+
+  .modal-header {
+    gap: 8px;
+    margin-bottom: 7px;
+    padding-bottom: 6px;
+  }
+
+  .modal-header-tools {
+    gap: 8px;
+  }
+
+  .modal-header-actions {
+    gap: var(--ui-mobile-gap-tight);
+  }
+
+  .modal-body {
+    gap: var(--ui-mobile-gap);
+    padding: 1px;
+  }
+
+  .modal-footer {
+    gap: 5px;
+    margin-top: 9px;
+    padding-top: 7px;
+  }
+
+  .settings-list-modal .modal-header,
+  .member-settings-modal .modal-header {
+    gap: 4px 5px;
+    margin-bottom: 4px;
+    padding-bottom: 5px;
+  }
+
+  .settings-list-modal .modal-body,
+  .member-settings-modal .modal-body {
+    gap: var(--ui-mobile-gap-tight);
+  }
+
+  .settings-list-modal .modal-header-actions,
+  .member-settings-modal .modal-header-actions {
+    gap: var(--ui-mobile-gap-tight);
+  }
+
+  .member-settings-filters {
+    gap: 4px 5px;
+  }
+
+  .form-grid,
+  .attendance-edit-modal .form-grid {
+    gap: var(--ui-mobile-gap);
+  }
+
+  .form-row {
+    gap: 3px;
+  }
+
+  .section-subtitle {
+    margin-bottom: 5px;
+  }
+
+  .settings-item,
+  .member-item,
+  .schedule-dept-option {
+    gap: 5px;
+    padding: 4px 6px;
+  }
+
+  .list-item-main,
+  .settings-text-row,
+  .list-item-actions {
+    gap: var(--ui-mobile-gap-tight);
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="color"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  :where(.primary-btn, .ghost-btn, .nav-btn, .btn-primary, .btn-cancel):not(.toolbar-history-btn):not(.toolbar-collapse-toggle) {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .compact-btn {
+    padding-right: 6px !important;
+    padding-left: 6px !important;
+  }
+
+  .records-table th,
+  .meal-settings-table th {
+    padding: 6px;
+  }
+
+  .records-table td,
+  .meal-settings-table td {
+    padding: 5px 6px;
+  }
+
+  .meal-order-table {
+    border-spacing: 0 4px;
+  }
+
+  .meal-order-table th,
+  .meal-order-table td {
+    padding: 4px;
+  }
+
+  .calendar-nav {
+    gap: var(--ui-mobile-gap-tight);
+    margin-bottom: 7px;
+  }
+
+  .nav-actions,
+  .calendar-nav-left {
+    gap: var(--ui-mobile-gap-tight);
+  }
+
+  .toolbar-floating-card {
+    right: var(--ui-mobile-page-gutter);
+    bottom: var(--ui-mobile-page-gutter);
+    left: var(--ui-mobile-page-gutter);
+    padding: 6px;
+  }
+
+  .toolbar-floating-card.toolbar-floating-card-collapsed {
+    left: var(--ui-mobile-page-gutter);
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  .toolbar-grid {
+    gap: var(--ui-mobile-gap-tight);
+    max-height: calc(min(42dvh, 300px) - 12px);
+  }
+
+  .toolbar-section,
+  .toolbar-section-leave,
+  .toolbar-section-overtime {
+    padding: 5px;
+  }
+
+  .toolbar-title-row {
+    gap: var(--ui-mobile-gap-tight);
+    margin-bottom: 5px;
+  }
+
+  .chips {
+    gap: 3px;
+  }
+}
+
