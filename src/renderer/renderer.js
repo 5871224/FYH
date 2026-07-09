@@ -4349,7 +4349,6 @@ function renderRecordsPage() {
       <div>
         <p class="home-eyebrow">記錄</p>
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
-        <p class="home-subtitle">個人記錄與管理作業。</p>
       </div>
       ${renderHomeIconButton()}
     </div>
