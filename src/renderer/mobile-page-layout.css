@@ -25,8 +25,28 @@
     justify-content: flex-start;
   }
 
-  /* 展開浮動工具列時，將復原、重做與縮小控制列移到卡片上方，避免遮住班別下拉選單與設定按鈕。 */
+  /* 手機版將浮動工具列控制區拆成左右兩個獨立操作區，避免整列容器遮住班別控制項。 */
   .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-top-row {
-    top: -30px;
+    top: 8px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-collapse-toggle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: auto;
+  }
+
+  .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-history-actions {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    pointer-events: auto;
   }
 }
