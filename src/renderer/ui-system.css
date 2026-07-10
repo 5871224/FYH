@@ -1516,3 +1516,72 @@ input[type="time"] {
   }
 }
 
+/* Meal report mobile rows: dates, department/member, report/export, and two summary cards. */
+.meal-report-toolbar {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.meal-report-fields {
+  grid-template-columns:
+    minmax(140px, 160px)
+    minmax(140px, 160px)
+    minmax(130px, 1fr)
+    minmax(130px, 1fr)
+    minmax(110px, 130px)
+    minmax(130px, 150px);
+}
+
+.meal-field-export {
+  display: grid;
+  align-items: stretch;
+  gap: 5px;
+  min-width: 0;
+}
+
+.meal-field-export > span {
+  visibility: hidden;
+  color: var(--ui-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.meal-field-export > button {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--ui-control-height);
+}
+
+.meal-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .meal-report-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "from to"
+      "department member"
+      "view export";
+  }
+
+  .meal-field-export {
+    grid-area: export;
+  }
+}
+
+@media (max-width: 640px) {
+  .meal-report-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "from to"
+      "department member"
+      "view export";
+  }
+
+  .meal-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+

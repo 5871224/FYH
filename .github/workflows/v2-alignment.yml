@@ -6,40 +6,15 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: write
-
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: "22"
-      - name: Apply pending meal report layout update
-        if: github.event_name == 'push' && hashFiles('scripts/apply-meal-report-mobile-grid.py') != ''
-        run: python scripts/apply-meal-report-mobile-grid.py
-      - name: Publish pending front-end changes
-        if: github.event_name == 'push' && hashFiles('scripts/apply-meal-report-mobile-grid.py') != ''
-        run: npm run web:publish
       - name: Run V2 alignment checks
         run: npm run v2:check
-      - name: Run public Supabase checks
-        run: npm run web:check
-      - name: Commit pending layout update
-        if: github.event_name == 'push'
-        shell: bash
-        run: |
-          if git diff --quiet && git diff --cached --quiet; then
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'Refine meal report mobile layout'
-          git push
