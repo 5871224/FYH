@@ -258,7 +258,7 @@ input[type="time"] {
   min-height: 96px;
 }
 
-/* Shared table shell, header, row and cell rhythm. */
+/* Shared table shell, header, row and cell rhythm for all meal and record pages. */
 .records-table-wrap,
 .meal-settings-table-wrap {
   border: 1px solid var(--ui-border);
@@ -267,73 +267,26 @@ input[type="time"] {
   overflow: auto;
 }
 
-.records-table,
-.meal-settings-table {
+:is(.records-table, .meal-order-table, .meal-settings-table) {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
 }
 
-.records-table th,
-.meal-settings-table th {
-  min-height: 42px;
+:is(.records-table, .meal-order-table, .meal-settings-table) th {
+  height: 42px;
   padding: 11px 12px;
   background: var(--ui-surface-muted);
   color: var(--ui-muted);
   border-bottom: 1px solid var(--ui-border);
   font-size: 13px;
   font-weight: 800;
+  line-height: 1.35;
+  text-align: left;
   vertical-align: middle;
 }
 
-.records-table td,
-.meal-settings-table td {
-  min-height: 44px;
-  padding: 10px 12px;
-  background: var(--ui-surface-raised);
-  border-bottom: 1px solid #ece5da;
-  vertical-align: middle;
-}
-
-.records-table tbody tr:last-child td,
-.meal-settings-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.records-table tbody tr:hover td,
-.meal-settings-table tbody tr:hover td {
-  background: var(--ui-row-hover);
-}
-
-.records-table th:first-child,
-.meal-settings-table th:first-child {
-  border-top-left-radius: calc(var(--ui-table-radius) - 1px);
-}
-
-.records-table th:last-child,
-.meal-settings-table th:last-child {
-  border-top-right-radius: calc(var(--ui-table-radius) - 1px);
-}
-
-.meal-order-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  table-layout: fixed;
-}
-
-.meal-order-table th {
-  min-height: 42px;
-  padding: 11px 12px;
-  background: var(--ui-surface-muted);
-  color: var(--ui-muted);
-  border-bottom: 1px solid var(--ui-border);
-  font-size: 13px;
-  font-weight: 800;
-  vertical-align: middle;
-}
-
-.meal-order-table td {
+:is(.records-table, .meal-order-table, .meal-settings-table) td {
   min-height: 44px;
   padding: 10px 12px;
   background: var(--ui-surface-raised);
@@ -342,20 +295,24 @@ input[type="time"] {
   vertical-align: middle;
 }
 
-.meal-order-table tbody tr:last-child td {
+:is(.records-table, .meal-order-table, .meal-settings-table) tbody tr:last-child td {
   border-bottom: 0;
 }
 
-.meal-order-table tbody tr:hover td {
+:is(.records-table, .meal-order-table, .meal-settings-table) tbody tr:hover td {
   background: var(--ui-row-hover);
 }
 
-.meal-order-table th:first-child {
+:is(.records-table, .meal-order-table, .meal-settings-table) th:first-child {
   border-top-left-radius: calc(var(--ui-table-radius) - 1px);
 }
 
-.meal-order-table th:last-child {
+:is(.records-table, .meal-order-table, .meal-settings-table) th:last-child {
   border-top-right-radius: calc(var(--ui-table-radius) - 1px);
+}
+
+.meal-order-table {
+  table-layout: fixed;
 }
 
 .meal-order-table td:first-child,
@@ -1290,25 +1247,11 @@ input[type="time"] {
     padding-left: 6px !important;
   }
 
-  .records-table th,
-  .meal-settings-table th {
+  :is(.records-table, .meal-order-table, .meal-settings-table) th {
     padding: 6px;
   }
 
-  .records-table td,
-  .meal-settings-table td {
-    padding: 5px 6px;
-  }
-
-  .meal-order-table {
-    border-spacing: 0 4px;
-  }
-
-  .meal-order-table th {
-    padding: 6px;
-  }
-
-  .meal-order-table td {
+  :is(.records-table, .meal-order-table, .meal-settings-table) td {
     padding: 5px 6px;
   }
 
