@@ -52,12 +52,20 @@
 }
 
 @media (max-width: 640px) {
-  /* 修改單位、人員、班別、假別與加班沿用電腦版雙欄表單，不再強制每個欄位獨占一列。 */
+  /* 設定編輯彈窗沿用電腦版雙欄表單。實際編輯視窗是一般 modal，不能只依設定列表 modal 類別判斷。 */
+  .modal:not(.attendance-edit-modal) :is(.form-grid, .two-col),
   :is(.department-settings-modal, .member-settings-modal, .catalog-settings-modal) :is(.form-grid, .two-col) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
+  .modal:not(.attendance-edit-modal) :is(.form-grid, .two-col) > *,
   :is(.department-settings-modal, .member-settings-modal, .catalog-settings-modal) :is(.form-grid, .two-col) > * {
+    min-width: 0;
+  }
+
+  .modal:not(.attendance-edit-modal) :is(.form-grid, .two-col) input,
+  .modal:not(.attendance-edit-modal) :is(.form-grid, .two-col) select {
+    width: 100%;
     min-width: 0;
   }
 }
