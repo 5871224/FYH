@@ -1,0 +1,42 @@
+name: Apply meal admin toolbar layout
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Apply meal toolbar layout
+        run: python scripts/apply-meal-admin-toolbar-layout.py
+      - name: Publish source to docs
+        run: npm run web:publish
+      - name: Validate
+        run: |
+          node --check src/renderer/v2-meal.js
+          node --check src/renderer/v2-records.js
+          node --check docs/v2-meal.js
+          node --check docs/v2-records.js
+          node scripts/check-v2-alignment.js
+          node scripts/check-v2-final.js
+          npm run web:check
+      - name: Commit changes and remove temporary files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-meal-admin-toolbar-layout.yml scripts/apply-meal-admin-toolbar-layout.py
+          git add -A
+          git commit -m "Organize meal statistics and settings controls"
+          git push origin HEAD:${{ github.head_ref }}
