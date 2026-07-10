@@ -1,0 +1,32 @@
+/* 打卡頁細節調整：縮小手機打卡按鈕、放大加班申請標籤並維持緊湊單行備註。 */
+.overtime-use-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.overtime-estimate-text {
+  line-height: 1.55;
+}
+
+.overtime-hours-grid .form-row-wide {
+  grid-column: 1 / -1;
+}
+
+.overtime-hours-grid input[type="text"] {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 960px) {
+  .clock-action-btn {
+    min-height: 120px;
+    padding: 18px 20px;
+  }
+
+  .clock-action-btn span {
+    margin-bottom: 10px;
+  }
+}
