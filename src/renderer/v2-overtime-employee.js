@@ -78,13 +78,15 @@
     if (!checked) {
       return `<section class="overtime-request-panel overtime-request-toggle-only">${toggle}</section>`;
     }
+
     const stateValue = attendanceOvertimeState.status;
     const eligibility = stateValue?.eligibility || null;
     const request = stateValue?.request || null;
     const workDate = selectedDate();
     const dateRows = attendanceOvertimeState.dates || [];
-    const dateValues = [...new Set([workDate, ...dateRows.map((row) => row.workDate).filter(Boolean)])];
-    const selector = `<div class="form-row"><label for="overtimeWorkDate">申請日期</label><select id="overtimeWorkDate">${dateValues.map((date) => `<option value="${escapeHtml(date)}" ${date === workDate ? "selected" : ""}>${escapeHtml(date)}</option>`).join("")}</select></div>`;
+    const dateValues = [...new Set([workDate, ...dateRows.map((row) => row.workDate).filter(Boolean)])]
+      .sort((left, right) => String(right).localeCompare(String(left)));
+    const selector = `<div class="form-row overtime-date-row"><label for="overtimeWorkDate">申請日期</label><select id="overtimeWorkDate">${dateValues.map((date) => `<option value="${escapeHtml(date)}" ${date === workDate ? "selected" : ""}>${escapeHtml(date)}</option>`).join("")}</select></div>`;
 
     if (attendanceOvertimeState.loading) return `<section class="overtime-request-panel">${toggle}${selector}<p class="clock-loading">讀取加班狀態...</p></section>`;
     if (attendanceOvertimeState.error) return `<section class="overtime-request-panel">${toggle}${selector}<div class="auth-error">${escapeHtml(attendanceOvertimeState.error)}</div></section>`;
@@ -94,15 +96,18 @@
       const canDelete = request.status === "pending" || request.status === "returned";
       return `<section class="overtime-request-panel">
         ${toggle}
-        <div class="overtime-panel-header"><div><h2>${escapeHtml(workDate)} 加班申請</h2><p>${getOvertimeStatusLabel(request.status)}，合計 ${Number(request.total_overtime_hours || 0)} 小時</p></div>${canDelete ? '<button class="ghost-btn" type="button" data-delete-today-overtime="true">刪除申請</button>' : ""}</div>
-        ${request.attendance_changed_warning ? '<div class="auth-error">打卡時間已異動，需重新審核</div>' : ""}
-        <div class="clock-status-grid"><div><span>提早上班</span><strong>${Number(request.early_overtime_hours || 0)} 小時</strong></div><div><span>延後下班</span><strong>${Number(request.late_overtime_hours || 0)} 小時</strong></div></div>
         ${selector}
+        <div class="overtime-request-status-row">
+          <p class="home-subtitle overtime-request-status">${getOvertimeStatusLabel(request.status)}，合計 ${Number(request.total_overtime_hours || 0)} 小時</p>
+          ${canDelete ? '<button class="ghost-btn" type="button" data-delete-today-overtime="true">刪除申請</button>' : ""}
+        </div>
+        ${request.attendance_changed_warning ? '<div class="auth-error">打卡時間已異動，需重新審核</div>' : ""}
+        <div class="clock-status-grid overtime-hours-summary"><div><span>提早上班</span><strong>${Number(request.early_overtime_hours || 0)} 小時</strong></div><div><span>延後下班</span><strong>${Number(request.late_overtime_hours || 0)} 小時</strong></div></div>
       </section>`;
     }
 
     if (!eligibility?.eligible) {
-      return `<section class="overtime-request-panel">${toggle}<h2>${escapeHtml(workDate)} 加班申請</h2>${selector}<p class="home-subtitle">${escapeHtml(eligibility?.reasons?.[0] || "目前不可申請加班")}</p>${eligibility?.deadlineDate ? `<p class="home-subtitle">申請期限：${escapeHtml(eligibility.deadlineDate)} 23:59</p>` : ""}</section>`;
+      return `<section class="overtime-request-panel">${toggle}${selector}<p class="home-subtitle">${escapeHtml(eligibility?.reasons?.[0] || "目前不可申請加班")}</p>${eligibility?.deadlineDate ? `<p class="home-subtitle">申請期限：${escapeHtml(eligibility.deadlineDate)} 23:59</p>` : ""}</section>`;
     }
 
     const estimateText = stateValue.shift
@@ -110,8 +115,8 @@
       : "請依實際加班情況填寫時數。";
     return `<section class="overtime-request-panel">
       ${toggle}
-      <div class="overtime-panel-header"><div><h2>${escapeHtml(workDate)} 加班申請</h2><p>${estimateText}</p></div></div>
       ${selector}
+      <p class="home-subtitle overtime-estimate-text">${estimateText}</p>
       <div class="form-grid two-col overtime-hours-grid">
         <div class="form-row"><label for="overtimeEarlyHours">提早上班時數</label><input id="overtimeEarlyHours" type="number" min="0" step="0.5" value="${Number(eligibility.earlyHours || 0)}"></div>
         <div class="form-row"><label for="overtimeLateHours">延後下班時數</label><input id="overtimeLateHours" type="number" min="0" step="0.5" value="${Number(eligibility.lateHours || 0)}"></div>
