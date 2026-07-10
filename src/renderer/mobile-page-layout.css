@@ -1,3 +1,8 @@
+/* 初始化完成前 body 尚未加入登入狀態，先隱藏班表浮動工具列，避免重整時閃出空白視窗。 */
+body:not(.is-authenticated) .toolbar-card {
+  display: none !important;
+}
+
 /* 手機版主頁面外層配置統一規格：首頁、打卡、訂餐、紀錄、班表共用。 */
 @media (max-width: 960px) {
   .app-shell {
