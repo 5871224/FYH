@@ -63,10 +63,11 @@
 
     return `<section class="records-section">
       <h2>個人記錄</h2>
-      <div class="records-filter-row">
-        <input type="date" value="${escapeHtml(filters.fromDate || "")}" data-v2-personal-filter="fromDate">
-        <input type="date" value="${escapeHtml(filters.toDate || "")}" data-v2-personal-filter="toDate">
-        <button class="primary-btn compact-btn" type="button" data-v2-personal-search>查詢</button>
+      <div class="records-admin-toolbar personal-record-toolbar">
+        <div class="records-admin-filters personal-record-filters">
+          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-v2-personal-filter="fromDate"></label>
+          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-v2-personal-filter="toDate"></label>
+        </div>
       </div>
       <div class="records-table-wrap"><table class="records-table v2-personal-record-table">
         <thead><tr><th>日期</th><th class="personal-schedule-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>異常</th><th>加班</th><th>打卡備註</th><th>加班備註</th><th>訂餐</th></tr></thead>
