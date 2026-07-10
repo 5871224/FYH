@@ -50,3 +50,14 @@
     pointer-events: auto;
   }
 }
+
+@media (max-width: 640px) {
+  /* 修改單位、人員、班別、假別與加班沿用電腦版雙欄表單，不再強制每個欄位獨占一列。 */
+  :is(.department-settings-modal, .member-settings-modal, .catalog-settings-modal) :is(.form-grid, .two-col) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :is(.department-settings-modal, .member-settings-modal, .catalog-settings-modal) :is(.form-grid, .two-col) > * {
+    min-width: 0;
+  }
+}
