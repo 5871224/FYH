@@ -59,13 +59,13 @@
     const pages = Math.max(1, Math.ceil(total / pageSize));
     return `<section class="records-section">
       <h2>打卡管理</h2>
-      <div class="records-filter-row">
-        <input type="date" value="${escapeHtml(filters.fromDate)}" data-attendance-filter="fromDate">
-        <input type="date" value="${escapeHtml(filters.toDate)}" data-attendance-filter="toDate">
-        <select data-attendance-filter="memberId">${memberOptions(filters.memberId, admin.members)}</select>
-        <select data-attendance-filter="issueType"><option value="">全部異常</option>${admin.issueTypes.map((type) => `<option value="${escapeHtml(type)}" ${filters.issueType === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select>
-        <label class="overtime-use-label"><input type="checkbox" ${filters.abnormalOnly ? "checked" : ""} data-attendance-filter="abnormalOnly">只顯示異常</label>
-        
+      <div class="records-admin-toolbar attendance-admin-toolbar">
+        <div class="records-admin-filters attendance-admin-filters">
+          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate)}" data-attendance-filter="fromDate"></label>
+          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate)}" data-attendance-filter="toDate"></label>
+          <label class="records-admin-field"><span>人員</span><select data-attendance-filter="memberId">${memberOptions(filters.memberId, admin.members)}</select></label>
+          <label class="records-admin-field"><span>異常類型</span><select data-attendance-filter="issueType"><option value="__all__" ${filters.abnormalOnly ? "" : "selected"}>全部顯示</option><option value="" ${filters.abnormalOnly && !filters.issueType ? "selected" : ""}>全部異常</option>${admin.issueTypes.map((type) => `<option value="${escapeHtml(type)}" ${filters.issueType === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
+        </div>
       </div>
       ${admin.error ? `<div class="auth-error">${escapeHtml(admin.error)}</div>` : ""}
       <div class="records-table-wrap"><table class="records-table">
