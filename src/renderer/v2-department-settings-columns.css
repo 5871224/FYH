@@ -22,6 +22,7 @@
 .department-settings-modal .department-settings-table-department .department-settings-row > * {
   min-width: 0;
   box-sizing: border-box;
+  grid-row: 1 !important;
 }
 
 .department-settings-modal .department-settings-title {
@@ -53,9 +54,21 @@
   white-space: nowrap;
 }
 
-.department-settings-modal .member-table-actions {
+.department-settings-modal .department-settings-table-department .member-table-actions {
+  grid-column: 7 !important;
+  grid-row: 1 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center;
   justify-content: center;
+  gap: 6px;
+  width: 100%;
   white-space: nowrap;
+}
+
+.department-settings-modal .department-settings-table-department .member-table-actions .settings-icon-btn {
+  flex: 0 0 auto;
 }
 
 .department-settings-modal .department-settings-head {
