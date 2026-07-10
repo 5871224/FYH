@@ -285,10 +285,6 @@
 
   installRangeExporters();
 
-  const style = document.createElement("style");
-  style.textContent = "[data-v2-personal-search]{display:none!important}";
-  document.head.appendChild(style);
-
   document.addEventListener("change", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
