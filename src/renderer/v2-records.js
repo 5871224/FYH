@@ -218,7 +218,7 @@
         : recordsState.activeTab === "attendance"
           ? renderAttendanceAdminSection()
           : renderPersonalRecordsSection();
-    recordsCard.innerHTML = `<div class="clock-page-header"><div><p class="home-eyebrow">記錄</p><h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1><p class="home-subtitle">個人記錄與管理作業。</p></div>${renderHomeIconButton()}</div>${renderRecordsTabs()}${recordsState.error ? `<div class="auth-error clock-error">${escapeHtml(recordsState.error)}</div>` : ""}${activeSection}${recordsState.loading ? '<p class="clock-loading">讀取中，請稍候...</p>' : ""}`;
+    recordsCard.innerHTML = `<div class="clock-page-header"><div><p class="home-eyebrow">記錄</p><h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1></div>${renderHomeIconButton()}</div>${renderRecordsTabs()}${recordsState.error ? `<div class="auth-error clock-error">${escapeHtml(recordsState.error)}</div>` : ""}${activeSection}${recordsState.loading ? '<p class="clock-loading">讀取中，請稍候...</p>' : ""}`;
   };
 
   async function cancelMeal() {
