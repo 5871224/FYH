@@ -3270,10 +3270,6 @@ thead th.today,
 }
 
 @media (max-width: 640px) {
-  .meal-order-table {
-    min-width: 520px;
-  }
-
   .toolbar-grid {
     grid-template-columns: 1fr;
   }
