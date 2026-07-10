@@ -89,23 +89,29 @@ function eligibility(item: any, today = dateText()) {
   if (today > addDays(item.workDate, APPLY_DAYS)) reasons.push("已超過申請期限");
   if (!item.attendance?.clock_in_at) reasons.push("尚無上班打卡");
   if (!item.attendance?.clock_out_at) reasons.push("尚無下班打卡");
-  if (!item.shift) reasons.push("沒有可計算的班別");
-  const start = shiftMinutes(item.shift?.start_time);
-  const end = shiftMinutes(item.shift?.end_time);
-  if (item.shift && (start === null || end === null)) reasons.push("班別缺少上下班時間");
+
   let earlyHours = 0;
   let lateHours = 0;
-  if (!reasons.length) {
+  const start = shiftMinutes(item.shift?.start_time);
+  const end = shiftMinutes(item.shift?.end_time);
+  if (!reasons.length && item.shift && start !== null && end !== null) {
     const clockIn = minutes(item.attendance.clock_in_at);
     const clockOut = minutes(item.attendance.clock_out_at);
     if (clockIn === null || clockOut === null) reasons.push("打卡時間格式異常");
     else {
-      earlyHours = halfHours((start as number) - clockIn);
-      lateHours = halfHours(clockOut - (end as number));
-      if (earlyHours + lateHours <= 0) reasons.push("提早或延後時間未達 30 分鐘");
+      earlyHours = halfHours(start - clockIn);
+      lateHours = halfHours(clockOut - end);
     }
   }
-  return { eligible: !reasons.length && !item.request, reasons, deadlineDate: addDays(item.workDate, APPLY_DAYS), earlyHours, lateHours, totalHours: earlyHours + lateHours };
+
+  return {
+    eligible: !reasons.length && !item.request,
+    reasons,
+    deadlineDate: addDays(item.workDate, APPLY_DAYS),
+    earlyHours,
+    lateHours,
+    totalHours: earlyHours + lateHours
+  };
 }
 
 async function status(ctx: any, body: any) {
