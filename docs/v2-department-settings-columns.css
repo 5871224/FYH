@@ -1,0 +1,32 @@
+/* 單位設定表格：單位、所屬人員、日期、不顯示、可否打卡、操作。 */
+.department-settings-table-wrap {
+  overflow-x: auto;
+}
+
+.department-settings-table-department {
+  min-width: 820px;
+}
+
+.department-settings-table-department .department-settings-row {
+  grid-template-columns:
+    30px
+    minmax(88px, .7fr)
+    minmax(220px, 2fr)
+    minmax(112px, .9fr)
+    minmax(68px, .5fr)
+    minmax(76px, .55fr)
+    minmax(76px, .55fr);
+}
+
+.department-settings-date-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.department-settings-flag {
+  text-align: center;
+  white-space: nowrap;
+}
