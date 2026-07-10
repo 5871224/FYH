@@ -38,6 +38,9 @@ const required = [
   "src/renderer/v2-api.js",
   "docs/v2-api.js",
   "src/renderer/v2-overtime-employee.js",
+  "docs/v2-overtime-employee.js",
+  "src/renderer/v2-no-overtime-suggestion.js",
+  "docs/v2-no-overtime-suggestion.js",
   "src/renderer/v2-overtime-admin.js",
   "src/renderer/v2-meal.js",
   "docs/v2-meal.js",
@@ -114,6 +117,8 @@ assert(adminSql.includes("if v_in_changed or v_out_changed then"), "只改備註
 const overtimeEmployee = read("supabase/functions/attendance-overtime-employee/index.ts");
 assert(overtimeEmployee.includes("APPLY_DAYS = 5"), "員工五日加班申請期限缺失");
 assert(!overtimeEmployee.includes("不可高於系統計算值"), "員工加班時數仍受系統計算上限限制");
+assert(!overtimeEmployee.includes("提早或延後時間未達 30 分鐘"), "員工加班申請仍受 30 分鐘資格門檻限制");
+assert(!overtimeEmployee.includes("沒有可計算的班別"), "員工加班申請仍強制要求班別");
 assert(overtimeEmployee.includes("加班申請時數必須大於 0"), "零小時加班申請仍可能送出");
 
 const batchSql = read("supabase/032_v2_overtime_batch.sql");
@@ -158,8 +163,15 @@ assert(attendanceClockSource.includes("目前位置或網路不符合打卡條�
 assert(sourceWebApi.includes('restSelect("attendance_records"') && sourceWebApi.includes("function getTodayAttendance"), "今日打卡紀錄應直接讀資料庫");
 assert(sourceRenderer.includes("function getTodayShiftSummary") && sourceRenderer.includes("clock-today-line"), "打卡頁未顯示今日班別與時間");
 assert(sourceRenderer.includes("function formatClockButtonStatus") && !sourceRenderer.includes("上班地點</span>"), "打卡地點與方式應顯示在打卡按鈕內");
-assert(sourceRenderer.includes("function maybePromptOvertimeAfterClockOut") && sourceRenderer.includes("是否申請加班"), "下班後未自動詢問加班申請");
-assert(sourceRenderer.includes("data-toggle-overtime-panel") && read("src/renderer/v2-overtime-employee.js").includes("data-toggle-overtime-panel"), "加班申請區塊應先顯示勾選框");
+const noOvertimeSuggestion = read("src/renderer/v2-no-overtime-suggestion.js");
+const publishedNoOvertimeSuggestion = read("docs/v2-no-overtime-suggestion.js");
+assert(noOvertimeSuggestion === publishedNoOvertimeSuggestion, "加班不自動建議模組來源版與發布版不同步");
+assert(noOvertimeSuggestion.includes("return false"), "下班打卡後仍可能自動建議加班");
+const sourceOvertimeUi = read("src/renderer/v2-overtime-employee.js");
+const publishedOvertimeUi = read("docs/v2-overtime-employee.js");
+assert(sourceOvertimeUi === publishedOvertimeUi, "員工加班申請介面來源版與發布版不同步");
+assert(sourceRenderer.includes("data-toggle-overtime-panel") && sourceOvertimeUi.includes("data-toggle-overtime-panel"), "加班申請區塊應先顯示勾選框");
+assert(sourceOvertimeUi.includes("overtime-hours-grid"), "提早上班與延後下班時數未固定在同一個雙欄群組");
 
 const sourceMeal = read("src/renderer/v2-meal.js");
 const publishedMeal = read("docs/v2-meal.js");
