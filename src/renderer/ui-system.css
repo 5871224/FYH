@@ -1352,10 +1352,6 @@ input[type="time"] {
   min-width: 0;
 }
 
-.attendance-admin-filters {
-  grid-template-columns: repeat(4, minmax(130px, 1fr)) minmax(150px, auto);
-}
-
 .records-admin-field {
   display: grid;
   gap: 5px;
@@ -1375,23 +1371,6 @@ input[type="time"] {
   min-width: 0;
 }
 
-.records-admin-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  min-height: var(--ui-control-height);
-  padding: 0 12px;
-  border: 1px solid var(--ui-border);
-  border-radius: var(--ui-control-radius);
-  background: var(--ui-surface-raised);
-  color: var(--ui-text);
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
 .records-admin-actions {
   display: flex;
   align-items: center;
@@ -1408,13 +1387,8 @@ input[type="time"] {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .records-admin-filters,
-  .attendance-admin-filters {
+  .records-admin-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .records-admin-toggle {
-    grid-column: 1 / -1;
   }
 
   .records-admin-actions {
@@ -1443,11 +1417,6 @@ input[type="time"] {
 
   .records-admin-field {
     gap: 4px;
-  }
-
-  .records-admin-toggle {
-    padding-right: 8px;
-    padding-left: 8px;
   }
 
   .records-admin-actions {
