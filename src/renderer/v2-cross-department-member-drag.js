@@ -48,4 +48,13 @@
     }
     markScheduleTableOrderTarget(targetMember, event.clientY);
   }, true);
+
+  const detailStyle = document.createElement("link");
+  detailStyle.rel = "stylesheet";
+  detailStyle.href = "./v2-department-settings-columns.css?v=20260710183000";
+  document.head.appendChild(detailStyle);
+
+  const detailScript = document.createElement("script");
+  detailScript.src = "./v2-department-settings-columns.js?v=20260710183000";
+  document.head.appendChild(detailScript);
 })();
