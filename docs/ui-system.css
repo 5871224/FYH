@@ -191,6 +191,14 @@ input[type="time"] {
   border-color: transparent;
   background: transparent;
   box-shadow: none;
+  font-size: 15px !important;
+  font-weight: 800;
+}
+
+.records-section > h2 {
+  margin-bottom: 12px;
+  font-size: 18px;
+  line-height: 1.3;
 }
 
 .meal-tabs .active,
@@ -1146,6 +1154,11 @@ input[type="time"] {
     gap: var(--ui-mobile-gap-tight);
     margin: 5px 0 8px;
     padding: 2px;
+  }
+
+  .records-section > h2 {
+    margin-bottom: 8px;
+    font-size: 17px;
   }
 
   .records-filter-row {
