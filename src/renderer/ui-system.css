@@ -1331,6 +1331,136 @@ input[type="time"] {
   }
 }
 
+/* Record administration filters: shared labelled fields and stable mobile grids. */
+.records-admin-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px 16px;
+  margin: 12px 0 14px;
+  padding: 14px;
+  border: 1px solid rgba(156, 107, 47, 0.16);
+  border-radius: var(--ui-section-radius);
+  background: rgba(255, 253, 248, 0.72);
+}
+
+.records-admin-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  align-items: end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.attendance-admin-filters {
+  grid-template-columns: repeat(4, minmax(130px, 1fr)) minmax(150px, auto);
+}
+
+.records-admin-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.records-admin-field > span {
+  color: var(--ui-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.records-admin-field > input,
+.records-admin-field > select {
+  width: 100%;
+  min-width: 0;
+}
+
+.records-admin-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: var(--ui-control-height);
+  padding: 0 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-control-radius);
+  background: var(--ui-surface-raised);
+  color: var(--ui-text);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.records-admin-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.records-admin-actions > button {
+  min-height: var(--ui-control-height);
+}
+
+@media (max-width: 900px) {
+  .records-admin-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .records-admin-filters,
+  .attendance-admin-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .records-admin-toggle {
+    grid-column: 1 / -1;
+  }
+
+  .records-admin-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .records-admin-actions > button {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .records-admin-toolbar {
+    gap: var(--ui-mobile-gap);
+    margin: 6px 0 8px;
+    padding: var(--ui-mobile-section-padding);
+    border-radius: var(--ui-control-radius);
+  }
+
+  .records-admin-filters {
+    gap: var(--ui-mobile-gap);
+  }
+
+  .records-admin-field {
+    gap: 4px;
+  }
+
+  .records-admin-toggle {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .records-admin-actions {
+    gap: var(--ui-mobile-gap-tight);
+  }
+
+  .records-admin-actions > button {
+    padding-right: 4px !important;
+    padding-left: 4px !important;
+    font-size: 13px;
+  }
+}
+
 /* Meal administration toolbar: labelled fields and stable responsive actions. */
 .meal-admin-toolbar {
   display: grid;
