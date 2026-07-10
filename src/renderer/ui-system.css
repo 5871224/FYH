@@ -1352,6 +1352,10 @@ input[type="time"] {
   min-width: 0;
 }
 
+.personal-record-filters {
+  grid-template-columns: repeat(2, minmax(150px, 190px));
+}
+
 .records-admin-field {
   display: grid;
   gap: 5px;
