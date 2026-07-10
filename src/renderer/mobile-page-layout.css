@@ -1,0 +1,27 @@
+/* 手機版主頁面外層配置統一規格：首頁、打卡、訂餐、紀錄、班表共用。 */
+@media (max-width: 960px) {
+  .app-shell {
+    padding-top: 12px;
+  }
+
+  body.is-home-view .app-shell,
+  body.is-clock-view .app-shell,
+  body.is-meal-view .app-shell,
+  body.is-records-view .app-shell,
+  body.is-schedule-view .app-shell {
+    padding-top: 12px;
+  }
+
+  .home-card,
+  .clock-card,
+  .meal-card,
+  .records-card,
+  .calendar-card {
+    align-self: stretch;
+  }
+
+  .home-card,
+  .clock-card {
+    justify-content: flex-start;
+  }
+}
