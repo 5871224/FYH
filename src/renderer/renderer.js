@@ -5043,7 +5043,7 @@ function openListSettings(category) {
     headerButtons: `
       <button class="ghost-btn" type="button" data-export-settings="${category}">匯出</button>
       <button class="ghost-btn" type="button" data-import-settings="${category}">匯入</button>
-      <button class="btn-primary" type="button" data-open-add="${category}">新增${escapeHtml(titleMap[category].replace("設定", ""))}</button>
+      <button class="btn-primary" type="button" data-open-add="${category}">${category === "shift" ? "新增" : `新增${escapeHtml(titleMap[category].replace("設定", ""))}`}</button>
     `,
     hideFooterClose: true
   });
@@ -5193,7 +5193,7 @@ function openShiftFormModal(mode, shiftId = "") {
         </label>
       </div>
     `,
-    headerButtons: `<button class="btn-primary" type="button" data-save-shift="${mode}">${mode === "edit" ? "儲存修改" : "新增班別"}</button>`,
+    headerButtons: `<button class="btn-primary" type="button" data-save-shift="${mode}">${mode === "edit" ? "儲存修改" : "新增"}</button>`,
     hideFooterClose: true
   });
   syncNamedColorUi();
@@ -5259,8 +5259,8 @@ function openNamedColorFormModal(category, mode, targetId = "") {
     ? list.find((entry) => entry.id === targetId)
     : {
       id: "",
-      code: LEAVE_CATALOG[0].code,
-      name: LEAVE_CATALOG[0].name,
+      code: category === "leave" ? LEAVE_CATALOG[0].code : "",
+      name: category === "overtime" ? "加班" : LEAVE_CATALOG[0].name,
       color: COLORS[0].hex,
       requiresTime: false,
       requiresReason: false,
@@ -5549,7 +5549,7 @@ function openDepartmentSettings() {
     headerButtons: `
       <button class="ghost-btn" type="button" data-export-departments="true">匯出</button>
       <button class="ghost-btn" type="button" data-import-departments="true">匯入</button>
-      <button class="btn-primary" type="button" data-open-add-department="true">新增單位</button>
+      <button class="btn-primary" type="button" data-open-add-department="true">新增</button>
     `,
     hideFooterClose: true
   });
@@ -5649,7 +5649,7 @@ function openDepartmentForm(mode, departmentId = "") {
         </label>
       </div>
     `,
-    headerButtons: `<button class="btn-primary" type="button" data-save-department="${mode}">${mode === "edit" ? "儲存修改" : "新增單位"}</button>`,
+    headerButtons: `<button class="btn-primary" type="button" data-save-department="${mode}">${mode === "edit" ? "儲存修改" : "新增"}</button>`,
     body: renderDepartmentFormBody(department, attendanceFieldsDisabled),
     hideFooterClose: true
   });
@@ -6189,7 +6189,7 @@ function openMemberSettings() {
     headerButtons: `
       <button class="ghost-btn" type="button" data-export-members="true">匯出</button>
       <button class="ghost-btn" type="button" data-import-members="true">匯入</button>
-      <button class="btn-primary" type="button" data-open-add-member="true">新增人員</button>
+      <button class="btn-primary" type="button" data-open-add-member="true">新增</button>
     `,
     hideFooterClose: true
   });
@@ -6298,7 +6298,7 @@ function openMemberForm(mode, memberId = "") {
         </div>
       </div>
     `,
-    headerButtons: `<button class="btn-primary" type="button" data-save-member="${mode}">${mode === "edit" ? "儲存修改" : "新增人員"}</button>`,
+    headerButtons: `<button class="btn-primary" type="button" data-save-member="${mode}">${mode === "edit" ? "儲存修改" : "新增"}</button>`,
     hideFooterClose: true
   });
 }
