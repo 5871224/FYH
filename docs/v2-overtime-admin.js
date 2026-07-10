@@ -90,20 +90,23 @@
     const rows = review.requests || [];
     return `<section class="records-section">
       <h2>加班審核</h2>
-      <div class="records-filter-row">
-        <input type="date" value="${escapeHtml(filters.fromDate || "")}" data-overtime-review-filter="fromDate">
-        <input type="date" value="${escapeHtml(filters.toDate || "")}" data-overtime-review-filter="toDate">
-        <select data-overtime-review-filter="memberId">${memberOptions(filters.memberId, review.members)}</select>
-        <select data-overtime-review-filter="status">
-          <option value="pending" ${filters.status === "pending" ? "selected" : ""}>待審</option>
-          <option value="approved" ${filters.status === "approved" ? "selected" : ""}>核准</option>
-          <option value="returned" ${filters.status === "returned" ? "selected" : ""}>退回</option>
-          <option value="all" ${filters.status === "all" ? "selected" : ""}>全部</option>
-        </select>
-        
-        <button class="ghost-btn compact-btn" type="button" data-open-admin-overtime-create="true">代為申請</button>
-        <button class="primary-btn compact-btn" type="button" data-v2-overtime-batch="approved">批次核准</button>
-        <button class="ghost-btn compact-btn" type="button" data-v2-overtime-batch="returned">批次退回</button>
+      <div class="records-admin-toolbar overtime-review-toolbar">
+        <div class="records-admin-filters overtime-review-filters">
+          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-overtime-review-filter="fromDate"></label>
+          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-overtime-review-filter="toDate"></label>
+          <label class="records-admin-field"><span>人員</span><select data-overtime-review-filter="memberId">${memberOptions(filters.memberId, review.members)}</select></label>
+          <label class="records-admin-field"><span>狀態</span><select data-overtime-review-filter="status">
+            <option value="pending" ${filters.status === "pending" ? "selected" : ""}>待審</option>
+            <option value="approved" ${filters.status === "approved" ? "selected" : ""}>核准</option>
+            <option value="returned" ${filters.status === "returned" ? "selected" : ""}>退回</option>
+            <option value="all" ${filters.status === "all" ? "selected" : ""}>全部</option>
+          </select></label>
+        </div>
+        <div class="records-admin-actions overtime-review-actions">
+          <button class="ghost-btn compact-btn" type="button" data-open-admin-overtime-create="true">代為申請</button>
+          <button class="primary-btn compact-btn" type="button" data-v2-overtime-batch="approved">批次核准</button>
+          <button class="ghost-btn compact-btn" type="button" data-v2-overtime-batch="returned">批次退回</button>
+        </div>
       </div>
       ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
       <div class="records-table-wrap">
