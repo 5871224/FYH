@@ -1,5 +1,7 @@
 (() => {
   const AUTO_FILL_PREVIEW_TYPE = "auto-fill-schedule";
+  const baseApplyAutoSchedulePreview = applyAutoSchedulePreview;
+  const baseCancelAutoSchedulePreview = cancelAutoSchedulePreview;
 
   function isBlankScheduleSlot(slot) {
     return !slot?.shift && !slot?.leave && !slot?.overtime;
@@ -152,13 +154,10 @@
     if (!promptManagerAccess("套用自動補班需先登入主管帳號")) {
       return;
     }
-    if (autoSchedulePreview?.previewType !== AUTO_FILL_PREVIEW_TYPE) {
-      return;
-    }
     if (!await confirmAction("確定要套用目前綠色自動補班預覽嗎？套用後才會正式寫入班表。")) {
       return;
     }
-    const previewSlots = autoSchedulePreview.slots || {};
+    const previewSlots = autoSchedulePreview?.slots || {};
     const changedCells = Object.keys(previewSlots).map(parseScheduleKeyParts).filter(Boolean);
     if (!changedCells.length) {
       autoSchedulePreview = null;
@@ -178,36 +177,31 @@
   }
 
   function cancelAutoFillSchedulePreview() {
-    if (autoSchedulePreview?.previewType !== AUTO_FILL_PREVIEW_TYPE) {
-      return;
-    }
     autoSchedulePreview = null;
     renderAll();
     showInfoMessage("已取消自動補班預覽");
   }
 
+  applyAutoSchedulePreview = async function applyCurrentSchedulePreview() {
+    if (autoSchedulePreview?.previewType === AUTO_FILL_PREVIEW_TYPE) {
+      await applyAutoFillSchedulePreview();
+      return;
+    }
+    await baseApplyAutoSchedulePreview();
+  };
+
+  cancelAutoSchedulePreview = function cancelCurrentSchedulePreview() {
+    if (autoSchedulePreview?.previewType === AUTO_FILL_PREVIEW_TYPE) {
+      cancelAutoFillSchedulePreview();
+      return;
+    }
+    baseCancelAutoSchedulePreview();
+  };
+
   document.getElementById("autoFillSchedulePreviewButton")?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     openAutoFillSchedulePeriodModal();
-  });
-
-  document.getElementById("autoScheduleApplyButton")?.addEventListener("click", async (event) => {
-    if (autoSchedulePreview?.previewType !== AUTO_FILL_PREVIEW_TYPE) {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    await applyAutoFillSchedulePreview();
-  });
-
-  document.getElementById("autoScheduleCancelButton")?.addEventListener("click", (event) => {
-    if (autoSchedulePreview?.previewType !== AUTO_FILL_PREVIEW_TYPE) {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    cancelAutoFillSchedulePreview();
   });
 
   document.body.addEventListener("click", async (event) => {
