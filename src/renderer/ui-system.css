@@ -316,20 +316,53 @@ input[type="time"] {
 }
 
 .meal-order-table {
-  border-spacing: 0 8px;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.meal-order-table th {
+  min-height: 42px;
+  padding: 11px 12px;
+  background: var(--ui-surface-muted);
+  color: var(--ui-muted);
+  border-bottom: 1px solid var(--ui-border);
+  font-size: 13px;
+  font-weight: 800;
+  vertical-align: middle;
 }
 
 .meal-order-table td {
-  min-height: 48px;
+  min-height: 44px;
+  padding: 10px 12px;
   background: var(--ui-surface-raised);
+  border-top: 0;
+  border-bottom: 1px solid #ece5da;
+  vertical-align: middle;
 }
 
-.meal-order-table td:first-child {
-  border-radius: var(--ui-control-radius) 0 0 var(--ui-control-radius);
+.meal-order-table tbody tr:last-child td {
+  border-bottom: 0;
 }
 
+.meal-order-table tbody tr:hover td {
+  background: var(--ui-row-hover);
+}
+
+.meal-order-table th:first-child {
+  border-top-left-radius: calc(var(--ui-table-radius) - 1px);
+}
+
+.meal-order-table th:last-child {
+  border-top-right-radius: calc(var(--ui-table-radius) - 1px);
+}
+
+.meal-order-table td:first-child,
 .meal-order-table td:last-child {
-  border-radius: 0 var(--ui-control-radius) var(--ui-control-radius) 0;
+  border-right: 0;
+  border-left: 0;
+  border-radius: 0;
 }
 
 .settings-table-head,
@@ -1271,9 +1304,12 @@ input[type="time"] {
     border-spacing: 0 4px;
   }
 
-  .meal-order-table th,
+  .meal-order-table th {
+    padding: 6px;
+  }
+
   .meal-order-table td {
-    padding: 4px;
+    padding: 5px 6px;
   }
 
   .calendar-nav {
@@ -1320,7 +1356,7 @@ input[type="time"] {
   }
 }
 
-/* Meal order table: keep the product column compact and preserve left breathing room. */
+/* Meal order table: use the shared table appearance and compact single-line mobile columns. */
 .meal-order-table th:first-child,
 .meal-order-table td:first-child {
   width: clamp(150px, 22%, 220px);
@@ -1333,10 +1369,22 @@ input[type="time"] {
 }
 
 @media (max-width: 640px) {
+  .meal-order-table {
+    min-width: 280px;
+  }
+
   .meal-order-table th:first-child,
   .meal-order-table td:first-child {
-    width: 150px;
-    padding-left: 10px;
+    width: 82px;
+    padding-left: 6px;
+  }
+
+  .meal-order-table .meal-price-col {
+    width: 48px;
+  }
+
+  .meal-order-table .meal-quantity-col {
+    width: 62px;
   }
 }
 
