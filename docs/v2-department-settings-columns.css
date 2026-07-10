@@ -1,32 +1,70 @@
-/* 單位設定表格：單位、所屬人員、日期、不顯示、可否打卡、操作。 */
-.department-settings-table-wrap {
+/* 單位設定表格：拖曳、單位、所屬人員、日期、不顯示、可否打卡、操作。 */
+.department-settings-modal .department-settings-table-wrap {
+  width: 100%;
   overflow-x: auto;
+  overflow-y: visible;
 }
 
-.department-settings-table-department {
-  min-width: 820px;
+.department-settings-modal .department-settings-table-department {
+  width: 100%;
+  min-width: 920px;
 }
 
-.department-settings-table-department .department-settings-row {
-  grid-template-columns:
-    30px
-    minmax(88px, .7fr)
-    minmax(220px, 2fr)
-    minmax(112px, .9fr)
-    minmax(68px, .5fr)
-    minmax(76px, .55fr)
-    minmax(76px, .55fr);
+.department-settings-modal .department-settings-table-department .department-settings-row {
+  display: grid !important;
+  grid-template-columns: 32px 110px minmax(280px, 1fr) 124px 72px 82px 80px !important;
+  align-items: center;
+  column-gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
 }
 
-.department-settings-date-stack {
+.department-settings-modal .department-settings-table-department .department-settings-row > * {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.department-settings-modal .department-settings-title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.department-settings-modal .member-inline-list {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.department-settings-modal .department-settings-date-stack {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 3px;
   line-height: 1.35;
   white-space: nowrap;
 }
 
-.department-settings-flag {
+.department-settings-modal .department-settings-flag,
+.department-settings-modal .department-settings-head > div:nth-last-child(2),
+.department-settings-modal .department-settings-head > div:nth-last-child(3) {
   text-align: center;
   white-space: nowrap;
+}
+
+.department-settings-modal .member-table-actions {
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.department-settings-modal .department-settings-head {
+  align-items: center;
+}
+
+@media (max-width: 960px) {
+  .department-settings-modal .department-settings-table-department {
+    width: 920px;
+    min-width: 920px;
+  }
 }
