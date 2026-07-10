@@ -5,6 +5,41 @@
     return attendanceOvertimeState.selectedWorkDate || getTodayDateString();
   }
 
+  function formatShiftTime(value) {
+    const match = String(value || "").match(/^(\d{1,2}):(\d{2})/);
+    return match ? `${String(Number(match[1])).padStart(2, "0")}:${match[2]}` : "--:--";
+  }
+
+  function formatAttendanceTime(value) {
+    if (!value) return "--:--";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "--:--";
+    return new Intl.DateTimeFormat("zh-TW", {
+      timeZone: "Asia/Taipei",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23"
+    }).format(date);
+  }
+
+  function formatHours(value) {
+    const number = Number(value || 0);
+    return Number.isFinite(number) ? String(number) : "0";
+  }
+
+  function renderOvertimeEstimate(stateValue, eligibility) {
+    const shiftName = stateValue?.shift?.name || "未設定";
+    const shiftStart = formatShiftTime(stateValue?.shift?.start_time);
+    const shiftEnd = formatShiftTime(stateValue?.shift?.end_time);
+    const clockIn = formatAttendanceTime(stateValue?.attendance?.clock_in_at);
+    const clockOut = formatAttendanceTime(stateValue?.attendance?.clock_out_at);
+    const earlyHours = formatHours(eligibility?.earlyHours);
+    const lateHours = formatHours(eligibility?.lateHours);
+    const totalHours = formatHours(eligibility?.totalHours);
+
+    return `班別${escapeHtml(shiftName)}：${escapeHtml(shiftStart)} ~ ${escapeHtml(shiftEnd)}　打卡時間：${escapeHtml(clockIn)} ~ ${escapeHtml(clockOut)}<br>提早 ${escapeHtml(earlyHours)} 小時上班，延後 ${escapeHtml(lateHours)} 小時下班，估算加班 ${escapeHtml(totalHours)} 小時`;
+  }
+
   loadTodayAttendanceOvertime = async function loadV2AttendanceOvertime(shouldRender = true) {
     if (!isLoggedIn()) return null;
     const workDate = selectedDate();
@@ -110,9 +145,7 @@
       return `<section class="overtime-request-panel">${toggle}${selector}<p class="home-subtitle">${escapeHtml(eligibility?.reasons?.[0] || "目前不可申請加班")}</p>${eligibility?.deadlineDate ? `<p class="home-subtitle">申請期限：${escapeHtml(eligibility.deadlineDate)} 23:59</p>` : ""}</section>`;
     }
 
-    const estimateText = stateValue.shift
-      ? `系統依班別估算 ${Number(eligibility.totalHours || 0)} 小時；可依實際情況向上或向下調整。`
-      : "請依實際加班情況填寫時數。";
+    const estimateText = renderOvertimeEstimate(stateValue, eligibility);
     return `<section class="overtime-request-panel">
       ${toggle}
       ${selector}
