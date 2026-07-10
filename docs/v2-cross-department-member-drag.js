@@ -51,7 +51,7 @@
 
   const detailStyle = document.createElement("link");
   detailStyle.rel = "stylesheet";
-  detailStyle.href = "./v2-department-settings-columns.css?v=20260710190000";
+  detailStyle.href = "./v2-department-settings-columns.css?v=20260710193000";
   document.head.appendChild(detailStyle);
 
   const detailScript = document.createElement("script");
