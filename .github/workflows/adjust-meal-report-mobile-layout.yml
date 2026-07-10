@@ -1,20 +1,20 @@
 name: Adjust meal report mobile layout
 
 on:
-  push:
+  pull_request:
     branches: [main]
-    paths:
-      - .github/workflows/adjust-meal-report-mobile-layout.yml
 
 permissions:
   contents: write
 
 jobs:
   update:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -148,8 +148,6 @@ jobs:
               raise SystemExit('Specification target not found')
           spec = spec.replace(old_spec, new_spec, 1)
           spec_path.write_text(spec, encoding='utf-8-sig')
-
-          Path('.github/workflows/adjust-meal-report-mobile-layout.yml').unlink()
           PY
       - name: Publish and validate
         run: |
@@ -159,10 +157,11 @@ jobs:
           node scripts/check-v2-alignment.js
           node scripts/check-v2-final.js
           npm run web:check
-      - name: Commit changes
+      - name: Commit changes and remove temporary files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/adjust-meal-report-mobile-layout.yml meal-report-layout-trigger.txt
           git add -A
           git commit -m "Refine meal report mobile layout"
-          git push
+          git push origin HEAD:${{ github.head_ref }}
