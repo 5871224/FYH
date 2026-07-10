@@ -614,128 +614,74 @@ input[type="time"] {
   }
 }
 
-/* Mobile meal settings: keep the product name visible instead of compressing it to zero width. */
+/* Mobile meal settings: retain the desktop table structure and keep every product on one row. */
 @media (max-width: 640px) {
   .meal-settings-table-wrap {
-    overflow: visible;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
+    overflow-x: auto;
   }
 
   .meal-settings-table {
-    display: block;
+    display: table;
     width: 100%;
-    min-width: 0;
-    table-layout: auto;
+    min-width: 280px;
+    table-layout: fixed;
   }
 
   .meal-settings-table thead {
-    display: none;
+    display: table-header-group;
   }
 
   .meal-settings-table tbody {
-    display: grid;
-    gap: 10px;
-    width: 100%;
+    display: table-row-group;
   }
 
   .meal-settings-table tbody tr {
-    display: grid;
-    grid-template-columns: 30px minmax(0, 1fr) 72px;
-    grid-template-areas:
-      "drag name operation"
-      "drag price active";
-    gap: 8px;
-    align-items: end;
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--ui-border);
-    border-radius: var(--ui-table-radius);
-    background: var(--ui-surface-raised);
-    box-shadow: var(--ui-control-shadow);
+    display: table-row;
   }
 
   .meal-settings-table tbody td {
-    display: block;
-    width: auto;
-    min-width: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-  }
-
-  .meal-settings-table tbody tr:hover td {
-    background: transparent;
+    display: table-cell;
   }
 
   .meal-settings-drag-col {
-    grid-area: drag;
-    align-self: stretch;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
+    width: 24px;
   }
 
   .meal-settings-name-col {
-    grid-area: name;
+    width: auto;
   }
 
   .meal-settings-price-col {
-    grid-area: price;
+    width: 64px;
   }
 
   .meal-settings-active-col {
-    grid-area: active;
-    display: flex !important;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    min-height: var(--ui-control-height);
+    width: 42px;
+    text-align: center;
   }
 
   .meal-settings-operation-col {
-    grid-area: operation;
-    display: flex !important;
-    align-items: flex-end;
-    justify-content: flex-end;
+    width: 48px;
+    text-align: center;
   }
 
-  .meal-settings-name-col::before,
-  .meal-settings-price-col::before,
-  .meal-settings-active-col::before {
-    display: block;
-    margin-bottom: 4px;
-    color: var(--ui-muted);
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1.2;
-  }
-
-  .meal-settings-name-col::before {
-    content: "品項";
-  }
-
-  .meal-settings-price-col::before {
-    content: "價格";
-  }
-
-  .meal-settings-active-col::before {
-    content: "啟用";
-  }
-
-  .meal-settings-name-col input,
-  .meal-settings-price-col input {
-    display: block;
-    width: 100%;
-    min-width: 0;
+  .meal-settings-drag-col,
+  .meal-settings-active-col,
+  .meal-settings-operation-col {
+    padding-right: 3px !important;
+    padding-left: 3px !important;
   }
 
   .meal-settings-operation-col .ghost-btn {
-    width: 100%;
+    width: auto;
     min-width: 0;
-    padding-left: 8px !important;
-    padding-right: 8px !important;
+    padding-right: 6px !important;
+    padding-left: 6px !important;
+  }
+
+  .meal-drag-handle {
+    width: 20px;
+    height: 28px;
   }
 }
 
