@@ -1,0 +1,12 @@
+/* 登入視窗：主要操作按鈕使用整列寬度，方便手機點擊。 */
+.auth-footer {
+  display: block;
+  width: 100%;
+}
+
+.auth-footer .btn-primary[data-auth-sign-in] {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+}
