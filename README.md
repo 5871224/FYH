@@ -11,6 +11,7 @@
 - 管理員打卡管理、打卡修改歷程、加班審核
 - 透過 Supabase RPC 批次儲存班表格
 - 自動排班預覽 / 套用流程
+- 自動補班預覽 / 套用流程
 - 例假、休息日、連續上班檢查
 - 匯入 / 匯出輔助工具
 
@@ -32,6 +33,7 @@ V2 頁面與權限重點：
 - Android 系統返回鍵：目前畫面有可關閉視窗時等同按「關閉」；沒有可關閉視窗時回到首頁。
 - 打卡、訂餐、記錄頁的返回首頁控制使用 X 圖示，放在姓名右側並靠右對齊。
 - 班表頁所有登入角色都可查看完整班表表格；手機版班表頂部控制列必須可換行，不得撐破版面。
+- 主管與管理員可使用「自動補班預覽」，選擇日期範圍後，只將月薪人員完全空白的班表格預填為該人員設定的第一個排班班別；日薪人員與已有班別、假別或加班的格子不變。預覽不寫入資料，必須按「套用預覽」才正式儲存。
 - 手機登入使用可跨關閉保留的 48 小時滑動閒置期限；Android 平板、iPad、其他平板與觸控筆電一律視為電腦，使用分頁階段儲存與 30 分鐘滑動閒置期限。不確定裝置類型時預設視為電腦。
 - 刪除帳號時，Supabase Auth 登入帳號與 `set_employee` 人員資料必須由資料庫外鍵級聯在同一筆刪除交易中完成；任何一步失敗都不得留下單邊資料。
 - 打卡使用伺服器端有效任職檢查、單位打卡設定、GPS/IP/距離資料與異常標記。打卡頁顯示今日班別與時間，已打卡狀態顯示在上下班打卡按鈕內，例如 `08:50 在【莊敬】打卡 (GPS)`。管理員可補登或修改上下班時間，修改歷程寫入 `attendance_action_logs`；本次異動原因為選填。
@@ -99,7 +101,7 @@ npm run web:publish
 - `request_type`
 - `get_public_schedule_requests()`
 
-## 自動排班
+## 自動排班與自動補班
 
 自動排班目前是「先預覽、再套用」流程，會使用：
 
@@ -110,12 +112,22 @@ npm run web:publish
 - 每月休假天數目標
 - 例假 / 休息日 / 連續上班規則
 
+自動補班同樣採「先預覽、再套用」流程：
+
+- 先選擇開始日期與結束日期。
+- 只處理月薪且在職的人員。
+- 只處理完全沒有班別、假別與加班的空白格。
+- 填入人員設定的第一個排班班別。
+- 人員未設定排班班別時略過並顯示提醒。
+- 按「套用預覽」前不寫入 `schedule_entries`。
+
 重要函式：
 
 - `buildAutoSchedulePreview()`
 - `findMinimumCostFlowAssignments()`
 - `placeDailySurplusRestDays()`
 - `applyAutoSchedulePreview()`
+- `buildAutoFillSchedulePreview()`（位於 `v2-auto-fill-schedule.js`）
 
 ## 驗證
 
@@ -124,6 +136,7 @@ npm run web:publish
 ```bash
 node --check src/renderer/renderer.js
 node --check src/renderer/web-api.js
+node --check src/renderer/v2-auto-fill-schedule.js
 node scripts/check-normalized-storage.js
 node scripts/check-settings-lists.js
 npm run web:publish
