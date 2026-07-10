@@ -169,7 +169,37 @@
         : `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>日期</th><th>單位</th><th>員工</th><th>品項</th><th>數量</th><th>單價</th><th>小計</th><th>備註</th></tr></thead><tbody>${details.map((row) => `<tr><td>${escapeHtml(row.date || "")}</td><td>${escapeHtml(row.departmentName || "")}</td><td>${escapeHtml(row.employeeName || "")}</td><td>${escapeHtml(row.productName || "")}</td><td>${Number(row.quantity || 0)}</td><td>$${Number(row.unitPrice || 0).toFixed(0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td><td>${escapeHtml(withWarningNote(row))}</td></tr>`).join("") || '<tr><td colspan="8">沒有訂餐資料</td></tr>'}</tbody></table></div>`;
     return `<section class="records-section">
       <h2>訂餐統計</h2>
-      <div class="records-filter-row"><input type="date" value="${escapeHtml(filters.fromDate)}" data-meal-report-filter="fromDate"><input type="date" value="${escapeHtml(filters.toDate)}" data-meal-report-filter="toDate"><select data-meal-report-filter="departmentId">${departmentOptions(filters.departmentId)}</select><select data-meal-report-filter="memberId">${memberOptions(filters.memberId)}</select><select data-meal-report-view><option value="detail" ${view === "detail" ? "selected" : ""}>明細</option><option value="item" ${view === "item" ? "selected" : ""}>品項</option><option value="member" ${view === "member" ? "selected" : ""}>人員</option></select><button class="ghost-btn compact-btn" type="button" data-export-meal-report="true">匯出</button></div>
+      <div class="meal-admin-toolbar meal-report-toolbar">
+        <div class="meal-toolbar-fields meal-report-fields">
+          <label class="meal-toolbar-field meal-field-from">
+            <span>開始日期</span>
+            <input type="date" value="${escapeHtml(filters.fromDate)}" data-meal-report-filter="fromDate">
+          </label>
+          <label class="meal-toolbar-field meal-field-to">
+            <span>結束日期</span>
+            <input type="date" value="${escapeHtml(filters.toDate)}" data-meal-report-filter="toDate">
+          </label>
+          <label class="meal-toolbar-field meal-field-department">
+            <span>單位</span>
+            <select data-meal-report-filter="departmentId">${departmentOptions(filters.departmentId)}</select>
+          </label>
+          <label class="meal-toolbar-field meal-field-member">
+            <span>人員</span>
+            <select data-meal-report-filter="memberId">${memberOptions(filters.memberId)}</select>
+          </label>
+          <label class="meal-toolbar-field meal-field-view">
+            <span>報表內容</span>
+            <select data-meal-report-view>
+              <option value="detail" ${view === "detail" ? "selected" : ""}>明細</option>
+              <option value="item" ${view === "item" ? "selected" : ""}>品項</option>
+              <option value="member" ${view === "member" ? "selected" : ""}>人員</option>
+            </select>
+          </label>
+        </div>
+        <div class="meal-toolbar-actions">
+          <button class="ghost-btn" type="button" data-export-meal-report="true">匯出 Excel</button>
+        </div>
+      </div>
       ${report.error ? `<div class="auth-error">${escapeHtml(report.error)}</div>` : ""}
       <div class="meal-stats-grid"><div><strong>${Number(report.totals?.quantity || 0)}</strong><span>期間總數量</span></div><div><strong>$${Number(report.totals?.amount || 0).toFixed(0)}</strong><span>期間總金額</span></div></div>
       ${table}
