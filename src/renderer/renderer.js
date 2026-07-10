@@ -5043,7 +5043,7 @@ function openListSettings(category) {
     headerButtons: `
       <button class="ghost-btn" type="button" data-export-settings="${category}">匯出</button>
       <button class="ghost-btn" type="button" data-import-settings="${category}">匯入</button>
-      <button class="btn-primary" type="button" data-open-add="${category}">${category === "shift" ? "新增" : `新增${escapeHtml(titleMap[category].replace("設定", ""))}`}</button>
+      <button class="btn-primary" type="button" data-open-add="${category}">新增</button>
     `,
     hideFooterClose: true
   });
