@@ -102,12 +102,14 @@ body:not(.is-authenticated) .toolbar-card {
 }
 
 @media (max-width: 640px) {
-  /* 手機畫面取消五個主要頁面的最外層卡片，只保留頁面安全間距與內部功能區塊。 */
+  /* 手機畫面取消五個主要頁面的最外層卡片，只保留頁面安全間距與內部功能區塊，內容一律由上方開始排列。 */
   body.is-home-view .app-shell,
   body.is-clock-view .app-shell,
   body.is-meal-view .app-shell,
   body.is-records-view .app-shell,
   body.is-schedule-view .app-shell {
+    justify-content: flex-start !important;
+    align-items: stretch;
     padding-top: 8px;
     padding-left: 8px;
     padding-right: 8px;
@@ -127,6 +129,21 @@ body:not(.is-authenticated) .toolbar-card {
     border-radius: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
+  }
+
+  /* 首頁入口按鈕放大並統一配色，充分利用手機垂直空間。 */
+  body.is-home-view .home-action-grid {
+    gap: 16px;
+  }
+
+  body.is-home-view .home-action-card {
+    min-height: 104px;
+    padding: 18px 16px;
+  }
+
+  body.is-home-view .home-action-card-primary {
+    color: var(--text) !important;
+    background: rgba(255, 253, 248, 0.86) !important;
   }
 
   /* 班表手機版控制項字級統一：頂部檢視／範圍選單與浮動工具列選單皆不得使用過小字級。 */
