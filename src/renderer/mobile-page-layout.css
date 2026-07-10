@@ -24,4 +24,9 @@
   .clock-card {
     justify-content: flex-start;
   }
+
+  /* 展開浮動工具列時，將復原、重做與縮小控制列移到卡片上方，避免遮住班別下拉選單與設定按鈕。 */
+  .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-top-row {
+    top: -30px;
+  }
 }
