@@ -66,11 +66,21 @@
     const subsidy = Number(mealAdmin.settings?.company_subsidy || 55);
     return `<section class="records-section">
       <h2>訂餐設定</h2>
-      <div class="records-filter-row">
-        <label class="meal-settings-toolbar-label">截止時間 <input type="time" value="${escapeHtml(String(mealAdmin.settings?.daily_cutoff_time || "10:30").slice(0, 5))}" data-meal-cutoff-time></label>
-        <label class="meal-settings-toolbar-label">公司補助 <input type="number" min="1" step="1" inputmode="numeric" pattern="[1-9][0-9]*" value="${escapeHtml(String(subsidy))}" data-meal-company-subsidy data-last-valid-company-subsidy="${escapeHtml(String(subsidy))}"></label>
-        <button class="ghost-btn compact-btn" type="button" data-add-meal-product="true">新增商品</button>
-        <button class="primary-btn compact-btn" type="button" data-save-meal-settings="true">儲存</button>
+      <div class="meal-admin-toolbar meal-settings-toolbar">
+        <div class="meal-toolbar-fields meal-settings-fields">
+          <label class="meal-toolbar-field meal-settings-toolbar-label">
+            <span>截止時間</span>
+            <input type="time" value="${escapeHtml(String(mealAdmin.settings?.daily_cutoff_time || "10:30").slice(0, 5))}" data-meal-cutoff-time>
+          </label>
+          <label class="meal-toolbar-field meal-settings-toolbar-label">
+            <span>公司補助（元）</span>
+            <input type="number" min="1" step="1" inputmode="numeric" pattern="[1-9][0-9]*" value="${escapeHtml(String(subsidy))}" data-meal-company-subsidy data-last-valid-company-subsidy="${escapeHtml(String(subsidy))}">
+          </label>
+        </div>
+        <div class="meal-toolbar-actions">
+          <button class="ghost-btn" type="button" data-add-meal-product="true">新增商品</button>
+          <button class="primary-btn" type="button" data-save-meal-settings="true">儲存設定</button>
+        </div>
       </div>
       ${mealAdmin.error ? `<div class="auth-error">${escapeHtml(mealAdmin.error)}</div>` : ""}
       <div class="meal-settings-table-wrap">
