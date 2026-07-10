@@ -58,6 +58,10 @@
   detailScript.src = "./v2-department-settings-columns.js?v=20260710183000";
   document.head.appendChild(detailScript);
 
+  const scrollPreserveScript = document.createElement("script");
+  scrollPreserveScript.src = "./v2-drag-scroll-preserve.js?v=20260710200000";
+  document.head.appendChild(scrollPreserveScript);
+
   const overtimeSuggestionScript = document.createElement("script");
   overtimeSuggestionScript.src = "./v2-no-overtime-suggestion.js?v=20260710201500";
   document.head.appendChild(overtimeSuggestionScript);
