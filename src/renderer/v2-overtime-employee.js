@@ -105,10 +105,14 @@
       return `<section class="overtime-request-panel">${toggle}<h2>${escapeHtml(workDate)} 加班申請</h2>${selector}<p class="home-subtitle">${escapeHtml(eligibility?.reasons?.[0] || "目前不可申請加班")}</p>${eligibility?.deadlineDate ? `<p class="home-subtitle">申請期限：${escapeHtml(eligibility.deadlineDate)} 23:59</p>` : ""}</section>`;
     }
 
+    const estimateText = stateValue.shift
+      ? `系統依班別估算 ${Number(eligibility.totalHours || 0)} 小時；可依實際情況向上或向下調整。`
+      : "請依實際加班情況填寫時數。";
     return `<section class="overtime-request-panel">
       ${toggle}
-      <div class="overtime-panel-header"><div><h2>${escapeHtml(workDate)} 加班申請</h2><p>系統計算 ${Number(eligibility.totalHours || 0)} 小時；可依實際情況向上或向下調整。</p></div></div>
-      <div class="form-grid two-col">${selector}
+      <div class="overtime-panel-header"><div><h2>${escapeHtml(workDate)} 加班申請</h2><p>${estimateText}</p></div></div>
+      ${selector}
+      <div class="form-grid two-col overtime-hours-grid">
         <div class="form-row"><label for="overtimeEarlyHours">提早上班時數</label><input id="overtimeEarlyHours" type="number" min="0" step="0.5" value="${Number(eligibility.earlyHours || 0)}"></div>
         <div class="form-row"><label for="overtimeLateHours">延後下班時數</label><input id="overtimeLateHours" type="number" min="0" step="0.5" value="${Number(eligibility.lateHours || 0)}"></div>
         <div class="form-row form-row-wide"><label for="overtimeEmployeeNote">加班備註</label><textarea id="overtimeEmployeeNote" rows="3" placeholder="可填寫加班原因或補充說明"></textarea></div>
