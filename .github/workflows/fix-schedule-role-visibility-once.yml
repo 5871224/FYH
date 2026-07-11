@@ -1,0 +1,46 @@
+name: Fix Schedule Role Visibility
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply repository fix
+        run: |
+          node scripts/fix-schedule-role-visibility-once.js
+          rm -f scripts/fix-schedule-role-visibility-once.js
+          rm -f .github/workflows/fix-schedule-role-visibility-once.yml
+
+      - name: Validate
+        run: |
+          node scripts/check-normalized-storage.js
+          node scripts/check-expansion-acceptance.js
+          node scripts/check-settings-lists.js
+          npm run v2:check
+
+      - name: Commit fix to PR branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "統一所有角色的班表人員有效期間"
+          git push origin HEAD:${{ github.head_ref }}
