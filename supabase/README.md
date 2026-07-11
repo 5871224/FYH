@@ -1,44 +1,77 @@
-# Supabase Schema
+# Supabase 資料庫
 
-This folder contains the current database schema and RPC definitions for the scheduler.
-Historical one-off migrations were removed after the schema was normalized.
+本資料夾只保留目前正式需要的資料庫 SQL 與 Edge Functions。資料庫從零建立時，SQL 固定依下列順序執行：
 
-## Current Model
+1. `001_current_schema.sql`
+2. `002_current_updates.sql`
 
-- `schedule_entries` is the single source of truth for schedule cells.
-- A schedule cell is unique by `member_id + work_date`.
-- Shift, leave, and overtime are columns on the same `schedule_entries` row.
-- Attendance overtime requests are independent from schedule overtime columns.
-- Bulk cell writes go through `public.save_schedule_entries_bulk(entries jsonb)`.
-- Attendance clock writes go through `public.save_attendance_clock(...)` so duplicate clicks do not overwrite the first clock time.
-- Meal order saves go through `public.save_meal_order_v2(...)` so delete/insert happens in one database transaction.
-- Department fixed public IP values live in `set_departments.public_ip`; only admins can read or update protected attendance fields.
-- Employee overtime deletes are soft deletes so review/history rows are preserved.
-- Catalog tables use their UUID `id` as the only application identifier; `scheduler_item_id` is retired.
-- Shift applicability uses the required single `set_shift.applicable_department_id` column.
-- RLS policies are created in `001_current_schema.sql`; direct table writes should still stay narrow and manager-only.
+Edge Functions 部署不會自動執行 SQL。兩份 SQL 均成功執行後，再於儲存庫根目錄執行：
 
-## Active Tables
+```powershell
+scripts/deploy-v2-final.ps1
+```
 
-- `scheduler_settings`: global scheduler settings.
-- `set_departments`: departments/locations.
-- `set_employee`: scheduler members, roles, and ordered schedulable shift IDs.
-- `set_shift`: shift catalog.
-- `set_leave`: leave catalog.
-- `set_overtime`: overtime catalog.
-- `holidays`: holiday catalog.
-- `schedule_entries`: schedule cells by member and date.
-- `attendance_records`: current effective clock-in/out data by person/date.
-- `attendance_action_logs`: admin attendance change history.
-- `attendance_overtime_requests`: attendance-based overtime requests, separate from schedule overtime.
-- `overtime_review_logs`: overtime review history.
-- `meal_products`: meal ordering products.
-- `meal_settings`: meal cutoff settings.
-- `meal_orders`: meal order item rows.
+SQL Editor 只要出現錯誤就應立即停止，不可跳過後續區段；請保留完整錯誤訊息再修正。
 
-## Removed Legacy Objects
+## 檔案用途
 
-These are legacy artifacts from the old employee request workflow and should not be used by new code:
+### `001_current_schema.sql`
+
+建立系統基準結構，包含：
+
+- 排班設定、人員、單位、班別、假別、加班與國定假日資料表。
+- `schedule_entries` 正式班表資料。
+- 打卡、打卡異動、加班申請與審核歷程。
+- 訂餐商品、設定及訂單。
+- 基礎索引、RLS、權限保護與核心 RPC。
+
+### `002_current_updates.sql`
+
+依原本 migration 順序整併所有基準結構後的正式更新，包含：
+
+- 班表批次儲存 RPC。
+- 訂餐設定、訂餐快照、公司補助與商品刪除保護。
+- 有效任職、角色、最後管理員與敏感單位欄位保護。
+- 打卡、管理員補登修改與完整稽核快照。
+- 加班批次審核、刪除後重提與歷程索引。
+- Auth 帳號與人員資料的交易式同步刪除。
+- 人員排序、工號唯一性與舊打卡資料表移除。
+- 私密資料存取強化及安全人員／單位名錄 RPC。
+
+各區段保留原始檔名註解與原有交易邊界，方便追查歷史與錯誤位置。
+
+## 目前資料模型
+
+- `schedule_entries` 是班表格唯一正式來源；一格以 `member_id + work_date` 唯一識別。
+- 班別、假別與班表加班共用同一列。
+- 打卡加班申請與班表加班互相獨立。
+- 班表批次寫入使用 `public.save_schedule_entries_bulk(entries jsonb)`。
+- 打卡寫入使用 `public.save_attendance_clock(...)`，重複點擊不得覆寫第一次成功時間。
+- 訂餐使用交易 RPC，保留第一次訂餐單位快照。
+- 固定 IP、原始 GPS、精準度及距離不得透過一般 REST 查詢暴露。
+- 人員與單位一般名錄使用安全 RPC，不直接開放私密主表欄位。
+
+## 正式資料表
+
+- `scheduler_settings`
+- `set_departments`
+- `set_employee`
+- `set_shift`
+- `set_leave`
+- `set_overtime`
+- `holidays`
+- `schedule_entries`
+- `attendance_records`
+- `attendance_action_logs`
+- `attendance_overtime_requests`
+- `overtime_review_logs`
+- `meal_products`
+- `meal_settings`
+- `meal_orders`
+
+## 已淘汰物件
+
+下列舊流程不得恢復：
 
 - `leave_requests`
 - `overtime_requests`
@@ -48,27 +81,17 @@ These are legacy artifacts from the old employee request workflow and should not
 - `clock_locations`
 - `attendance_logs`
 
-## Files
+## 維護規則
 
-1. `001_current_schema.sql`: current tables, indexes, RLS policies, admin protection trigger, and attendance/meal RPCs.
-2. `024_schedule_entries_rpc.sql`: bulk RPC for schedule cell writes.
-3. `026_meal_admin_settings_rpc.sql`: meal product and cutoff settings RPC.
-4. `027_v2_security.sql`: active employee, role, and session helper RPCs.
-5. `028_v2_attendance_clock.sql`: V2 attendance clock RPC.
-6. `029_v2_attendance_admin.sql`: admin attendance edit RPC and action log details.
-7. `030_v2_meal_snapshot.sql`: V2 meal order snapshot RPC.
-8. `031_v2_role_department_protection.sql`: role and sensitive department protection.
-9. `032_v2_overtime_batch.sql`: overtime batch review RPC.
-10. `033_v2_employee_visibility.sql`: active/near-resigned employee visibility helper.
-11. `034_v2_overtime_reapply.sql`: overtime reapply support.
-12. `035_v2_last_admin.sql`: last-admin protection.
+1. 不再新增零散的一次性 SQL 或 SQL 套用順序文件。
+2. 新增資料庫異動時，將具備冪等性的完整區段附加至 `002_current_updates.sql`，並更新本 README。
+3. 若修改基礎資料表或核心 RPC，也要同步檢查 `001_current_schema.sql` 是否需更新，確保全新環境可正常建立。
+4. 涉及班表儲存時，同步檢查 `src/renderer/web-api.js` 與 `scripts/check-normalized-storage.js`。
+5. 涉及前端時，執行 `npm run web:publish`，保持 `src/renderer/` 與 `docs/` 一致。
+6. 部署前至少執行：
 
-## Notes For Changes
-
-- Do not restore the old schedule leave/overtime request workflow. Attendance overtime requests must stay independent from schedule overtime.
-- If a frontend change writes schedule cells, keep `docs/` updated with `npm run web:publish`.
-- If table or schedule cell columns change, update:
-  - `001_current_schema.sql`
-  - `024_schedule_entries_rpc.sql`
-  - `src/renderer/web-api.js`
-  - `scripts/check-normalized-storage.js`
+```bash
+node scripts/check-normalized-storage.js
+node scripts/check-expansion-acceptance.js
+npm run v2:check
+```

@@ -41,7 +41,7 @@ npm run web:publish
   - `request_status`
   - `request_type`
   - `get_public_schedule_requests()`
-- Schedule cell writes should use the bulk RPC in `supabase/024_schedule_entries_rpc.sql`.
+- Schedule cell writes should use the bulk RPC in `supabase/002_current_updates.sql`.
 
 ## Auto-Schedule Status
 
@@ -84,6 +84,6 @@ If a task touches auto-schedule foundation fields, check:
 If a task touches schedule cell persistence, check:
 
 - `supabase/001_current_schema.sql`
-- `supabase/024_schedule_entries_rpc.sql`
+- `supabase/002_current_updates.sql`
 - `src/renderer/web-api.js`
 - `scripts/check-normalized-storage.js`

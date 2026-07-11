@@ -10,12 +10,7 @@ function assert(condition, message) {
 }
 
 const requiredFiles = [
-  "supabase/027_v2_security.sql",
-  "supabase/028_v2_attendance_clock.sql",
-  "supabase/029_v2_attendance_admin.sql",
-  "supabase/030_v2_meal_snapshot.sql",
-  "supabase/031_v2_role_department_protection.sql",
-  "supabase/032_v2_overtime_batch.sql",
+  "supabase/002_current_updates.sql",
   "supabase/functions/attendance-overtime-employee/index.ts",
   "supabase/functions/attendance-overtime-admin-list/index.ts",
   "supabase/functions/attendance-overtime-admin-action/index.ts",
@@ -40,22 +35,23 @@ requiredFiles.forEach((file) => assert(exists(file), `Missing V2 file: ${file}`)
 const reportRecords = read("supabase/functions/report-records/index.ts");
 assert(!reportRecords.includes("full_name, department_id"), "report-records still queries retired set_employee.department_id");
 
-const security = read("supabase/027_v2_security.sql");
+const databaseUpdates = read("supabase/002_current_updates.sql");
+const security = databaseUpdates;
 assert(security.includes("drop policy if exists write_overtime_requests"), "Direct overtime writes are still enabled");
 assert(security.includes("drop policy if exists write_meal_orders"), "Direct meal-order writes are still enabled");
 assert(security.includes("using (public.is_admin(auth.uid()))"), "Admin-only attendance policies are missing");
 
-const clock = read("supabase/028_v2_attendance_clock.sql");
+const clock = databaseUpdates;
 assert(clock.includes("clock_in_company_latitude"), "Clock-in company-coordinate snapshot is missing");
 assert(clock.includes("clock_out_company_longitude"), "Clock-out company-coordinate snapshot is missing");
 assert(clock.includes("and clock_out_at is null"), "Clock-out idempotency check is missing");
 
-const attendanceAdmin = read("supabase/029_v2_attendance_admin.sql");
+const attendanceAdmin = databaseUpdates;
 assert(attendanceAdmin.includes("p_reason text default ''"), "Attendance admin reason is missing");
 assert(attendanceAdmin.includes("old_record, new_record"), "Full attendance old/new audit snapshots are missing");
 assert(attendanceAdmin.includes("if v_in_changed or v_out_changed then"), "Attendance note-only edits may still reset overtime");
 
-const overtimeBatch = read("supabase/032_v2_overtime_batch.sql");
+const overtimeBatch = databaseUpdates;
 assert(overtimeBatch.includes("admin_review_overtime_requests_v2"), "Transactional overtime review RPC is missing");
 assert(overtimeBatch.includes("for update"), "Overtime batch rows are not locked transactionally");
 

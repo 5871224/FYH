@@ -7,10 +7,10 @@ const renderer = fs.readFileSync(path.join(rootDir, "src", "renderer", "renderer
 const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js"), "utf8");
 const exporter = fs.readFileSync(path.join(rootDir, "src", "renderer", "browser-exporter.js"), "utf8");
 const schema = fs.readFileSync(path.join(rootDir, "supabase", "001_current_schema.sql"), "utf8");
-const scheduleEntryRpcMigration = fs.readFileSync(path.join(rootDir, "supabase", "024_schedule_entries_rpc.sql"), "utf8");
+const databaseUpdates = fs.readFileSync(path.join(rootDir, "supabase", "002_current_updates.sql"), "utf8");
 
-assert(webApi.includes('restSelect("set_departments"'), "loadState should read set_departments table");
-assert(webApi.includes('restSelect("set_employee"'), "loadState should read set_employee table");
+assert(webApi.includes('restRpc("get_department_directory_v2"'), "loadState should use the safe department directory RPC");
+assert(webApi.includes('restRpc("get_employee_directory_v2"'), "loadState should use the safe employee directory RPC");
 assert(webApi.includes('restSelect("set_shift"'), "loadState should read set_shift table");
 assert(webApi.includes('restSelect("set_leave"'), "loadState should read set_leave table");
 assert(webApi.includes('restSelect("set_overtime"'), "loadState should read set_overtime table");
@@ -117,9 +117,9 @@ assert(!schema.includes("scheduler_item_id text unique"), "active catalog tables
 assert(!schema.includes("create table if not exists public.set_employee_departments"), "schema should not recreate member department priorities");
 assert(!schema.includes("create table if not exists public.leave_requests") && !schema.includes("create table if not exists public.overtime_requests"), "current schema should not recreate legacy request tables");
 assert(!schema.includes("request_status") && !schema.includes("request_type"), "current schema should not recreate legacy request types");
-assert(scheduleEntryRpcMigration.includes("create or replace function public.save_schedule_entries_bulk(entries jsonb)"), "schedule entry RPC migration should create the bulk save function");
-assert(scheduleEntryRpcMigration.includes("on conflict (member_id, work_date)"), "schedule entry RPC should upsert by member and work date");
-assert(scheduleEntryRpcMigration.includes("grant execute on function public.save_schedule_entries_bulk(jsonb) to authenticated"), "schedule entry RPC should be executable by authenticated users");
+assert(databaseUpdates.includes("create or replace function public.save_schedule_entries_bulk(entries jsonb)"), "schedule entry RPC migration should create the bulk save function");
+assert(databaseUpdates.includes("on conflict (member_id, work_date)"), "schedule entry RPC should upsert by member and work date");
+assert(databaseUpdates.includes("grant execute on function public.save_schedule_entries_bulk(jsonb) to authenticated"), "schedule entry RPC should be executable by authenticated users");
 assert(!schema.includes("schedule_documents"), "current schema should not recreate legacy JSON storage");
 
 console.log("normalized storage checks passed");

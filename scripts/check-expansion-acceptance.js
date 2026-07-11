@@ -6,7 +6,7 @@ const rootDir = path.resolve(__dirname, "..");
 const read = (...parts) => fs.readFileSync(path.join(rootDir, ...parts), "utf8");
 
 const schema = read("supabase", "001_current_schema.sql");
-const mealV2Schema = read("supabase", "030_v2_meal_snapshot.sql");
+const databaseUpdates = read("supabase", "002_current_updates.sql");
 const index = read("src", "renderer", "index.html");
 const renderer = read("src", "renderer", "renderer.js");
 const styles = read("src", "renderer", "styles.css");
@@ -58,7 +58,7 @@ assert(renderer.includes('data-meal-tab="stats"') && renderer.includes("renderMe
 assert(!renderer.includes('["meal", "訂餐統計", isManager()]'), "records page should not expose the meal stats tab");
 assert(renderer.includes('<table class="meal-order-table">'), "today meal order should render as a table");
 assert(renderer.includes("data-meal-product-row") && renderer.includes("commitMealProductOrderFromDom"), "meal settings should support drag ordering");
-assert(schema.includes("create or replace function public.save_meal_order") || mealV2Schema.includes("create or replace function public.save_meal_order_v2"), "meal ordering should use a database transaction RPC");
+assert(schema.includes("create or replace function public.save_meal_order") || databaseUpdates.includes("create or replace function public.save_meal_order_v2"), "meal ordering should use a database transaction RPC");
 assert(mealOrder.includes('rpc("save_meal_order"') || mealOrder.includes('rpc("save_meal_order_v2"'), "meal ordering should call the transaction RPC");
 assert(schema.includes("請先完成上班打卡後再訂餐") && schema.includes("今日訂餐已超過截止時間"), "meal ordering should require clock-in and cutoff checks in the transaction");
 assert(renderer.includes("data-meal-note-product-id"), "meal ordering should support per-item notes");

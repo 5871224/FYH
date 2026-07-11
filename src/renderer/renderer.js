@@ -1,4 +1,4 @@
-﻿const COLORS = [
+const COLORS = [
   { hex: "#378ADD", label: "藍色" },
   { hex: "#185FA5", label: "深藍" },
   { hex: "#23395B", label: "海軍藍" },
@@ -865,7 +865,7 @@ function formatSchedulerError(error, fallback = "操作失敗") {
     message.includes("Could not find the 'overtime_end_time' column of 'schedule_entries'") ||
     message.includes("Could not find the 'overtime_start_time' column of 'schedule_entries'")
   ) {
-    return "加班資料庫尚未套用新版欄位，請先確認 supabase/001_current_schema.sql 與 024_schedule_entries_rpc.sql 已套用。";
+    return "加班資料庫尚未套用新版欄位，請先確認 supabase/001_current_schema.sql 與 002_current_updates.sql 已套用。";
   }
   return message || fallback;
 }

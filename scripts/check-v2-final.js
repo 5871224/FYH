@@ -10,18 +10,7 @@ function assert(condition, message) {
 }
 
 const required = [
-  "supabase/027_v2_security.sql",
-  "supabase/028_v2_attendance_clock.sql",
-  "supabase/029_v2_attendance_admin.sql",
-  "supabase/030_v2_meal_snapshot.sql",
-  "supabase/031_v2_role_department_protection.sql",
-  "supabase/032_v2_overtime_batch.sql",
-  "supabase/033_v2_employee_visibility.sql",
-  "supabase/034_v2_overtime_reapply.sql",
-  "supabase/035_v2_last_admin.sql",
-  "supabase/036_v2_synchronized_member_delete.sql",
-  "supabase/037_v2_meal_subsidy_and_product_delete.sql",
-  "supabase/043_harden_private_data_access.sql",
+  "supabase/002_current_updates.sql",
   "supabase/functions/attendance-clock/index.ts",
   "supabase/functions/attendance-clock-safe/index.ts",
   "supabase/functions/attendance-overtime-employee/index.ts",
@@ -59,29 +48,30 @@ required.forEach((file) => assert(exists(file), `缺少 V2 檔案：${file}`));
 const reportRecords = read("supabase/functions/report-records/index.ts");
 assert(!reportRecords.includes("full_name, department_id"), "仍查詢不存在的 set_employee.department_id");
 
-const security = read("supabase/027_v2_security.sql");
+const databaseUpdates = read("supabase/002_current_updates.sql");
+const security = databaseUpdates;
 assert(security.includes("drop policy if exists write_overtime_requests"), "尚未移除加班直接寫入政策");
 assert(security.includes("drop policy if exists write_meal_orders"), "尚未移除訂餐直接寫入政策");
 assert(security.includes("public.is_effective_user"), "缺少有效任職期間資料庫檢查");
 
-const visibility = read("supabase/033_v2_employee_visibility.sql");
+const visibility = databaseUpdates;
 assert(visibility.includes("drop policy if exists v2_restrict_employee_directory"), "未移除舊員工目錄限制政策");
 assert(visibility.includes("drop policy if exists v2_restrict_schedule_visibility"), "未移除舊班表限制政策");
-const hardenedAccess = read("supabase/043_harden_private_data_access.sql");
+const hardenedAccess = databaseUpdates;
 assert(hardenedAccess.includes("get_employee_directory_v2"), "缺少安全人員名錄 RPC");
 assert(hardenedAccess.includes("get_department_directory_v2"), "缺少安全單位名錄 RPC");
 assert(hardenedAccess.includes("drop policy if exists anon_can_read_profiles"), "未移除匿名人員資料政策");
 assert(hardenedAccess.includes("drop policy if exists authenticated_can_read_schedule_entries"), "未移除逾期帳號班表旁路政策");
 assert(hardenedAccess.includes("revoke select on public.set_employee from authenticated"), "人員主表仍可由所有登入者直接讀取");
 
-const reapply = read("supabase/034_v2_overtime_reapply.sql");
+const reapply = databaseUpdates;
 assert(reapply.includes("where is_deleted_by_employee = false"), "軟刪除後重新申請的部分唯一索引缺失");
 
-const lastAdmin = read("supabase/035_v2_last_admin.sql");
+const lastAdmin = databaseUpdates;
 assert(lastAdmin.includes("protect_last_effective_admin_v2"), "最後有效管理員保護缺失");
 assert(lastAdmin.includes("before update or delete"), "最後管理員更新／刪除觸發器缺失");
 
-const synchronizedDelete = read("supabase/036_v2_synchronized_member_delete.sql");
+const synchronizedDelete = databaseUpdates;
 assert(synchronizedDelete.includes("references auth.users (id)"), "人員資料尚未連結 Auth 使用者");
 assert(synchronizedDelete.includes("on delete cascade"), "Auth 與人員資料未使用同交易級聯刪除");
 assert(synchronizedDelete.includes("has_synchronized_member_delete_v2"), "同步刪除 migration 檢查函式缺失");
@@ -92,7 +82,7 @@ assert(memberDelete.includes('actor.role === "manager" && target.role === "admin
 assert(memberDelete.includes('rpc("delete_member_account_v3"'), "帳號刪除未使用交易 RPC");
 assert(!memberDelete.includes('.from("set_employee").delete()'), "仍存在前端直接刪除人員資料的不同步流程");
 
-const clockSql = read("supabase/028_v2_attendance_clock.sql");
+const clockSql = databaseUpdates;
 assert(clockSql.includes("clock_in_company_latitude"), "上班公司座標快照缺失");
 assert(clockSql.includes("clock_out_company_longitude"), "下班公司座標快照缺失");
 assert(clockSql.includes("and clock_out_at is null"), "下班打卡冪等條件缺失");
@@ -109,7 +99,7 @@ const safeClock = read("supabase/functions/attendance-clock-safe/index.ts");
 assert(!safeClock.includes("clock_in_ip:"), "備援安全打卡回應仍暴露 IP");
 assert(!safeClock.includes("clock_in_latitude:"), "備援安全打卡回應仍暴露 GPS");
 
-const adminSql = read("supabase/029_v2_attendance_admin.sql");
+const adminSql = databaseUpdates;
 assert(adminSql.includes("p_reason text default ''"), "打卡異動原因未設為選填");
 assert(adminSql.includes("old_record, new_record"), "打卡完整新舊快照稽核缺失");
 assert(adminSql.includes("if v_in_changed or v_out_changed then"), "只改備註仍可能重置加班");
@@ -121,7 +111,7 @@ assert(!overtimeEmployee.includes("提早或延後時間未達 30 分鐘"), "員
 assert(!overtimeEmployee.includes("沒有可計算的班別"), "員工加班申請仍強制要求班別");
 assert(overtimeEmployee.includes("加班申請時數必須大於 0"), "零小時加班申請仍可能送出");
 
-const batchSql = read("supabase/032_v2_overtime_batch.sql");
+const batchSql = databaseUpdates;
 assert(batchSql.includes("admin_review_overtime_requests_v2"), "加班批次審核交易 RPC 缺失");
 assert(batchSql.includes("for update"), "加班批次審核未鎖定資料列");
 
@@ -132,7 +122,7 @@ const mealOrder = read("supabase/functions/meal-order/index.ts");
 assert(mealOrder.includes('rpc("save_meal_order_v2"'), "訂餐未保留第一次訂餐單位快照");
 assert(mealOrder.includes("停用品項只能減少或取消"), "停用品項增加數量限制缺失");
 
-const mealSettingsSql = read("supabase/037_v2_meal_subsidy_and_product_delete.sql");
+const mealSettingsSql = databaseUpdates;
 assert(mealSettingsSql.includes("company_subsidy integer"), "公司補助資料庫欄位缺失");
 assert(mealSettingsSql.includes("check (company_subsidy > 0)"), "公司補助正整數資料庫限制缺失");
 assert(mealSettingsSql.includes("delete_meal_product_v2"), "安全刪除訂餐品項 RPC 缺失");
