@@ -86,7 +86,9 @@ assert(memberAuthAdmin.includes('rpc("delete_member_account_v4"'), "正式人員
 assert(memberAuthAdmin.includes("status: 409") && memberAuthAdmin.includes("result?.blocked"), "已有歷史資料時未回傳阻擋狀態");
 assert(!memberAuthAdmin.includes("is_active"), "人員管理端點仍依賴 is_active");
 assert(databaseUpdates.includes("MEMBER_HAS_HISTORY"), "人員刪除缺少穩定歷史阻擋錯誤碼");
-assert(!databaseUpdates.includes("block_direct_member_deactivation_v2"), "人員停用 trigger 尚未移除");
+assert(!databaseUpdates.includes("create or replace function public.block_direct_member_deactivation_v2"), "人員停用函式仍會被建立");
+assert(!databaseUpdates.includes("create trigger block_direct_member_deactivation_v2"), "人員停用 trigger 仍會被建立");
+assert(databaseUpdates.includes("drop trigger if exists block_direct_member_deactivation_v2") && databaseUpdates.includes("drop function if exists public.block_direct_member_deactivation_v2"), "人員停用 trigger 清理 migration 缺失");
 assert(databaseUpdates.includes("alter table public.set_employee drop column if exists is_active"), "人員 is_active 欄位移除 migration 缺失");
 assert(databaseUpdates.includes("is_employee_account_effective") && databaseUpdates.includes("is_employee_employed_on"), "人員有效期共用函式缺失");
 
