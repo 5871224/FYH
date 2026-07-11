@@ -52,6 +52,14 @@ jobs:
           node --check src/renderer/web-api.js
           node --check src/renderer/renderer.js
 
+      - name: Commit refactor to PR branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "移除人員 is_active 欄位"
+          git push origin HEAD:${{ github.head_ref }}
+
       - name: Validate
         run: |
           node scripts/check-normalized-storage.js
@@ -67,11 +75,3 @@ jobs:
             echo '仍有人員 is_active 相依' >&2
             exit 1
           fi
-
-      - name: Commit refactor to PR branch
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "移除人員 is_active 欄位"
-          git push origin HEAD:${{ github.head_ref }}
