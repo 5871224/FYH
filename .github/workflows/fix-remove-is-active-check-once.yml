@@ -1,0 +1,44 @@
+name: Fix Remove Is Active Check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          show-progress: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fix checks and cleanup reports
+        run: |
+          node scripts/fix-remove-is-active-check-once.js
+          rm -f scripts/fix-remove-is-active-check-once.js
+          rm -f .github/workflows/fix-remove-is-active-check-once.yml
+
+      - name: Validate all
+        run: |
+          npm run web:publish
+          node scripts/check-normalized-storage.js
+          node scripts/check-expansion-acceptance.js
+          node scripts/check-settings-lists.js
+          npm run v2:check
+
+      - name: Commit final refactor
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "完成移除人員 is_active 驗證"
+          git push origin HEAD:${{ github.head_ref }}
