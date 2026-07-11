@@ -1,4 +1,5 @@
 name: Normalize consolidated specification once
+run-name: Normalize consolidated specification
 
 on:
   push:
@@ -26,7 +27,7 @@ jobs:
           workflow_path = Path('.github/workflows/normalize-consolidated-spec-once.yml')
           spec = spec_path.read_text(encoding='utf-8-sig')
 
-          # 移除第一次整合產生的「原檔逐份附錄」區塊，改寫為正式章節內容。
+          # 移除第一次整合產生的逐檔附錄，內容改寫進正式章節。
           spec = re.sub(
               r'\n### 整合補充規格\n.*?(?=\n##\s|\n#\s|\Z)',
               '\n',
@@ -88,14 +89,6 @@ jobs:
           start = spec.index('### 1.2.2 加班申請')
           end = spec.index('## 1.3 其他相關規則', start)
           spec = spec[:start] + overtime_section.rstrip() + '\n\n' + spec[end:]
-
-          # 移除可能既有的自動補班補充小節，再於 3.3 正式加入。
-          spec = re.sub(
-              r'\n### [^\n]*自動補班預覽[^\n]*\n.*?(?=\n###\s|\n##\s|\n#\s|\Z)',
-              '\n',
-              spec,
-              flags=re.S,
-          )
 
           auto_fill = '''### 自動補班預覽
 
@@ -198,7 +191,6 @@ jobs:
           m_end = spec.index('## 6.10 無障礙與實作規則', m_start)
           spec = spec[:m_start] + mobile_section.rstrip() + '\n\n' + spec[m_end:]
 
-          # 6.3 與 6.8 的共用值改為與 6.9 的手機例外一致。
           spec = spec.replace(
               '| 頁面外距 | `--ui-mobile-page-gutter` | 4px |',
               '| 頁面外距 | `--ui-mobile-page-gutter` | 8px |',
@@ -212,13 +204,6 @@ jobs:
               '1. 電腦與平板版的首頁、打卡、訂餐、紀錄、班表與登入主卡片使用 24px 圓角；寬度不超過 640px 的五個主要頁面依 6.9 移除最外層卡片樣式。',
           )
 
-          # 移除既有拖曳補充，再於 6.10 正式加入。
-          spec = re.sub(
-              r'\n### [^\n]*(?:拖曳排序|捲動位置)[^\n]*\n.*?(?=\n###\s|\n##\s|\n#\s|\Z)',
-              '\n',
-              spec,
-              flags=re.S,
-          )
           drag_section = '''### 拖曳排序與捲動位置統一規則
 
 1. 適用於單位排序、單位內人員排序與跨單位移動、班別／假別／加班設定清單、訂餐商品、班表人員與單位，以及後續新增的所有拖曳排序功能。
