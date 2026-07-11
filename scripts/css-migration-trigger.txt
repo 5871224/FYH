@@ -1,2 +1,2 @@
 Trigger the one-time CSS architecture migration workflow.
-Retry: normalize nested template escapes before execution.
+Retry: capture build and validation error log.
