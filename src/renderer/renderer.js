@@ -153,6 +153,8 @@ let departmentSettingsView = "department";
 let currentSession = null;
 let currentProfile = null;
 let currentMember = null;
+let managerDirectoryLoaded = false;
+let managerDirectoryLoading = null;
 let attendanceState = {
   loading: false,
   saving: false,
@@ -2523,6 +2525,28 @@ function isManager() {
 
 function canEditSchedule() {
   return isManager();
+}
+
+async function ensureManagerDirectoryLoaded() {
+  if (!isManager() || managerDirectoryLoaded) {
+    return;
+  }
+  if (!managerDirectoryLoading) {
+    managerDirectoryLoading = window.schedulerApi.loadEmployeeAdminDirectory()
+      .then((adminMembers) => {
+        const adminById = new Map((adminMembers || []).map((member) => [member.id, member]));
+        state.members = state.members.map((member) => {
+          const adminMember = adminById.get(member.id);
+          return adminMember ? { ...member, ...adminMember, id: member.id } : member;
+        });
+        managerDirectoryLoaded = true;
+        currentMember = resolveCurrentMember();
+      })
+      .finally(() => {
+        managerDirectoryLoading = null;
+      });
+  }
+  await managerDirectoryLoading;
 }
 
 function getCurrentProfileName() {
@@ -5504,7 +5528,13 @@ async function deleteListItem(category, id) {
   await forceSave();
 }
 
-function openDepartmentSettings() {
+async function openDepartmentSettings() {
+  try {
+    await ensureManagerDirectoryLoaded();
+  } catch (error) {
+    showInfoMessage(`讀取管理資料失敗：${error.message || error}`);
+    return;
+  }
   departmentSettingsView = "department";
   modalContext = { category: "department-settings", view: "department" };
   const activeMembers = state.members.filter(isMemberCurrentlyActive);
@@ -6140,7 +6170,13 @@ function refreshMemberSettingsList() {
   }
 }
 
-function openMemberSettings() {
+async function openMemberSettings() {
+  try {
+    await ensureManagerDirectoryLoaded();
+  } catch (error) {
+    showInfoMessage(`讀取管理資料失敗：${error.message || error}`);
+    return;
+  }
   modalContext = { category: "member-settings" };
   const body = `
       <div class="member-settings-filters">
@@ -7059,6 +7095,8 @@ function bindEvents() {
     currentSession = null;
     currentProfile = null;
     currentMember = null;
+    managerDirectoryLoaded = false;
+    managerDirectoryLoading = null;
     attendanceState = { loading: false, saving: false, record: null, serverDate: "", error: "" };
     attendanceOvertimeState = { loading: false, expanded: false, status: null, error: "" };
     mealOrderState = { loading: false, status: null, error: "" };
@@ -7110,6 +7148,12 @@ function bindEvents() {
         return;
       }
       if (target.dataset.homeAction === "schedule") {
+        try {
+          await ensureManagerDirectoryLoaded();
+        } catch (error) {
+          showInfoMessage(`讀取班表管理資料失敗：${error.message || error}`);
+          return;
+        }
         appView = "schedule";
         renderAll();
         return;
@@ -7300,11 +7344,11 @@ function bindEvents() {
       return;
     }
     if (target.dataset.openDepartmentSettings) {
-      openDepartmentSettings();
+      await openDepartmentSettings();
       return;
     }
     if (target.dataset.openMemberSettings) {
-      openMemberSettings();
+      await openMemberSettings();
       return;
     }
     if (target.dataset.openChangePassword) {
@@ -7814,6 +7858,8 @@ function bindEvents() {
 }
 
 async function loadApp() {
+  managerDirectoryLoaded = false;
+  managerDirectoryLoading = null;
   bindEvents();
   pushAppBackHistoryGuard();
   authErrorMessage = "";

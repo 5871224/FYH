@@ -145,6 +145,10 @@ const sourceRenderer = read("src/renderer/renderer.js");
 const sourceWebApi = read("src/renderer/web-api.js");
 assert(sourceWebApi.includes("get_my_profile_v2") && sourceWebApi.includes("get_schedule_directory_v2") && sourceWebApi.includes("get_employee_admin_directory_v2") && sourceWebApi.includes("get_department_directory_v2"), "前端尚未依用途使用安全名錄 RPC");
 assert(!sourceWebApi.includes("get_employee_directory_v2"), "前端仍使用混合用途舊人員名錄 RPC");
+const loadStateSource = sourceWebApi.slice(sourceWebApi.indexOf("async function loadState()"), sourceWebApi.indexOf("async function syncLeaveAndOvertimeCatalogs"));
+assert(!loadStateSource.includes("getEmployeeAdminDirectoryRows"), "一般登入初始化仍預載完整管理名錄");
+assert(sourceWebApi.includes("async function loadEmployeeAdminDirectory()"), "前端缺少管理名錄延遲載入介面");
+assert(sourceRenderer.includes("async function ensureManagerDirectoryLoaded()") && sourceRenderer.includes("await ensureManagerDirectoryLoaded();"), "班表與設定頁未依需要載入管理名錄");
 const attendanceClockSource = read("supabase/functions/attendance-clock/index.ts");
 assert(sourceRenderer.includes("geolocationError") && sourceWebApi.includes("geolocationError"), "手機定位錯誤未送到打卡 API");
 assert(attendanceClockSource.includes("目前位置或網路不符合打卡條件") && !attendanceClockSource.includes("目前 IP ${clientIp}"), "打卡錯誤仍可能暴露距離、精準度或 IP");
@@ -200,6 +204,7 @@ assert(authoritativeSpec.includes("手機優先"), "正式規格書缺少響應�
 assert(authoritativeSpec.includes("員工、主管與管理員看到的人員列") && authoritativeSpec.includes("角色差異只影響編輯工具"), "正式規格書缺少所有角色班表一致規則");
 assert(authoritativeSpec.includes("get_my_profile_v2") && authoritativeSpec.includes("get_schedule_directory_v2") && authoritativeSpec.includes("get_employee_admin_directory_v2"), "正式規格書缺少人員資料用途分流");
 assert(authoritativeSpec.includes("頁面與資料權限矩陣"), "正式規格書缺少跨頁面權限矩陣");
+assert(authoritativeSpec.includes("管理名錄採依頁面延遲載入"), "正式規格書缺少管理名錄延遲載入規則");
 
 assert(authoritativeSpec.includes("可查看所有人員完整班表") || authoritativeSpec.includes("可查看完整班表與統計欄"), "正式規格書未明確標示員工可查看完整班表");
 assert(authoritativeSpec.includes("警告併入備註"), "正式規格書未明確標示訂餐統計警告併入備註欄");

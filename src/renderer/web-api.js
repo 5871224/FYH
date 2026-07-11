@@ -1101,15 +1101,41 @@
       }));
   }
 
+  function mapMemberDirectoryRows(profileRows = []) {
+    return (profileRows || []).map((row) => {
+      const fallbackDeptId = row.home_department_id || "";
+      const scheduleShiftIds = normalizeTextArray(row.schedule_shift_ids)
+        .filter((value, index, list) => value && list.indexOf(value) === index);
+      return {
+        id: row.id,
+        code: row.employee_code || "",
+        name: row.full_name || "",
+        deptId: fallbackDeptId,
+        scheduleShiftIds,
+        positionId: "",
+        proxyMemberId: "",
+        hireDate: row.hire_date || "",
+        leaveDate: row.leave_date || "",
+        payByDay: Boolean(row.pay_by_day),
+        fixedRestWeekday: clampInteger(row.fixed_rest_weekday, 0, 6, 0),
+        monthlyRestDays: Math.max(0, Number(row.monthly_rest_days) || 0),
+        role: normalizeRole(row.role)
+      };
+    });
+  }
+
+  async function loadEmployeeAdminDirectory() {
+    ensureManager();
+    return mapMemberDirectoryRows(await getEmployeeAdminDirectoryRows());
+  }
+
   async function loadState() {
     const auth = Boolean(currentSession?.access_token);
     try {
-      const managerAccess = hasManagerAccess(currentProfile?.role);
       const [
         settingsRows,
         departmentRows,
-        scheduleProfileRows,
-        adminProfileRows,
+        profileRows,
         shiftRows,
         leaveRows,
         overtimeRows,
@@ -1118,18 +1144,12 @@
         restSelect("scheduler_settings", { select: "*", filters: { id: `eq.${documentId}` }, limit: "1", auth }),
         getDepartmentDirectoryRows(),
         getScheduleDirectoryRows(),
-        managerAccess ? getEmployeeAdminDirectoryRows() : Promise.resolve([]),
         restSelect("set_shift", { select: "*", order: "sort_order.asc,name.asc", auth }),
         restSelect("set_leave", { select: "*", order: "sort_order.asc,code.asc", auth }),
         restSelect("set_overtime", { select: "*", order: "sort_order.asc,name.asc", auth }),
         restSelect("holidays", { select: "*", order: "sort_order.asc,holiday_date.asc", auth })
       ]);
 
-      const adminProfilesById = new Map((adminProfileRows || []).map((row) => [row.id, row]));
-      const profileRows = (scheduleProfileRows || []).map((row) => ({
-        ...(adminProfilesById.get(row.id) || {}),
-        ...row
-      }));
       const settings = settingsRows?.[0] || {};
       const scheduleRange = getScheduleLoadRange(settings);
       const scheduleEntryRows = await restSelect("schedule_entries", {
@@ -1139,26 +1159,7 @@
         auth
       });
 
-      const members = (profileRows || []).map((row) => {
-        const fallbackDeptId = row.home_department_id || "";
-        const scheduleShiftIds = normalizeTextArray(row.schedule_shift_ids)
-          .filter((value, index, list) => value && list.indexOf(value) === index);
-        return {
-          id: row.id,
-          code: row.employee_code || "",
-          name: row.full_name || "",
-          deptId: fallbackDeptId,
-          scheduleShiftIds,
-          positionId: "",
-          proxyMemberId: "",
-          hireDate: row.hire_date || "",
-          leaveDate: row.leave_date || "",
-          payByDay: Boolean(row.pay_by_day),
-          fixedRestWeekday: clampInteger(row.fixed_rest_weekday, 0, 6, 0),
-          monthlyRestDays: Math.max(0, Number(row.monthly_rest_days) || 0),
-          role: normalizeRole(row.role)
-        };
-      });
+      const members = mapMemberDirectoryRows(profileRows);
       const schedule = mapScheduleRows(scheduleEntryRows, members);
 
       return {
@@ -1928,6 +1929,7 @@
     getMealReport,
     deleteMemberProfile,
     loadState,
+    loadEmployeeAdminDirectory,
     loadScheduleEntries,
     saveState,
     syncCatalogs,

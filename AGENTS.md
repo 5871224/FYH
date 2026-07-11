@@ -56,7 +56,7 @@ npm run web:publish
 4. 不新增零散的一次性 SQL、migration 子檔或額外 SQL 順序文件。
 5. Edge Function 正式部署清單以 `scripts/deploy-v2-final.ps1` 的 `$functions` 陣列為準；不得因 `supabase/functions/` 中存在資料夾，就自行判定該函式仍在正式使用。
 6. 新增、移除或改名正式 Edge Function 時，必須同步更新部署腳本、根 README 與規格書第七章的現行後端功能清單。
-7. 人員資料介面依用途固定分為本人資料、共同班表名錄與管理名錄；新增頁面時不得直接讀取 `set_employee`，也不得把管理名錄拿給一般頁面使用。
+7. 人員資料介面依用途固定分為本人資料、共同班表名錄與管理名錄；新增頁面時不得直接讀取 `set_employee`，也不得把管理名錄拿給一般頁面使用。管理名錄必須依管理頁面延遲載入，不得在一般登入初始化時預載。
 8. 權限控制必須由 RPC、RLS 或 Edge Function 明確實作，不得以攔截 `fetch`、前端刪除欄位或後載入覆寫作為主要安全邊界。
 9. SQL Editor 出現錯誤時立即停止，不可跳過後續區段。
 

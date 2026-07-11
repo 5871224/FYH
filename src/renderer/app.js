@@ -2232,15 +2232,41 @@
       }));
   }
 
+  function mapMemberDirectoryRows(profileRows = []) {
+    return (profileRows || []).map((row) => {
+      const fallbackDeptId = row.home_department_id || "";
+      const scheduleShiftIds = normalizeTextArray(row.schedule_shift_ids)
+        .filter((value, index, list) => value && list.indexOf(value) === index);
+      return {
+        id: row.id,
+        code: row.employee_code || "",
+        name: row.full_name || "",
+        deptId: fallbackDeptId,
+        scheduleShiftIds,
+        positionId: "",
+        proxyMemberId: "",
+        hireDate: row.hire_date || "",
+        leaveDate: row.leave_date || "",
+        payByDay: Boolean(row.pay_by_day),
+        fixedRestWeekday: clampInteger(row.fixed_rest_weekday, 0, 6, 0),
+        monthlyRestDays: Math.max(0, Number(row.monthly_rest_days) || 0),
+        role: normalizeRole(row.role)
+      };
+    });
+  }
+
+  async function loadEmployeeAdminDirectory() {
+    ensureManager();
+    return mapMemberDirectoryRows(await getEmployeeAdminDirectoryRows());
+  }
+
   async function loadState() {
     const auth = Boolean(currentSession?.access_token);
     try {
-      const managerAccess = hasManagerAccess(currentProfile?.role);
       const [
         settingsRows,
         departmentRows,
-        scheduleProfileRows,
-        adminProfileRows,
+        profileRows,
         shiftRows,
         leaveRows,
         overtimeRows,
@@ -2249,18 +2275,12 @@
         restSelect("scheduler_settings", { select: "*", filters: { id: `eq.${documentId}` }, limit: "1", auth }),
         getDepartmentDirectoryRows(),
         getScheduleDirectoryRows(),
-        managerAccess ? getEmployeeAdminDirectoryRows() : Promise.resolve([]),
         restSelect("set_shift", { select: "*", order: "sort_order.asc,name.asc", auth }),
         restSelect("set_leave", { select: "*", order: "sort_order.asc,code.asc", auth }),
         restSelect("set_overtime", { select: "*", order: "sort_order.asc,name.asc", auth }),
         restSelect("holidays", { select: "*", order: "sort_order.asc,holiday_date.asc", auth })
       ]);
 
-      const adminProfilesById = new Map((adminProfileRows || []).map((row) => [row.id, row]));
-      const profileRows = (scheduleProfileRows || []).map((row) => ({
-        ...(adminProfilesById.get(row.id) || {}),
-        ...row
-      }));
       const settings = settingsRows?.[0] || {};
       const scheduleRange = getScheduleLoadRange(settings);
       const scheduleEntryRows = await restSelect("schedule_entries", {
@@ -2270,26 +2290,7 @@
         auth
       });
 
-      const members = (profileRows || []).map((row) => {
-        const fallbackDeptId = row.home_department_id || "";
-        const scheduleShiftIds = normalizeTextArray(row.schedule_shift_ids)
-          .filter((value, index, list) => value && list.indexOf(value) === index);
-        return {
-          id: row.id,
-          code: row.employee_code || "",
-          name: row.full_name || "",
-          deptId: fallbackDeptId,
-          scheduleShiftIds,
-          positionId: "",
-          proxyMemberId: "",
-          hireDate: row.hire_date || "",
-          leaveDate: row.leave_date || "",
-          payByDay: Boolean(row.pay_by_day),
-          fixedRestWeekday: clampInteger(row.fixed_rest_weekday, 0, 6, 0),
-          monthlyRestDays: Math.max(0, Number(row.monthly_rest_days) || 0),
-          role: normalizeRole(row.role)
-        };
-      });
+      const members = mapMemberDirectoryRows(profileRows);
       const schedule = mapScheduleRows(scheduleEntryRows, members);
 
       return {
@@ -3059,6 +3060,7 @@
     getMealReport,
     deleteMemberProfile,
     loadState,
+    loadEmployeeAdminDirectory,
     loadScheduleEntries,
     saveState,
     syncCatalogs,
@@ -3521,6 +3523,8 @@ let departmentSettingsView = "department";
 let currentSession = null;
 let currentProfile = null;
 let currentMember = null;
+let managerDirectoryLoaded = false;
+let managerDirectoryLoading = null;
 let attendanceState = {
   loading: false,
   saving: false,
@@ -5891,6 +5895,28 @@ function isManager() {
 
 function canEditSchedule() {
   return isManager();
+}
+
+async function ensureManagerDirectoryLoaded() {
+  if (!isManager() || managerDirectoryLoaded) {
+    return;
+  }
+  if (!managerDirectoryLoading) {
+    managerDirectoryLoading = window.schedulerApi.loadEmployeeAdminDirectory()
+      .then((adminMembers) => {
+        const adminById = new Map((adminMembers || []).map((member) => [member.id, member]));
+        state.members = state.members.map((member) => {
+          const adminMember = adminById.get(member.id);
+          return adminMember ? { ...member, ...adminMember, id: member.id } : member;
+        });
+        managerDirectoryLoaded = true;
+        currentMember = resolveCurrentMember();
+      })
+      .finally(() => {
+        managerDirectoryLoading = null;
+      });
+  }
+  await managerDirectoryLoading;
 }
 
 function getCurrentProfileName() {
@@ -8872,7 +8898,13 @@ async function deleteListItem(category, id) {
   await forceSave();
 }
 
-function openDepartmentSettings() {
+async function openDepartmentSettings() {
+  try {
+    await ensureManagerDirectoryLoaded();
+  } catch (error) {
+    showInfoMessage(`讀取管理資料失敗：${error.message || error}`);
+    return;
+  }
   departmentSettingsView = "department";
   modalContext = { category: "department-settings", view: "department" };
   const activeMembers = state.members.filter(isMemberCurrentlyActive);
@@ -9508,7 +9540,13 @@ function refreshMemberSettingsList() {
   }
 }
 
-function openMemberSettings() {
+async function openMemberSettings() {
+  try {
+    await ensureManagerDirectoryLoaded();
+  } catch (error) {
+    showInfoMessage(`讀取管理資料失敗：${error.message || error}`);
+    return;
+  }
   modalContext = { category: "member-settings" };
   const body = `
       <div class="member-settings-filters">
@@ -10426,6 +10464,8 @@ function bindEvents() {
     currentSession = null;
     currentProfile = null;
     currentMember = null;
+    managerDirectoryLoaded = false;
+    managerDirectoryLoading = null;
     attendanceState = { loading: false, saving: false, record: null, serverDate: "", error: "" };
     attendanceOvertimeState = { loading: false, expanded: false, status: null, error: "" };
     mealOrderState = { loading: false, status: null, error: "" };
@@ -10477,6 +10517,12 @@ function bindEvents() {
         return;
       }
       if (target.dataset.homeAction === "schedule") {
+        try {
+          await ensureManagerDirectoryLoaded();
+        } catch (error) {
+          showInfoMessage(`讀取班表管理資料失敗：${error.message || error}`);
+          return;
+        }
         appView = "schedule";
         renderAll();
         return;
@@ -10667,11 +10713,11 @@ function bindEvents() {
       return;
     }
     if (target.dataset.openDepartmentSettings) {
-      openDepartmentSettings();
+      await openDepartmentSettings();
       return;
     }
     if (target.dataset.openMemberSettings) {
-      openMemberSettings();
+      await openMemberSettings();
       return;
     }
     if (target.dataset.openChangePassword) {
@@ -11181,6 +11227,8 @@ function bindEvents() {
 }
 
 async function loadApp() {
+  managerDirectoryLoaded = false;
+  managerDirectoryLoading = null;
   bindEvents();
   pushAppBackHistoryGuard();
   authErrorMessage = "";
