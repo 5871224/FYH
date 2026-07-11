@@ -32,13 +32,6 @@ jobs:
       - name: Build published frontend
         run: npm run web:publish
 
-      - name: Validate
-        run: |
-          node scripts/check-normalized-storage.js
-          node scripts/check-expansion-acceptance.js
-          node scripts/check-settings-lists.js
-          npm run v2:check
-
       - name: Commit fixes to PR branch
         run: |
           git config user.name "github-actions[bot]"
@@ -46,3 +39,15 @@ jobs:
           git add -A
           git commit -m "修正人員刪除歷史保護"
           git push origin HEAD:${{ github.head_ref }}
+
+      - name: Check normalized storage
+        run: node scripts/check-normalized-storage.js
+
+      - name: Check expansion acceptance
+        run: node scripts/check-expansion-acceptance.js
+
+      - name: Check settings lists
+        run: node scripts/check-settings-lists.js
+
+      - name: Run V2 checks
+        run: npm run v2:check
