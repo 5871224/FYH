@@ -97,13 +97,21 @@ async function removeMember(ctx: any, body: any) {
     throw new Error("系統必須保留至少一個有效管理員");
   }
 
-  const result = await ctx.supabaseAdmin.rpc("delete_member_account_v3", {
+  const result = await ctx.supabaseAdmin.rpc("delete_member_account_v4", {
     p_target_id: target.id
   });
   if (result.error) throw result.error;
 
+  const payload = result.data || { ok: true, deleted: false, softDeleted: false };
+  if (payload?.blocked) {
+    return new Response(JSON.stringify(payload), {
+      status: 409,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
   return {
-    ...(result.data || { ok: true, deleted: false, softDeleted: false }),
+    ...payload,
     selfDelete,
     employeeCode: target.employee_code
   };
@@ -115,7 +123,8 @@ export default {
       return Response.json({ message: "Method Not Allowed" }, { status: 405 });
     }
     try {
-      return Response.json(await removeMember(ctx, await req.json()));
+      const result = await removeMember(ctx, await req.json());
+      return result instanceof Response ? result : Response.json(result);
     } catch (error) {
       return Response.json({
         message: error instanceof Error ? error.message : "刪除人員失敗"

@@ -2688,17 +2688,6 @@
     await deleteRowsNotIn("holidays", holidays.map((holiday) => holiday.id));
 
     const profileMap = await ensureMemberProfiles(state);
-    const memberCodes = (state.members || []).map((member) => member.code).filter(Boolean);
-    if (memberCodes.length) {
-      await restUpdate("set_employee", {
-        employee_code: `not.${buildInFilter(memberCodes)}`
-      }, {
-        is_active: false
-      }, {
-        auth: true,
-        prefer: "return=minimal"
-      });
-    }
     for (const member of state.members || []) {
       const profile = profileMap.get(member.code);
       if (!profile?.id) {

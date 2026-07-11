@@ -20,6 +20,7 @@ const required = [
   "supabase/functions/attendance-admin-action-v2/index.ts",
   "supabase/functions/department-attendance-v2/index.ts",
   "supabase/functions/member-delete-v2/index.ts",
+  "supabase/functions/member-auth-admin/index.ts",
   "supabase/functions/personal-records-v2/index.ts",
   "supabase/functions/meal-order/index.ts",
   "supabase/functions/meal-report-v2/index.ts",
@@ -78,8 +79,14 @@ assert(synchronizedDelete.includes("has_synchronized_member_delete_v2"), "同步
 const memberDelete = read("supabase/functions/member-delete-v2/index.ts");
 assert(memberDelete.includes("員工沒有刪除帳號權限"), "後端未明確禁止員工刪除帳號");
 assert(memberDelete.includes('actor.role === "manager" && target.role === "admin"'), "主管刪除權限未限制為管理員帳號以外");
-assert(memberDelete.includes('rpc("delete_member_account_v3"'), "帳號刪除未使用交易 RPC");
+assert(memberDelete.includes('rpc("delete_member_account_v4"'), "帳號刪除未使用歷史保護交易 RPC");
 assert(!memberDelete.includes('.from("set_employee").delete()'), "仍存在前端直接刪除人員資料的不同步流程");
+const memberAuthAdmin = read("supabase/functions/member-auth-admin/index.ts");
+assert(memberAuthAdmin.includes('rpc("delete_member_account_v4"'), "正式人員管理端點未使用歷史保護交易 RPC");
+assert(memberAuthAdmin.includes("status: 409") && memberAuthAdmin.includes("result?.blocked"), "已有歷史資料時未回傳阻擋狀態");
+assert(!memberAuthAdmin.includes("update({ is_active: false })"), "人員刪除仍會改成停用狀態");
+assert(databaseUpdates.includes("MEMBER_HAS_HISTORY"), "人員刪除缺少穩定歷史阻擋錯誤碼");
+assert(databaseUpdates.includes("block_direct_member_deactivation_v2"), "資料庫未阻擋舊前端直接停用人員");
 
 const clockSql = databaseUpdates;
 assert(clockSql.includes("clock_in_company_latitude"), "上班公司座標快照缺失");
@@ -153,6 +160,8 @@ assert(sourceWebApi.includes("async function loadEmployeeAdminDirectory()"), "�
 assert(sourceWebApi.includes('restRpc("save_departments_general_v2"') && sourceWebApi.includes('restRpc("delete_department_general_v2"'), "單位新增修改刪除未使用安全 RPC");
 assert(!sourceWebApi.includes('restInsert("set_departments"'), "前端仍直接 upsert 單位主表");
 assert(sourceWebApi.includes('restRpc("get_schedule_export_rows_v2"') && sourceWebApi.includes("loadScheduleExportRows"), "前端缺少班表正式匯出資料查詢");
+const saveStateSource = sourceWebApi.slice(sourceWebApi.indexOf("async function saveState(state)"), sourceWebApi.indexOf("async function syncCatalogs(state)"));
+assert(!saveStateSource.includes("is_active: false"), "全量儲存仍可能把未出現在畫面的人員改為停用");
 assert(sourceRenderer.includes("async function ensureManagerDirectoryLoaded()") && sourceRenderer.includes("await ensureManagerDirectoryLoaded();"), "班表與設定頁未依需要載入管理名錄");
 const attendanceClockSource = read("supabase/functions/attendance-clock/index.ts");
 assert(sourceRenderer.includes("geolocationError") && sourceWebApi.includes("geolocationError"), "手機定位錯誤未送到打卡 API");
