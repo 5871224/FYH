@@ -292,15 +292,6 @@ async function resetPassword(ctx: any, body: any) {
   return { ok: true, employeeCode, password };
 }
 
-async function countRows(ctx: any, table: string, column: string, value: string) {
-  const { count, error } = await ctx.supabaseAdmin
-    .from(table)
-    .select("id", { count: "exact", head: true })
-    .eq(column, value);
-  if (error) throw error;
-  return count || 0;
-}
-
 async function deleteMember(ctx: any, body: any) {
   const employeeCode = String(body?.employeeCode || "").trim();
   const actorRole = normalizeRole(body?.actorRole);
@@ -315,34 +306,19 @@ async function deleteMember(ctx: any, body: any) {
     throw new Error("系統必須保留至少一個有效管理員");
   }
 
-  const relatedCounts = await Promise.all([
-    countRows(ctx, "schedule_entries", "member_id", profile.id),
-    countRows(ctx, "attendance_records", "user_id", profile.id),
-    countRows(ctx, "attendance_overtime_requests", "user_id", profile.id),
-    countRows(ctx, "meal_orders", "user_id", profile.id)
-  ]);
+  const { data, error } = await ctx.supabaseAdmin.rpc("delete_member_account_v4", {
+    p_target_id: profile.id
+  });
+  if (error) throw error;
 
-  if (relatedCounts.some((count) => count > 0)) {
-    const { error } = await ctx.supabaseAdmin
-      .from("set_employee")
-      .update({ is_active: false })
-      .eq("id", profile.id);
-    if (error) throw error;
-    return { ok: true, deleted: true, softDeleted: true, employeeCode };
+  const result = data || { ok: true, deleted: false, softDeleted: false };
+  if (result?.blocked) {
+    return new Response(JSON.stringify(result), {
+      status: 409,
+      headers: { "Content-Type": "application/json" }
+    });
   }
-
-  const { error: deleteUserError } = await ctx.supabaseAdmin.auth.admin.deleteUser(profile.id);
-  if (deleteUserError && !/not found/i.test(String(deleteUserError.message || deleteUserError))) {
-    throw deleteUserError;
-  }
-  if (deleteUserError) {
-    const { error: deleteProfileError } = await ctx.supabaseAdmin
-      .from("set_employee")
-      .delete()
-      .eq("id", profile.id);
-    if (deleteProfileError) throw deleteProfileError;
-  }
-  return { ok: true, deleted: true, softDeleted: false, employeeCode };
+  return { ...result, employeeCode };
 }
 
 console.assert(buildLoginEmail("SELF_CHECK") === "self_check@local.invalid", "member-auth-admin buildLoginEmail failed");
@@ -372,7 +348,10 @@ export default {
         const result = await resetPassword(ctx, body);
         return result instanceof Response ? result : Response.json(result);
       }
-      if (body?.action === "delete_member") return Response.json(await deleteMember(ctx, body));
+      if (body?.action === "delete_member") {
+        const result = await deleteMember(ctx, body);
+        return result instanceof Response ? result : Response.json(result);
+      }
 
       return new Response(JSON.stringify({ message: "不支援的操作" }), {
         status: 400,

@@ -19,7 +19,7 @@ assert(webApi.includes('restSelect("set_leave"'), "loadState should read set_lea
 assert(webApi.includes('restSelect("set_overtime"'), "loadState should read set_overtime table");
 assert(webApi.includes('restSelect("schedule_entries"'), "loadState should read schedule_entries table");
 assert(webApi.includes("filters: getScheduleEntryFilters(scheduleRange)"), "loadState should only read the buffered visible schedule range");
-assert(webApi.includes('restInsert("set_departments"'), "saveState should write set_departments table");
+assert(webApi.includes('restRpc("save_departments_general_v2"'), "saveState should write departments through the protected RPC");
 assert(webApi.includes('restRpc("save_schedule_entries_bulk"'), "schedule entry writes should use the bulk RPC");
 assert(webApi.includes("fetchExistingScheduleRowsForRanges(state.scheduleLoadedRanges)"), "saveState cleanup should only compare loaded schedule ranges");
 assert(!webApi.includes('restSelect("schedule_months"') && !webApi.includes('restInsert("schedule_months"'), "web api should not use schedule_months");
