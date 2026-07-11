@@ -27,6 +27,25 @@ jobs:
         id: complete
         shell: bash
         run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("scripts/complete-professional-spec-once.py")
+          text = path.read_text(encoding="utf-8")
+          old = 'spec = replace_once(spec, old_tree, new_tree, "文件樹狀目錄")'
+          new = '''import re
+          spec, tree_count = re.subn(
+              r"└─ 第七章　後端架構與平台遷移.*?└─ 7\\.8 驗收與切換原則",
+              new_tree,
+              spec,
+              count=1,
+              flags=re.S,
+          )
+          if tree_count != 1:
+              raise RuntimeError("找不到替換位置：文件樹狀目錄")'''
+          if old not in text:
+              raise RuntimeError("找不到規格目錄更新程式")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
           set +e
           python3 scripts/complete-professional-spec-once.py > professional-spec-update.log 2>&1
           status=$?
