@@ -65,12 +65,36 @@ jobs:
         run: exit 1
 
       - name: Build and validate
+        id: build
+        shell: bash
+        continue-on-error: true
         run: |
-          npm run web:publish
-          npm run web:check
-          node scripts/check-normalized-storage.js
-          node scripts/check-expansion-acceptance.js
-          npm run v2:check
+          set +e
+          {
+            npm run web:publish
+            npm run web:check
+            node scripts/check-normalized-storage.js
+            node scripts/check-expansion-acceptance.js
+            npm run v2:check
+          } > css-build.log 2>&1
+          status=$?
+          cat css-build.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" -eq 0 ]; then
+            rm -f css-build.log
+          fi
+          exit 0
+
+      - name: Upload build error log
+        if: steps.build.outputs.status != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: css-build-error
+          path: css-build.log
+
+      - name: Stop after build failure
+        if: steps.build.outputs.status != '0'
+        run: exit 1
 
       - name: Commit migration to PR branch
         shell: bash
