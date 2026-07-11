@@ -205,6 +205,14 @@ assert(authoritativeSpec.includes("員工、主管與管理員看到的人員列
 assert(authoritativeSpec.includes("get_my_profile_v2") && authoritativeSpec.includes("get_schedule_directory_v2") && authoritativeSpec.includes("get_employee_admin_directory_v2"), "正式規格書缺少人員資料用途分流");
 assert(authoritativeSpec.includes("頁面與資料權限矩陣"), "正式規格書缺少跨頁面權限矩陣");
 assert(authoritativeSpec.includes("管理名錄採依頁面延遲載入"), "正式規格書缺少管理名錄延遲載入規則");
+assert(authoritativeSpec.includes("# 第八章　共通互動、非功能性與設計交付"), "正式規格書缺少共通互動與非功能性章節");
+assert(authoritativeSpec.includes("初次載入") && authoritativeSpec.includes("資料衝突") && authoritativeSpec.includes("未儲存修改"), "正式規格書缺少共通頁面狀態或未儲存資料規則");
+assert(authoritativeSpec.includes("效能、容量與可用性目標") && authoritativeSpec.includes("100 名有效人員"), "正式規格書缺少可量化效能容量目標");
+assert(authoritativeSpec.includes("Wireframe 與設計交付") && authoritativeSpec.includes("WCAG 2.1 AA"), "正式規格書缺少設計交付或無障礙目標");
+assert(authoritativeSpec.includes("# 第九章　API、資料生命週期、維運與測試"), "正式規格書缺少 API 與維運章節");
+assert(authoritativeSpec.includes("MEAL_CUTOFF_PASSED") && authoritativeSpec.includes("HTTP 狀態碼"), "正式規格書缺少 API 錯誤契約");
+assert(authoritativeSpec.includes("RPO") && authoritativeSpec.includes("RTO") && authoritativeSpec.includes("發布與回滾"), "正式規格書缺少備份復原或回滾目標");
+assert(authoritativeSpec.includes("需求編號與追蹤矩陣") && authoritativeSpec.includes("TC-MEAL-001"), "正式規格書缺少需求追蹤與測試案例格式");
 
 assert(authoritativeSpec.includes("可查看所有人員完整班表") || authoritativeSpec.includes("可查看完整班表與統計欄"), "正式規格書未明確標示員工可查看完整班表");
 assert(authoritativeSpec.includes("警告併入備註"), "正式規格書未明確標示訂餐統計警告併入備註欄");
