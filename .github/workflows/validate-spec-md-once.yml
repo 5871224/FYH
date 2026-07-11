@@ -38,3 +38,5 @@ jobs:
           fi
           git commit -m "驗證規格書 Markdown 改名"
           git push
+
+# 第二次提交用來觸發已存在的工作流程。
