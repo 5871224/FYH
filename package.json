@@ -10,6 +10,7 @@
     "web": "node scripts/build-css.js && node scripts/build-js.js && node src/web-server.js",
     "web:check": "node scripts/check-public-supabase.js",
     "web:publish": "node scripts/build-css.js && node scripts/build-js.js && node scripts/publish-static-web.js",
-    "v2:check": "node scripts/build-css.js --check && node scripts/build-js.js --check && node --check src/renderer/app.js && node scripts/check-v2-alignment.js && node scripts/check-v2-final.js"
+    "v2:check": "node scripts/build-css.js --check && node scripts/build-js.js --check && node --check src/renderer/app.js && node scripts/check-v2-alignment.js && node scripts/check-v2-final.js",
+    "ci:check": "npm run web:check && node scripts/check-normalized-storage.js && node scripts/check-expansion-acceptance.js && node scripts/check-settings-lists.js && npm run v2:check"
   }
 }

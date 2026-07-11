@@ -44,7 +44,8 @@ npm run web:publish
 6. 不得新增動態補載本機 JavaScript、重複載入同一模組，或新增 `fix`、`refinement`、`v3` 等靠載入順序覆寫既有函式的補丁檔。
 7. 第一階段仍保留既有全域相依性；調整 `scripts/build-js.js` 的模組順序前，必須確認所有前置依賴並執行完整驗證。
 8. 若前端程式有修改，且使用者未明確要求不要提交，應提交並推送至 `main`。
-9. 最終回覆必須說明：
+9. GitHub Actions 正式流程只保留 `.github/workflows/deploy-pages.yml`；Pull Request 只驗證，`main` 必須在同一 workflow 的 `validate` 成功後才執行 `deploy`。不得新增重複執行 V2 檢查或 Pages 部署的獨立 workflow。
+10. 最終回覆必須說明：
    - `docs/` 是否已更新。
    - 是否已推送至 `main`。
 
@@ -111,4 +112,5 @@ npm run v2:check
 
 - 不得為了讓檢查通過而刪除仍有效的安全、權限、資料一致性或正式規格驗證。
 - 關鍵需求應使用第 9.9 節穩定編號；PR 說明受影響需求、實作模組與驗收案例。
+- GitHub Actions 修改後執行 `npm run ci:check`，並確認部署工作明確依賴驗證工作。
 - 發布前除功能正確外，需考慮第 8.7 節效能容量、第 9.6 節備份復原及第 9.7 節回滾。

@@ -52,6 +52,7 @@ npm run web
 npm run web:check
 npm run web:publish
 npm run v2:check
+npm run ci:check
 ```
 
 - `npm run css:build`：依固定模組順序產生單一 `src/renderer/app.css`。
@@ -62,6 +63,7 @@ npm run v2:check
 - `npm run web:check`：檢查公開 Supabase 設定。
 - `npm run web:publish`：建立兩種 bundle、清理並重建 `docs/`，再更新靜態資源版本參數。
 - `npm run v2:check`：檢查 CSS、JavaScript bundle、V2 結構與發布內容對齊。
+- `npm run ci:check`：執行 GitHub Actions 與本機共用的完整公開設定、資料結構、設定清單及 V2 驗證。
 
 ## 前端發布
 
@@ -78,7 +80,9 @@ npm run v2:check
 
 6. 發布腳本會依固定順序產生單一 `app.css` 與 `app.js`，清理舊的 `docs/` 後完整重建發布內容。
 7. `docs/` 只發布 `app-config.js` 與 `app.js`，不發布個別 JavaScript 原始模組。
-8. GitHub Pages 工作流程也會在上傳前執行 `npm run web:publish`，避免發布舊 bundle。
+8. GitHub Actions 正式流程只使用 `.github/workflows/deploy-pages.yml`。
+9. Pull Request 只執行建置與完整驗證，不部署正式網站。
+10. 推送至 `main` 或由 `main` 手動執行時，先完成同一流程的 `validate` 工作；全部成功後，`deploy` 工作才上傳並發布 GitHub Pages。不得另建重複執行 V2 檢查或 Pages 部署的獨立 workflow。
 
 ## Supabase 資料庫建置
 
