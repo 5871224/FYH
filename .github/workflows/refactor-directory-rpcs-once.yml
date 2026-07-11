@@ -26,7 +26,9 @@ jobs:
       - name: Apply refactor
         run: |
           python3 scripts/refactor_directory_rpcs_once.py
+          python3 scripts/refactor_directory_rpcs_alignment_fix_once.py
           rm -f scripts/refactor_directory_rpcs_once.py
+          rm -f scripts/refactor_directory_rpcs_alignment_fix_once.py
           rm -f .github/workflows/audit-directory-usage.yml
           rm -f .github/workflows/refactor-directory-rpcs-once.yml
 
