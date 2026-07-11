@@ -42,6 +42,16 @@ const required = [
 
 required.forEach((file) => assert(exists(file), `缺少 V2 檔案：${file}`));
 
+const actionsWorkflow = read(".github/workflows/deploy-pages.yml");
+const projectPackage = JSON.parse(read("package.json"));
+assert(actionsWorkflow.includes("name: Validate and Deploy Pages"), "GitHub Actions 尚未使用單一驗證後部署流程");
+assert(actionsWorkflow.includes("pull_request:") && actionsWorkflow.includes("push:"), "單一 workflow 缺少 Pull Request 或 main push 觸發");
+assert(actionsWorkflow.includes("needs: validate"), "Pages 部署未明確依賴完整驗證");
+assert(actionsWorkflow.includes("npm run ci:check"), "單一 workflow 未使用共用完整檢查指令");
+assert(actionsWorkflow.includes("actions/upload-pages-artifact@v5") && actionsWorkflow.includes("actions/deploy-pages@v5"), "Pages artifact 或部署工作缺失");
+assert(!exists(".github/workflows/v2-alignment.yml") && !exists(".github/workflows/v2-final-check.yml"), "仍保留重複的獨立 V2 workflow");
+assert(String(projectPackage.scripts?.["ci:check"] || "").includes("npm run v2:check"), "ci:check 未包含完整 V2 驗證");
+
 const reportRecords = read("supabase/functions/report-records/index.ts");
 assert(!reportRecords.includes("full_name, department_id"), "仍查詢不存在的 set_employee.department_id");
 
