@@ -56,7 +56,9 @@ npm run web:publish
 4. 不新增零散的一次性 SQL、migration 子檔或額外 SQL 順序文件。
 5. Edge Function 正式部署清單以 `scripts/deploy-v2-final.ps1` 的 `$functions` 陣列為準；不得因 `supabase/functions/` 中存在資料夾，就自行判定該函式仍在正式使用。
 6. 新增、移除或改名正式 Edge Function 時，必須同步更新部署腳本、根 README 與規格書第七章的現行後端功能清單。
-7. SQL Editor 出現錯誤時立即停止，不可跳過後續區段。
+7. 人員資料介面依用途固定分為本人資料、共同班表名錄與管理名錄；新增頁面時不得直接讀取 `set_employee`，也不得把管理名錄拿給一般頁面使用。
+8. 權限控制必須由 RPC、RLS 或 Edge Function 明確實作，不得以攔截 `fetch`、前端刪除欄位或後載入覆寫作為主要安全邊界。
+9. SQL Editor 出現錯誤時立即停止，不可跳過後續區段。
 
 ## 修改時的檔案檢查
 
@@ -72,6 +74,15 @@ npm run web:publish
 - `supabase/002_current_updates.sql`
 - `src/renderer/web-api.js`
 - `scripts/check-normalized-storage.js`
+
+涉及登入身分、人員名錄或跨頁面權限時，至少檢查：
+
+- `supabase/001_current_schema.sql`
+- `supabase/002_current_updates.sql`
+- `src/renderer/web-api.js`
+- `src/renderer/v2-api.js`
+- 各頁使用的 Edge Function 權限檢查
+- `規格書.md` 第 5.4.1 節權限矩陣
 
 涉及 Supabase 資料庫結構、RPC 或部署方式時，至少檢查：
 

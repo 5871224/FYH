@@ -68,12 +68,14 @@ assert(mealOrder.includes('rpc("save_meal_order_v2"'), "Meal order does not pres
 assert(mealOrder.includes("停用品項只能減少或取消"), "Disabled meal-item increase protection is missing");
 
 const sourceApi = read("src/renderer/v2-api.js");
-assert(sourceApi.includes("safeDepartmentColumns"), "Safe department projection is missing");
-assert(sourceApi.includes("runManagerSafeWrite"), "Manager-safe department write wrapper is missing");
+const sourceWebApi = read("src/renderer/web-api.js");
+assert(!sourceApi.includes("safeDepartmentColumns") && !sourceApi.includes("runManagerSafeWrite") && !sourceApi.includes("managerSafeFetch"), "Front-end still uses fetch interception as a permission boundary");
+assert(sourceWebApi.includes("get_my_profile_v2") && sourceWebApi.includes("get_schedule_directory_v2") && sourceWebApi.includes("get_employee_admin_directory_v2"), "Purpose-specific employee RPCs are missing from the web API");
+assert(!sourceWebApi.includes("get_employee_directory_v2"), "Retired mixed-purpose employee RPC is still used by the web API");
 const sourceJs = read("src/renderer/app.js");
 const docsJs = read("docs/app.js");
 assert(sourceJs === docsJs, "src/renderer/app.js and docs/app.js are not synchronized");
-assert(sourceJs.includes("safeDepartmentColumns") && sourceJs.includes("runManagerSafeWrite"), "JavaScript bundle is missing V2 API protections");
+assert(sourceJs.includes("get_my_profile_v2") && sourceJs.includes("get_schedule_directory_v2") && sourceJs.includes("get_employee_admin_directory_v2"), "JavaScript bundle is missing purpose-specific employee RPCs");
 
 const sourceCss = read("src/renderer/app.css");
 const docsCss = read("docs/app.css");

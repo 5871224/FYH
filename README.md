@@ -24,6 +24,7 @@ Supabase PostgreSQL
 - 前端原始碼位於 `src/renderer/`。
 - Supabase Auth 負責登入身分。
 - PostgreSQL、RLS 與 RPC 負責正式資料、權限與交易一致性。
+- 人員資料查詢依用途分為 `get_my_profile_v2()`、`get_schedule_directory_v2()` 與 `get_employee_admin_directory_v2()`；不得再以單一名錄同時服務登入、班表及管理頁面。
 - `supabase/functions/` 保存 Edge Function 原始碼；正式部署清單以 `scripts/deploy-v2-final.ps1` 為準，不以資料夾是否存在判定。
 
 ## 專案結構

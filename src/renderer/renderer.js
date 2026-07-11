@@ -1054,7 +1054,7 @@ function sanitizeMember(member, fallbackIndex, merged) {
     : merged.departments[0]?.id || "";
   return {
     id: member?.id || uid(`m${fallbackIndex}`),
-    code: member?.code || `M${String(fallbackIndex + 1).padStart(3, "0")}`,
+    code: member?.code || "",
     name: member?.name || `人員 ${fallbackIndex + 1}`,
     deptId,
     scheduleShiftIds: normalizeScheduleShiftIds(member, merged.shifts),
@@ -2942,9 +2942,11 @@ async function loadMealAdminSettings(shouldRender = true) {
 }
 
 function resolveCurrentMember() {
-  if (!currentProfile?.employee_code) {
-    return null;
+  if (currentProfile?.id) {
+    const byId = state.members.find((member) => member.id === currentProfile.id);
+    if (byId) return byId;
   }
+  if (!currentProfile?.employee_code) return null;
   return state.members.find((member) => member.code === currentProfile.employee_code) || null;
 }
 

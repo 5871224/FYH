@@ -1162,3 +1162,151 @@ revoke all on function public.save_meal_order(uuid, jsonb, text) from public, an
 grant execute on function public.save_meal_order(uuid, jsonb, text) to service_role;
 
 commit;
+
+
+begin;
+
+-- 人員資料依本人、共同班表與管理用途分流
+create or replace function public.get_my_profile_v2()
+returns table (
+  id uuid,
+  employee_code text,
+  full_name text,
+  role text,
+  home_department_id uuid,
+  position_name text,
+  hire_date date,
+  leave_date date,
+  pay_by_day boolean,
+  is_active boolean,
+  created_at timestamptz,
+  updated_at timestamptz,
+  schedule_department_ids text[],
+  monthly_rest_days integer,
+  fixed_rest_weekday integer,
+  schedule_shift_ids uuid[],
+  sort_order integer
+)
+language sql
+stable
+security definer
+set search_path = public, pg_catalog
+as $$
+  select
+    employee.id,
+    employee.employee_code,
+    employee.full_name,
+    employee.role,
+    employee.home_department_id,
+    employee.position_name,
+    employee.hire_date,
+    employee.leave_date,
+    employee.pay_by_day,
+    employee.is_active,
+    employee.created_at,
+    employee.updated_at,
+    employee.schedule_department_ids,
+    employee.monthly_rest_days,
+    employee.fixed_rest_weekday,
+    employee.schedule_shift_ids,
+    employee.sort_order
+  from public.set_employee employee
+  where employee.id = auth.uid()
+$$;
+
+create or replace function public.get_schedule_directory_v2()
+returns table (
+  id uuid,
+  full_name text,
+  home_department_id uuid,
+  hire_date date,
+  leave_date date,
+  pay_by_day boolean,
+  is_active boolean,
+  sort_order integer
+)
+language sql
+stable
+security definer
+set search_path = public, pg_catalog
+as $$
+  with actor as (
+    select public.is_effective_user(auth.uid()) as effective
+  )
+  select
+    employee.id,
+    employee.full_name,
+    employee.home_department_id,
+    employee.hire_date,
+    employee.leave_date,
+    employee.pay_by_day,
+    employee.is_active,
+    employee.sort_order
+  from actor
+  cross join public.set_employee employee
+  where actor.effective
+    and employee.is_active
+  order by employee.sort_order, employee.full_name, employee.id
+$$;
+
+create or replace function public.get_employee_admin_directory_v2()
+returns table (
+  id uuid,
+  employee_code text,
+  full_name text,
+  role text,
+  home_department_id uuid,
+  position_name text,
+  hire_date date,
+  leave_date date,
+  pay_by_day boolean,
+  is_active boolean,
+  created_at timestamptz,
+  updated_at timestamptz,
+  schedule_department_ids text[],
+  monthly_rest_days integer,
+  fixed_rest_weekday integer,
+  schedule_shift_ids uuid[],
+  sort_order integer
+)
+language sql
+stable
+security definer
+set search_path = public, pg_catalog
+as $$
+  with actor as (
+    select public.is_manager(auth.uid()) as manager_access
+  )
+  select
+    employee.id,
+    employee.employee_code,
+    employee.full_name,
+    employee.role,
+    employee.home_department_id,
+    employee.position_name,
+    employee.hire_date,
+    employee.leave_date,
+    employee.pay_by_day,
+    employee.is_active,
+    employee.created_at,
+    employee.updated_at,
+    employee.schedule_department_ids,
+    employee.monthly_rest_days,
+    employee.fixed_rest_weekday,
+    employee.schedule_shift_ids,
+    employee.sort_order
+  from actor
+  cross join public.set_employee employee
+  where actor.manager_access
+    and employee.is_active
+  order by employee.sort_order, employee.full_name, employee.id
+$$;
+
+revoke all on function public.get_my_profile_v2() from public, anon;
+revoke all on function public.get_schedule_directory_v2() from public, anon;
+revoke all on function public.get_employee_admin_directory_v2() from public, anon;
+grant execute on function public.get_my_profile_v2() to authenticated, service_role;
+grant execute on function public.get_schedule_directory_v2() to authenticated, service_role;
+grant execute on function public.get_employee_admin_directory_v2() to authenticated, service_role;
+
+commit;

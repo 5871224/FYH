@@ -54,7 +54,8 @@ const visibility = databaseUpdates;
 assert(visibility.includes("drop policy if exists v2_restrict_employee_directory"), "未移除舊員工目錄限制政策");
 assert(visibility.includes("drop policy if exists v2_restrict_schedule_visibility"), "未移除舊班表限制政策");
 const hardenedAccess = databaseUpdates;
-assert(hardenedAccess.includes("get_employee_directory_v2"), "缺少安全人員名錄 RPC");
+assert(hardenedAccess.includes("get_my_profile_v2") && hardenedAccess.includes("get_schedule_directory_v2") && hardenedAccess.includes("get_employee_admin_directory_v2"), "缺少分用途人員資料 RPC");
+assert(hardenedAccess.includes("drop function if exists public.get_employee_directory_v2"), "混合用途舊人員名錄 RPC 尚未移除");
 assert(hardenedAccess.includes("get_department_directory_v2"), "缺少安全單位名錄 RPC");
 assert(hardenedAccess.includes("drop policy if exists anon_can_read_profiles"), "未移除匿名人員資料政策");
 assert(hardenedAccess.includes("drop policy if exists authenticated_can_read_schedule_entries"), "未移除逾期帳號班表旁路政策");
@@ -134,7 +135,7 @@ const sourceApi = read("src/renderer/v2-api.js");
 const sourceApp = read("src/renderer/app.js");
 const publishedApp = read("docs/app.js");
 assert(sourceApp === publishedApp, "src/renderer/app.js 與 docs/app.js 不同步");
-assert(sourceApi.includes("safeDepartmentColumns"), "一般單位查詢仍可能包含敏感打卡欄位");
+assert(!sourceApi.includes("safeDepartmentColumns") && !sourceApi.includes("runManagerSafeWrite") && !sourceApi.includes("managerSafeFetch"), "前端仍使用攔截 fetch 的補丁式權限控制");
 assert(sourceApi.includes("installTabletSessionPolicy"), "平板登入 Session 規則未同步修正");
 assert(sourceApi.includes("isAndroidTablet"), "Android 平板 Session 判斷缺失");
 assert(sourceApi.includes("isIPad"), "iPad Session 判斷缺失");
@@ -142,7 +143,8 @@ assert(sourceApi.includes("30 * 60 * 1000"), "平板未使用電腦版 30 分鐘
 
 const sourceRenderer = read("src/renderer/renderer.js");
 const sourceWebApi = read("src/renderer/web-api.js");
-assert(sourceWebApi.includes("get_employee_directory_v2") && sourceWebApi.includes("get_department_directory_v2"), "前端尚未改用安全名錄 RPC");
+assert(sourceWebApi.includes("get_my_profile_v2") && sourceWebApi.includes("get_schedule_directory_v2") && sourceWebApi.includes("get_employee_admin_directory_v2") && sourceWebApi.includes("get_department_directory_v2"), "前端尚未依用途使用安全名錄 RPC");
+assert(!sourceWebApi.includes("get_employee_directory_v2"), "前端仍使用混合用途舊人員名錄 RPC");
 const attendanceClockSource = read("supabase/functions/attendance-clock/index.ts");
 assert(sourceRenderer.includes("geolocationError") && sourceWebApi.includes("geolocationError"), "手機定位錯誤未送到打卡 API");
 assert(attendanceClockSource.includes("目前位置或網路不符合打卡條件") && !attendanceClockSource.includes("目前 IP ${clientIp}"), "打卡錯誤仍可能暴露距離、精準度或 IP");
@@ -185,17 +187,19 @@ assert(sourceRecords.includes("上班打卡已刪除") && !sourceRecords.include
 assert(sourceRecords.includes("report.memberSummary"), "人員訂餐報表未使用後端公司補助計算結果");
 assert(!sourceRecords.includes("days * 55"), "人員訂餐報表仍硬編碼55元補助");
 
-const scheduleDirectorySql = databaseUpdates.slice(databaseUpdates.lastIndexOf("區段 21：所有角色使用相同班表人員有效期間"));
-assert(scheduleDirectorySql.includes("target.hire_date,") && !scheduleDirectorySql.includes("then target.hire_date else null"), "所有角色班表名錄一致性缺失：到職日仍依角色遮罩");
-assert(scheduleDirectorySql.includes("target.leave_date,") && !scheduleDirectorySql.includes("then target.leave_date else null"), "所有角色班表名錄一致性缺失：離職日仍依角色遮罩");
-assert(scheduleDirectorySql.includes("target.pay_by_day,") && scheduleDirectorySql.includes("target.schedule_shift_ids,"), "所有角色班表名錄一致性缺失：班表必要人員屬性仍依角色不同");
+const scheduleDirectorySql = databaseUpdates.slice(databaseUpdates.lastIndexOf("區段 22：依頁面用途拆分人員資料 RPC"));
+assert(scheduleDirectorySql.includes("get_my_profile_v2") && scheduleDirectorySql.includes("get_schedule_directory_v2") && scheduleDirectorySql.includes("get_employee_admin_directory_v2"), "人員資料用途分流 migration 缺失");
+assert(scheduleDirectorySql.includes("employee.hire_date") && scheduleDirectorySql.includes("employee.leave_date") && scheduleDirectorySql.includes("employee.pay_by_day"), "共同班表名錄缺少一致顯示欄位");
+assert(!scheduleDirectorySql.includes("case when actor.manager_access or employee.id = actor.id then employee.hire_date"), "共同班表名錄仍依角色遮罩顯示欄位");
 
 const authoritativeSpec = read("規格書.md");
 assert(authoritativeSpec.includes("未登入不顯示班表、員工、打卡、加班與訂餐資料"), "正式規格書缺少未登入資料保護規則");
-assert(authoritativeSpec.includes("固定 IP、原始 GPS、精準度與距離只供管理員及後端服務使用"), "正式規格書缺少敏感打卡資料規則");
+assert(authoritativeSpec.includes("單位打卡設定中的地址、座標與固定對外 IP") && authoritativeSpec.includes("個別打卡紀錄的原始 GPS"), "正式規格書未區分打卡設定與個人定位稽核資料");
 assert(authoritativeSpec.includes("公司補助"), "正式規格書缺少公司補助規則");
 assert(authoritativeSpec.includes("手機優先"), "正式規格書缺少響應式介面規則");
 assert(authoritativeSpec.includes("員工、主管與管理員看到的人員列") && authoritativeSpec.includes("角色差異只影響編輯工具"), "正式規格書缺少所有角色班表一致規則");
+assert(authoritativeSpec.includes("get_my_profile_v2") && authoritativeSpec.includes("get_schedule_directory_v2") && authoritativeSpec.includes("get_employee_admin_directory_v2"), "正式規格書缺少人員資料用途分流");
+assert(authoritativeSpec.includes("頁面與資料權限矩陣"), "正式規格書缺少跨頁面權限矩陣");
 
 assert(authoritativeSpec.includes("可查看所有人員完整班表") || authoritativeSpec.includes("可查看完整班表與統計欄"), "正式規格書未明確標示員工可查看完整班表");
 assert(authoritativeSpec.includes("警告併入備註"), "正式規格書未明確標示訂餐統計警告併入備註欄");

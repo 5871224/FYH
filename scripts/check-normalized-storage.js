@@ -10,7 +10,10 @@ const schema = fs.readFileSync(path.join(rootDir, "supabase", "001_current_schem
 const databaseUpdates = fs.readFileSync(path.join(rootDir, "supabase", "002_current_updates.sql"), "utf8");
 
 assert(webApi.includes('restRpc("get_department_directory_v2"'), "loadState should use the safe department directory RPC");
-assert(webApi.includes('restRpc("get_employee_directory_v2"'), "loadState should use the safe employee directory RPC");
+assert(webApi.includes('restRpc("get_my_profile_v2"'), "auth should use the self profile RPC");
+assert(webApi.includes('restRpc("get_schedule_directory_v2"'), "schedule should use the shared operational directory RPC");
+assert(webApi.includes('restRpc("get_employee_admin_directory_v2"'), "member settings should use the manager directory RPC");
+assert(!webApi.includes("get_employee_directory_v2"), "web api should not use the retired mixed-purpose employee directory RPC");
 assert(webApi.includes('restSelect("set_shift"'), "loadState should read set_shift table");
 assert(webApi.includes('restSelect("set_leave"'), "loadState should read set_leave table");
 assert(webApi.includes('restSelect("set_overtime"'), "loadState should read set_overtime table");
@@ -103,6 +106,7 @@ assert(schema.includes("create table if not exists public.meal_orders"), "schema
 assert(schema.includes("unique (user_id, work_date)"), "attendance and overtime should be unique by user/date where required");
 assert(schema.includes("unique (user_id, order_date, product_id)"), "meal orders should be unique by user/date/product");
 assert(schema.includes("create or replace function public.is_admin(p_user_id uuid)"), "schema should expose an admin helper");
+assert(schema.includes("create or replace function public.get_my_profile_v2()") && schema.includes("create or replace function public.get_schedule_directory_v2()") && schema.includes("create or replace function public.get_employee_admin_directory_v2()"), "current schema should create separated employee data RPCs");
 assert(schema.includes("alter table public.meal_orders enable row level security"), "new meal tables should have RLS enabled");
 assert(schema.includes("create policy read_schedule_entries") && schema.includes("create policy read_meal_orders"), "current schema should create RLS policies");
 assert(schema.includes("drop policy if exists v2_restrict_employee_directory") && schema.includes("drop policy if exists v2_restrict_schedule_visibility"), "schema should remove old employee-only schedule visibility policies");
