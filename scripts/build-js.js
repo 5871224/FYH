@@ -30,6 +30,7 @@ const modules = [
   "v2-records.js",
   "v2-personal-record-layout.js",
   "v2-overtime-admin.js",
+  "v2-attendance-admin.js",
   "v2-live-report-filters.js",
   "v2-overtime-employee.js",
   "v2-clock-page-refinement.js",
@@ -39,6 +40,19 @@ const modules = [
 
 function stripBom(text) {
   return text.replace(/^\uFEFF/, "");
+}
+
+function validateManifest() {
+  const sourceModules = fs.readdirSync(rendererDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".js"))
+    .map((entry) => entry.name)
+    .filter((name) => name !== "app-config.js" && name !== "app.js")
+    .sort();
+  const listed = new Set(modules);
+  const unlisted = sourceModules.filter((name) => !listed.has(name));
+  const missing = modules.filter((name) => !sourceModules.includes(name));
+  if (unlisted.length) throw new Error(`Unlisted JavaScript source modules: ${unlisted.join(", ")}`);
+  if (missing.length) throw new Error(`Missing JavaScript source modules: ${missing.join(", ")}`);
 }
 
 function readModule(fileName) {
@@ -55,6 +69,7 @@ function readModule(fileName) {
 }
 
 function buildBundle() {
+  validateManifest();
   const sections = [
     "/* GENERATED FILE - DO NOT EDIT DIRECTLY.",
     " * Source order: scripts/build-js.js",
