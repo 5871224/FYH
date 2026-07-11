@@ -1,4 +1,4 @@
-name: CSS Architecture Migration
+name: CSS Bundle Validation
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  migrate-and-validate:
+  build-and-validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR branch
@@ -24,32 +24,17 @@ jobs:
         with:
           node-version: 22
 
-      - name: Run migration when present
-        shell: bash
-        run: |
-          if [ -f scripts/migrate-css-architecture-once.js ]; then
-            python - <<'PY'
-          from pathlib import Path
-          path = Path('scripts/migrate-css-architecture-once.js')
-          text = path.read_text(encoding='utf-8')
-          text = text.replace('\\\\${', '\\${')
-          path.write_text(text, encoding='utf-8')
-          PY
-            node scripts/migrate-css-architecture-once.js
-            rm -f scripts/migrate-css-architecture-once.js
-            rm -f scripts/css-migration-trigger.txt
-            rm -f .github/workflows/css-migration-pr.yml
-          fi
+      - name: Build static web
+        run: npm run web:publish
 
-      - name: Build and validate
+      - name: Validate project
         run: |
-          npm run web:publish
           npm run web:check
           node scripts/check-normalized-storage.js
           node scripts/check-expansion-acceptance.js
           npm run v2:check
 
-      - name: Commit generated changes to PR branch
+      - name: Commit generated files to PR branch
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
