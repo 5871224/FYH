@@ -77,6 +77,7 @@ const sourceCss = read("src/renderer/app.css");
 const docsCss = read("docs/app.css");
 assert(sourceCss === docsCss, "src/renderer/app.css and docs/app.css are not synchronized");
 ["foundation.css", "schedule.css", "components.css", "responsive.css", "pages.css"].forEach((file) => assert(exists(`src/renderer/css/${file}`), `Missing CSS module: ${file}`));
+assert(!exists("docs/css"), "CSS source modules must not be published under docs/css");
 
 const sourceIndex = read("src/renderer/index.html");
 const docsIndex = read("docs/index.html");
