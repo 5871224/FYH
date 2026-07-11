@@ -24,6 +24,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Prepare legacy dynamic modules
+        run: node scripts/prepare-js-architecture-migration.js
+
       - name: Run JavaScript architecture migration
         id: migration
         shell: bash
@@ -35,6 +38,7 @@ jobs:
           cat js-migration.log
           echo "status=$status" >> "$GITHUB_OUTPUT"
           if [ "$status" -eq 0 ]; then
+            rm -f scripts/prepare-js-architecture-migration.js
             rm -f scripts/migrate-js-architecture-once.js
             rm -f .github/workflows/js-architecture-migration.yml
             rm -f js-migration.log
