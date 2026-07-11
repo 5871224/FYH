@@ -24,6 +24,17 @@ jobs:
         with:
           node-version: 22
 
+      - name: Normalize nested template escapes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/migrate-css-architecture-once.js')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('\\\\${', '\\${')
+          path.write_text(text, encoding='utf-8')
+          PY
+
       - name: Run migration
         id: migration
         shell: bash
