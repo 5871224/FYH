@@ -45,6 +45,7 @@ required.forEach((file) => assert(exists(file), `缺少 V2 檔案：${file}`));
 const reportRecords = read("supabase/functions/report-records/index.ts");
 assert(!reportRecords.includes("full_name, department_id"), "仍查詢不存在的 set_employee.department_id");
 
+const currentSchema = read("supabase/001_current_schema.sql");
 const databaseUpdates = read("supabase/002_current_updates.sql");
 const security = databaseUpdates;
 assert(security.includes("drop policy if exists write_overtime_requests"), "尚未移除加班直接寫入政策");
