@@ -51,3 +51,5 @@ print(f"已將 {OLD_NAME} 改名為 {NEW_NAME}")
 print("已更新引用：")
 for item in updated:
     print(f"- {item}")
+
+# 此檔只用於觸發一次性改名流程，完成後由工作流程刪除。
