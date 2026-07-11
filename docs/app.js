@@ -153,6 +153,64 @@
     return true;
   }
 
+  function hasOfficialScheduleExportRows(payload) {
+    return Array.isArray(payload?.exportRows);
+  }
+
+  function compactIsoDate(value) {
+    return String(value || "").replaceAll("-", "");
+  }
+
+  function getOfficialSapLeaveRows(payload) {
+    const sapCodeMap = new Map([["0036", "OFF"], ["0047", "REST"], ["休息日", "REST"], ["休假", "REST"], ["例假", "OFF"]]);
+    return (payload.exportRows || []).flatMap((row) => {
+      if (row.pay_by_day || !row.leave_type_id) return [];
+      const sapCode = sapCodeMap.get(row.leave_code) || sapCodeMap.get(row.leave_name);
+      if (!sapCode) return [];
+      const date = compactIsoDate(row.work_date);
+      return [[row.employee_name || "", row.employee_code || "", date, date, sapCode]];
+    });
+  }
+
+  function getOfficialOvertimeRows(payload) {
+    return (payload.exportRows || []).flatMap((row) => {
+      if (!row.overtime_type_id) return [];
+      return [[
+        row.employee_code || "",
+        compactIsoDate(row.work_date),
+        formatCompactTime(row.overtime_start_time),
+        formatCompactTime(row.overtime_end_time),
+        0,
+        1,
+        row.overtime_use_rest_1 ? formatCompactTime(row.overtime_rest_1_start_time) : "",
+        row.overtime_use_rest_1 ? formatCompactTime(row.overtime_rest_1_end_time) : "",
+        row.overtime_use_rest_1 ? 0 : "",
+        row.overtime_use_rest_2 ? formatCompactTime(row.overtime_rest_2_start_time) : "",
+        row.overtime_use_rest_2 ? formatCompactTime(row.overtime_rest_2_end_time) : "",
+        row.overtime_use_rest_2 ? 0 : ""
+      ]];
+    });
+  }
+
+  function getOfficialLeaveRows(payload) {
+    const excludedLeaveCodes = new Set(["0036", "0047"]);
+    const hiddenDepartmentIds = new Set((payload.state?.departments || []).filter((department) => department?.hiddenFromSchedule).map((department) => department.id));
+    return (payload.exportRows || []).flatMap((row) => {
+      if (!row.leave_type_id || excludedLeaveCodes.has(row.leave_code) || hiddenDepartmentIds.has(row.home_department_id)) return [];
+      const date = compactIsoDate(row.work_date);
+      const allDay = row.leave_all_day !== false;
+      return [[
+        row.employee_code || "",
+        date,
+        date,
+        allDay ? "" : formatCompactTime(row.leave_start_time),
+        allDay ? "" : formatCompactTime(row.leave_end_time),
+        row.leave_code || "",
+        row.leave_reason || row.leave_name || ""
+      ]];
+    });
+  }
+
   function csvEscape(value) {
     const text = String(value ?? "");
     if (!/[",\r\n]/.test(text)) {
@@ -179,6 +237,9 @@
   }
 
   function getSapLeaveExportRows(payload) {
+    if (hasOfficialScheduleExportRows(payload)) {
+      return getOfficialSapLeaveRows(payload);
+    }
     const { state, year, month } = payload;
     const leaveMap = getItemMap(state.leaves);
     const sapCodeMap = new Map([
@@ -219,6 +280,9 @@
   }
 
   function getOvertimeExportRows(payload) {
+    if (hasOfficialScheduleExportRows(payload)) {
+      return getOfficialOvertimeRows(payload);
+    }
     const { state, year, month } = payload;
     const overtimeMap = getItemMap(state.overtime);
     const rows = [];
@@ -254,6 +318,9 @@
   }
 
   function getLeaveExportRows(payload) {
+    if (hasOfficialScheduleExportRows(payload)) {
+      return getOfficialLeaveRows(payload);
+    }
     const { state, year, month } = payload;
     const leaveMap = getItemMap(state.leaves);
     const excludedLeaveCodes = new Set(["0036", "0047"]);
@@ -852,6 +919,28 @@
     }
     if (normalizeImportedDate("2025/01/02") !== "2025-01-02") {
       throw new Error("browser exporter date self-check failed");
+    }
+    const officialPayload = {
+      state: { departments: [] },
+      exportRows: [{
+        employee_code: "SELF_CHECK",
+        employee_name: "Self Check",
+        home_department_id: null,
+        pay_by_day: false,
+        work_date: "2026-07-17",
+        leave_type_id: "leave-id",
+        leave_code: "0010",
+        leave_name: "事假",
+        leave_all_day: true,
+        overtime_type_id: "overtime-id",
+        overtime_start_time: "18:00:00",
+        overtime_end_time: "20:00:00",
+        overtime_use_rest_1: false,
+        overtime_use_rest_2: false
+      }]
+    };
+    if (getLeaveExportRows(officialPayload).length !== 1 || getOvertimeExportRows(officialPayload).length !== 1) {
+      throw new Error("browser exporter official rows self-check failed");
     }
   }
 
@@ -2163,6 +2252,31 @@
     });
   }
 
+  async function saveDepartmentGeneralSettings(departments) {
+    ensureManager();
+    await restRpc("save_departments_general_v2", {
+      p_departments: (departments || []).map((department, index) => ({
+        ...mapDepartmentWriteRow(department, Number.isInteger(department.sortOrder) ? department.sortOrder : index)
+      }))
+    }, {
+      auth: true,
+      prefer: "return=minimal"
+    });
+  }
+
+  async function loadScheduleExportRows(startDate, endDate) {
+    ensureManager();
+    const normalizedStart = nullableDate(startDate);
+    const normalizedEnd = nullableDate(endDate);
+    if (!normalizedStart || !normalizedEnd || normalizedStart > normalizedEnd) {
+      throw new Error("匯出日期範圍不正確");
+    }
+    return await restRpc("get_schedule_export_rows_v2", {
+      p_start_date: normalizedStart,
+      p_end_date: normalizedEnd
+    }, { auth: true }) || [];
+  }
+
   function mapShiftRows(rows = []) {
     return (rows || [])
       .filter((row) => row.id)
@@ -2457,14 +2571,9 @@
     const holidays = Array.isArray(state.holidays) ? state.holidays : [];
 
     if (departments.length) {
-      await restInsert("set_departments", departments.map((department, index) => mapDepartmentWriteRow(department, index)), {
-        auth: true,
-        onConflict: "id",
-        prefer: "resolution=merge-duplicates,return=minimal"
-      });
+      await saveDepartmentGeneralSettings(departments.map((department, index) => ({ ...department, sortOrder: index })));
       await saveDepartmentAttendanceSettings(departments);
     }
-    await deleteRowsNotIn("set_departments", departments.map((department) => department.id));
     const departmentMap = await fetchRowsById("set_departments");
 
     if (leaves.length) {
@@ -2694,12 +2803,19 @@
 
   async function saveDepartmentItem(department, sortOrder = 0) {
     ensureManager();
-    await restInsert("set_departments", [mapDepartmentWriteRow(department, sortOrder)], {
-      auth: true,
-      onConflict: "id",
-      prefer: "resolution=merge-duplicates,return=minimal"
-    });
+    await saveDepartmentGeneralSettings([{ ...department, sortOrder }]);
     await saveDepartmentAttendanceSettings([department]);
+    return { ok: true };
+  }
+
+  async function deleteDepartmentItem(departmentId) {
+    ensureManager();
+    await restRpc("delete_department_general_v2", {
+      p_department_id: String(departmentId || "").trim()
+    }, {
+      auth: true,
+      prefer: "return=minimal"
+    });
     return { ok: true };
   }
 
@@ -3062,9 +3178,11 @@
     loadState,
     loadEmployeeAdminDirectory,
     loadScheduleEntries,
+    loadScheduleExportRows,
     saveState,
     syncCatalogs,
     saveDepartmentItem,
+    deleteDepartmentItem,
     saveShiftItem,
     saveCatalogItem,
     saveScheduleCells,
@@ -9108,7 +9226,9 @@ async function saveDepartment(mode) {
   try {
     await window.schedulerApi.saveDepartmentItem(payload, Math.max(0, sortOrder));
   } catch (error) {
-    setSaveStatus(`單位儲存失敗：${error.message}`);
+    const message = formatSchedulerError(error, "單位儲存失敗");
+    setSaveStatus(`單位儲存失敗：${message}`);
+    showInfoMessage(`單位儲存失敗：${message}`);
     return;
   }
   if (mode === "edit") {
@@ -9142,6 +9262,12 @@ async function deleteDepartment(departmentId) {
   }
   const confirmed = await confirmAction("確定要刪除這個單位嗎？");
   if (!confirmed) {
+    return;
+  }
+  try {
+    await window.schedulerApi.deleteDepartmentItem(departmentId);
+  } catch (error) {
+    showInfoMessage(formatSchedulerError(error, "單位刪除失敗"));
     return;
   }
   state.departments = state.departments.filter((department) => department.id !== departmentId);
@@ -10805,7 +10931,10 @@ function bindEvents() {
       return;
     }
     if (target.dataset.editDepartment) openDepartmentForm("edit", target.dataset.editDepartment);
-    if (target.dataset.saveDepartment) await saveDepartment(target.dataset.saveDepartment);
+    if (target.dataset.saveDepartment) {
+      await saveDepartment(target.dataset.saveDepartment);
+      return;
+    }
     if (target.dataset.deleteDepartment) {
       await deleteDepartment(target.dataset.deleteDepartment);
       return;
@@ -13247,6 +13376,12 @@ loadApp();
   }
 
   function getPreviousPeriodDefaults() {
+    if (typeof getVisibleDateRange === "function") {
+      const visible = getVisibleDateRange();
+      if (parseIsoDate(visible?.startDate) && parseIsoDate(visible?.endDate)) {
+        return { startDay: 1, startDate: visible.startDate, endDate: visible.endDate };
+      }
+    }
     const today = parseIsoDate(typeof getTodayDateString === "function" ? getTodayDateString() : "") || new Date();
     const rawStartDay = Number(typeof getConfiguredMonthStartDay === "function"
       ? getConfiguredMonthStartDay()
@@ -13281,6 +13416,9 @@ loadApp();
   }
 
   function aggregateRows(payload, original, dateColumnIndex) {
+    if (Array.isArray(payload?.exportRows) && typeof original === "function") {
+      return original(payload);
+    }
     if (!payload?.startDate || !payload?.endDate || typeof original !== "function") {
       return typeof original === "function" ? original(payload) : [];
     }
@@ -13435,11 +13573,14 @@ loadApp();
     const emptyMessage = type === "sap" ? "目前沒有可匯出的休例假資料" : type === "leave" ? "目前沒有可匯出的請假資料" : "目前沒有可匯出的加班資料";
     try {
       if (typeof setSaveStatus === "function") setSaveStatus("正在準備匯出資料...", true);
-      await ensureScheduleRangeLoaded(startDate, endDate);
+      const exportRows = typeof api.loadScheduleExportRows === "function"
+        ? await api.loadScheduleExportRows(startDate, endDate)
+        : (await ensureScheduleRangeLoaded(startDate, endDate), null);
       const result = await api[method]({
         state,
         startDate,
         endDate,
+        exportRows,
         year: start.getFullYear(),
         month: start.getMonth()
       });

@@ -2079,3 +2079,193 @@ revoke all on function public.get_employee_directory_v2() from public, anon, aut
 drop function if exists public.get_employee_directory_v2();
 
 commit;
+
+
+-- ============================================================================================
+-- 區段 24：單位安全寫入與班表匯出正式資料
+-- ============================================================================================
+
+begin;
+
+create or replace function public.save_departments_general_v2(p_departments jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
+declare
+  item jsonb;
+  v_id uuid;
+  v_name text;
+  v_start_date date;
+  v_end_date date;
+  v_hidden boolean;
+  v_sort_order integer;
+begin
+  if not public.is_manager(auth.uid()) then
+    raise exception '此功能限主管或管理員使用' using errcode = '42501';
+  end if;
+  if jsonb_typeof(coalesce(p_departments, '[]'::jsonb)) <> 'array' then
+    raise exception '單位資料格式錯誤';
+  end if;
+
+  for item in select value from jsonb_array_elements(coalesce(p_departments, '[]'::jsonb)) loop
+    begin
+      v_id := nullif(btrim(item->>'id'), '')::uuid;
+      v_start_date := nullif(btrim(item->>'start_date'), '')::date;
+      v_end_date := nullif(btrim(item->>'end_date'), '')::date;
+    exception when invalid_text_representation or datetime_field_overflow then
+      raise exception '單位識別碼或日期格式錯誤';
+    end;
+    v_name := btrim(coalesce(item->>'name', ''));
+    v_hidden := coalesce((item->>'hidden_from_schedule')::boolean, false);
+    v_sort_order := greatest(0, coalesce((item->>'sort_order')::integer, 0));
+
+    if v_id is null or v_name = '' then
+      raise exception '單位名稱與識別碼不可空白';
+    end if;
+    if length(v_name) > 12 then
+      raise exception '單位名稱不可超過 12 個字';
+    end if;
+    if v_start_date is not null and v_end_date is not null and v_start_date > v_end_date then
+      raise exception '單位開始日期不得晚於結束日期';
+    end if;
+
+    insert into public.set_departments (
+      id, name, start_date, end_date, hidden_from_schedule, sort_order
+    ) values (
+      v_id, v_name, v_start_date, v_end_date, v_hidden, v_sort_order
+    )
+    on conflict (id) do update set
+      name = excluded.name,
+      start_date = excluded.start_date,
+      end_date = excluded.end_date,
+      hidden_from_schedule = excluded.hidden_from_schedule,
+      sort_order = excluded.sort_order,
+      updated_at = now();
+  end loop;
+end;
+$$;
+
+create or replace function public.delete_department_general_v2(p_department_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
+begin
+  if not public.is_manager(auth.uid()) then
+    raise exception '此功能限主管或管理員使用' using errcode = '42501';
+  end if;
+  if p_department_id is null then
+    raise exception '缺少單位識別碼';
+  end if;
+  if exists (select 1 from public.set_employee where home_department_id = p_department_id) then
+    raise exception '這個單位仍有人員，請先將人員移轉到其他單位';
+  end if;
+  if exists (select 1 from public.set_shift where applicable_department_id = p_department_id) then
+    raise exception '這個單位仍有班別使用，請先修改相關班別';
+  end if;
+
+  begin
+    delete from public.set_departments where id = p_department_id;
+  exception when foreign_key_violation then
+    raise exception '這個單位已有班表、打卡或訂餐歷史，為保留歷史關聯不可刪除';
+  end;
+end;
+$$;
+
+create or replace function public.get_schedule_export_rows_v2(
+  p_start_date date,
+  p_end_date date
+)
+returns table (
+  member_id uuid,
+  employee_code text,
+  employee_name text,
+  home_department_id uuid,
+  department_name text,
+  pay_by_day boolean,
+  work_date date,
+  leave_type_id uuid,
+  leave_code text,
+  leave_name text,
+  leave_all_day boolean,
+  leave_start_time time,
+  leave_end_time time,
+  leave_reason text,
+  overtime_type_id uuid,
+  overtime_name text,
+  overtime_start_time time,
+  overtime_end_time time,
+  overtime_use_rest_1 boolean,
+  overtime_rest_1_start_time time,
+  overtime_rest_1_end_time time,
+  overtime_use_rest_2 boolean,
+  overtime_rest_2_start_time time,
+  overtime_rest_2_end_time time,
+  overtime_reason text
+)
+language plpgsql
+stable
+security definer
+set search_path = public, pg_catalog
+as $$
+begin
+  if not public.is_manager(auth.uid()) then
+    raise exception '此功能限主管或管理員使用' using errcode = '42501';
+  end if;
+  if p_start_date is null or p_end_date is null or p_start_date > p_end_date then
+    raise exception '匯出日期範圍不正確';
+  end if;
+  if p_end_date - p_start_date > 366 then
+    raise exception '單次匯出期間不可超過 366 天';
+  end if;
+
+  return query
+  select
+    schedule.member_id,
+    employee.employee_code,
+    employee.full_name,
+    employee.home_department_id,
+    department.name,
+    employee.pay_by_day,
+    schedule.work_date,
+    schedule.leave_type_id,
+    leave_type.code,
+    leave_type.name,
+    schedule.leave_all_day,
+    schedule.leave_start_time,
+    schedule.leave_end_time,
+    schedule.leave_reason,
+    schedule.overtime_type_id,
+    overtime_type.name,
+    schedule.overtime_start_time,
+    schedule.overtime_end_time,
+    schedule.overtime_use_rest_1,
+    schedule.overtime_rest_1_start_time,
+    schedule.overtime_rest_1_end_time,
+    schedule.overtime_use_rest_2,
+    schedule.overtime_rest_2_start_time,
+    schedule.overtime_rest_2_end_time,
+    schedule.overtime_reason
+  from public.schedule_entries schedule
+  join public.set_employee employee on employee.id = schedule.member_id
+  left join public.set_departments department on department.id = employee.home_department_id
+  left join public.set_leave leave_type on leave_type.id = schedule.leave_type_id
+  left join public.set_overtime overtime_type on overtime_type.id = schedule.overtime_type_id
+  where schedule.work_date between p_start_date and p_end_date
+    and (schedule.leave_type_id is not null or schedule.overtime_type_id is not null)
+  order by schedule.work_date, employee.sort_order, employee.full_name, employee.id;
+end;
+$$;
+
+revoke all on function public.save_departments_general_v2(jsonb) from public, anon;
+revoke all on function public.delete_department_general_v2(uuid) from public, anon;
+revoke all on function public.get_schedule_export_rows_v2(date, date) from public, anon;
+grant execute on function public.save_departments_general_v2(jsonb) to authenticated, service_role;
+grant execute on function public.delete_department_general_v2(uuid) to authenticated, service_role;
+grant execute on function public.get_schedule_export_rows_v2(date, date) to authenticated, service_role;
+
+commit;
+

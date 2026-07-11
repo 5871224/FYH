@@ -5738,7 +5738,9 @@ async function saveDepartment(mode) {
   try {
     await window.schedulerApi.saveDepartmentItem(payload, Math.max(0, sortOrder));
   } catch (error) {
-    setSaveStatus(`單位儲存失敗：${error.message}`);
+    const message = formatSchedulerError(error, "單位儲存失敗");
+    setSaveStatus(`單位儲存失敗：${message}`);
+    showInfoMessage(`單位儲存失敗：${message}`);
     return;
   }
   if (mode === "edit") {
@@ -5772,6 +5774,12 @@ async function deleteDepartment(departmentId) {
   }
   const confirmed = await confirmAction("確定要刪除這個單位嗎？");
   if (!confirmed) {
+    return;
+  }
+  try {
+    await window.schedulerApi.deleteDepartmentItem(departmentId);
+  } catch (error) {
+    showInfoMessage(formatSchedulerError(error, "單位刪除失敗"));
     return;
   }
   state.departments = state.departments.filter((department) => department.id !== departmentId);
@@ -7436,7 +7444,10 @@ function bindEvents() {
       return;
     }
     if (target.dataset.editDepartment) openDepartmentForm("edit", target.dataset.editDepartment);
-    if (target.dataset.saveDepartment) await saveDepartment(target.dataset.saveDepartment);
+    if (target.dataset.saveDepartment) {
+      await saveDepartment(target.dataset.saveDepartment);
+      return;
+    }
     if (target.dataset.deleteDepartment) {
       await deleteDepartment(target.dataset.deleteDepartment);
       return;

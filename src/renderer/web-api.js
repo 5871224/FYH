@@ -1032,6 +1032,31 @@
     });
   }
 
+  async function saveDepartmentGeneralSettings(departments) {
+    ensureManager();
+    await restRpc("save_departments_general_v2", {
+      p_departments: (departments || []).map((department, index) => ({
+        ...mapDepartmentWriteRow(department, Number.isInteger(department.sortOrder) ? department.sortOrder : index)
+      }))
+    }, {
+      auth: true,
+      prefer: "return=minimal"
+    });
+  }
+
+  async function loadScheduleExportRows(startDate, endDate) {
+    ensureManager();
+    const normalizedStart = nullableDate(startDate);
+    const normalizedEnd = nullableDate(endDate);
+    if (!normalizedStart || !normalizedEnd || normalizedStart > normalizedEnd) {
+      throw new Error("匯出日期範圍不正確");
+    }
+    return await restRpc("get_schedule_export_rows_v2", {
+      p_start_date: normalizedStart,
+      p_end_date: normalizedEnd
+    }, { auth: true }) || [];
+  }
+
   function mapShiftRows(rows = []) {
     return (rows || [])
       .filter((row) => row.id)
@@ -1326,14 +1351,9 @@
     const holidays = Array.isArray(state.holidays) ? state.holidays : [];
 
     if (departments.length) {
-      await restInsert("set_departments", departments.map((department, index) => mapDepartmentWriteRow(department, index)), {
-        auth: true,
-        onConflict: "id",
-        prefer: "resolution=merge-duplicates,return=minimal"
-      });
+      await saveDepartmentGeneralSettings(departments.map((department, index) => ({ ...department, sortOrder: index })));
       await saveDepartmentAttendanceSettings(departments);
     }
-    await deleteRowsNotIn("set_departments", departments.map((department) => department.id));
     const departmentMap = await fetchRowsById("set_departments");
 
     if (leaves.length) {
@@ -1563,12 +1583,19 @@
 
   async function saveDepartmentItem(department, sortOrder = 0) {
     ensureManager();
-    await restInsert("set_departments", [mapDepartmentWriteRow(department, sortOrder)], {
-      auth: true,
-      onConflict: "id",
-      prefer: "resolution=merge-duplicates,return=minimal"
-    });
+    await saveDepartmentGeneralSettings([{ ...department, sortOrder }]);
     await saveDepartmentAttendanceSettings([department]);
+    return { ok: true };
+  }
+
+  async function deleteDepartmentItem(departmentId) {
+    ensureManager();
+    await restRpc("delete_department_general_v2", {
+      p_department_id: String(departmentId || "").trim()
+    }, {
+      auth: true,
+      prefer: "return=minimal"
+    });
     return { ok: true };
   }
 
@@ -1931,9 +1958,11 @@
     loadState,
     loadEmployeeAdminDirectory,
     loadScheduleEntries,
+    loadScheduleExportRows,
     saveState,
     syncCatalogs,
     saveDepartmentItem,
+    deleteDepartmentItem,
     saveShiftItem,
     saveCatalogItem,
     saveScheduleCells,

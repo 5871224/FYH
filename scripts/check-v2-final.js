@@ -56,6 +56,8 @@ assert(visibility.includes("drop policy if exists v2_restrict_schedule_visibilit
 const hardenedAccess = databaseUpdates;
 assert(hardenedAccess.includes("get_my_profile_v2") && hardenedAccess.includes("get_schedule_directory_v2") && hardenedAccess.includes("get_employee_admin_directory_v2"), "缺少分用途人員資料 RPC");
 assert(hardenedAccess.includes("drop function if exists public.get_employee_directory_v2"), "混合用途舊人員名錄 RPC 尚未移除");
+assert(hardenedAccess.includes("save_departments_general_v2") && hardenedAccess.includes("delete_department_general_v2"), "單位一般欄位安全寫入 RPC 缺失");
+assert(hardenedAccess.includes("get_schedule_export_rows_v2"), "班表匯出正式資料 RPC 缺失");
 assert(hardenedAccess.includes("get_department_directory_v2"), "缺少安全單位名錄 RPC");
 assert(hardenedAccess.includes("drop policy if exists anon_can_read_profiles"), "未移除匿名人員資料政策");
 assert(hardenedAccess.includes("drop policy if exists authenticated_can_read_schedule_entries"), "未移除逾期帳號班表旁路政策");
@@ -148,6 +150,9 @@ assert(!sourceWebApi.includes("get_employee_directory_v2"), "前端仍使用混�
 const loadStateSource = sourceWebApi.slice(sourceWebApi.indexOf("async function loadState()"), sourceWebApi.indexOf("async function syncLeaveAndOvertimeCatalogs"));
 assert(!loadStateSource.includes("getEmployeeAdminDirectoryRows"), "一般登入初始化仍預載完整管理名錄");
 assert(sourceWebApi.includes("async function loadEmployeeAdminDirectory()"), "前端缺少管理名錄延遲載入介面");
+assert(sourceWebApi.includes('restRpc("save_departments_general_v2"') && sourceWebApi.includes('restRpc("delete_department_general_v2"'), "單位新增修改刪除未使用安全 RPC");
+assert(!sourceWebApi.includes('restInsert("set_departments"'), "前端仍直接 upsert 單位主表");
+assert(sourceWebApi.includes('restRpc("get_schedule_export_rows_v2"') && sourceWebApi.includes("loadScheduleExportRows"), "前端缺少班表正式匯出資料查詢");
 assert(sourceRenderer.includes("async function ensureManagerDirectoryLoaded()") && sourceRenderer.includes("await ensureManagerDirectoryLoaded();"), "班表與設定頁未依需要載入管理名錄");
 const attendanceClockSource = read("supabase/functions/attendance-clock/index.ts");
 assert(sourceRenderer.includes("geolocationError") && sourceWebApi.includes("geolocationError"), "手機定位錯誤未送到打卡 API");
@@ -162,6 +167,12 @@ assert(sourceRenderer.includes("data-toggle-overtime-panel") && sourceOvertimeUi
 assert(sourceOvertimeUi.includes("overtime-hours-grid"), "提早上班與延後下班時數未固定在同一個雙欄群組");
 
 const sourceMeal = read("src/renderer/v2-meal.js");
+const sourceExporter = read("src/renderer/browser-exporter.js");
+const sourceLiveReports = read("src/renderer/v2-live-report-filters.js");
+assert(sourceExporter.includes("getOfficialLeaveRows") && sourceExporter.includes("getOfficialOvertimeRows"), "請假或加班匯出未使用正式後端資料列");
+assert(sourceLiveReports.includes("api.loadScheduleExportRows") && sourceLiveReports.includes("exportRows"), "期間匯出仍只依賴畫面班表資料");
+assert(sourceLiveReports.includes("getVisibleDateRange"), "匯出期間未預設目前八週班表範圍");
+
 assert(sourceMeal.includes('addEventListener("beforeinput"'), "訂餐數量未在輸入前拒絕小數或負數");
 assert(sourceMeal.includes('addEventListener("paste"'), "訂餐數量未拒絕貼上無效內容");
 assert(sourceMeal.includes("lastValidMealQuantity"), "訂餐無效輸入未保留最後有效整數");
@@ -205,6 +216,8 @@ assert(authoritativeSpec.includes("員工、主管與管理員看到的人員列
 assert(authoritativeSpec.includes("get_my_profile_v2") && authoritativeSpec.includes("get_schedule_directory_v2") && authoritativeSpec.includes("get_employee_admin_directory_v2"), "正式規格書缺少人員資料用途分流");
 assert(authoritativeSpec.includes("頁面與資料權限矩陣"), "正式規格書缺少跨頁面權限矩陣");
 assert(authoritativeSpec.includes("管理名錄採依頁面延遲載入"), "正式規格書缺少管理名錄延遲載入規則");
+assert(authoritativeSpec.includes("不得只依賴目前畫面的記憶體資料") && authoritativeSpec.includes("已離職、停用"), "正式規格書缺少班表歷史匯出規則");
+assert(authoritativeSpec.includes("單位一般欄位 RPC") && authoritativeSpec.includes("不可見狀態"), "正式規格書缺少單位安全儲存與錯誤提示規則");
 assert(authoritativeSpec.includes("# 第八章　共通互動、非功能性與設計交付"), "正式規格書缺少共通互動與非功能性章節");
 assert(authoritativeSpec.includes("初次載入") && authoritativeSpec.includes("資料衝突") && authoritativeSpec.includes("未儲存修改"), "正式規格書缺少共通頁面狀態或未儲存資料規則");
 assert(authoritativeSpec.includes("效能、容量與可用性目標") && authoritativeSpec.includes("100 名有效人員"), "正式規格書缺少可量化效能容量目標");
