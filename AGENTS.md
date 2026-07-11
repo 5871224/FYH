@@ -1,8 +1,14 @@
-# AI 開發代理人專案說明
+# AI 開發代理人注意事項
 
-本儲存庫是福圓號排班系統。
+本檔只記錄 AI 在本儲存庫執行工作時必須遵守的注意事項。所有功能需求、介面規則、資料模型與驗收標準，均以根目錄的 `規格書.txt` 為唯一正式來源，不得在本檔另行定義規格。
 
 ## 開始處理前
+
+1. 先閱讀本檔，再閱讀 `規格書.txt` 中與任務相關的章節。
+2. 修改前先確認目前程式與規格是否一致；有衝突時以 `規格書.txt` 為準，並在需要時同步修正程式。
+3. 不新增獨立規格書、補充規格或臨時需求文件；規格異動直接整理進 `規格書.txt` 的既有樹狀章節。
+
+主要目錄：
 
 - 前端原始碼：`src/renderer/`
 - GitHub Pages 發布檔案：`docs/`
@@ -11,12 +17,11 @@
 
 ## 編碼與語言
 
-- 本儲存庫的文字檔一律使用 UTF-8 編碼儲存。
-- 中文文件維持使用繁體中文，除非使用者明確要求英文。
+- 文字檔一律使用 UTF-8 編碼儲存。
+- 中文文件與回覆使用繁體中文，除非使用者明確要求其他語言。
+- 回覆保持精簡，只回報高層次進度，不逐項報告低階操作。
 
-## 必須遵守的規則
-
-0. 回覆保持精簡，只回報高層次的處理進度，不逐項報告低階操作。
+## 修改與發布規則
 
 1. 若工作涉及網頁介面、互動、樣式或前端資料流程，必須執行：
 
@@ -24,68 +29,44 @@
 npm run web:publish
 ```
 
-2. GitHub Pages 使用的是 `docs/`，不是 `src/renderer/`。若 `docs/` 未同步，正式網站就不會是最新版本。
-
-3. 若前端程式有修改，且使用者沒有明確要求不要提交，應提交並推送至 `main`，讓 GitHub Pages 更新。
-
+2. GitHub Pages 使用 `docs/`，不是 `src/renderer/`；前端來源與發布檔案必須保持同步。
+3. 若前端程式有修改，且使用者未明確要求不要提交，應提交並推送至 `main`。
 4. 最終回覆必須說明：
    - `docs/` 是否已更新。
    - 是否已推送至 `main`。
 
-## 班表資料儲存規則
+## 修改時的檔案檢查
 
-- `schedule_entries` 是目前唯一正式使用的班表格資料表。
-- 每一列代表一位人員在一個日期的班表格：`member_id + work_date`。
-- 班別、假別與班表加班均儲存在同一列的不同欄位。
-- 下列舊版員工申請物件已停用，不得重新使用：
-  - `leave_requests`
-  - `overtime_requests`
-  - `request_status`
-  - `request_type`
-  - `get_public_schedule_requests()`
-- 班表格批次寫入應使用 `supabase/002_current_updates.sql` 內的 RPC。
-
-## 自動排班現況
-
-自動排班功能目前已有基礎設定，以及「預覽／套用」流程。下列欄位均視為正式使用中：
-
-- `rules.weekStart`
-- `rules.monthStartDay`
-- `shift.requiredStaffCount`
-- `member.scheduleDeptIds`
-- `member.monthlyRestDays`
-
-除非使用者另有指示，目前採用下列規則：
-
-- 每位人員每天最多只能安排一個班別。
-- 優先安排人員所屬單位，其次才安排可支援的其他單位。
-- 手動設定的班別與假別視為鎖定資料，不得由自動排班覆寫。
-- 每月休假天數是固定目標。
-- 已排入的例假與休息日均計入每月休假天數。
-- 若需求人數無法補足，保留空白班表格，不強制安排。
-- 同一單位同一天有多個班別缺人時，依班別設定順序補足。
-
-## 例假與休息日檢查
-
-目前檢查規則：
-
-- 每 7 天至少有 1 天例假。
-- 每 7 天至少有 1 天休息日。
-- 連續上班不得超過 6 天。
-
-連續上班檢查採滑動區間計算，並包含上個月延續下來的上班天數。
-
-## SQL 與同步檢查提醒
-
-若工作涉及自動排班的基礎欄位，必須檢查：
+涉及自動排班基礎欄位時，至少檢查：
 
 - `supabase/001_current_schema.sql`
 - `supabase/functions/member-auth-admin/index.ts`
 - `src/renderer/web-api.js`
 
-若工作涉及班表格資料儲存，必須檢查：
+涉及班表格資料儲存時，至少檢查：
 
 - `supabase/001_current_schema.sql`
 - `supabase/002_current_updates.sql`
 - `src/renderer/web-api.js`
 - `scripts/check-normalized-storage.js`
+
+涉及 Supabase 資料庫結構、RPC 或部署方式時，至少檢查：
+
+- `supabase/README.md`
+- `supabase/001_current_schema.sql`
+- `supabase/002_current_updates.sql`
+- 相關 Edge Function 與驗證腳本
+
+## 驗證原則
+
+- 依修改範圍執行既有檢查，不得只確認檔案可儲存。
+- 前端修改後確認 `src/renderer/` 與 `docs/` 一致。
+- 資料庫或班表儲存修改後，至少考慮執行：
+
+```bash
+node scripts/check-normalized-storage.js
+node scripts/check-expansion-acceptance.js
+npm run v2:check
+```
+
+- 不得為了讓檢查通過而刪除仍有效的安全、權限、資料一致性或正式規格驗證。
