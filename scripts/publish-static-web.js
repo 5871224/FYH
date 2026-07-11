@@ -4,14 +4,19 @@ const path = require("path");
 const rootDir = path.resolve(__dirname, "..");
 const sourceDir = path.join(rootDir, "src", "renderer");
 const outputDir = path.join(rootDir, "docs");
+const sourceOnlyDirectories = new Set(["css"]);
 
 async function listFiles(dir, prefix = "") {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   const files = [];
   for (const entry of entries) {
     const relative = path.join(prefix, entry.name);
-    if (entry.isDirectory()) files.push(...await listFiles(path.join(dir, entry.name), relative));
-    else if (entry.isFile()) files.push(relative);
+    if (entry.isDirectory()) {
+      if (!prefix && sourceOnlyDirectories.has(entry.name)) continue;
+      files.push(...await listFiles(path.join(dir, entry.name), relative));
+    } else if (entry.isFile()) {
+      files.push(relative);
+    }
   }
   return files;
 }
