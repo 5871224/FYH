@@ -17,6 +17,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
+          show-progress: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -24,13 +25,33 @@ jobs:
           node-version: 22
 
       - name: Run migration
+        id: migration
         shell: bash
+        continue-on-error: true
         run: |
-          test -f scripts/migrate-css-architecture-once.js
-          node scripts/migrate-css-architecture-once.js
-          rm -f scripts/migrate-css-architecture-once.js
-          rm -f scripts/css-migration-trigger.txt
-          rm -f .github/workflows/css-migration-pr.yml
+          set +e
+          node scripts/migrate-css-architecture-once.js > css-migration.log 2>&1
+          status=$?
+          cat css-migration.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" -eq 0 ]; then
+            rm -f scripts/migrate-css-architecture-once.js
+            rm -f scripts/css-migration-trigger.txt
+            rm -f .github/workflows/css-migration-pr.yml
+            rm -f css-migration.log
+          fi
+          exit 0
+
+      - name: Upload migration error log
+        if: steps.migration.outputs.status != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: css-migration-error
+          path: css-migration.log
+
+      - name: Stop after migration failure
+        if: steps.migration.outputs.status != '0'
+        run: exit 1
 
       - name: Build and validate
         run: |
