@@ -1,0 +1,27 @@
+name: Move AGENTS specs once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/move-agent-specs-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  move-specs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Move specification content
+        run: python scripts/move_agent_specs_once.py
+
+      - name: Commit changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m '將 AGENTS 規格內容移入正式規格書'
+          git push
