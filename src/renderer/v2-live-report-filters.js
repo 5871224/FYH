@@ -50,6 +50,12 @@
   }
 
   function getPreviousPeriodDefaults() {
+    if (typeof getVisibleDateRange === "function") {
+      const visible = getVisibleDateRange();
+      if (parseIsoDate(visible?.startDate) && parseIsoDate(visible?.endDate)) {
+        return { startDay: 1, startDate: visible.startDate, endDate: visible.endDate };
+      }
+    }
     const today = parseIsoDate(typeof getTodayDateString === "function" ? getTodayDateString() : "") || new Date();
     const rawStartDay = Number(typeof getConfiguredMonthStartDay === "function"
       ? getConfiguredMonthStartDay()
@@ -84,6 +90,9 @@
   }
 
   function aggregateRows(payload, original, dateColumnIndex) {
+    if (Array.isArray(payload?.exportRows) && typeof original === "function") {
+      return original(payload);
+    }
     if (!payload?.startDate || !payload?.endDate || typeof original !== "function") {
       return typeof original === "function" ? original(payload) : [];
     }
@@ -238,11 +247,14 @@
     const emptyMessage = type === "sap" ? "目前沒有可匯出的休例假資料" : type === "leave" ? "目前沒有可匯出的請假資料" : "目前沒有可匯出的加班資料";
     try {
       if (typeof setSaveStatus === "function") setSaveStatus("正在準備匯出資料...", true);
-      await ensureScheduleRangeLoaded(startDate, endDate);
+      const exportRows = typeof api.loadScheduleExportRows === "function"
+        ? await api.loadScheduleExportRows(startDate, endDate)
+        : (await ensureScheduleRangeLoaded(startDate, endDate), null);
       const result = await api[method]({
         state,
         startDate,
         endDate,
+        exportRows,
         year: start.getFullYear(),
         month: start.getMonth()
       });
