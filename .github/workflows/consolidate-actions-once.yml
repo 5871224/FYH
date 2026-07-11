@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   consolidate-and-validate:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -29,15 +30,17 @@ jobs:
         run: |
           node scripts/consolidate-actions-once.js
           rm -f scripts/consolidate-actions-once.js
-          rm -f .github/workflows/consolidate-actions-once.yml
 
       - name: Validate consolidated workflow
         run: npm run ci:check
 
-      - name: Commit consolidated workflow
+      - name: Restore workflow files for connector update
+        run: git restore --source=HEAD -- .github/workflows
+
+      - name: Commit documentation and validation updates
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "整併 GitHub Actions 驗證與部署流程"
+          git commit -m "更新 Actions 文件與驗證規則"
           git push origin HEAD:${{ github.head_ref }}
