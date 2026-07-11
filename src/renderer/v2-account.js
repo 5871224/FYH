@@ -70,11 +70,4 @@
     openMemberSettings();
     showInfoMessage(result?.softDeleted ? "人員已停用，歷史紀錄已保留" : "人員已刪除");
   };
-
-  if (!document.querySelector('script[data-v2-module="v2-records.js"]')) {
-    const script = document.createElement("script");
-    script.src = "./v2-records.js?v=20260706v2";
-    script.dataset.v2Module = "v2-records.js";
-    document.body.appendChild(script);
-  }
 })();

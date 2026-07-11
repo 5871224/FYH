@@ -28,8 +28,9 @@ Supabase PostgreSQL
 
 ## 專案結構
 
-- `src/renderer/`：前端原始碼與自動產生的 `app.css`。
+- `src/renderer/`：HTML、部署設定、前端 JavaScript 模組，以及自動產生的 `app.css`、`app.js`。
 - `src/renderer/css/`：模組化 CSS 唯一原始來源；分為基礎、班表、共用元件、響應式與頁面專屬樣式。
+- `scripts/build-js.js`：依固定順序把現行 JavaScript 模組合併成單一 `app.js`；第一階段保留既有全域行為。
 - `docs/`：`npm run web:publish` 產生的 GitHub Pages 正式發布內容，不直接手動修改。
 - `supabase/001_current_schema.sql`：全新資料庫的基準結構。
 - `supabase/002_current_updates.sql`：基準結構後的現行正式更新。
@@ -44,6 +45,8 @@ Supabase PostgreSQL
 ```bash
 npm run css:build
 npm run css:check
+npm run js:build
+npm run js:check
 npm run web
 npm run web:check
 npm run web:publish
@@ -52,24 +55,29 @@ npm run v2:check
 
 - `npm run css:build`：依固定模組順序產生單一 `src/renderer/app.css`。
 - `npm run css:check`：確認 `app.css` 與 CSS 模組及快取版本一致。
-- `npm run web`：先建立 CSS bundle，再啟動本機靜態預覽伺服器。
+- `npm run js:build`：依固定清單與既有載入順序產生單一 `src/renderer/app.js`。
+- `npm run js:check`：確認每個 JavaScript 原始模組都已明確列入建置清單，且 `app.js`、入口版本、動態載入限制與語法一致。
+- `npm run web`：先建立 CSS 與 JavaScript bundle，再啟動本機靜態預覽伺服器。
 - `npm run web:check`：檢查公開 Supabase 設定。
-- `npm run web:publish`：建立 CSS bundle、清理並重建 `docs/`，再更新靜態資源版本參數。
-- `npm run v2:check`：檢查 CSS bundle、V2 結構與發布內容對齊。
+- `npm run web:publish`：建立兩種 bundle、清理並重建 `docs/`，再更新靜態資源版本參數。
+- `npm run v2:check`：檢查 CSS、JavaScript bundle、V2 結構與發布內容對齊。
 
 ## 前端發布
 
 1. CSS 只修改 `src/renderer/css/` 中對應模組，不直接修改 `app.css` 或 `docs/`。
-2. JavaScript、HTML 及其他前端來源只修改 `src/renderer/`。
-3. 完成後執行：
+2. JavaScript 修改現有責任模組，不直接修改 `app.js`；不得新增依靠後載入覆寫前檔的 `fix`、`refinement` 或新版本補丁檔。
+3. `app-config.js` 是部署環境設定，維持獨立載入；其他正式前端程式由 `app.js` 提供。
+4. HTML 及其他前端來源只修改 `src/renderer/`。
+5. 完成後執行：
 
 ```bash
 npm run web:publish
 npm run v2:check
 ```
 
-4. 發布腳本會把 CSS 模組依固定順序合併成單一 `app.css`，清理舊的 `docs/` 後完整重建發布內容。
-5. GitHub Pages 工作流程也會在上傳前執行 `npm run web:publish`，避免發布舊 bundle。
+6. 發布腳本會依固定順序產生單一 `app.css` 與 `app.js`，清理舊的 `docs/` 後完整重建發布內容。
+7. `docs/` 只發布 `app-config.js` 與 `app.js`，不發布個別 JavaScript 原始模組。
+8. GitHub Pages 工作流程也會在上傳前執行 `npm run web:publish`，避免發布舊 bundle。
 
 ## Supabase 資料庫建置
 
@@ -98,6 +106,8 @@ SQL 執行期間只要出現錯誤就應立即停止，不可略過錯誤繼續�
 
 ```bash
 npm run web:check
+npm run css:check
+npm run js:check
 node --check src/renderer/renderer.js
 node --check src/renderer/web-api.js
 node --check src/renderer/v2-auto-fill-schedule.js

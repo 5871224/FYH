@@ -9,7 +9,7 @@ const schema = read("supabase", "001_current_schema.sql");
 const databaseUpdates = read("supabase", "002_current_updates.sql");
 const index = read("src", "renderer", "index.html");
 const renderer = read("src", "renderer", "renderer.js");
-const styles = read("src", "renderer", "styles.css");
+const styles = read("src", "renderer", "app.css");
 const webApi = read("src", "renderer", "web-api.js");
 const attendanceClock = read("supabase", "functions", "attendance-clock", "index.ts");
 const attendanceOvertime = read("supabase", "functions", "attendance-overtime", "index.ts");
@@ -30,7 +30,7 @@ assert(webApi.includes("function assertSessionActive"), "authenticated requests 
 assert(index.includes('id="homeCard"') && renderer.includes("function renderHomeDashboard"), "login should land on the home dashboard");
 assert(index.includes('id="scheduleCard" hidden'), "schedule table should be hidden until the schedule page is opened");
 assert(renderer.includes('window.addEventListener("popstate", handleAppBackNavigation)') && renderer.includes("function hasClosableModal") && renderer.includes('appView = "home";'), "Android back should close modal first, then return home");
-assert(renderer.includes('[hidden]') || read("src", "renderer", "styles.css").includes("[hidden]"), "hidden sections should stay hidden on mobile");
+assert(renderer.includes('[hidden]') || read("src", "renderer", "app.css").includes("[hidden]"), "hidden sections should stay hidden on mobile");
 assert(styles.includes("@media (max-width: 640px)") && styles.includes(".calendar-nav {\n    flex-wrap: wrap;") && styles.includes(".nav-actions {\n    justify-content: flex-start;"), "mobile schedule navigation should wrap instead of forcing one row");
 assert(renderer.includes('toggle.textContent = "功能"'), "schedule top-right menu should be labelled function");
 assert(index.includes('id="coreHomeButton"') && !index.includes('data-home-action="home">首頁</button>\n              <button'), "schedule home button should sit outside the function menu");

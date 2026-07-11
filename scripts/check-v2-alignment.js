@@ -68,10 +68,12 @@ assert(mealOrder.includes('rpc("save_meal_order_v2"'), "Meal order does not pres
 assert(mealOrder.includes("停用品項只能減少或取消"), "Disabled meal-item increase protection is missing");
 
 const sourceApi = read("src/renderer/v2-api.js");
-const publishedApi = read("docs/v2-api.js");
-assert(sourceApi === publishedApi, "src/renderer/v2-api.js and docs/v2-api.js are not synchronized");
 assert(sourceApi.includes("safeDepartmentColumns"), "Safe department projection is missing");
 assert(sourceApi.includes("runManagerSafeWrite"), "Manager-safe department write wrapper is missing");
+const sourceJs = read("src/renderer/app.js");
+const docsJs = read("docs/app.js");
+assert(sourceJs === docsJs, "src/renderer/app.js and docs/app.js are not synchronized");
+assert(sourceJs.includes("safeDepartmentColumns") && sourceJs.includes("runManagerSafeWrite"), "JavaScript bundle is missing V2 API protections");
 
 const sourceCss = read("src/renderer/app.css");
 const docsCss = read("docs/app.css");
@@ -83,14 +85,10 @@ const sourceIndex = read("src/renderer/index.html");
 const docsIndex = read("docs/index.html");
 assert(sourceIndex.includes("app.css") && !sourceIndex.includes("styles.css") && !sourceIndex.includes("ui-system.css"), "Source index must load only bundled app.css");
 assert(docsIndex.includes("app.css") && !docsIndex.includes("styles.css") && !docsIndex.includes("ui-system.css"), "Published index must load only bundled app.css");
-assert(sourceIndex.includes("v2-api.js"), "Source index does not load v2-api.js");
-assert(docsIndex.includes("v2-api.js"), "Published index does not load v2-api.js");
-assert(sourceIndex.includes("v2-overtime-employee.js"), "Source index does not load the employee overtime module");
-assert(docsIndex.includes("v2-overtime-employee.js"), "Published index does not load the employee overtime module");
-
-const docsRecords = read("docs/v2-records.js");
-const docsAttendance = read("docs/v2-attendance-admin.js");
-assert(!docsRecords.includes("document.write"), "Published records loader may overwrite the page");
-assert(!docsAttendance.includes("document.write"), "Published attendance loader may overwrite the page");
+assert(sourceIndex.includes("app-config.js") && sourceIndex.includes("app.js") && !sourceIndex.includes("v2-api.js"), "Source index must load only app-config.js and bundled app.js");
+assert(docsIndex.includes("app-config.js") && docsIndex.includes("app.js") && !docsIndex.includes("v2-api.js"), "Published index must load only app-config.js and bundled app.js");
+assert(!sourceJs.includes("document.write"), "JavaScript bundle may overwrite the page");
+const publishedJsFiles = fs.readdirSync(path.join(root, "docs")).filter((name) => name.endsWith(".js"));
+assert(publishedJsFiles.every((name) => name === "app-config.js" || name === "app.js"), `Unexpected JavaScript source modules in docs: ${publishedJsFiles.join(", ")}`);
 
 console.log(`V2 alignment checks passed (${requiredFiles.length} required files).`);

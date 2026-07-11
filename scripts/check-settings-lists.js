@@ -5,7 +5,7 @@ const path = require("path");
 const rootDir = path.resolve(__dirname, "..");
 const renderer = fs.readFileSync(path.join(rootDir, "src", "renderer", "renderer.js"), "utf8");
 const browserExporter = fs.readFileSync(path.join(rootDir, "src", "renderer", "browser-exporter.js"), "utf8");
-const styles = fs.readFileSync(path.join(rootDir, "src", "renderer", "styles.css"), "utf8");
+const styles = fs.readFileSync(path.join(rootDir, "src", "renderer", "app.css"), "utf8");
 const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js"), "utf8");
 
 assert(renderer.includes('class="settings-table-wrap"'), "settings list should render table wrap");
