@@ -1297,8 +1297,7 @@
 
   async function deleteMemberProfile(employeeCode) {
     ensureManager();
-    return requestFunction("member-auth-admin", {
-      action: "delete_member",
+    return requestFunction("member-delete-v2", {
       employeeCode: String(employeeCode || "").trim()
     });
   }
