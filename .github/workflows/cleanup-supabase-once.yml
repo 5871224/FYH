@@ -1,0 +1,33 @@
+name: Cleanup Supabase SQL and docs once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cleanup-supabase-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Consolidate Supabase SQL and docs
+        run: python scripts/cleanup_supabase_once.py
+
+      - name: Run database checks
+        run: |
+          node scripts/check-normalized-storage.js
+          node scripts/check-expansion-acceptance.js
+          npm run v2:check
+
+      - name: Commit cleanup
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m '整併 Supabase SQL 與部署文件'
+          git push
