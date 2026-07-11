@@ -56,7 +56,7 @@ npm run v2:check
 - `npm run css:build`：依固定模組順序產生單一 `src/renderer/app.css`。
 - `npm run css:check`：確認 `app.css` 與 CSS 模組及快取版本一致。
 - `npm run js:build`：依固定清單與既有載入順序產生單一 `src/renderer/app.js`。
-- `npm run js:check`：確認 `app.js`、來源模組、入口版本及 JavaScript 語法一致。
+- `npm run js:check`：確認每個 JavaScript 原始模組都已明確列入建置清單，且 `app.js`、入口版本、動態載入限制與語法一致。
 - `npm run web`：先建立 CSS 與 JavaScript bundle，再啟動本機靜態預覽伺服器。
 - `npm run web:check`：檢查公開 Supabase 設定。
 - `npm run web:publish`：建立兩種 bundle、清理並重建 `docs/`，再更新靜態資源版本參數。
