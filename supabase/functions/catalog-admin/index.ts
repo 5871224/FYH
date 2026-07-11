@@ -25,7 +25,7 @@ function addDaysToDateString(dateString: string, count: number) {
 
 function isProfileEffective(profile: any, today = taipeiDateString()) {
   const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
-  return Boolean(profile?.is_active !== false && (!profile.hire_date || today >= profile.hire_date) && (!effectiveEndDate || today <= effectiveEndDate));
+  return Boolean((!profile.hire_date || today >= profile.hire_date) && (!effectiveEndDate || today <= effectiveEndDate));
 }
 
 async function requireManager(ctx: any) {
@@ -33,7 +33,7 @@ async function requireManager(ctx: any) {
   if (!actorId) throw new Error("缺少登入身分");
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("role,is_active,hire_date,leave_date")
+    .select("role,hire_date,leave_date")
     .eq("id", actorId)
     .single();
   if (error) throw error;

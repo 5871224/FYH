@@ -82,6 +82,8 @@ assert(schema.includes("create table if not exists public.schedule_entries"), "s
 assert(!schema.includes("schedule_months"), "current schema should not create schedule_months");
 assert(schema.includes("create table if not exists public.holidays"), "schema should create holidays");
 assert(schema.includes("create table if not exists public.set_employee"), "schema should create set_employee");
+const setEmployeeSchema = schema.slice(schema.indexOf("create table if not exists public.set_employee"), schema.indexOf("create table if not exists public.set_shift"));
+assert(!setEmployeeSchema.includes("is_active"), "set_employee should not keep an is_active column");
 assert(schema.includes("role in ('admin', 'manager', 'employee')"), "employee roles should include admin");
 assert(schema.includes("alter column role type text using role::text"), "current schema should migrate legacy app_role enum columns to text");
 assert(schema.includes("schedule_shift_ids uuid[]"), "schema should store ordered member shift priorities as uuid ids");

@@ -16,11 +16,11 @@ export default {
     try {
       const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
       const profile = await ctx.supabaseAdmin.from("set_employee")
-        .select("role,is_active,hire_date,leave_date").eq("id", userId).single();
+        .select("role,hire_date,leave_date").eq("id", userId).single();
       if (profile.error) throw profile.error;
       const date = today();
       const end = profile.data.leave_date ? addFiveDays(profile.data.leave_date) : "";
-      if (profile.data.role !== "admin" || !profile.data.is_active || (profile.data.hire_date && date < profile.data.hire_date) || (end && date > end)) {
+      if (profile.data.role !== "admin" || (profile.data.hire_date && date < profile.data.hire_date) || (end && date > end)) {
         throw new Error("此功能限管理員使用");
       }
 

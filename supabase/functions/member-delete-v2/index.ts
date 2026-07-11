@@ -19,8 +19,7 @@ function addDays(value: string, count: number) {
 
 function effective(profile: any, today = dateText()) {
   const end = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
-  return Boolean(profile?.is_active
-    && (!profile.hire_date || today >= profile.hire_date)
+  return Boolean((!profile.hire_date || today >= profile.hire_date)
     && (!end || today <= end));
 }
 
@@ -42,7 +41,7 @@ async function actorProfile(ctx: any) {
   const actorId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!actorId) throw new Error("請先登入");
   const result = await ctx.supabaseAdmin.from("set_employee")
-    .select("id,employee_code,full_name,role,is_active,hire_date,leave_date")
+    .select("id,employee_code,full_name,role,hire_date,leave_date")
     .eq("id", actorId).single();
   if (result.error) throw result.error;
   if (!effective(result.data)) throw new Error("此帳號目前不在有效期間");
@@ -67,7 +66,7 @@ async function verifyPassword(employeeCode: string, password: string) {
 
 async function effectiveAdminCount(ctx: any) {
   const result = await ctx.supabaseAdmin.from("set_employee")
-    .select("id,role,is_active,hire_date,leave_date").eq("role", "admin");
+    .select("id,role,hire_date,leave_date").eq("role", "admin");
   if (result.error) throw result.error;
   return (result.data || []).filter((row: any) => effective(row)).length;
 }
@@ -75,7 +74,7 @@ async function effectiveAdminCount(ctx: any) {
 async function findTarget(ctx: any, employeeCode: string) {
   const key = normalizeCode(employeeCode);
   const result = await ctx.supabaseAdmin.from("set_employee")
-    .select("id,employee_code,full_name,role,is_active,hire_date,leave_date");
+    .select("id,employee_code,full_name,role,hire_date,leave_date");
   if (result.error) throw result.error;
   return (result.data || []).find((row: any) => normalizeCode(row.employee_code) === key) || null;
 }

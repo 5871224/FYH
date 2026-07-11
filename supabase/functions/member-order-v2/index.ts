@@ -19,9 +19,7 @@ function addDays(value: string, count: number) {
 
 function isEffective(profile: any, today = taipeiDate()) {
   const endDate = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
-  return Boolean(
-    profile?.is_active
-    && (!profile.hire_date || today >= profile.hire_date)
+  return Boolean((!profile.hire_date || today >= profile.hire_date)
     && (!endDate || today <= endDate)
   );
 }
@@ -30,7 +28,7 @@ async function requireProfile(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   const result = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id,role,is_active,hire_date,leave_date")
+    .select("id,role,hire_date,leave_date")
     .eq("id", userId)
     .single();
   if (result.error) throw result.error;
@@ -43,7 +41,6 @@ async function listOrder(ctx: any) {
   const result = await ctx.supabaseAdmin
     .from("set_employee")
     .select("id,sort_order,employee_code")
-    .eq("is_active", true)
     .order("sort_order", { ascending: true })
     .order("employee_code", { ascending: true });
   if (result.error) throw result.error;

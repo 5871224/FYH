@@ -34,7 +34,7 @@ function addDaysToDateString(dateString: string, count: number) {
 
 function isProfileEffective(profile: any, today = taipeiDateString()) {
   const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
-  return Boolean(profile?.is_active !== false && (!profile.hire_date || today >= profile.hire_date) && (!effectiveEndDate || today <= effectiveEndDate));
+  return Boolean((!profile.hire_date || today >= profile.hire_date) && (!effectiveEndDate || today <= effectiveEndDate));
 }
 
 function isUuid(value: string) {
@@ -100,7 +100,7 @@ async function getActorRole(ctx: any) {
   }
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("role, is_active, hire_date, leave_date")
+    .select("role, hire_date, leave_date")
     .eq("id", actorId)
     .single();
   if (error) throw error;
@@ -115,7 +115,7 @@ async function findProfileByCode(ctx: any, employeeCode: string) {
   if (!key) return null;
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id, employee_code, full_name, role, is_active, hire_date, leave_date");
+    .select("id, employee_code, full_name, role, hire_date, leave_date");
   if (error) throw error;
   return (data || []).find((row: any) => normalizeCodeKey(row.employee_code) === key) || null;
 }
@@ -123,7 +123,7 @@ async function findProfileByCode(ctx: any, employeeCode: string) {
 async function countEffectiveAdmins(ctx: any) {
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id, role, is_active, hire_date, leave_date")
+    .select("id, role, hire_date, leave_date")
     .eq("role", "admin");
   if (error) throw error;
   return (data || []).filter((profile: any) => isProfileEffective(profile)).length;
@@ -218,7 +218,6 @@ async function upsertMember(ctx: any, body: any) {
         home_department_id: homeDepartmentUuid,
         schedule_shift_ids: member.scheduleShiftIds,
         monthly_rest_days: member.monthlyRestDays,
-        is_active: true
       });
     if (insertError) {
       await ctx.supabaseAdmin.auth.admin.deleteUser(userId).catch(() => undefined);
@@ -253,7 +252,6 @@ async function upsertMember(ctx: any, body: any) {
       home_department_id: homeDepartmentUuid,
       schedule_shift_ids: member.scheduleShiftIds,
       monthly_rest_days: member.monthlyRestDays,
-      is_active: true
     })
     .eq("id", profile.id);
   if (updateProfileError) {

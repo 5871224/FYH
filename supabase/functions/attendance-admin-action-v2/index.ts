@@ -14,7 +14,7 @@ function addDays(value: string, count: number) {
 
 function effective(profile: any, today = taipeiDate()) {
   const end = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
-  return Boolean(profile?.is_active && (!profile.hire_date || today >= profile.hire_date) && (!end || today <= end));
+  return Boolean((!profile.hire_date || today >= profile.hire_date) && (!end || today <= end));
 }
 
 function validDate(value: unknown, fallback = taipeiDate()) {
@@ -33,7 +33,7 @@ async function requireAdmin(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!userId) throw new Error("請先登入");
   const result = await ctx.supabaseAdmin.from("set_employee")
-    .select("id,role,is_active,hire_date,leave_date").eq("id", userId).single();
+    .select("id,role,hire_date,leave_date").eq("id", userId).single();
   if (result.error) throw result.error;
   if (!effective(result.data) || result.data.role !== "admin") throw new Error("此功能限管理員使用");
   return result.data;
