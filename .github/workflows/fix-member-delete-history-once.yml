@@ -1,0 +1,48 @@
+name: Fix Member Delete History Block
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply fixes
+        run: |
+          python3 scripts/fix-member-delete-history-once.py
+          rm -f scripts/fix-member-delete-history-once.py
+          rm -f .github/workflows/fix-member-delete-history-once.yml
+
+      - name: Build published frontend
+        run: npm run web:publish
+
+      - name: Validate
+        run: |
+          node scripts/check-normalized-storage.js
+          node scripts/check-expansion-acceptance.js
+          node scripts/check-settings-lists.js
+          npm run v2:check
+
+      - name: Commit fixes to PR branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "修正人員刪除歷史保護"
+          git push origin HEAD:${{ github.head_ref }}
