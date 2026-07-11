@@ -1,0 +1,24 @@
+name: Inventory Employee Is Active
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          show-progress: false
+      - name: Inventory references
+        run: |
+          echo '=== all is_active references outside generated bundles/docs ==='
+          grep -RIn --exclude='app.js' --exclude-dir='docs' --exclude-dir='.git' 'is_active' . || true
+          echo '=== all isActive references outside generated bundles/docs ==='
+          grep -RIn --exclude='app.js' --exclude-dir='docs' --exclude-dir='.git' 'isActive' . || true
