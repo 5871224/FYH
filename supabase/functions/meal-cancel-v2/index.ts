@@ -14,7 +14,7 @@ export default {
     try {
       const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
       const profile = await ctx.supabaseAdmin.from("set_employee")
-        .select("is_active,hire_date,leave_date").eq("id", userId).single();
+        .select("hire_date,leave_date").eq("id", userId).single();
       if (profile.error) throw profile.error;
       const today = localDate();
       const leaveEnd = profile.data.leave_date
@@ -24,7 +24,7 @@ export default {
       const effectiveEnd = leaveEnd
         ? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(leaveEnd)
         : "";
-      if (!profile.data.is_active || (profile.data.hire_date && today < profile.data.hire_date) || (effectiveEnd && today > effectiveEnd)) {
+      if ((profile.data.hire_date && today < profile.data.hire_date) || (effectiveEnd && today > effectiveEnd)) {
         throw new Error("此帳號目前不在有效期間");
       }
 

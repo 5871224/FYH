@@ -26,13 +26,13 @@ function pageNumber(value: unknown) {
 
 function effective(profile: any, today = dateText()) {
   const end = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
-  return Boolean(profile?.is_active && (!profile.hire_date || today >= profile.hire_date) && (!end || today <= end));
+  return Boolean((!profile.hire_date || today >= profile.hire_date) && (!end || today <= end));
 }
 
 async function requireAdmin(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   const result = await ctx.supabaseAdmin.from("set_employee")
-    .select("id,role,is_active,hire_date,leave_date").eq("id", userId).single();
+    .select("id,role,hire_date,leave_date").eq("id", userId).single();
   if (result.error) throw result.error;
   if (!effective(result.data) || result.data.role !== "admin") throw new Error("此功能限管理員使用");
 }
@@ -62,7 +62,7 @@ async function listRequests(ctx: any, body: any) {
     userIds.length ? ctx.supabaseAdmin.from("set_employee").select("id,employee_code,full_name,home_department_id").in("id", userIds) : { data: [], error: null },
     userIds.length && workDates.length ? ctx.supabaseAdmin.from("attendance_records").select("user_id,work_date,clock_in_at,clock_out_at").in("user_id", userIds).in("work_date", workDates) : { data: [], error: null },
     userIds.length && workDates.length ? ctx.supabaseAdmin.from("schedule_entries").select("member_id,work_date,shift_type_id").in("member_id", userIds).in("work_date", workDates) : { data: [], error: null },
-    ctx.supabaseAdmin.from("set_employee").select("id,employee_code,full_name,home_department_id,is_active,hire_date,leave_date").order("employee_code", { ascending: true })
+    ctx.supabaseAdmin.from("set_employee").select("id,employee_code,full_name,home_department_id,hire_date,leave_date").order("employee_code", { ascending: true })
   ]);
   for (const item of [employeeResult, attendanceResult, scheduleResult, memberResult]) if (item.error) throw item.error;
 

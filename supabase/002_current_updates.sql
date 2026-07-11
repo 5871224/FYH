@@ -251,7 +251,6 @@ as $$
     select 1
     from public.set_employee e
     where e.id = p_user_id
-      and e.is_active = true
       and (e.hire_date is null or e.hire_date <= (timezone('Asia/Taipei', now()))::date)
       and (e.leave_date is null or (timezone('Asia/Taipei', now()))::date <= e.leave_date + 5)
   )
@@ -387,7 +386,6 @@ begin
   from public.set_employee
   where id = p_user_id;
   if not found
-    or v_employee.is_active is not true
     or (v_employee.hire_date is not null and v_today < v_employee.hire_date)
     or (v_employee.leave_date is not null and v_today > v_employee.leave_date + 5) then
     raise exception '帳號不在有效任職期間，無法打卡' using errcode = '42501';
@@ -867,7 +865,6 @@ begin
   select role into v_operator_role
   from public.set_employee
   where id = p_operator_user_id
-    and is_active = true
     and (hire_date is null or hire_date <= (timezone('Asia/Taipei', v_now))::date)
     and (leave_date is null or (timezone('Asia/Taipei', v_now))::date <= leave_date + 5);
 
@@ -1029,25 +1026,27 @@ begin;
 
 create or replace function public.is_effective_admin_row(
   p_role text,
-  p_is_active boolean,
   p_hire_date date,
   p_leave_date date
 )
 returns boolean
 language sql
 stable
+set search_path = public, pg_catalog
 as $$
   select coalesce(p_role, '') = 'admin'
-    and coalesce(p_is_active, false) = true
-    and (p_hire_date is null or p_hire_date <= (timezone('Asia/Taipei', now()))::date)
-    and (p_leave_date is null or (timezone('Asia/Taipei', now()))::date <= p_leave_date + 5)
+    and public.is_employee_account_effective(
+      p_hire_date,
+      p_leave_date,
+      (timezone('Asia/Taipei', now()))::date
+    )
 $$;
 
 create or replace function public.protect_last_effective_admin_v2()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_catalog
 as $$
 declare
   v_old_effective boolean;
@@ -1056,7 +1055,6 @@ declare
 begin
   v_old_effective := public.is_effective_admin_row(
     old.role,
-    old.is_active,
     old.hire_date,
     old.leave_date
   );
@@ -1068,7 +1066,6 @@ begin
   if tg_op = 'UPDATE' then
     v_new_effective := public.is_effective_admin_row(
       new.role,
-      new.is_active,
       new.hire_date,
       new.leave_date
     );
@@ -1085,13 +1082,12 @@ begin
   where employee.id <> old.id
     and public.is_effective_admin_row(
       employee.role,
-      employee.is_active,
       employee.hire_date,
       employee.leave_date
     );
 
   if v_other_effective_admins = 0 then
-    raise exception '系統必須保留至少一個有效管理員；最後一位管理員不可刪除、降級、停用、設定未來到職日或離職日'
+    raise exception '系統必須保留至少一個有效管理員；最後一位管理員不可刪除、降級、設定未來到職日或離職日'
       using errcode = '23514';
   end if;
 
@@ -1543,15 +1539,13 @@ begin
   ) into v_has_history;
 
   if v_has_history then
-    update public.set_employee
-       set is_active = false
-     where id = p_target_id;
-
     return jsonb_build_object(
-      'ok', true,
-      'deleted', true,
-      'softDeleted', true,
-      'employeeCode', v_profile.employee_code
+      'ok', false,
+      'deleted', false,
+      'softDeleted', false,
+      'blocked', true,
+      'code', 'MEMBER_HAS_HISTORY',
+      'message', '已有歷史資料，無法刪除；離職人員請填寫離職日'
     );
   end if;
 
@@ -1610,15 +1604,13 @@ begin
   ) into v_has_history;
 
   if v_has_history then
-    update public.set_employee
-       set is_active = false
-     where id = p_target_id;
-
     return jsonb_build_object(
-      'ok', true,
-      'deleted', true,
-      'softDeleted', true,
-      'employeeCode', v_profile.employee_code
+      'ok', false,
+      'deleted', false,
+      'softDeleted', false,
+      'blocked', true,
+      'code', 'MEMBER_HAS_HISTORY',
+      'message', '已有歷史資料，無法刪除；離職人員請填寫離職日'
     );
   end if;
 
@@ -1650,6 +1642,8 @@ grant execute on function public.delete_member_account_v3(uuid) to service_role;
 
 begin;
 
+drop function if exists public.get_employee_directory_v2();
+
 create or replace function public.get_employee_directory_v2()
 returns table (
   id uuid,
@@ -1661,7 +1655,6 @@ returns table (
   hire_date date,
   leave_date date,
   pay_by_day boolean,
-  is_active boolean,
   created_at timestamptz,
   updated_at timestamptz,
   schedule_department_ids text[],
@@ -1690,21 +1683,19 @@ as $$
     case when actor.manager_access or target.id = actor.id then target.role else 'employee' end,
     target.home_department_id,
     case when actor.manager_access or target.id = actor.id then target.position_name else null end,
-    case when actor.manager_access or target.id = actor.id then target.hire_date else null end,
-    case when actor.manager_access or target.id = actor.id then target.leave_date else null end,
-    case when actor.manager_access or target.id = actor.id then target.pay_by_day else false end,
-    target.is_active,
+    target.hire_date,
+    target.leave_date,
+    target.pay_by_day,
     target.created_at,
     target.updated_at,
     case when actor.manager_access or target.id = actor.id then target.schedule_department_ids else '{}'::text[] end,
     case when actor.manager_access or target.id = actor.id then target.monthly_rest_days else 0 end,
     case when actor.manager_access or target.id = actor.id then target.fixed_rest_weekday else 0 end,
-    case when actor.manager_access or target.id = actor.id then target.schedule_shift_ids else '{}'::uuid[] end,
+    target.schedule_shift_ids,
     target.sort_order
   from actor
   join public.set_employee target
-    on target.id = actor.id
-    or (actor.effective and target.is_active)
+    on target.id = actor.id or actor.effective
   order by target.sort_order, target.full_name, target.id
 $$;
 
@@ -1815,11 +1806,11 @@ revoke all on function public.protect_last_effective_admin_v2() from public, ano
 revoke all on function public.rls_auto_enable() from public, anon, authenticated;
 revoke all on function public.set_updated_at() from public, anon, authenticated;
 revoke all on function public.set_schedule_documents_updated_at() from public, anon, authenticated;
-revoke all on function public.is_effective_admin_row(text, boolean, date, date) from public, anon, authenticated;
+revoke all on function public.is_effective_admin_row(text, date, date) from public, anon, authenticated;
 
 alter function public.set_updated_at() set search_path = public, pg_catalog;
 alter function public.set_schedule_documents_updated_at() set search_path = public, pg_catalog;
-alter function public.is_effective_admin_row(text, boolean, date, date) set search_path = public, pg_catalog;
+
 
 drop index if exists public.idx_attendance_overtime_active_user_date;
 drop index if exists public.idx_profiles_home_department_id;
@@ -1865,7 +1856,6 @@ returns table (
   hire_date date,
   leave_date date,
   pay_by_day boolean,
-  is_active boolean,
   created_at timestamptz,
   updated_at timestamptz,
   schedule_department_ids text[],
@@ -1897,7 +1887,6 @@ as $$
     target.hire_date,
     target.leave_date,
     target.pay_by_day,
-    target.is_active,
     target.created_at,
     target.updated_at,
     case when actor.manager_access or target.id = actor.id then target.schedule_department_ids else '{}'::text[] end,
@@ -1907,8 +1896,7 @@ as $$
     target.sort_order
   from actor
   join public.set_employee target
-    on target.id = actor.id
-    or (actor.effective and target.is_active)
+    on target.id = actor.id or actor.effective
   order by target.sort_order, target.full_name, target.id
 $$;
 
@@ -1924,6 +1912,10 @@ commit;
 
 begin;
 
+drop function if exists public.get_my_profile_v2();
+drop function if exists public.get_schedule_directory_v2();
+drop function if exists public.get_employee_admin_directory_v2();
+
 create or replace function public.get_my_profile_v2()
 returns table (
   id uuid,
@@ -1935,7 +1927,6 @@ returns table (
   hire_date date,
   leave_date date,
   pay_by_day boolean,
-  is_active boolean,
   created_at timestamptz,
   updated_at timestamptz,
   schedule_department_ids text[],
@@ -1959,7 +1950,6 @@ as $$
     employee.hire_date,
     employee.leave_date,
     employee.pay_by_day,
-    employee.is_active,
     employee.created_at,
     employee.updated_at,
     employee.schedule_department_ids,
@@ -1979,7 +1969,6 @@ returns table (
   hire_date date,
   leave_date date,
   pay_by_day boolean,
-  is_active boolean,
   sort_order integer
 )
 language sql
@@ -1997,12 +1986,10 @@ as $$
     employee.hire_date,
     employee.leave_date,
     employee.pay_by_day,
-    employee.is_active,
     employee.sort_order
   from actor
   cross join public.set_employee employee
   where actor.effective
-    and employee.is_active
   order by employee.sort_order, employee.full_name, employee.id
 $$;
 
@@ -2017,7 +2004,6 @@ returns table (
   hire_date date,
   leave_date date,
   pay_by_day boolean,
-  is_active boolean,
   created_at timestamptz,
   updated_at timestamptz,
   schedule_department_ids text[],
@@ -2044,7 +2030,6 @@ as $$
     employee.hire_date,
     employee.leave_date,
     employee.pay_by_day,
-    employee.is_active,
     employee.created_at,
     employee.updated_at,
     employee.schedule_department_ids,
@@ -2055,7 +2040,6 @@ as $$
   from actor
   cross join public.set_employee employee
   where actor.manager_access
-    and employee.is_active
   order by employee.sort_order, employee.full_name, employee.id
 $$;
 
@@ -2425,32 +2409,867 @@ as $$
   select public.delete_member_account_v4(p_target_id)
 $$;
 
-create or replace function public.block_direct_member_deactivation_v2()
+
+revoke all on function public.delete_member_account_v4(uuid) from public, anon, authenticated;
+revoke all on function public.delete_member_account_v3(uuid) from public, anon, authenticated;
+grant execute on function public.delete_member_account_v4(uuid) to service_role;
+grant execute on function public.delete_member_account_v3(uuid) to service_role;
+
+commit;
+
+
+-- ============================================================================================
+-- 區段 26：移除人員 is_active，任職狀態統一由日期判斷
+-- ============================================================================================
+
+begin;
+
+drop trigger if exists block_direct_member_deactivation_v2 on public.set_employee;
+drop function if exists public.block_direct_member_deactivation_v2();
+
+drop trigger if exists trg_protect_last_effective_admin_v2 on public.set_employee;
+drop function if exists public.protect_last_effective_admin_v2();
+drop function if exists public.is_effective_admin_row(text, boolean, date, date);
+drop function if exists public.is_effective_admin_row(text, date, date);
+
+drop function if exists public.get_employee_directory_v2();
+drop function if exists public.get_my_profile_v2();
+drop function if exists public.get_schedule_directory_v2();
+drop function if exists public.get_employee_admin_directory_v2();
+
+create or replace function public.is_employee_employed_on(
+  p_hire_date date,
+  p_leave_date date,
+  p_date date
+)
+returns boolean
+language sql
+immutable
+set search_path = public, pg_catalog
+as $$
+  select p_date is not null
+    and (p_hire_date is null or p_hire_date <= p_date)
+    and (p_leave_date is null or p_date <= p_leave_date)
+$$;
+
+create or replace function public.is_employee_account_effective(
+  p_hire_date date,
+  p_leave_date date,
+  p_date date
+)
+returns boolean
+language sql
+immutable
+set search_path = public, pg_catalog
+as $$
+  select p_date is not null
+    and (p_hire_date is null or p_hire_date <= p_date)
+    and (p_leave_date is null or p_date <= p_leave_date + 5)
+$$;
+
+create or replace function public.is_effective_user(p_user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public, pg_catalog
+stable
+as $$
+  select exists (
+    select 1
+    from public.set_employee employee
+    where employee.id = p_user_id
+      and public.is_employee_account_effective(
+        employee.hire_date,
+        employee.leave_date,
+        (timezone('Asia/Taipei', now()))::date
+      )
+  )
+$$;
+
+create or replace function public.is_manager(p_user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public, pg_catalog
+stable
+as $$
+  select exists (
+    select 1
+    from public.set_employee employee
+    where employee.id = p_user_id
+      and employee.role in ('admin', 'manager')
+      and public.is_employee_account_effective(
+        employee.hire_date,
+        employee.leave_date,
+        (timezone('Asia/Taipei', now()))::date
+      )
+  )
+$$;
+
+create or replace function public.is_admin(p_user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public, pg_catalog
+stable
+as $$
+  select exists (
+    select 1
+    from public.set_employee employee
+    where employee.id = p_user_id
+      and employee.role = 'admin'
+      and public.is_employee_account_effective(
+        employee.hire_date,
+        employee.leave_date,
+        (timezone('Asia/Taipei', now()))::date
+      )
+  )
+$$;
+
+create or replace function public.is_effective_admin_row(
+  p_role text,
+  p_hire_date date,
+  p_leave_date date
+)
+returns boolean
+language sql
+stable
+set search_path = public, pg_catalog
+as $$
+  select coalesce(p_role, '') = 'admin'
+    and public.is_employee_account_effective(
+      p_hire_date,
+      p_leave_date,
+      (timezone('Asia/Taipei', now()))::date
+    )
+$$;
+
+create or replace function public.protect_admin_member()
 returns trigger
 language plpgsql
 security definer
 set search_path = public, pg_catalog
 as $$
+declare
+  v_today date := (timezone('Asia/Taipei', now()))::date;
+  v_old_effective boolean;
+  v_new_effective boolean;
+  v_changed_admin_row boolean;
 begin
-  if old.is_active is true
-     and new.is_active is false
-     and auth.role() = 'authenticated' then
-    raise exception '人員不可由前端直接改為停用，請使用正式刪除檢查流程'
-      using errcode = '42501';
+  if TG_OP = 'INSERT' then
+    if auth.uid() is not null and NEW.role <> 'employee' and not public.is_admin(auth.uid()) then
+      raise exception '只有管理員可以新增主管或管理員帳號' using errcode = '42501';
+    end if;
+    return NEW;
   end if;
-  return new;
+
+  v_old_effective := OLD.role = 'admin'
+    and public.is_employee_account_effective(OLD.hire_date, OLD.leave_date, v_today);
+
+  if TG_OP = 'UPDATE' then
+    v_new_effective := NEW.role = 'admin'
+      and public.is_employee_account_effective(NEW.hire_date, NEW.leave_date, v_today);
+    v_changed_admin_row := OLD.role = 'admin' and (
+      NEW.employee_code is distinct from OLD.employee_code
+      or NEW.full_name is distinct from OLD.full_name
+      or NEW.role is distinct from OLD.role
+      or NEW.home_department_id is distinct from OLD.home_department_id
+      or NEW.schedule_shift_ids is distinct from OLD.schedule_shift_ids
+      or NEW.hire_date is distinct from OLD.hire_date
+      or NEW.leave_date is distinct from OLD.leave_date
+      or NEW.pay_by_day is distinct from OLD.pay_by_day
+      or NEW.fixed_rest_weekday is distinct from OLD.fixed_rest_weekday
+      or NEW.monthly_rest_days is distinct from OLD.monthly_rest_days
+    );
+  else
+    v_new_effective := false;
+    v_changed_admin_row := OLD.role = 'admin';
+  end if;
+
+  if TG_OP = 'UPDATE'
+    and auth.uid() is not null
+    and NEW.role is distinct from OLD.role
+    and not public.is_admin(auth.uid()) then
+    raise exception '只有管理員可以變更帳號權限' using errcode = '42501';
+  end if;
+
+  if auth.uid() is not null
+    and (v_changed_admin_row or (TG_OP = 'UPDATE' and NEW.role = 'admin'))
+    and not public.is_admin(auth.uid()) then
+    raise exception '只有管理員可以修改管理員帳號' using errcode = '42501';
+  end if;
+
+  if v_old_effective and not v_new_effective and not exists (
+    select 1
+    from public.set_employee employee
+    where employee.id <> OLD.id
+      and employee.role = 'admin'
+      and public.is_employee_account_effective(employee.hire_date, employee.leave_date, v_today)
+  ) then
+    raise exception '至少需保留一位有效管理員' using errcode = '23514';
+  end if;
+
+  if TG_OP = 'DELETE' then
+    return OLD;
+  end if;
+  return NEW;
 end;
 $$;
 
-drop trigger if exists block_direct_member_deactivation_v2 on public.set_employee;
-create trigger block_direct_member_deactivation_v2
-before update of is_active on public.set_employee
-for each row execute function public.block_direct_member_deactivation_v2();
+create or replace function public.protect_last_effective_admin_v2()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $$
+declare
+  v_old_effective boolean;
+  v_new_effective boolean := false;
+  v_other_effective_admins integer;
+begin
+  v_old_effective := public.is_effective_admin_row(
+    old.role,
+    old.hire_date,
+    old.leave_date
+  );
 
-revoke all on function public.delete_member_account_v4(uuid) from public, anon, authenticated;
-revoke all on function public.delete_member_account_v3(uuid) from public, anon, authenticated;
-revoke all on function public.block_direct_member_deactivation_v2() from public, anon, authenticated;
-grant execute on function public.delete_member_account_v4(uuid) to service_role;
-grant execute on function public.delete_member_account_v3(uuid) to service_role;
+  if not v_old_effective then
+    return case when tg_op = 'DELETE' then old else new end;
+  end if;
+
+  if tg_op = 'UPDATE' then
+    v_new_effective := public.is_effective_admin_row(
+      new.role,
+      new.hire_date,
+      new.leave_date
+    );
+
+    if v_new_effective
+      and new.leave_date is null
+      and (new.hire_date is null or new.hire_date <= (timezone('Asia/Taipei', now()))::date) then
+      return new;
+    end if;
+  end if;
+
+  select count(*) into v_other_effective_admins
+  from public.set_employee employee
+  where employee.id <> old.id
+    and public.is_effective_admin_row(
+      employee.role,
+      employee.hire_date,
+      employee.leave_date
+    );
+
+  if v_other_effective_admins = 0 then
+    raise exception '系統必須保留至少一個有效管理員；最後一位管理員不可刪除、降級、設定未來到職日或離職日'
+      using errcode = '23514';
+  end if;
+
+  return case when tg_op = 'DELETE' then old else new end;
+end;
+$$;
+
+drop trigger if exists protect_admin_member_trigger on public.set_employee;
+create trigger protect_admin_member_trigger
+before update or delete on public.set_employee
+for each row execute function public.protect_admin_member();
+
+drop trigger if exists trg_protect_last_effective_admin_v2 on public.set_employee;
+create trigger trg_protect_last_effective_admin_v2
+before update or delete on public.set_employee
+for each row execute function public.protect_last_effective_admin_v2();
+
+create or replace function public.get_my_profile_v2()
+returns table (
+  id uuid,
+  employee_code text,
+  full_name text,
+  role text,
+  home_department_id uuid,
+  position_name text,
+  hire_date date,
+  leave_date date,
+  pay_by_day boolean,
+  created_at timestamptz,
+  updated_at timestamptz,
+  schedule_department_ids text[],
+  monthly_rest_days integer,
+  fixed_rest_weekday integer,
+  schedule_shift_ids uuid[],
+  sort_order integer
+)
+language sql
+stable
+security definer
+set search_path = public, pg_catalog
+as $$
+  select
+    employee.id,
+    employee.employee_code,
+    employee.full_name,
+    employee.role,
+    employee.home_department_id,
+    employee.position_name,
+    employee.hire_date,
+    employee.leave_date,
+    employee.pay_by_day,
+    employee.created_at,
+    employee.updated_at,
+    employee.schedule_department_ids,
+    employee.monthly_rest_days,
+    employee.fixed_rest_weekday,
+    employee.schedule_shift_ids,
+    employee.sort_order
+  from public.set_employee employee
+  where employee.id = auth.uid()
+$$;
+
+create or replace function public.get_schedule_directory_v2()
+returns table (
+  id uuid,
+  full_name text,
+  home_department_id uuid,
+  hire_date date,
+  leave_date date,
+  pay_by_day boolean,
+  sort_order integer
+)
+language sql
+stable
+security definer
+set search_path = public, pg_catalog
+as $$
+  with actor as (
+    select public.is_effective_user(auth.uid()) as effective
+  )
+  select
+    employee.id,
+    employee.full_name,
+    employee.home_department_id,
+    employee.hire_date,
+    employee.leave_date,
+    employee.pay_by_day,
+    employee.sort_order
+  from actor
+  cross join public.set_employee employee
+  where actor.effective
+  order by employee.sort_order, employee.full_name, employee.id
+$$;
+
+create or replace function public.get_employee_admin_directory_v2()
+returns table (
+  id uuid,
+  employee_code text,
+  full_name text,
+  role text,
+  home_department_id uuid,
+  position_name text,
+  hire_date date,
+  leave_date date,
+  pay_by_day boolean,
+  created_at timestamptz,
+  updated_at timestamptz,
+  schedule_department_ids text[],
+  monthly_rest_days integer,
+  fixed_rest_weekday integer,
+  schedule_shift_ids uuid[],
+  sort_order integer
+)
+language sql
+stable
+security definer
+set search_path = public, pg_catalog
+as $$
+  with actor as (
+    select public.is_manager(auth.uid()) as manager_access
+  )
+  select
+    employee.id,
+    employee.employee_code,
+    employee.full_name,
+    employee.role,
+    employee.home_department_id,
+    employee.position_name,
+    employee.hire_date,
+    employee.leave_date,
+    employee.pay_by_day,
+    employee.created_at,
+    employee.updated_at,
+    employee.schedule_department_ids,
+    employee.monthly_rest_days,
+    employee.fixed_rest_weekday,
+    employee.schedule_shift_ids,
+    employee.sort_order
+  from actor
+  cross join public.set_employee employee
+  where actor.manager_access
+  order by employee.sort_order, employee.full_name, employee.id
+$$;
+
+create or replace function public.save_attendance_clock(
+  p_user_id uuid,
+  p_work_date date,
+  p_kind text,
+  p_location jsonb
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_now timestamptz := now();
+  v_today date := (timezone('Asia/Taipei', v_now))::date;
+  v_employee public.set_employee%rowtype;
+  v_department public.set_departments%rowtype;
+  v_record public.attendance_records%rowtype;
+  v_department_id uuid := nullif(p_location->>'departmentId', '')::uuid;
+  v_source text := coalesce(nullif(p_location->>'source', ''), 'IP');
+  v_latitude double precision := nullif(p_location->>'latitude', '')::double precision;
+  v_longitude double precision := nullif(p_location->>'longitude', '')::double precision;
+  v_accuracy double precision := nullif(p_location->>'accuracy', '')::double precision;
+  v_distance double precision := nullif(p_location->>'distance', '')::double precision;
+  v_ip text := coalesce(p_location->>'ip', '');
+begin
+  if p_user_id is null or p_work_date is null then
+    raise exception '缺少打卡人員或日期' using errcode = '23502';
+  end if;
+  if p_work_date <> v_today then
+    raise exception '員工只能打伺服器當日的卡' using errcode = '23514';
+  end if;
+  if p_kind not in ('clock_in', 'clock_out') then
+    raise exception '不支援的打卡操作' using errcode = '22023';
+  end if;
+  if v_source not in ('GPS', 'IP') then
+    raise exception '不支援的打卡來源' using errcode = '22023';
+  end if;
+
+  select * into v_employee
+  from public.set_employee
+  where id = p_user_id;
+  if not found
+    or (v_employee.hire_date is not null and v_today < v_employee.hire_date)
+    or (v_employee.leave_date is not null and v_today > v_employee.leave_date + 5) then
+    raise exception '帳號不在有效任職期間，無法打卡' using errcode = '42501';
+  end if;
+
+  select * into v_department
+  from public.set_departments
+  where id = v_department_id
+    and attendance_enabled = true;
+  if not found then
+    raise exception '打卡單位未啟用或不存在' using errcode = '23503';
+  end if;
+
+  insert into public.attendance_records (
+    user_id, work_date, employee_code_snapshot, employee_name_snapshot, created_at, updated_at
+  ) values (
+    p_user_id, p_work_date, coalesce(v_employee.employee_code, ''), coalesce(v_employee.full_name, ''), v_now, v_now
+  )
+  on conflict (user_id, work_date) do nothing;
+
+  if p_kind = 'clock_in' then
+    update public.attendance_records
+    set employee_code_snapshot = coalesce(v_employee.employee_code, ''),
+        employee_name_snapshot = coalesce(v_employee.full_name, ''),
+        clock_in_at = v_now,
+        clock_in_department_id = v_department.id,
+        clock_in_department_name_snapshot = coalesce(v_department.name, ''),
+        clock_in_address_snapshot = coalesce(v_department.address, ''),
+        clock_in_company_latitude = v_department.latitude,
+        clock_in_company_longitude = v_department.longitude,
+        clock_in_source = v_source,
+        clock_in_latitude = v_latitude,
+        clock_in_longitude = v_longitude,
+        clock_in_accuracy = v_accuracy,
+        clock_in_distance = v_distance,
+        clock_in_ip = v_ip,
+        updated_at = v_now
+    where user_id = p_user_id
+      and work_date = p_work_date
+      and clock_in_at is null
+      and clock_out_at is null
+    returning * into v_record;
+  else
+    update public.attendance_records
+    set employee_code_snapshot = coalesce(v_employee.employee_code, ''),
+        employee_name_snapshot = coalesce(v_employee.full_name, ''),
+        clock_out_at = v_now,
+        clock_out_department_id = v_department.id,
+        clock_out_department_name_snapshot = coalesce(v_department.name, ''),
+        clock_out_address_snapshot = coalesce(v_department.address, ''),
+        clock_out_company_latitude = v_department.latitude,
+        clock_out_company_longitude = v_department.longitude,
+        clock_out_source = v_source,
+        clock_out_latitude = v_latitude,
+        clock_out_longitude = v_longitude,
+        clock_out_accuracy = v_accuracy,
+        clock_out_distance = v_distance,
+        clock_out_ip = v_ip,
+        updated_at = v_now
+    where user_id = p_user_id
+      and work_date = p_work_date
+      and clock_out_at is null
+    returning * into v_record;
+  end if;
+
+  if not found then
+    select * into v_record
+    from public.attendance_records
+    where user_id = p_user_id and work_date = p_work_date;
+
+    if p_kind = 'clock_in' and v_record.clock_out_at is not null then
+      raise exception '已有下班打卡紀錄，無法再補上班打卡' using errcode = '23514';
+    end if;
+
+    return jsonb_build_object(
+      'ok', true,
+      'record', to_jsonb(v_record),
+      'duplicate', true,
+      'serverDate', p_work_date::text
+    );
+  end if;
+
+  insert into public.attendance_action_logs (
+    attendance_record_id, action_type, operator_user_id, operator_name_snapshot, new_record
+  ) values (
+    v_record.id, p_kind, v_employee.id, coalesce(v_employee.full_name, ''), to_jsonb(v_record)
+  );
+
+  return jsonb_build_object(
+    'ok', true,
+    'record', to_jsonb(v_record),
+    'duplicate', false,
+    'serverDate', p_work_date::text
+  );
+end;
+$$;
+
+create or replace function public.save_meal_order(
+  p_user_id uuid,
+  p_items jsonb,
+  p_note text default ''
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_now timestamptz := now();
+  v_order_date date := (timezone('Asia/Taipei', v_now))::date;
+  v_now_time time := (timezone('Asia/Taipei', v_now))::time;
+  v_items jsonb := coalesce(p_items, '[]'::jsonb);
+  v_employee public.set_employee%rowtype;
+  v_attendance public.attendance_records%rowtype;
+  v_cutoff time;
+  v_order_id uuid;
+  v_submitted_at timestamptz;
+  v_existing_count integer := 0;
+  v_new_count integer := 0;
+begin
+  if p_user_id is null then
+    raise exception '缺少訂餐人員' using errcode = '23502';
+  end if;
+  if jsonb_typeof(v_items) <> 'array' then
+    raise exception '訂餐品項格式錯誤' using errcode = '22023';
+  end if;
+
+  select *
+  into v_employee
+  from public.set_employee
+  where id = p_user_id;
+  if not found
+    or (v_employee.hire_date is not null and v_order_date < v_employee.hire_date)
+    or (v_employee.leave_date is not null and v_order_date > v_employee.leave_date + 5) then
+    raise exception '帳號不在有效任職期間，無法訂餐' using errcode = '42501';
+  end if;
+
+  select *
+  into v_attendance
+  from public.attendance_records
+  where user_id = p_user_id
+    and work_date = v_order_date;
+  if not found or v_attendance.clock_in_at is null or v_attendance.clock_in_department_id is null then
+    raise exception '請先完成上班打卡後再訂餐' using errcode = '23514';
+  end if;
+
+  select daily_cutoff_time
+  into v_cutoff
+  from public.meal_settings
+  where id = 'default';
+  v_cutoff := coalesce(v_cutoff, '10:30'::time);
+  if v_now_time > v_cutoff then
+    raise exception '今日訂餐已超過截止時間' using errcode = '23514';
+  end if;
+
+  select count(*)
+  into v_existing_count
+  from public.meal_orders
+  where user_id = p_user_id
+    and order_date = v_order_date;
+
+  select order_id, submitted_at
+  into v_order_id, v_submitted_at
+  from public.meal_orders
+  where user_id = p_user_id
+    and order_date = v_order_date
+  order by submitted_at asc
+  limit 1;
+  v_order_id := coalesce(v_order_id, gen_random_uuid());
+  v_submitted_at := coalesce(v_submitted_at, v_now);
+
+  if exists (
+    select 1
+    from jsonb_array_elements(v_items) as raw(item)
+    where nullif(raw.item->>'quantity', '') is not null
+      and (
+        (raw.item->>'quantity')::numeric < 0
+        or floor((raw.item->>'quantity')::numeric) <> (raw.item->>'quantity')::numeric
+      )
+  ) then
+    raise exception '訂餐數量必須是 0 或正整數' using errcode = '22023';
+  end if;
+
+  with incoming as (
+    select
+      nullif(raw.item->>'productId', '')::uuid as product_id,
+      coalesce(nullif(raw.item->>'quantity', '')::integer, 0) as quantity
+    from jsonb_array_elements(v_items) as raw(item)
+  )
+  select count(*)
+  into v_new_count
+  from incoming
+  where product_id is not null
+    and quantity > 0;
+
+  if v_existing_count = 0 and v_new_count = 0 then
+    raise exception '尚未選擇訂餐品項' using errcode = '23514';
+  end if;
+
+  if exists (
+    with incoming as (
+      select
+        nullif(raw.item->>'productId', '')::uuid as product_id,
+        coalesce(nullif(raw.item->>'quantity', '')::integer, 0) as quantity
+      from jsonb_array_elements(v_items) as raw(item)
+    ),
+    aggregated as (
+      select product_id, sum(quantity)::integer as quantity
+      from incoming
+      where product_id is not null
+        and quantity > 0
+      group by product_id
+    )
+    select 1
+    from aggregated a
+    left join public.meal_products p on p.id = a.product_id
+    where p.id is null
+      or (
+        p.is_active is not true
+        and not exists (
+          select 1
+          from public.meal_orders old_order
+          where old_order.user_id = p_user_id
+            and old_order.order_date = v_order_date
+            and old_order.product_id = a.product_id
+        )
+      )
+  ) then
+    raise exception '訂餐品項不存在或已停用' using errcode = '23503';
+  end if;
+
+  delete from public.meal_orders
+  where user_id = p_user_id
+    and order_date = v_order_date;
+
+  insert into public.meal_orders (
+    order_id,
+    user_id,
+    employee_code_snapshot,
+    employee_name_snapshot,
+    order_date,
+    department_id,
+    department_name_snapshot,
+    clock_location_id,
+    product_id,
+    product_name_snapshot,
+    quantity,
+    unit_price,
+    note,
+    submitted_at,
+    updated_at
+  )
+  with incoming as (
+    select
+      nullif(raw.item->>'productId', '')::uuid as product_id,
+      coalesce(nullif(raw.item->>'quantity', '')::integer, 0) as quantity,
+      nullif(trim(coalesce(raw.item->>'note', p_note, '')), '') as item_note
+    from jsonb_array_elements(v_items) as raw(item)
+  ),
+  aggregated as (
+    select
+      product_id,
+      sum(quantity)::integer as quantity,
+      max(item_note) filter (where item_note is not null) as item_note
+    from incoming
+    where product_id is not null
+      and quantity > 0
+    group by product_id
+  )
+  select
+    v_order_id,
+    p_user_id,
+    coalesce(v_employee.employee_code, ''),
+    coalesce(v_employee.full_name, ''),
+    v_order_date,
+    v_attendance.clock_in_department_id,
+    coalesce(v_attendance.clock_in_department_name_snapshot, ''),
+    v_attendance.clock_in_department_id,
+    p.id,
+    coalesce(p.name, ''),
+    a.quantity,
+    p.price,
+    a.item_note,
+    v_submitted_at,
+    v_now
+  from aggregated a
+  join public.meal_products p on p.id = a.product_id;
+
+  return jsonb_build_object('ok', true, 'orderDate', v_order_date::text, 'orderId', v_order_id::text);
+end;
+$$;
+
+create or replace function public.admin_review_overtime_requests_v2(
+  p_ids uuid[],
+  p_status text,
+  p_early_hours numeric default null,
+  p_late_hours numeric default null,
+  p_operator_user_id uuid default null,
+  p_review_note text default ''
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_now timestamptz := now();
+  v_operator_role text;
+  v_requested_count integer;
+  v_found_count integer;
+  v_result jsonb;
+begin
+  select role into v_operator_role
+  from public.set_employee
+  where id = p_operator_user_id
+    and (hire_date is null or hire_date <= (timezone('Asia/Taipei', v_now))::date)
+    and (leave_date is null or (timezone('Asia/Taipei', v_now))::date <= leave_date + 5);
+
+  if v_operator_role <> 'admin' then
+    raise exception '此功能限管理員使用' using errcode = '42501';
+  end if;
+  if p_ids is null or cardinality(p_ids) = 0 then
+    raise exception '缺少加班申請' using errcode = '23502';
+  end if;
+  if p_status not in ('approved', 'returned', 'pending') then
+    raise exception '不支援的審核狀態' using errcode = '22023';
+  end if;
+  if p_early_hours is not null and (p_early_hours < 0 or mod(p_early_hours * 2, 1) <> 0) then
+    raise exception '提早上班時數必須為 0.5 的倍數且不可為負數' using errcode = '23514';
+  end if;
+  if p_late_hours is not null and (p_late_hours < 0 or mod(p_late_hours * 2, 1) <> 0) then
+    raise exception '延後下班時數必須為 0.5 的倍數且不可為負數' using errcode = '23514';
+  end if;
+
+  v_requested_count := cardinality(array(select distinct unnest(p_ids)));
+
+  create temporary table if not exists pg_temp.overtime_batch_old
+  (like public.attendance_overtime_requests including defaults)
+  on commit drop;
+  truncate pg_temp.overtime_batch_old;
+
+  insert into pg_temp.overtime_batch_old
+  select request.*
+  from public.attendance_overtime_requests request
+  where request.id = any(p_ids)
+    and request.is_deleted_by_employee = false
+  for update;
+
+  get diagnostics v_found_count = row_count;
+  if v_found_count <> v_requested_count then
+    raise exception '部分加班申請不存在或已被刪除，整批未處理' using errcode = '23503';
+  end if;
+
+  if exists (
+    select 1
+    from pg_temp.overtime_batch_old old_row
+    where coalesce(p_early_hours, old_row.early_overtime_hours, 0)
+        + coalesce(p_late_hours, old_row.late_overtime_hours, 0) <= 0
+  ) then
+    raise exception '加班時數必須大於 0' using errcode = '23514';
+  end if;
+
+  with updated as (
+    update public.attendance_overtime_requests request
+    set status = p_status,
+        early_overtime_hours = coalesce(p_early_hours, old_row.early_overtime_hours, 0),
+        late_overtime_hours = coalesce(p_late_hours, old_row.late_overtime_hours, 0),
+        total_overtime_hours = coalesce(p_early_hours, old_row.early_overtime_hours, 0)
+          + coalesce(p_late_hours, old_row.late_overtime_hours, 0),
+        attendance_changed_warning = false,
+        reviewed_at = v_now,
+        reviewed_by = p_operator_user_id,
+        review_note = nullif(trim(coalesce(p_review_note, '')), ''),
+        updated_at = v_now
+    from pg_temp.overtime_batch_old old_row
+    where request.id = old_row.id
+    returning request.*
+  )
+  insert into public.overtime_review_logs (
+    overtime_request_id,
+    old_status,
+    new_status,
+    old_early_hours,
+    new_early_hours,
+    old_late_hours,
+    new_late_hours,
+    operator_user_id,
+    created_at
+  )
+  select updated.id,
+         old_row.status,
+         updated.status,
+         old_row.early_overtime_hours,
+         updated.early_overtime_hours,
+         old_row.late_overtime_hours,
+         updated.late_overtime_hours,
+         p_operator_user_id,
+         v_now
+  from updated
+  join pg_temp.overtime_batch_old old_row on old_row.id = updated.id;
+
+  select coalesce(jsonb_agg(to_jsonb(request) order by request.work_date, request.id), '[]'::jsonb)
+  into v_result
+  from public.attendance_overtime_requests request
+  where request.id = any(p_ids);
+
+  return jsonb_build_object('ok', true, 'requests', v_result);
+end;
+$$;
+
+drop index if exists public.idx_set_employee_active_code;
+alter table public.set_employee drop column if exists is_active;
+
+revoke all on function public.is_employee_employed_on(date, date, date) from public, anon;
+revoke all on function public.is_employee_account_effective(date, date, date) from public, anon;
+revoke all on function public.get_my_profile_v2() from public, anon;
+revoke all on function public.get_schedule_directory_v2() from public, anon;
+revoke all on function public.get_employee_admin_directory_v2() from public, anon;
+grant execute on function public.is_employee_employed_on(date, date, date) to authenticated, service_role;
+grant execute on function public.is_employee_account_effective(date, date, date) to authenticated, service_role;
+grant execute on function public.get_my_profile_v2() to authenticated, service_role;
+grant execute on function public.get_schedule_directory_v2() to authenticated, service_role;
+grant execute on function public.get_employee_admin_directory_v2() to authenticated, service_role;
 
 commit;

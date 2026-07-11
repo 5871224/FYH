@@ -2163,7 +2163,7 @@
   function assertProfileCanLogin(profile) {
     const today = taipeiDateString();
     const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
-    if (!profile?.is_active || (profile.hire_date && today < profile.hire_date) || (effectiveEndDate && today > effectiveEndDate)) {
+    if ((profile.hire_date && today < profile.hire_date) || (effectiveEndDate && today > effectiveEndDate)) {
       throw new Error("此帳號目前不在有效期間，無法登入");
     }
   }
@@ -2708,7 +2708,6 @@
         monthly_rest_days: clampInteger(member.monthlyRestDays, 0, 31, 0),
         home_department_id: departmentMap.get(homeDeptId)?.id || null,
         schedule_shift_ids: scheduleShiftIds,
-        is_active: true
       }, {
         auth: true,
         prefer: "return=minimal"

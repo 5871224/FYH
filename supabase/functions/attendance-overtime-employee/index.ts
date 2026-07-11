@@ -21,7 +21,7 @@ function validDate(value: unknown, fallback = dateText()) {
 
 function effective(profile: any, today = dateText()) {
   const end = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
-  return Boolean(profile?.is_active && (!profile.hire_date || today >= profile.hire_date) && (!end || today <= end));
+  return Boolean((!profile.hire_date || today >= profile.hire_date) && (!end || today <= end));
 }
 
 function minutes(value: string) {
@@ -53,7 +53,7 @@ async function profile(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!userId) throw new Error("請先登入");
   const { data, error } = await ctx.supabaseAdmin.from("set_employee")
-    .select("id,full_name,role,is_active,hire_date,leave_date").eq("id", userId).single();
+    .select("id,full_name,role,hire_date,leave_date").eq("id", userId).single();
   if (error) throw error;
   if (!effective(data)) throw new Error("此帳號目前不在有效期間，無法申請加班");
   return data;

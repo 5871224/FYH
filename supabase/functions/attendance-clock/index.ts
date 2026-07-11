@@ -22,8 +22,7 @@ function addDaysToDateString(dateString: string, count: number) {
 
 function isProfileEffective(profile: any, today = taipeiDateString()) {
   const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
-  return Boolean(profile?.is_active
-    && (!profile.hire_date || today >= profile.hire_date)
+  return Boolean((!profile.hire_date || today >= profile.hire_date)
     && (!effectiveEndDate || today <= effectiveEndDate));
 }
 
@@ -104,7 +103,7 @@ async function getProfile(ctx: any) {
 
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id, employee_code, full_name, role, is_active, hire_date, leave_date")
+    .select("id, employee_code, full_name, role, hire_date, leave_date")
     .eq("id", userId)
     .single();
   if (error) throw error;

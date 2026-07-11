@@ -45,7 +45,6 @@ create table if not exists public.set_employee (
   pay_by_day boolean not null default false,
   fixed_rest_weekday integer not null default 0 check (fixed_rest_weekday between 0 and 6),
   monthly_rest_days integer not null default 0 check (monthly_rest_days between 0 and 31),
-  is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -327,7 +326,6 @@ create table if not exists public.meal_orders (
   unique (user_id, order_date, product_id)
 );
 
-create index if not exists idx_set_employee_active_code on public.set_employee (is_active, employee_code);
 create index if not exists idx_set_employee_home_department on public.set_employee (home_department_id);
 create index if not exists idx_set_departments_attendance_enabled on public.set_departments (attendance_enabled);
 create index if not exists idx_schedule_entries_work_date on public.schedule_entries (work_date);
@@ -362,21 +360,72 @@ alter table public.meal_products enable row level security;
 alter table public.meal_settings enable row level security;
 alter table public.meal_orders enable row level security;
 
-create or replace function public.is_manager(p_user_id uuid)
+create or replace function public.is_employee_employed_on(
+  p_hire_date date,
+  p_leave_date date,
+  p_date date
+)
+returns boolean
+language sql
+immutable
+set search_path = public, pg_catalog
+as $$
+  select p_date is not null
+    and (p_hire_date is null or p_hire_date <= p_date)
+    and (p_leave_date is null or p_date <= p_leave_date)
+$$;
+
+create or replace function public.is_employee_account_effective(
+  p_hire_date date,
+  p_leave_date date,
+  p_date date
+)
+returns boolean
+language sql
+immutable
+set search_path = public, pg_catalog
+as $$
+  select p_date is not null
+    and (p_hire_date is null or p_hire_date <= p_date)
+    and (p_leave_date is null or p_date <= p_leave_date + 5)
+$$;
+
+create or replace function public.is_effective_user(p_user_id uuid)
 returns boolean
 language sql
 security definer
-set search_path = public
+set search_path = public, pg_catalog
 stable
 as $$
   select exists (
     select 1
-    from public.set_employee e
-    where e.id = p_user_id
-      and e.role in ('admin', 'manager')
-      and e.is_active = true
-      and (e.hire_date is null or e.hire_date <= (timezone('Asia/Taipei', now()))::date)
-      and (e.leave_date is null or (timezone('Asia/Taipei', now()))::date <= e.leave_date + 5)
+    from public.set_employee employee
+    where employee.id = p_user_id
+      and public.is_employee_account_effective(
+        employee.hire_date,
+        employee.leave_date,
+        (timezone('Asia/Taipei', now()))::date
+      )
+  )
+$$;
+
+create or replace function public.is_manager(p_user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public, pg_catalog
+stable
+as $$
+  select exists (
+    select 1
+    from public.set_employee employee
+    where employee.id = p_user_id
+      and employee.role in ('admin', 'manager')
+      and public.is_employee_account_effective(
+        employee.hire_date,
+        employee.leave_date,
+        (timezone('Asia/Taipei', now()))::date
+      )
   )
 $$;
 
@@ -384,17 +433,19 @@ create or replace function public.is_admin(p_user_id uuid)
 returns boolean
 language sql
 security definer
-set search_path = public
+set search_path = public, pg_catalog
 stable
 as $$
   select exists (
     select 1
-    from public.set_employee e
-    where e.id = p_user_id
-      and e.role = 'admin'
-      and e.is_active = true
-      and (e.hire_date is null or e.hire_date <= (timezone('Asia/Taipei', now()))::date)
-      and (e.leave_date is null or (timezone('Asia/Taipei', now()))::date <= e.leave_date + 5)
+    from public.set_employee employee
+    where employee.id = p_user_id
+      and employee.role = 'admin'
+      and public.is_employee_account_effective(
+        employee.hire_date,
+        employee.leave_date,
+        (timezone('Asia/Taipei', now()))::date
+      )
   )
 $$;
 
@@ -402,7 +453,7 @@ create or replace function public.protect_admin_member()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_catalog
 as $$
 declare
   v_today date := (timezone('Asia/Taipei', now()))::date;
@@ -418,15 +469,11 @@ begin
   end if;
 
   v_old_effective := OLD.role = 'admin'
-    and OLD.is_active is true
-    and (OLD.hire_date is null or OLD.hire_date <= v_today)
-    and (OLD.leave_date is null or v_today <= OLD.leave_date + 5);
+    and public.is_employee_account_effective(OLD.hire_date, OLD.leave_date, v_today);
 
   if TG_OP = 'UPDATE' then
     v_new_effective := NEW.role = 'admin'
-      and NEW.is_active is true
-      and (NEW.hire_date is null or NEW.hire_date <= v_today)
-      and (NEW.leave_date is null or v_today <= NEW.leave_date + 5);
+      and public.is_employee_account_effective(NEW.hire_date, NEW.leave_date, v_today);
     v_changed_admin_row := OLD.role = 'admin' and (
       NEW.employee_code is distinct from OLD.employee_code
       or NEW.full_name is distinct from OLD.full_name
@@ -438,7 +485,6 @@ begin
       or NEW.pay_by_day is distinct from OLD.pay_by_day
       or NEW.fixed_rest_weekday is distinct from OLD.fixed_rest_weekday
       or NEW.monthly_rest_days is distinct from OLD.monthly_rest_days
-      or NEW.is_active is distinct from OLD.is_active
     );
   else
     v_new_effective := false;
@@ -460,12 +506,10 @@ begin
 
   if v_old_effective and not v_new_effective and not exists (
     select 1
-    from public.set_employee e
-    where e.id <> OLD.id
-      and e.role = 'admin'
-      and e.is_active = true
-      and (e.hire_date is null or e.hire_date <= v_today)
-      and (e.leave_date is null or v_today <= e.leave_date + 5)
+    from public.set_employee employee
+    where employee.id <> OLD.id
+      and employee.role = 'admin'
+      and public.is_employee_account_effective(employee.hire_date, employee.leave_date, v_today)
   ) then
     raise exception '至少需保留一位有效管理員' using errcode = '23514';
   end if;
@@ -697,7 +741,6 @@ begin
   from public.set_employee
   where id = p_user_id;
   if not found
-    or v_employee.is_active is not true
     or (v_employee.hire_date is not null and v_today < v_employee.hire_date)
     or (v_employee.leave_date is not null and v_today > v_employee.leave_date + 5) then
     raise exception '帳號不在有效任職期間，無法打卡' using errcode = '42501';
@@ -847,7 +890,6 @@ begin
   from public.set_employee
   where id = p_user_id;
   if not found
-    or v_employee.is_active is not true
     or (v_employee.hire_date is not null and v_order_date < v_employee.hire_date)
     or (v_employee.leave_date is not null and v_order_date > v_employee.leave_date + 5) then
     raise exception '帳號不在有效任職期間，無法訂餐' using errcode = '42501';
@@ -997,7 +1039,6 @@ begin
   from public.set_employee
   where id = p_user_id;
   if not found
-    or v_employee.is_active is not true
     or (v_employee.hire_date is not null and v_order_date < v_employee.hire_date)
     or (v_employee.leave_date is not null and v_order_date > v_employee.leave_date + 5) then
     raise exception '帳號不在有效任職期間，無法訂餐' using errcode = '42501';
@@ -1178,7 +1219,6 @@ returns table (
   hire_date date,
   leave_date date,
   pay_by_day boolean,
-  is_active boolean,
   created_at timestamptz,
   updated_at timestamptz,
   schedule_department_ids text[],
@@ -1202,7 +1242,6 @@ as $$
     employee.hire_date,
     employee.leave_date,
     employee.pay_by_day,
-    employee.is_active,
     employee.created_at,
     employee.updated_at,
     employee.schedule_department_ids,
@@ -1222,7 +1261,6 @@ returns table (
   hire_date date,
   leave_date date,
   pay_by_day boolean,
-  is_active boolean,
   sort_order integer
 )
 language sql
@@ -1240,12 +1278,10 @@ as $$
     employee.hire_date,
     employee.leave_date,
     employee.pay_by_day,
-    employee.is_active,
     employee.sort_order
   from actor
   cross join public.set_employee employee
   where actor.effective
-    and employee.is_active
   order by employee.sort_order, employee.full_name, employee.id
 $$;
 
@@ -1260,7 +1296,6 @@ returns table (
   hire_date date,
   leave_date date,
   pay_by_day boolean,
-  is_active boolean,
   created_at timestamptz,
   updated_at timestamptz,
   schedule_department_ids text[],
@@ -1287,7 +1322,6 @@ as $$
     employee.hire_date,
     employee.leave_date,
     employee.pay_by_day,
-    employee.is_active,
     employee.created_at,
     employee.updated_at,
     employee.schedule_department_ids,
@@ -1298,7 +1332,6 @@ as $$
   from actor
   cross join public.set_employee employee
   where actor.manager_access
-    and employee.is_active
   order by employee.sort_order, employee.full_name, employee.id
 $$;
 
@@ -1656,32 +1689,25 @@ as $$
   select public.delete_member_account_v4(p_target_id)
 $$;
 
-create or replace function public.block_direct_member_deactivation_v2()
-returns trigger
-language plpgsql
-security definer
-set search_path = public, pg_catalog
-as $$
-begin
-  if old.is_active is true
-     and new.is_active is false
-     and auth.role() = 'authenticated' then
-    raise exception '人員不可由前端直接改為停用，請使用正式刪除檢查流程'
-      using errcode = '42501';
-  end if;
-  return new;
-end;
-$$;
-
-drop trigger if exists block_direct_member_deactivation_v2 on public.set_employee;
-create trigger block_direct_member_deactivation_v2
-before update of is_active on public.set_employee
-for each row execute function public.block_direct_member_deactivation_v2();
 
 revoke all on function public.delete_member_account_v4(uuid) from public, anon, authenticated;
 revoke all on function public.delete_member_account_v3(uuid) from public, anon, authenticated;
-revoke all on function public.block_direct_member_deactivation_v2() from public, anon, authenticated;
 grant execute on function public.delete_member_account_v4(uuid) to service_role;
 grant execute on function public.delete_member_account_v3(uuid) to service_role;
+
+commit;
+
+-- 人員任職狀態只由到職日與離職日判斷，不另設停用欄位。
+begin;
+
+drop trigger if exists block_direct_member_deactivation_v2 on public.set_employee;
+drop function if exists public.block_direct_member_deactivation_v2();
+drop index if exists public.idx_set_employee_active_code;
+alter table public.set_employee drop column if exists is_active;
+
+revoke all on function public.is_employee_employed_on(date, date, date) from public, anon;
+revoke all on function public.is_employee_account_effective(date, date, date) from public, anon;
+grant execute on function public.is_employee_employed_on(date, date, date) to authenticated, service_role;
+grant execute on function public.is_employee_account_effective(date, date, date) to authenticated, service_role;
 
 commit;

@@ -45,6 +45,7 @@ required.forEach((file) => assert(exists(file), `缺少 V2 檔案：${file}`));
 const reportRecords = read("supabase/functions/report-records/index.ts");
 assert(!reportRecords.includes("full_name, department_id"), "仍查詢不存在的 set_employee.department_id");
 
+const currentSchema = read("supabase/001_current_schema.sql");
 const databaseUpdates = read("supabase/002_current_updates.sql");
 const security = databaseUpdates;
 assert(security.includes("drop policy if exists write_overtime_requests"), "尚未移除加班直接寫入政策");
@@ -84,9 +85,28 @@ assert(!memberDelete.includes('.from("set_employee").delete()'), "仍存在前�
 const memberAuthAdmin = read("supabase/functions/member-auth-admin/index.ts");
 assert(memberAuthAdmin.includes('rpc("delete_member_account_v4"'), "正式人員管理端點未使用歷史保護交易 RPC");
 assert(memberAuthAdmin.includes("status: 409") && memberAuthAdmin.includes("result?.blocked"), "已有歷史資料時未回傳阻擋狀態");
-assert(!memberAuthAdmin.includes("update({ is_active: false })"), "人員刪除仍會改成停用狀態");
+assert(!memberAuthAdmin.includes("is_active"), "人員管理端點仍依賴 is_active");
 assert(databaseUpdates.includes("MEMBER_HAS_HISTORY"), "人員刪除缺少穩定歷史阻擋錯誤碼");
-assert(databaseUpdates.includes("block_direct_member_deactivation_v2"), "資料庫未阻擋舊前端直接停用人員");
+assert(!databaseUpdates.includes("create or replace function public.block_direct_member_deactivation_v2"), "人員停用函式仍會被建立");
+assert(!databaseUpdates.includes("create trigger block_direct_member_deactivation_v2"), "人員停用 trigger 仍會被建立");
+assert(databaseUpdates.includes("drop trigger if exists block_direct_member_deactivation_v2") && databaseUpdates.includes("drop function if exists public.block_direct_member_deactivation_v2"), "人員停用 trigger 清理 migration 缺失");
+assert(databaseUpdates.includes("alter table public.set_employee drop column if exists is_active"), "人員 is_active 欄位移除 migration 缺失");
+assert(databaseUpdates.includes("is_employee_account_effective") && databaseUpdates.includes("is_employee_employed_on"), "人員有效期共用函式缺失");
+
+
+const setEmployeeBlock = currentSchema.slice(currentSchema.indexOf("create table if not exists public.set_employee"), currentSchema.indexOf("create table if not exists public.set_shift"));
+assert(!setEmployeeBlock.includes("is_active"), "set_employee 現行結構仍包含 is_active");
+const employeeEdgeFiles = [
+  "report-records", "catalog-admin", "attendance-overtime-admin-list", "attendance-overtime-admin-action",
+  "member-auth-admin", "meal-report-v2", "member-order-v2", "personal-records-v2",
+  "attendance-admin-action-v2", "attendance-clock", "meal-order", "member-delete-v2",
+  "meal-cancel-v2", "attendance-admin-list-v2", "attendance-overtime-employee",
+  "department-attendance-v2"
+];
+employeeEdgeFiles.forEach((name) => {
+  const source = read(`supabase/functions/${name}/index.ts`);
+  assert(!/profile\?\.is_active|profile\.data\.is_active|select\("[^"]*is_active[^"]*hire_date|is_active:\s*true/.test(source), `${name} 仍依賴人員 is_active`);
+});
 
 const clockSql = databaseUpdates;
 assert(clockSql.includes("clock_in_company_latitude"), "上班公司座標快照缺失");
@@ -161,7 +181,7 @@ assert(sourceWebApi.includes('restRpc("save_departments_general_v2"') && sourceW
 assert(!sourceWebApi.includes('restInsert("set_departments"'), "前端仍直接 upsert 單位主表");
 assert(sourceWebApi.includes('restRpc("get_schedule_export_rows_v2"') && sourceWebApi.includes("loadScheduleExportRows"), "前端缺少班表正式匯出資料查詢");
 const saveStateSource = sourceWebApi.slice(sourceWebApi.indexOf("async function saveState(state)"), sourceWebApi.indexOf("async function syncCatalogs(state)"));
-assert(!saveStateSource.includes("is_active: false"), "全量儲存仍可能把未出現在畫面的人員改為停用");
+assert(!sourceWebApi.includes("profile?.is_active") && !saveStateSource.includes("is_active:"), "前端仍依賴人員 is_active");
 assert(sourceRenderer.includes("async function ensureManagerDirectoryLoaded()") && sourceRenderer.includes("await ensureManagerDirectoryLoaded();"), "班表與設定頁未依需要載入管理名錄");
 const attendanceClockSource = read("supabase/functions/attendance-clock/index.ts");
 assert(sourceRenderer.includes("geolocationError") && sourceWebApi.includes("geolocationError"), "手機定位錯誤未送到打卡 API");
