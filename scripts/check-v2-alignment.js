@@ -73,8 +73,16 @@ assert(sourceApi === publishedApi, "src/renderer/v2-api.js and docs/v2-api.js ar
 assert(sourceApi.includes("safeDepartmentColumns"), "Safe department projection is missing");
 assert(sourceApi.includes("runManagerSafeWrite"), "Manager-safe department write wrapper is missing");
 
+const sourceCss = read("src/renderer/app.css");
+const docsCss = read("docs/app.css");
+assert(sourceCss === docsCss, "src/renderer/app.css and docs/app.css are not synchronized");
+["foundation.css", "schedule.css", "components.css", "responsive.css", "pages.css"].forEach((file) => assert(exists(`src/renderer/css/${file}`), `Missing CSS module: ${file}`));
+assert(!exists("docs/css"), "CSS source modules must not be published under docs/css");
+
 const sourceIndex = read("src/renderer/index.html");
 const docsIndex = read("docs/index.html");
+assert(sourceIndex.includes("app.css") && !sourceIndex.includes("styles.css") && !sourceIndex.includes("ui-system.css"), "Source index must load only bundled app.css");
+assert(docsIndex.includes("app.css") && !docsIndex.includes("styles.css") && !docsIndex.includes("ui-system.css"), "Published index must load only bundled app.css");
 assert(sourceIndex.includes("v2-api.js"), "Source index does not load v2-api.js");
 assert(docsIndex.includes("v2-api.js"), "Published index does not load v2-api.js");
 assert(sourceIndex.includes("v2-overtime-employee.js"), "Source index does not load the employee overtime module");

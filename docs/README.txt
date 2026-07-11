@@ -1,3 +1,1 @@
-Static deploy output for GitHub Pages or FTP.
-
-Upload all files in this folder to your web root.
+Generated static deploy output. Do not edit files in docs directly.

@@ -1,3 +1,6 @@
+/* 頁面專屬樣式：僅放無法抽成共用元件的局部規則。 */
+
+/* 打卡頁 */
 /* 打卡頁細節調整：縮小手機打卡按鈕、放大加班申請標籤並維持緊湊單行備註。 */
 .overtime-use-label {
   display: inline-flex;
@@ -29,4 +32,18 @@
   .clock-action-btn span {
     margin-bottom: 10px;
   }
+}
+
+/* 登入頁 */
+/* 登入視窗：主要操作按鈕使用整列寬度，方便手機點擊。 */
+.auth-footer {
+  display: block;
+  width: 100%;
+}
+
+.auth-footer .btn-primary[data-auth-sign-in] {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
 }

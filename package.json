@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "author": "Codex",
   "scripts": {
-    "web": "node src/web-server.js",
+    "css:build": "node scripts/build-css.js",
+    "css:check": "node scripts/build-css.js --check",
+    "web": "node scripts/build-css.js && node src/web-server.js",
     "web:check": "node scripts/check-public-supabase.js",
-    "web:publish": "node scripts/publish-static-web.js",
-    "v2:check": "node scripts/check-v2-alignment.js && node scripts/check-v2-final.js"
+    "web:publish": "node scripts/build-css.js && node scripts/publish-static-web.js",
+    "v2:check": "node scripts/build-css.js --check && node scripts/check-v2-alignment.js && node scripts/check-v2-final.js"
   }
 }

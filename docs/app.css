@@ -1,3 +1,9 @@
+/* GENERATED FILE - DO NOT EDIT DIRECTLY.
+ * Source: src/renderer/css/*.css
+ * Build: npm run css:build
+ */
+
+/* ===== Foundation and structural layout: foundation.css ===== */
 :root {
   color-scheme: light;
   --bg: #efe9dd;
@@ -3346,4 +3352,2091 @@ thead th.today,
     width: min(200px, calc(100vw - 24px));
     max-width: calc(100vw - 24px);
   }
+}
+
+/* ===== Schedule-specific layout: schedule.css ===== */
+:root {
+  --schedule-nav-control-height: 42px;
+}
+
+.calendar-nav {
+  position: relative;
+}
+
+/* Expanded toolbar: keep the control row outside normal flow, preserving the original height. */
+.toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-top-row {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  right: 10px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  width: auto;
+  min-height: 0;
+  gap: 6px;
+  margin: 0;
+}
+
+.toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-collapse-toggle {
+  position: static !important;
+  order: 0;
+  margin: 0 !important;
+  flex: 0 0 28px;
+}
+
+.toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-history-actions {
+  position: static;
+  order: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 0 auto;
+}
+
+/* Collapsed toolbar: return to the original shrink-to-button card. */
+.toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row {
+  position: static;
+  display: flex;
+  align-items: center;
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  gap: 0;
+}
+
+.toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-collapse-toggle {
+  position: static !important;
+  order: 0;
+  margin: 0 !important;
+}
+
+.toolbar-history-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.toolbar-history-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.toolbar-history-btn:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.calendar-nav-left select,
+.nav-actions > .nav-btn,
+.nav-actions .core-actions-toggle,
+.nav-actions > .user-menu-auth {
+  box-sizing: border-box;
+  height: var(--schedule-nav-control-height);
+  min-height: var(--schedule-nav-control-height);
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.calendar-nav-left select {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.nav-actions > .nav-btn,
+.nav-actions .core-actions-toggle,
+.nav-actions > .user-menu-auth {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#coreHomeButton {
+  width: var(--schedule-nav-control-height);
+  min-width: var(--schedule-nav-control-height);
+  padding: 0;
+  border-radius: 999px;
+  font-size: 0;
+}
+
+#coreHomeButton svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+@media (max-width: 768px) {
+  #scheduleCard {
+    position: relative;
+  }
+
+  #scheduleCard .calendar-nav {
+    padding-right: calc(var(--schedule-nav-control-height) + 14px);
+  }
+
+  #coreHomeButton {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 30;
+    margin: 0;
+  }
+}
+
+/* Keep the schedule frame fixed while synchronized horizontal scrollers move. */
+.table-top-scrollbar {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.table-sticky-header {
+  border: 1px solid var(--line);
+  border-bottom: 0;
+}
+
+.table-sticky-header::after,
+.table-sticky-header-left::after {
+  content: none;
+  display: none;
+}
+
+.table-wrap {
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.table-wrap::after {
+  content: none;
+  display: none;
+}
+
+/* ===== Shared design system and components: components.css ===== */
+:root {
+  --ui-control-height: 40px;
+  --ui-control-height-compact: 34px;
+  --ui-control-radius: 12px;
+  --ui-icon-radius: 10px;
+  --ui-table-radius: 14px;
+  --ui-section-radius: 18px;
+  --ui-page-radius: 24px;
+  --ui-surface: #fffdf8;
+  --ui-surface-raised: #ffffff;
+  --ui-surface-muted: #fbf8f1;
+  --ui-surface-hover: #f8f1e5;
+  --ui-border: var(--line, #ddd4c6);
+  --ui-text: var(--text, #2b241c);
+  --ui-muted: var(--muted, #76695b);
+  --ui-accent: var(--accent, #9c6b2f);
+  --ui-accent-strong: var(--accent-strong, #7f5422);
+  --ui-danger: var(--danger, #ae3c33);
+  --ui-focus-ring: 0 0 0 3px rgba(156, 107, 47, 0.16);
+  --ui-control-shadow: 0 1px 2px rgba(72, 52, 31, 0.05);
+  --ui-row-hover: #fdf8ef;
+  --schedule-nav-control-height: var(--ui-control-height);
+}
+
+/* Shared typography and interaction foundation. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="color"]):not([type="range"]):not([type="file"]),
+select,
+textarea {
+  min-height: var(--ui-control-height);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-control-radius);
+  padding: 8px 12px;
+  background: var(--ui-surface-raised);
+  color: var(--ui-text);
+  box-shadow: var(--ui-control-shadow);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+textarea {
+  min-height: 88px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="color"]):not([type="range"]):not([type="file"]):hover,
+select:hover,
+textarea:hover {
+  border-color: #cbbba5;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="color"]):not([type="range"]):not([type="file"]):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--ui-accent);
+  box-shadow: var(--ui-focus-ring);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled,
+input[readonly],
+textarea[readonly] {
+  cursor: not-allowed;
+  background: #f2eee7;
+  color: #8a8177;
+  box-shadow: none;
+}
+
+input:invalid:not(:placeholder-shown),
+textarea:invalid:not(:placeholder-shown) {
+  border-color: var(--ui-danger);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  accent-color: var(--ui-accent);
+}
+
+input[type="date"],
+input[type="time"] {
+  color-scheme: light;
+}
+
+.form-row > input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="color"]):not([type="range"]):not([type="file"]),
+.form-row > select,
+.form-row > textarea {
+  width: 100%;
+}
+
+.time-picker select,
+.records-filter-row input,
+.records-filter-row select,
+.member-settings-filters input,
+.member-settings-filters select,
+.meal-order-table input,
+.meal-settings-table input[type="text"],
+.meal-settings-table input[type="number"] {
+  min-height: var(--ui-control-height);
+  border-radius: var(--ui-control-radius);
+  padding: 8px 12px;
+}
+
+/* Standard text buttons use one height, radius and weight. */
+:where(.primary-btn, .ghost-btn, .nav-btn, .btn-primary, .btn-cancel):not(.toolbar-history-btn):not(.toolbar-collapse-toggle) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--ui-control-height);
+  padding: 0 14px;
+  border-radius: var(--ui-control-radius);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: var(--ui-control-shadow);
+}
+
+:where(.primary-btn, .btn-primary) {
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, var(--ui-accent) 0%, var(--ui-accent-strong) 100%);
+  color: #fff;
+}
+
+:where(.ghost-btn, .nav-btn, .btn-cancel):not(.toolbar-history-btn):not(.toolbar-collapse-toggle) {
+  border: 1px solid var(--ui-border);
+  background: var(--ui-surface-raised);
+  color: var(--ui-text);
+}
+
+:where(.primary-btn, .ghost-btn, .nav-btn, .btn-primary, .btn-cancel):not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(72, 52, 31, 0.12);
+}
+
+:where(.ghost-btn, .nav-btn, .btn-cancel):not(:disabled):hover {
+  background: var(--ui-surface-hover);
+}
+
+:where(.primary-btn, .ghost-btn, .nav-btn, .btn-primary, .btn-cancel, .settings-icon-btn):focus-visible {
+  outline: none;
+  box-shadow: var(--ui-focus-ring);
+}
+
+:where(.primary-btn, .ghost-btn, .nav-btn, .btn-primary, .btn-cancel):disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+  transform: none;
+  box-shadow: none;
+}
+
+.compact-btn {
+  min-height: var(--ui-control-height-compact) !important;
+  padding: 0 11px !important;
+  border-radius: 10px !important;
+  font-size: 13px !important;
+}
+
+.settings-icon-btn,
+.toolbar-history-btn,
+.toolbar-collapse-toggle {
+  border-radius: var(--ui-icon-radius);
+}
+
+.settings-icon-btn {
+  width: 34px;
+  height: 34px;
+}
+
+/* Tabs share the same active and hover treatment. */
+.meal-tabs,
+.record-tabs {
+  padding: 4px;
+  border: 1px solid rgba(156, 107, 47, 0.14);
+  border-radius: var(--ui-control-radius);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.meal-tabs .ghost-btn,
+.record-tabs .ghost-btn {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  font-size: 15px !important;
+  font-weight: 800;
+}
+
+.records-section > h2 {
+  margin-bottom: 12px;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.meal-tabs .active,
+.record-tabs .active,
+.settings-view-option.active {
+  background: var(--ui-accent);
+  color: #fff;
+  border-color: var(--ui-accent);
+}
+
+/* Page cards and sections use a consistent radius scale. */
+.home-card,
+.clock-card,
+.meal-card,
+.records-card,
+.toolbar-card,
+.calendar-card,
+.modal,
+.auth-card {
+  border-radius: var(--ui-page-radius);
+}
+
+.records-section,
+.overtime-request-panel,
+.form-section {
+  border-radius: var(--ui-section-radius);
+  border-color: rgba(156, 107, 47, 0.16);
+  background: rgba(255, 253, 248, 0.86);
+}
+
+/* Modal layout and attendance editor. */
+.modal {
+  overflow: hidden;
+}
+
+.modal-header {
+  min-height: 42px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(156, 107, 47, 0.12);
+}
+
+.modal-body {
+  padding: 2px;
+}
+
+.modal-footer {
+  padding-top: 14px;
+  border-top: 1px solid rgba(156, 107, 47, 0.12);
+}
+
+.attendance-edit-modal {
+  width: min(560px, 100%);
+}
+
+.attendance-edit-modal .form-grid {
+  gap: 14px;
+}
+
+.attendance-edit-modal .form-row label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.attendance-edit-modal textarea {
+  min-height: 96px;
+}
+
+/* Shared table shell, header, row and cell rhythm for all meal and record pages. */
+.records-table-wrap,
+.meal-settings-table-wrap {
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-table-radius);
+  background: var(--ui-surface-raised);
+  overflow: auto;
+}
+
+:is(.records-table, .meal-order-table, .meal-settings-table) {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+:is(.records-table, .meal-order-table, .meal-settings-table) th {
+  height: 42px;
+  padding: 11px 12px;
+  background: var(--ui-surface-muted);
+  color: var(--ui-muted);
+  border-bottom: 1px solid var(--ui-border);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: left;
+  vertical-align: middle;
+}
+
+:is(.records-table, .meal-order-table, .meal-settings-table) td {
+  min-height: 44px;
+  padding: 10px 12px;
+  background: var(--ui-surface-raised);
+  border-top: 0;
+  border-bottom: 1px solid #ece5da;
+  vertical-align: middle;
+}
+
+:is(.records-table, .meal-order-table, .meal-settings-table) tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+:is(.records-table, .meal-order-table, .meal-settings-table) tbody tr:hover td {
+  background: var(--ui-row-hover);
+}
+
+:is(.records-table, .meal-order-table, .meal-settings-table) th:first-child {
+  border-top-left-radius: calc(var(--ui-table-radius) - 1px);
+}
+
+:is(.records-table, .meal-order-table, .meal-settings-table) th:last-child {
+  border-top-right-radius: calc(var(--ui-table-radius) - 1px);
+}
+
+.meal-order-table {
+  table-layout: fixed;
+}
+
+.meal-order-table td:first-child,
+.meal-order-table td:last-child {
+  border-right: 0;
+  border-left: 0;
+  border-radius: 0;
+}
+
+.settings-table-head,
+.member-table-head,
+.department-settings-head {
+  border-radius: var(--ui-table-radius) var(--ui-table-radius) 0 0;
+  background: var(--ui-surface-muted);
+}
+
+.member-table-wrap,
+.settings-table-wrap,
+.department-settings-table-wrap {
+  border-radius: var(--ui-table-radius);
+}
+
+.member-table-scroll,
+.settings-table-scroll {
+  border-radius: calc(var(--ui-table-radius) - 1px);
+}
+
+.readonly-pill,
+.schedule-dept-option,
+.requirement-row,
+.settings-item,
+.member-item {
+  border-radius: var(--ui-control-radius);
+}
+
+@media (max-width: 640px) {
+  :root {
+    --ui-control-height: 42px;
+  }
+
+  .form-grid,
+  .two-col,
+  .attendance-edit-modal .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-edit-modal {
+    width: 100%;
+  }
+
+  .modal-overlay,
+  .auth-overlay {
+    padding: 12px;
+  }
+
+  .modal {
+    max-height: calc(100vh - 24px);
+    padding: 16px;
+  }
+}
+
+/* Consolidated styles formerly injected by v2 JavaScript modules. */
+.meal-card {
+  width: min(1100px, 100%);
+}
+
+.meal-settings-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.meal-settings-table th,
+.meal-settings-table td {
+  min-width: 0;
+}
+
+.meal-settings-drag-col {
+  width: 42px;
+  text-align: center;
+}
+
+.meal-settings-name-col {
+  width: auto;
+}
+
+.meal-settings-price-col {
+  width: 104px;
+}
+
+.meal-settings-active-col {
+  width: 70px;
+  text-align: center;
+}
+
+.meal-settings-operation-col {
+  width: 72px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.meal-settings-name-col input,
+.meal-settings-price-col input {
+  width: 100%;
+  min-width: 0;
+}
+
+.meal-settings-operation-col .ghost-btn {
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+}
+
+.meal-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--ui-icon-radius);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.meal-drag-handle:active {
+  cursor: grabbing;
+}
+
+.meal-settings-toolbar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meal-settings-toolbar-label input[type="number"] {
+  width: 92px;
+}
+
+.v2-personal-record-table .personal-schedule-icon-col {
+  width: var(--day-col-width);
+  min-width: var(--day-col-width);
+  max-width: var(--day-col-width);
+  padding: 2px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.v2-personal-record-table th.personal-schedule-icon-col {
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+.personal-record-schedule-cell {
+  width: 100%;
+  min-height: 36px;
+}
+
+.v2-personal-record-table .personal-record-schedule-cell .seg-label {
+  color: inherit;
+  font-size: inherit;
+}
+
+.personal-punch-stack {
+  min-width: 118px;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+
+.personal-punch-stack > div:empty::before {
+  content: "-";
+}
+
+.member-settings-modal .member-table-row {
+  grid-template-columns: 30px 104px minmax(86px, .9fr) minmax(170px, 1.45fr) 64px 108px 84px 78px 76px;
+}
+
+.catalog-settings-modal .settings-table-row-shift {
+  grid-template-columns: 30px minmax(76px, .55fr) minmax(96px, .65fr) minmax(64px, .42fr) minmax(280px, 2.7fr) minmax(92px, .62fr) minmax(68px, .45fr) minmax(72px, .45fr);
+}
+
+.catalog-settings-modal .settings-table-row-leave,
+.catalog-settings-modal .settings-table-row-overtime {
+  grid-template-columns: 30px repeat(7, minmax(0, 1fr));
+}
+
+.department-settings-table-department .department-settings-row {
+  grid-template-columns: 30px minmax(76px, .55fr) minmax(220px, 2.1fr) minmax(74px, .45fr);
+}
+
+.member-order-drag-col,
+.settings-order-drag-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  width: 100%;
+}
+
+.member-order-drag-handle,
+.settings-order-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 26px;
+  border-radius: 7px;
+  color: var(--ui-muted);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.member-order-drag-handle:hover,
+.settings-order-drag-handle:hover {
+  background: var(--ui-surface-hover);
+  color: var(--ui-accent-strong);
+}
+
+.member-order-drag-handle:active,
+.settings-order-drag-handle:active {
+  cursor: grabbing;
+}
+
+.member-order-row.member-order-dragging {
+  opacity: .62;
+}
+
+.member-order-row.member-order-drop-before {
+  box-shadow: inset 0 2px 0 var(--ui-accent);
+}
+
+.member-order-row.member-order-drop-after {
+  box-shadow: inset 0 -2px 0 var(--ui-accent);
+}
+
+.catalog-settings-modal .sortable-settings-item,
+.department-settings-modal .sortable-settings-item {
+  cursor: default;
+}
+
+.v2-overtime-review-table .v2-overtime-check-col {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  padding-left: 9px;
+  padding-right: 9px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.v2-overtime-review-table .v2-overtime-date-col {
+  width: 112px;
+  min-width: 112px;
+  padding-left: 12px;
+  padding-right: 12px;
+  white-space: nowrap;
+}
+
+.v2-overtime-review-table .v2-overtime-status-col {
+  width: 62px;
+  min-width: 62px;
+  max-width: 62px;
+  padding-left: 6px;
+  padding-right: 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.v2-overtime-review-table .v2-overtime-action-col {
+  width: 116px;
+  min-width: 116px;
+}
+
+.v2-overtime-review-table .v2-overtime-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.v2-overtime-review-table .v2-overtime-action-buttons .compact-btn {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+
+@media (max-width: 900px) {
+  .member-settings-modal .member-table-row {
+    grid-template-columns: 30px 92px minmax(72px, .85fr) minmax(150px, 1.25fr) 54px 92px 72px 68px 70px;
+  }
+}
+
+/* Mobile meal settings: retain the desktop table structure and keep every product on one row. */
+@media (max-width: 640px) {
+  .meal-settings-table-wrap {
+    overflow-x: auto;
+  }
+
+  .meal-settings-table {
+    display: table;
+    width: 100%;
+    min-width: 280px;
+    table-layout: fixed;
+  }
+
+  .meal-settings-table thead {
+    display: table-header-group;
+  }
+
+  .meal-settings-table tbody {
+    display: table-row-group;
+  }
+
+  .meal-settings-table tbody tr {
+    display: table-row;
+  }
+
+  .meal-settings-table tbody td {
+    display: table-cell;
+  }
+
+  .meal-settings-drag-col {
+    width: 24px;
+  }
+
+  .meal-settings-name-col {
+    width: auto;
+  }
+
+  .meal-settings-price-col {
+    width: 64px;
+  }
+
+  .meal-settings-active-col {
+    width: 42px;
+    text-align: center;
+  }
+
+  .meal-settings-operation-col {
+    width: 48px;
+    text-align: center;
+  }
+
+  .meal-settings-drag-col,
+  .meal-settings-active-col,
+  .meal-settings-operation-col {
+    padding-right: 3px !important;
+    padding-left: 3px !important;
+  }
+
+  .meal-settings-operation-col .ghost-btn {
+    width: auto;
+    min-width: 0;
+    padding-right: 6px !important;
+    padding-left: 6px !important;
+  }
+
+  .meal-drag-handle {
+    width: 20px;
+    height: 28px;
+  }
+}
+
+/* Mobile member settings: compact filters and reserve space for the member table. */
+@media (max-width: 640px) {
+  .member-settings-modal {
+    width: 100%;
+    height: calc(100dvh - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+
+  .member-settings-modal .modal-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "member-title member-close"
+      "member-actions member-actions";
+    align-items: center;
+    gap: 8px 10px;
+    margin-bottom: 8px;
+    padding-bottom: 10px;
+  }
+
+  .member-settings-modal .modal-header h3 {
+    grid-area: member-title;
+    min-width: 0;
+    padding-right: 0;
+    font-size: 20px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .member-settings-modal .modal-header-tools {
+    display: contents;
+  }
+
+  .member-settings-modal .modal-header-actions {
+    grid-area: member-actions;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .member-settings-modal .modal-header-close {
+    grid-area: member-close;
+  }
+
+  .member-settings-modal .modal-header-actions :where(.ghost-btn, .btn-primary) {
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    height: 38px;
+    padding: 0 8px;
+    font-size: 13px;
+  }
+
+  .member-settings-modal .modal-body {
+    gap: 8px;
+  }
+
+  .member-settings-filters {
+    flex: 0 0 auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 10px;
+  }
+
+  .member-settings-filters .form-row {
+    min-width: 0;
+    gap: 4px;
+  }
+
+  .member-settings-filters .form-row:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .member-settings-filters .form-row label {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .member-settings-filters input,
+  .member-settings-filters select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .member-settings-list {
+    min-height: 220px;
+  }
+}
+
+/* Keep the sticky member-table header opaque across horizontal scrolling. */
+.member-settings-modal .member-table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.member-settings-modal .member-table-row {
+  width: 100%;
+}
+
+.member-settings-modal .member-table-head {
+  z-index: 4;
+  isolation: isolate;
+  background: var(--ui-surface-muted);
+  background-clip: padding-box;
+  box-shadow: 0 1px 0 var(--ui-border);
+}
+
+.member-settings-modal .member-table-head > * {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ui-surface-muted);
+}
+
+/* Settings list modals: match the member-settings layout and scrolling behavior. */
+.settings-list-modal .modal-header {
+  align-items: center;
+}
+
+.settings-list-modal .modal-header-tools {
+  align-items: center;
+}
+
+.settings-list-modal .modal-header-actions {
+  justify-content: flex-end;
+}
+
+.settings-list-modal .modal-header-actions > button {
+  min-height: var(--ui-control-height);
+  height: var(--ui-control-height);
+  padding: 0 14px;
+  border-radius: var(--ui-control-radius);
+  font-size: 14px;
+}
+
+.catalog-settings-modal .settings-table-scroll,
+.department-settings-modal .department-settings-table-wrap {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-color: #cdbb9f var(--ui-surface-muted);
+  scrollbar-width: thin;
+}
+
+.catalog-settings-modal .settings-table-scroll::-webkit-scrollbar,
+.department-settings-modal .department-settings-table-wrap::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.catalog-settings-modal .settings-table-scroll::-webkit-scrollbar-track,
+.department-settings-modal .department-settings-table-wrap::-webkit-scrollbar-track {
+  background: var(--ui-surface-muted);
+  border-radius: 999px;
+}
+
+.catalog-settings-modal .settings-table-scroll::-webkit-scrollbar-thumb,
+.department-settings-modal .department-settings-table-wrap::-webkit-scrollbar-thumb {
+  background: #cdbb9f;
+  border-radius: 999px;
+}
+
+.catalog-settings-modal .settings-table,
+.department-settings-modal .department-settings-table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.catalog-settings-modal .settings-table-row,
+.department-settings-modal .department-settings-row {
+  width: 100%;
+}
+
+.catalog-settings-modal .settings-table-row-shift {
+  min-width: 1040px;
+  grid-template-columns: 30px 120px 120px 90px minmax(300px, 1fr) 130px 90px 76px;
+}
+
+.catalog-settings-modal .settings-table-row-leave {
+  min-width: 880px;
+  grid-template-columns: 30px 130px 100px 150px 100px 100px 90px 76px;
+}
+
+.catalog-settings-modal .settings-table-row-overtime {
+  min-width: 1060px;
+  grid-template-columns: 30px 130px 150px 160px 160px 160px 90px 76px;
+}
+
+.department-settings-modal .modal-body {
+  overflow: hidden;
+}
+
+.department-settings-modal .department-settings-table-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.department-settings-modal .department-settings-table-department .department-settings-row {
+  min-width: 720px;
+  grid-template-columns: 30px 120px minmax(390px, 1fr) 90px;
+}
+
+.catalog-settings-modal .settings-table-head,
+.department-settings-modal .department-settings-head {
+  z-index: 5;
+  isolation: isolate;
+  background: var(--ui-surface-muted);
+  background-clip: padding-box;
+  box-shadow: 0 1px 0 var(--ui-border);
+}
+
+.catalog-settings-modal .settings-table-head > *,
+.department-settings-modal .department-settings-head > * {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ui-surface-muted);
+}
+
+@media (max-width: 640px) {
+  .settings-list-modal {
+    width: 100%;
+    height: calc(100dvh - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+
+  .settings-list-modal .modal-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "settings-title settings-close"
+      "settings-actions settings-actions";
+    align-items: center;
+    gap: 8px 10px;
+    margin-bottom: 8px;
+    padding-bottom: 10px;
+  }
+
+  .settings-list-modal .modal-header h3 {
+    grid-area: settings-title;
+    min-width: 0;
+    padding-right: 0;
+    font-size: 20px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .settings-list-modal .modal-header-tools {
+    display: contents;
+  }
+
+  .settings-list-modal .modal-header-actions {
+    grid-area: settings-actions;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .settings-list-modal .modal-header-close {
+    grid-area: settings-close;
+  }
+
+  .settings-list-modal .modal-header-actions > button {
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    height: 38px;
+    padding: 0 8px;
+    font-size: 13px;
+  }
+
+  .settings-list-modal .modal-body {
+    min-height: 0;
+    gap: 8px;
+  }
+
+  .catalog-settings-modal .settings-table-wrap,
+  .department-settings-modal .department-settings-table-wrap {
+    min-height: 220px;
+  }
+
+  .department-settings-modal .member-inline-list {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .department-settings-modal .member-item {
+    flex: 0 0 auto;
+    max-width: 180px;
+  }
+}
+
+/* Department rows must keep the same four-column order as the header. */
+.department-settings-modal .department-settings-table-department .settings-order-drag-col {
+  grid-column: 1;
+  order: 0;
+}
+
+.department-settings-modal .department-settings-table-department .department-settings-title {
+  grid-column: 2;
+  order: 0;
+}
+
+.department-settings-modal .department-settings-table-department .member-inline-list {
+  grid-column: 3;
+  order: 0;
+}
+
+.department-settings-modal .department-settings-table-department .member-table-actions {
+  grid-column: 4;
+  order: 0;
+}
+
+/* The department table wrapper itself is the scroll frame; do not scroll a duplicate border overlay. */
+.department-settings-modal .department-settings-table-wrap::after {
+  content: none;
+  display: none;
+}
+
+/* Phones scroll the schedule table directly, so the duplicate scrollbar above the date header is hidden. */
+@media (max-width: 640px) {
+  .table-top-scrollbar {
+    display: none;
+  }
+
+  .table-sticky-header {
+    top: 0;
+  }
+}
+
+/* Unified compact spacing for phone layouts. Keep touch heights, halve visual whitespace. */
+@media (max-width: 640px) {
+  :root {
+    --ui-mobile-page-gutter: 4px;
+    --ui-mobile-card-padding: 10px;
+    --ui-mobile-section-padding: 9px;
+    --ui-mobile-gap: 6px;
+    --ui-mobile-gap-tight: 4px;
+  }
+
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  .app-shell {
+    padding-top: var(--ui-mobile-page-gutter);
+    padding-right: var(--ui-mobile-page-gutter);
+    padding-left: var(--ui-mobile-page-gutter);
+    gap: var(--ui-mobile-gap);
+  }
+
+  body.is-home-view .app-shell,
+  body.is-clock-view .app-shell,
+  body.is-meal-view .app-shell,
+  body.is-records-view .app-shell {
+    padding: var(--ui-mobile-page-gutter);
+  }
+
+  .home-card,
+  .clock-card,
+  .meal-card,
+  .records-card,
+  .calendar-card {
+    padding: var(--ui-mobile-card-padding);
+  }
+
+  .home-card,
+  .clock-card,
+  .meal-card,
+  .records-card {
+    min-height: calc(100dvh - 8px);
+  }
+
+  .calendar-card {
+    padding-right: var(--ui-mobile-page-gutter);
+    padding-left: var(--ui-mobile-page-gutter);
+  }
+
+  .modal-overlay,
+  .auth-overlay {
+    padding: var(--ui-mobile-page-gutter);
+  }
+
+  .modal,
+  .auth-card {
+    max-height: calc(100dvh - 8px);
+    padding: var(--ui-mobile-card-padding);
+  }
+
+  .settings-list-modal,
+  .member-settings-modal {
+    height: calc(100dvh - 8px);
+    max-height: calc(100dvh - 8px);
+  }
+
+  .home-hero,
+  .clock-page-header {
+    gap: 8px;
+    margin-bottom: 11px;
+  }
+
+  .home-subtitle {
+    margin-top: 5px;
+  }
+
+  .home-action-grid,
+  .clock-action-grid,
+  .clock-status-grid,
+  .meal-stats-grid,
+  .form-grid,
+  .request-filter-bar,
+  .member-settings-filters {
+    gap: var(--ui-mobile-gap);
+  }
+
+  .home-action-card {
+    padding: 8px;
+  }
+
+  .clock-action-grid {
+    margin-bottom: 8px;
+  }
+
+  .clock-action-btn {
+    padding: 12px;
+  }
+
+  .clock-action-btn span {
+    margin-bottom: 8px;
+  }
+
+  .clock-status-grid > div,
+  .meal-stats-grid > div {
+    padding: 7px;
+  }
+
+  .clock-status-grid span {
+    margin-bottom: 3px;
+  }
+
+  .overtime-request-panel,
+  .records-section,
+  .form-section {
+    margin-top: 9px;
+    padding: var(--ui-mobile-section-padding);
+  }
+
+  .overtime-request-toggle-only {
+    padding: 7px 9px;
+  }
+
+  .overtime-panel-header {
+    gap: var(--ui-mobile-gap);
+    margin-bottom: 7px;
+  }
+
+  .meal-tabs,
+  .record-tabs {
+    gap: var(--ui-mobile-gap-tight);
+    margin: 5px 0 8px;
+    padding: 2px;
+  }
+
+  .records-section > h2 {
+    margin-bottom: 8px;
+    font-size: 17px;
+  }
+
+  .records-filter-row {
+    gap: var(--ui-mobile-gap-tight);
+    margin: 6px 0;
+  }
+
+  .meal-summary-row {
+    gap: var(--ui-mobile-gap);
+    margin-top: 7px;
+  }
+
+  .modal-header {
+    gap: 8px;
+    margin-bottom: 7px;
+    padding-bottom: 6px;
+  }
+
+  .modal-header-tools {
+    gap: 8px;
+  }
+
+  .modal-header-actions {
+    gap: var(--ui-mobile-gap-tight);
+  }
+
+  .modal-body {
+    gap: var(--ui-mobile-gap);
+    padding: 1px;
+  }
+
+  .modal-footer {
+    gap: 5px;
+    margin-top: 9px;
+    padding-top: 7px;
+  }
+
+  .settings-list-modal .modal-header,
+  .member-settings-modal .modal-header {
+    gap: 4px 5px;
+    margin-bottom: 4px;
+    padding-bottom: 5px;
+  }
+
+  .settings-list-modal .modal-body,
+  .member-settings-modal .modal-body {
+    gap: var(--ui-mobile-gap-tight);
+  }
+
+  .settings-list-modal .modal-header-actions,
+  .member-settings-modal .modal-header-actions {
+    gap: var(--ui-mobile-gap-tight);
+  }
+
+  .member-settings-filters {
+    gap: 4px 5px;
+  }
+
+  .form-grid,
+  .attendance-edit-modal .form-grid {
+    gap: var(--ui-mobile-gap);
+  }
+
+  .form-row {
+    gap: 3px;
+  }
+
+  .section-subtitle {
+    margin-bottom: 5px;
+  }
+
+  .settings-item,
+  .member-item,
+  .schedule-dept-option {
+    gap: 5px;
+    padding: 4px 6px;
+  }
+
+  .list-item-main,
+  .settings-text-row,
+  .list-item-actions {
+    gap: var(--ui-mobile-gap-tight);
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="color"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  :where(.primary-btn, .ghost-btn, .nav-btn, .btn-primary, .btn-cancel):not(.toolbar-history-btn):not(.toolbar-collapse-toggle) {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .compact-btn {
+    padding-right: 6px !important;
+    padding-left: 6px !important;
+  }
+
+  :is(.records-table, .meal-order-table, .meal-settings-table) th {
+    padding: 6px;
+  }
+
+  :is(.records-table, .meal-order-table, .meal-settings-table) td {
+    padding: 5px 6px;
+  }
+
+  .calendar-nav {
+    gap: var(--ui-mobile-gap-tight);
+    margin-bottom: 7px;
+  }
+
+  .nav-actions,
+  .calendar-nav-left {
+    gap: var(--ui-mobile-gap-tight);
+  }
+
+  .toolbar-floating-card {
+    right: var(--ui-mobile-page-gutter);
+    bottom: var(--ui-mobile-page-gutter);
+    left: var(--ui-mobile-page-gutter);
+    padding: 6px;
+  }
+
+  .toolbar-floating-card.toolbar-floating-card-collapsed {
+    left: var(--ui-mobile-page-gutter);
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  .toolbar-grid {
+    gap: var(--ui-mobile-gap-tight);
+    max-height: calc(min(42dvh, 300px) - 12px);
+  }
+
+  .toolbar-section,
+  .toolbar-section-leave,
+  .toolbar-section-overtime {
+    padding: 5px;
+  }
+
+  .toolbar-title-row {
+    gap: var(--ui-mobile-gap-tight);
+    margin-bottom: 5px;
+  }
+
+  .chips {
+    gap: 3px;
+  }
+}
+
+/* Meal order table: use the shared table appearance and compact single-line mobile columns. */
+.meal-order-table th:first-child,
+.meal-order-table td:first-child {
+  width: clamp(150px, 22%, 220px);
+  padding-left: 14px;
+}
+
+.meal-order-table th:last-child,
+.meal-order-table td:last-child {
+  width: auto;
+}
+
+@media (max-width: 640px) {
+  .meal-order-table {
+    min-width: 280px;
+  }
+
+  .meal-order-table th:first-child,
+  .meal-order-table td:first-child {
+    width: 82px;
+    padding-left: 6px;
+  }
+
+  .meal-order-table .meal-price-col {
+    width: 48px;
+  }
+
+  .meal-order-table .meal-quantity-col {
+    width: 62px;
+  }
+}
+
+/* Record administration filters: shared labelled fields and stable mobile grids. */
+.records-admin-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px 16px;
+  margin: 12px 0 14px;
+  padding: 14px;
+  border: 1px solid rgba(156, 107, 47, 0.16);
+  border-radius: var(--ui-section-radius);
+  background: rgba(255, 253, 248, 0.72);
+}
+
+.records-admin-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  align-items: end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.personal-record-filters {
+  grid-template-columns: repeat(2, minmax(150px, 190px));
+}
+
+.records-admin-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.records-admin-field > span {
+  color: var(--ui-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.records-admin-field > input,
+.records-admin-field > select {
+  width: 100%;
+  min-width: 0;
+}
+
+.records-admin-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.records-admin-actions > button {
+  min-height: var(--ui-control-height);
+}
+
+@media (max-width: 900px) {
+  .records-admin-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .records-admin-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .records-admin-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .records-admin-actions > button {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .records-admin-toolbar {
+    gap: var(--ui-mobile-gap);
+    margin: 6px 0 8px;
+    padding: var(--ui-mobile-section-padding);
+    border-radius: var(--ui-control-radius);
+  }
+
+  .records-admin-filters {
+    gap: var(--ui-mobile-gap);
+  }
+
+  .records-admin-field {
+    gap: 4px;
+  }
+
+  .records-admin-actions {
+    gap: var(--ui-mobile-gap-tight);
+  }
+
+  .records-admin-actions > button {
+    padding-right: 4px !important;
+    padding-left: 4px !important;
+    font-size: 13px;
+  }
+}
+
+/* Meal administration toolbar: labelled fields and stable responsive actions. */
+.meal-admin-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px 16px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid rgba(156, 107, 47, 0.16);
+  border-radius: var(--ui-section-radius);
+  background: rgba(255, 253, 248, 0.72);
+}
+
+.meal-toolbar-fields {
+  display: grid;
+  align-items: end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.meal-report-fields {
+  grid-template-columns:
+    minmax(140px, 160px)
+    minmax(140px, 160px)
+    minmax(130px, 1fr)
+    minmax(130px, 1fr)
+    minmax(110px, 130px);
+}
+
+.meal-settings-fields {
+  grid-template-columns: minmax(150px, 190px) minmax(140px, 170px);
+}
+
+.meal-toolbar-field,
+.meal-settings-toolbar-label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  align-items: stretch;
+}
+
+.meal-toolbar-field > span {
+  color: var(--ui-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.meal-toolbar-field input,
+.meal-toolbar-field select,
+.meal-settings-toolbar-label input[type="number"] {
+  width: 100%;
+  min-width: 0;
+}
+
+.meal-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.meal-toolbar-actions > button {
+  min-height: var(--ui-control-height);
+}
+
+@media (max-width: 900px) {
+  .meal-admin-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .meal-report-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "from to"
+      "department department"
+      "member view";
+  }
+
+  .meal-field-from { grid-area: from; }
+  .meal-field-to { grid-area: to; }
+  .meal-field-department { grid-area: department; }
+  .meal-field-member { grid-area: member; }
+  .meal-field-view { grid-area: view; }
+}
+
+@media (max-width: 640px) {
+  .meal-admin-toolbar {
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: var(--ui-mobile-section-padding);
+    border-radius: var(--ui-control-radius);
+  }
+
+  .meal-toolbar-fields {
+    gap: var(--ui-mobile-gap);
+  }
+
+  .meal-settings-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .meal-toolbar-actions {
+    display: grid;
+    width: 100%;
+    gap: var(--ui-mobile-gap);
+  }
+
+  .meal-report-toolbar .meal-toolbar-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .meal-settings-toolbar .meal-toolbar-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .meal-toolbar-actions > button {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* Meal report mobile rows: dates, department/member, report/export, and two summary cards. */
+.meal-report-toolbar {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.meal-report-fields {
+  grid-template-columns:
+    minmax(140px, 160px)
+    minmax(140px, 160px)
+    minmax(130px, 1fr)
+    minmax(130px, 1fr)
+    minmax(110px, 130px)
+    minmax(130px, 150px);
+}
+
+.meal-field-export {
+  display: grid;
+  align-items: stretch;
+  gap: 5px;
+  min-width: 0;
+}
+
+.meal-field-export > span {
+  visibility: hidden;
+  color: var(--ui-muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.meal-field-export > button {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--ui-control-height);
+}
+
+.meal-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .meal-report-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "from to"
+      "department member"
+      "view export";
+  }
+
+  .meal-field-export {
+    grid-area: export;
+  }
+}
+
+@media (max-width: 640px) {
+  .meal-report-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "from to"
+      "department member"
+      "view export";
+  }
+
+  .meal-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ===== Cross-page responsive rules: responsive.css ===== */
+/* 初始化完成前 body 尚未加入登入狀態，先隱藏班表浮動工具列，避免重整時閃出空白視窗。 */
+body:not(.is-authenticated) .toolbar-card {
+  display: none !important;
+}
+
+/* 打卡頁加班申請：固定欄位順序與雙欄時數配置。 */
+.overtime-use-label {
+  font-size: 15px;
+}
+
+.overtime-date-row {
+  display: grid;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.overtime-date-row select {
+  width: 100%;
+  min-width: 0;
+}
+
+.overtime-request-status-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.overtime-request-status,
+.overtime-estimate-text {
+  margin: 0;
+}
+
+.overtime-hours-summary,
+.overtime-hours-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px;
+}
+
+.overtime-hours-grid .form-row-wide {
+  grid-column: 1 / -1;
+}
+
+.overtime-hours-summary > div,
+.overtime-hours-grid > .form-row {
+  min-width: 0;
+}
+
+/* 手機版主頁面外層配置統一規格：首頁、打卡、訂餐、紀錄、班表共用。 */
+@media (max-width: 960px) {
+  .app-shell {
+    padding-top: 12px;
+  }
+
+  body.is-home-view .app-shell,
+  body.is-clock-view .app-shell,
+  body.is-meal-view .app-shell,
+  body.is-records-view .app-shell,
+  body.is-schedule-view .app-shell {
+    padding-top: 12px;
+  }
+
+  .home-card,
+  .clock-card,
+  .meal-card,
+  .records-card,
+  .calendar-card {
+    align-self: stretch;
+  }
+
+  .home-card,
+  .clock-card {
+    justify-content: flex-start;
+  }
+
+  /* 手機版將浮動工具列控制區拆成左右兩個獨立操作區，避免整列容器遮住班別控制項。 */
+  .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-top-row {
+    top: 8px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-collapse-toggle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: auto;
+  }
+
+  .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-history-actions {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  /* 手機畫面取消五個主要頁面的最外層卡片，只保留頁面安全間距與內部功能區塊，內容一律由上方開始排列。 */
+  body.is-home-view .app-shell,
+  body.is-clock-view .app-shell,
+  body.is-meal-view .app-shell,
+  body.is-records-view .app-shell,
+  body.is-schedule-view .app-shell {
+    justify-content: flex-start !important;
+    align-items: stretch;
+    padding-top: 8px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .home-card,
+  .clock-card,
+  .meal-card,
+  .records-card,
+  .calendar-card {
+    width: 100%;
+    max-width: none;
+    min-height: 0 !important;
+    margin: 0;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* 首頁入口按鈕放大並統一配色，充分利用手機垂直空間。 */
+  body.is-home-view .home-action-grid {
+    gap: 16px;
+  }
+
+  body.is-home-view .home-action-card {
+    min-height: 104px;
+    padding: 18px 16px;
+  }
+
+  body.is-home-view .home-action-card-primary {
+    color: var(--text) !important;
+    background: rgba(255, 253, 248, 0.86) !important;
+  }
+
+  /* 班表手機版控制項字級統一：頂部檢視／範圍選單與浮動工具列選單皆不得使用過小字級。 */
+  body.is-schedule-view .calendar-nav-left select,
+  body.is-schedule-view .toolbar-floating-card select {
+    font-size: 15px !important;
+    line-height: 1.35;
+  }
+
+  body.is-schedule-view .calendar-nav-left select {
+    min-height: 42px;
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+
+  body.is-schedule-view .toolbar-section-combined #deptFilter {
+    width: 128px;
+    min-width: 128px;
+    max-width: 128px;
+    flex: 0 0 128px;
+    min-height: 38px;
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+
+  /* 班表欄標題在手機仍需清楚可讀。 */
+  body.is-schedule-view .table-sticky-cell {
+    height: 38px;
+    min-height: 38px;
+    font-size: 13px !important;
+    font-weight: 800;
+  }
+
+  body.is-schedule-view .table-sticky-cell-day {
+    gap: 1px;
+  }
+
+  body.is-schedule-view .table-sticky-cell-day span {
+    font-size: 11px !important;
+    font-weight: 700;
+  }
+
+  /* 今天日期使用高對比深橘底、白字與內框，避免與一般日期或週交錯底色混淆。 */
+  body.is-schedule-view .table-sticky-cell-day.today {
+    background: linear-gradient(180deg, #c76618 0%, #99420d 100%) !important;
+    color: #fff !important;
+    box-shadow: inset 0 0 0 2px #6f2d08, 0 2px 5px rgba(111, 45, 8, 0.3) !important;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+    font-weight: 900;
+  }
+
+  body.is-schedule-view .table-sticky-cell-day.today span {
+    color: #fff !important;
+    font-weight: 800;
+  }
+
+  /* 設定編輯彈窗沿用電腦版雙欄表單。實際編輯視窗是一般 modal，不能只依設定列表 modal 類別判斷。 */
+  .modal:not(.attendance-edit-modal) :is(.form-grid, .two-col),
+  :is(.department-settings-modal, .member-settings-modal, .catalog-settings-modal) :is(.form-grid, .two-col) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .modal:not(.attendance-edit-modal) :is(.form-grid, .two-col) > *,
+  :is(.department-settings-modal, .member-settings-modal, .catalog-settings-modal) :is(.form-grid, .two-col) > * {
+    min-width: 0;
+  }
+
+  .modal:not(.attendance-edit-modal) :is(.form-grid, .two-col) input,
+  .modal:not(.attendance-edit-modal) :is(.form-grid, .two-col) select {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* ===== Final page-specific rules: pages.css ===== */
+/* 頁面專屬樣式：僅放無法抽成共用元件的局部規則。 */
+
+/* 打卡頁 */
+/* 打卡頁細節調整：縮小手機打卡按鈕、放大加班申請標籤並維持緊湊單行備註。 */
+.overtime-use-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.overtime-estimate-text {
+  line-height: 1.55;
+}
+
+.overtime-hours-grid .form-row-wide {
+  grid-column: 1 / -1;
+}
+
+.overtime-hours-grid input[type="text"] {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 960px) {
+  .clock-action-btn {
+    min-height: 120px;
+    padding: 18px 20px;
+  }
+
+  .clock-action-btn span {
+    margin-bottom: 10px;
+  }
+}
+
+/* 登入頁 */
+/* 登入視窗：主要操作按鈕使用整列寬度，方便手機點擊。 */
+.auth-footer {
+  display: block;
+  width: 100%;
+}
+
+.auth-footer .btn-primary[data-auth-sign-in] {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
 }
