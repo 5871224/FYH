@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -21,6 +21,45 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run one-time CSS architecture migration
+        id: css_migration
+        shell: bash
+        run: |
+          if [ -f scripts/migrate-css-architecture-once.js ]; then
+            node scripts/migrate-css-architecture-once.js
+            rm -f scripts/migrate-css-architecture-once.js
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build static web
+        run: npm run web:publish
+
+      - name: Validate static web
+        run: |
+          npm run web:check
+          node scripts/check-normalized-storage.js
+          node scripts/check-expansion-acceptance.js
+          npm run v2:check
+
+      - name: Commit CSS architecture migration
+        if: steps.css_migration.outputs.changed == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "重整 CSS 架構並產生單一 bundle"
+          git push
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
