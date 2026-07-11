@@ -207,12 +207,11 @@ assert(authoritativeSpec.includes("固定 IP、原始 GPS、精準度與距離�
 assert(authoritativeSpec.includes("公司補助"), "正式規格書缺少公司補助規則");
 assert(authoritativeSpec.includes("手機優先"), "正式規格書缺少響應式介面規則");
 
-const readme = read("README.md");
-assert(readme.includes("查看完整班表"), "規格書未明確標示員工可查看完整班表");
-assert(readme.includes("警告併入備註欄"), "規格書未明確標示訂餐統計警告併入備註欄");
-assert(readme.includes("本次異動原因為選填"), "規格書未明確標示打卡異動原因為選填");
-assert(readme.includes("不顯示員工工號、首次下訂時間及最後修改時間"), "規格書未明確標示訂餐報表隱藏欄位");
-assert(readme.includes("主管可刪除員工或主管帳號"), "規格書未明確標示主管刪除權限");
+assert(authoritativeSpec.includes("可查看所有人員完整班表") || authoritativeSpec.includes("可查看完整班表與統計欄"), "正式規格書未明確標示員工可查看完整班表");
+assert(authoritativeSpec.includes("警告併入備註"), "正式規格書未明確標示訂餐統計警告併入備註欄");
+assert(authoritativeSpec.includes("本次異動原因；此欄選填"), "正式規格書未明確標示打卡異動原因為選填");
+assert(authoritativeSpec.includes("不顯示員工工號、第一次下訂時間與最後修改時間"), "正式規格書未明確標示訂餐報表隱藏欄位");
+assert(authoritativeSpec.includes("刪除符合條件的員工或主管帳號"), "正式規格書未明確標示主管刪除權限");
 
 const sourceIndex = read("src/renderer/index.html");
 const publishedIndex = read("docs/index.html");
