@@ -1,0 +1,47 @@
+name: Report Remove Is Active Validation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          show-progress: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run checks and save report
+        shell: bash
+        run: |
+          set +e
+          : > remove-is-active-final-report.txt
+          run_check() {
+            echo "===== $1 =====" >> remove-is-active-final-report.txt
+            shift
+            "$@" >> remove-is-active-final-report.txt 2>&1
+            echo "status=$?" >> remove-is-active-final-report.txt
+            echo >> remove-is-active-final-report.txt
+          }
+          run_check normalized node scripts/check-normalized-storage.js
+          run_check expansion node scripts/check-expansion-acceptance.js
+          run_check settings node scripts/check-settings-lists.js
+          run_check v2 npm run v2:check
+          run_check webpublish npm run web:publish
+          cat remove-is-active-final-report.txt
+          rm -f .github/workflows/report-remove-is-active-validation.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "保存移除人員欄位最終檢查報告"
+          git push origin HEAD:${{ github.head_ref }}
