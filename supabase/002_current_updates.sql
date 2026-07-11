@@ -1843,3 +1843,76 @@ create index if not exists idx_schedule_entries_support_department_id on public.
 create index if not exists idx_set_departments_attendance_settings_updated_by on public.set_departments(attendance_settings_updated_by);
 
 commit;
+
+
+-- ============================================================================================
+-- 區段 21：所有角色使用相同班表人員有效期間
+-- ============================================================================================
+
+begin;
+
+-- 班表人員列、排序與 PT 標記不得因登入角色不同。
+-- 到職日、離職日、日薪狀態與可排班班別是班表顯示必要資料，
+-- 對所有有效登入者提供；帳號角色、工號及其他管理資料仍維持遮罩。
+create or replace function public.get_employee_directory_v2()
+returns table (
+  id uuid,
+  employee_code text,
+  full_name text,
+  role text,
+  home_department_id uuid,
+  position_name text,
+  hire_date date,
+  leave_date date,
+  pay_by_day boolean,
+  is_active boolean,
+  created_at timestamptz,
+  updated_at timestamptz,
+  schedule_department_ids text[],
+  monthly_rest_days integer,
+  fixed_rest_weekday integer,
+  schedule_shift_ids uuid[],
+  sort_order integer
+)
+language sql
+stable
+security definer
+set search_path = public, pg_catalog
+as $$
+  with actor as (
+    select
+      employee.id,
+      employee.role in ('admin', 'manager') as manager_access,
+      public.is_effective_user(employee.id) as effective
+    from public.set_employee employee
+    where employee.id = auth.uid()
+  )
+  select
+    target.id,
+    case when actor.manager_access or target.id = actor.id then target.employee_code else '' end,
+    target.full_name,
+    case when actor.manager_access or target.id = actor.id then target.role else 'employee' end,
+    target.home_department_id,
+    case when actor.manager_access or target.id = actor.id then target.position_name else null end,
+    target.hire_date,
+    target.leave_date,
+    target.pay_by_day,
+    target.is_active,
+    target.created_at,
+    target.updated_at,
+    case when actor.manager_access or target.id = actor.id then target.schedule_department_ids else '{}'::text[] end,
+    case when actor.manager_access or target.id = actor.id then target.monthly_rest_days else 0 end,
+    case when actor.manager_access or target.id = actor.id then target.fixed_rest_weekday else 0 end,
+    target.schedule_shift_ids,
+    target.sort_order
+  from actor
+  join public.set_employee target
+    on target.id = actor.id
+    or (actor.effective and target.is_active)
+  order by target.sort_order, target.full_name, target.id
+$$;
+
+revoke all on function public.get_employee_directory_v2() from public, anon;
+grant execute on function public.get_employee_directory_v2() to authenticated, service_role;
+
+commit;

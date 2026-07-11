@@ -185,11 +185,17 @@ assert(sourceRecords.includes("上班打卡已刪除") && !sourceRecords.include
 assert(sourceRecords.includes("report.memberSummary"), "人員訂餐報表未使用後端公司補助計算結果");
 assert(!sourceRecords.includes("days * 55"), "人員訂餐報表仍硬編碼55元補助");
 
+const scheduleDirectorySql = databaseUpdates.slice(databaseUpdates.lastIndexOf("區段 21：所有角色使用相同班表人員有效期間"));
+assert(scheduleDirectorySql.includes("target.hire_date,") && !scheduleDirectorySql.includes("then target.hire_date else null"), "所有角色班表名錄一致性缺失：到職日仍依角色遮罩");
+assert(scheduleDirectorySql.includes("target.leave_date,") && !scheduleDirectorySql.includes("then target.leave_date else null"), "所有角色班表名錄一致性缺失：離職日仍依角色遮罩");
+assert(scheduleDirectorySql.includes("target.pay_by_day,") && scheduleDirectorySql.includes("target.schedule_shift_ids,"), "所有角色班表名錄一致性缺失：班表必要人員屬性仍依角色不同");
+
 const authoritativeSpec = read("規格書.md");
 assert(authoritativeSpec.includes("未登入不顯示班表、員工、打卡、加班與訂餐資料"), "正式規格書缺少未登入資料保護規則");
 assert(authoritativeSpec.includes("固定 IP、原始 GPS、精準度與距離只供管理員及後端服務使用"), "正式規格書缺少敏感打卡資料規則");
 assert(authoritativeSpec.includes("公司補助"), "正式規格書缺少公司補助規則");
 assert(authoritativeSpec.includes("手機優先"), "正式規格書缺少響應式介面規則");
+assert(authoritativeSpec.includes("員工、主管與管理員看到的人員列") && authoritativeSpec.includes("角色差異只影響編輯工具"), "正式規格書缺少所有角色班表一致規則");
 
 assert(authoritativeSpec.includes("可查看所有人員完整班表") || authoritativeSpec.includes("可查看完整班表與統計欄"), "正式規格書未明確標示員工可查看完整班表");
 assert(authoritativeSpec.includes("警告併入備註"), "正式規格書未明確標示訂餐統計警告併入備註欄");
