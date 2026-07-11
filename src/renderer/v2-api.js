@@ -265,14 +265,4 @@
   api.createAdminOvertimeRequest = (payload = {}) => callFunction("attendance-overtime-admin-action", { action: "create", ...payload });
   api.getMemberOrder = () => callFunction("member-order-v2", { action: "list" });
   api.saveMemberOrder = (memberIds = []) => callFunction("member-order-v2", { action: "save", memberIds });
-
-  window.addEventListener("load", () => {
-    ["v2-overtime-admin.js", "v2-meal.js", "v2-attendance-admin.js"].forEach((file) => {
-      if (document.querySelector(`script[data-v2-module="${file}"]`)) return;
-      const script = document.createElement("script");
-      script.src = `./${file}?v=20260710135400`;
-      script.dataset.v2Module = file;
-      document.body.appendChild(script);
-    });
-  }, { once: true });
 })();

@@ -5,9 +5,11 @@
   "scripts": {
     "css:build": "node scripts/build-css.js",
     "css:check": "node scripts/build-css.js --check",
-    "web": "node scripts/build-css.js && node src/web-server.js",
+    "js:build": "node scripts/build-js.js",
+    "js:check": "node scripts/build-js.js --check && node --check src/renderer/app.js",
+    "web": "node scripts/build-css.js && node scripts/build-js.js && node src/web-server.js",
     "web:check": "node scripts/check-public-supabase.js",
-    "web:publish": "node scripts/build-css.js && node scripts/publish-static-web.js",
-    "v2:check": "node scripts/build-css.js --check && node scripts/check-v2-alignment.js && node scripts/check-v2-final.js"
+    "web:publish": "node scripts/build-css.js && node scripts/build-js.js && node scripts/publish-static-web.js",
+    "v2:check": "node scripts/build-css.js --check && node scripts/build-js.js --check && node --check src/renderer/app.js && node scripts/check-v2-alignment.js && node scripts/check-v2-final.js"
   }
 }

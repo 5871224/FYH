@@ -15,6 +15,8 @@
 - 前端原始碼：`src/renderer/`
 - CSS 模組原始碼：`src/renderer/css/`
 - CSS 產生檔：`src/renderer/app.css`、`docs/app.css`（不得直接修改）
+- JavaScript 模組：`src/renderer/*.js`；正式順序以 `scripts/build-js.js` 為準
+- JavaScript 產生檔：`src/renderer/app.js`、`docs/app.js`（不得直接修改）
 - GitHub Pages 發布檔案：`docs/`
 - Supabase 現行資料庫結構與 RPC：`supabase/`
 - 工具、檢查與部署腳本：`scripts/`
@@ -36,8 +38,11 @@ npm run web:publish
 2. GitHub Pages 使用 `docs/`；`docs/` 必須由 `npm run web:publish` 清理重建，不得直接手動修改。
 3. CSS 只修改 `src/renderer/css/` 的正確模組；不得直接修改 `app.css`，也不得新增 fix、refinement、final 等補丁 CSS。
 4. 共用按鈕、表單、頁籤、卡片、彈窗與一般表格以 `css/components.css` 為唯一正式規則；頁面檔只保留無法共用的差異。
-5. 若前端程式有修改，且使用者未明確要求不要提交，應提交並推送至 `main`。
-6. 最終回覆必須說明：
+5. JavaScript 不得直接修改 `app.js`；修改現有模組後由 `npm run js:build` 產生 bundle。
+6. 不得新增動態補載本機 JavaScript、重複載入同一模組，或新增 `fix`、`refinement`、`v3` 等靠載入順序覆寫既有函式的補丁檔。
+7. 第一階段仍保留既有全域相依性；調整 `scripts/build-js.js` 的模組順序前，必須確認所有前置依賴並執行完整驗證。
+8. 若前端程式有修改，且使用者未明確要求不要提交，應提交並推送至 `main`。
+9. 最終回覆必須說明：
    - `docs/` 是否已更新。
    - 是否已推送至 `main`。
 
@@ -79,7 +84,8 @@ npm run web:publish
 ## 驗證原則
 
 - 依修改範圍執行既有檢查，不得只確認檔案可儲存。
-- 前端修改後執行 `npm run web:publish`，確認 `src/renderer/app.css` 與 `docs/app.css` 一致，且入口只載入單一 `app.css`。
+- 前端修改後執行 `npm run web:publish`，確認 `app.css`、`app.js` 與 `docs/` 一致；入口只載入單一 `app.css`，本機 JavaScript 只載入 `app-config.js` 與單一 `app.js`。
+- JavaScript 修改後至少執行 `npm run js:check`；功能模組仍需保留在 `scripts/build-js.js` 的固定順序清單中。
 - 資料庫或班表儲存修改後，至少考慮執行：
 
 ```bash

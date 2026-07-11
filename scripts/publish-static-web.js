@@ -4,8 +4,10 @@ const path = require("path");
 const rootDir = path.resolve(__dirname, "..");
 const sourceDir = path.join(rootDir, "src", "renderer");
 const outputDir = path.join(rootDir, "docs");
-// CSS modules are development sources; production publishes only the generated app.css.
+// CSS modules and individual JavaScript modules are development sources.
+// Production publishes only app.css, app-config.js and the generated app.js.
 const sourceOnlyDirectories = new Set(["css"]);
+const publishedJavaScriptFiles = new Set(["app-config.js", "app.js"]);
 
 async function listFiles(dir, prefix = "") {
   const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -16,6 +18,7 @@ async function listFiles(dir, prefix = "") {
       if (!prefix && sourceOnlyDirectories.has(entry.name)) continue;
       files.push(...await listFiles(path.join(dir, entry.name), relative));
     } else if (entry.isFile()) {
+      if (!prefix && entry.name.endsWith(".js") && !publishedJavaScriptFiles.has(entry.name)) continue;
       files.push(relative);
     }
   }
@@ -54,6 +57,7 @@ async function rewriteIndexCacheBusters() {
 
 async function main() {
   await fs.access(path.join(sourceDir, "app.css"));
+  await fs.access(path.join(sourceDir, "app.js"));
   await fs.rm(outputDir, { recursive: true, force: true });
   await fs.mkdir(outputDir, { recursive: true });
   const files = await copyRendererFiles();

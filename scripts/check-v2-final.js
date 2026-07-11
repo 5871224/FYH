@@ -25,22 +25,18 @@ const required = [
   "supabase/functions/meal-report-v2/index.ts",
   "supabase/functions/meal-cancel-v2/index.ts",
   "src/renderer/v2-api.js",
-  "docs/v2-api.js",
+  "src/renderer/app.js",
+  "docs/app.js",
+  "scripts/build-js.js",
   "src/renderer/v2-overtime-employee.js",
-  "docs/v2-overtime-employee.js",
   "src/renderer/v2-no-overtime-suggestion.js",
-  "docs/v2-no-overtime-suggestion.js",
   "src/renderer/v2-overtime-admin.js",
   "src/renderer/v2-meal.js",
-  "docs/v2-meal.js",
   "src/renderer/v2-meal-api.js",
-  "docs/v2-meal-api.js",
   "src/renderer/v2-account.js",
   "src/renderer/v2-attendance-admin.js",
   "src/renderer/v2-records.js",
-  "docs/v2-records.js",
   "src/renderer/v2-meal-export.js",
-  "docs/v2-meal-export.js"
 ];
 
 required.forEach((file) => assert(exists(file), `缺少 V2 檔案：${file}`));
@@ -135,8 +131,9 @@ assert(mealReport.includes("companySubsidy"), "訂餐報表未讀取公司補助
 assert(mealReport.includes("row.amount - days * companySubsidy"), "人員報表自付額未使用公司補助");
 
 const sourceApi = read("src/renderer/v2-api.js");
-const publishedApi = read("docs/v2-api.js");
-assert(sourceApi === publishedApi, "src/renderer/v2-api.js 與 docs/v2-api.js 不同步");
+const sourceApp = read("src/renderer/app.js");
+const publishedApp = read("docs/app.js");
+assert(sourceApp === publishedApp, "src/renderer/app.js 與 docs/app.js 不同步");
 assert(sourceApi.includes("safeDepartmentColumns"), "一般單位查詢仍可能包含敏感打卡欄位");
 assert(sourceApi.includes("installTabletSessionPolicy"), "平板登入 Session 規則未同步修正");
 assert(sourceApi.includes("isAndroidTablet"), "Android 平板 Session 判斷缺失");
@@ -144,7 +141,6 @@ assert(sourceApi.includes("isIPad"), "iPad Session 判斷缺失");
 assert(sourceApi.includes("30 * 60 * 1000"), "平板未使用電腦版 30 分鐘閒置期限");
 
 const sourceRenderer = read("src/renderer/renderer.js");
-const publishedRenderer = read("docs/renderer.js");
 const sourceWebApi = read("src/renderer/web-api.js");
 assert(sourceWebApi.includes("get_employee_directory_v2") && sourceWebApi.includes("get_department_directory_v2"), "前端尚未改用安全名錄 RPC");
 const attendanceClockSource = read("supabase/functions/attendance-clock/index.ts");
@@ -154,18 +150,12 @@ assert(sourceWebApi.includes('restSelect("attendance_records"') && sourceWebApi.
 assert(sourceRenderer.includes("function getTodayShiftSummary") && sourceRenderer.includes("clock-today-line"), "打卡頁未顯示今日班別與時間");
 assert(sourceRenderer.includes("function formatClockButtonStatus") && !sourceRenderer.includes("上班地點</span>"), "打卡地點與方式應顯示在打卡按鈕內");
 const noOvertimeSuggestion = read("src/renderer/v2-no-overtime-suggestion.js");
-const publishedNoOvertimeSuggestion = read("docs/v2-no-overtime-suggestion.js");
-assert(noOvertimeSuggestion === publishedNoOvertimeSuggestion, "加班不自動建議模組來源版與發布版不同步");
 assert(noOvertimeSuggestion.includes("return false"), "下班打卡後仍可能自動建議加班");
 const sourceOvertimeUi = read("src/renderer/v2-overtime-employee.js");
-const publishedOvertimeUi = read("docs/v2-overtime-employee.js");
-assert(sourceOvertimeUi === publishedOvertimeUi, "員工加班申請介面來源版與發布版不同步");
 assert(sourceRenderer.includes("data-toggle-overtime-panel") && sourceOvertimeUi.includes("data-toggle-overtime-panel"), "加班申請區塊應先顯示勾選框");
 assert(sourceOvertimeUi.includes("overtime-hours-grid"), "提早上班與延後下班時數未固定在同一個雙欄群組");
 
 const sourceMeal = read("src/renderer/v2-meal.js");
-const publishedMeal = read("docs/v2-meal.js");
-assert(sourceMeal === publishedMeal, "訂餐輸入驗證來源版與發布版不同步");
 assert(sourceMeal.includes('addEventListener("beforeinput"'), "訂餐數量未在輸入前拒絕小數或負數");
 assert(sourceMeal.includes('addEventListener("paste"'), "訂餐數量未拒絕貼上無效內容");
 assert(sourceMeal.includes("lastValidMealQuantity"), "訂餐無效輸入未保留最後有效整數");
@@ -177,14 +167,10 @@ assert(sourceUiSystem === publishedUiSystem, "共用介面樣式來源版與發�
 assert(sourceUiSystem.includes(".meal-card") && sourceUiSystem.includes("width: min(1100px, 100%)"), "電腦版訂餐頁寬度未與記錄頁一致");
 
 const sourceMealApi = read("src/renderer/v2-meal-api.js");
-const publishedMealApi = read("docs/v2-meal-api.js");
-assert(sourceMealApi === publishedMealApi, "訂餐設定 API 來源版與發布版不同步");
 assert(sourceMealApi.includes("deleteMealProduct"), "前端 API 缺少刪除品項操作");
 assert(sourceMealApi.includes("companySubsidy"), "前端 API 未傳送公司補助");
 
 const sourceExport = read("src/renderer/v2-meal-export.js");
-const publishedExport = read("docs/v2-meal-export.js");
-assert(sourceExport === publishedExport, "訂餐 Excel 來源版與發布版不同步");
 assert(!sourceExport.includes("首次下訂時間"), "訂餐 Excel 不應顯示首次下訂時間");
 assert(!sourceExport.includes("最後修改時間"), "訂餐 Excel 不應顯示最後修改時間");
 assert(!sourceExport.includes("員工工號"), "訂餐 Excel 不應顯示員工工號");
@@ -192,8 +178,6 @@ assert(!sourceExport.includes('"警告"'), "訂餐 Excel 不應有獨立警告�
 assert(sourceExport.includes("row.amount - mealDays * companySubsidy"), "訂餐 Excel 未依公司補助計算人員自付額");
 
 const sourceRecords = read("src/renderer/v2-records.js");
-const publishedRecords = read("docs/v2-records.js");
-assert(sourceRecords === publishedRecords, "記錄頁來源版與發布版不同步");
 assert(!sourceRecords.includes('["meal", "訂餐統計", isManager()]'), "記錄頁不應顯示訂餐統計頁籤");
 assert(sourceRecords.includes("data-meal-report-view"), "訂餐統計缺少報表切換下拉選單");
 assert(sourceRecords.includes('value="item"') && sourceRecords.includes('value="member"'), "訂餐統計缺少品項或人員報表");
@@ -215,13 +199,10 @@ assert(authoritativeSpec.includes("刪除符合條件的員工或主管帳號"),
 
 const sourceIndex = read("src/renderer/index.html");
 const publishedIndex = read("docs/index.html");
-assert(sourceIndex.includes("v2-api.js"), "來源頁未載入 V2 API");
-assert(publishedIndex.includes("v2-api.js"), "發布頁未載入 V2 API");
-assert(sourceIndex.includes("v2-overtime-employee.js"), "來源頁未載入五日加班介面");
-assert(publishedIndex.includes("v2-overtime-employee.js"), "發布頁未載入五日加班介面");
-assert(sourceIndex.includes("v2-records.js") && sourceIndex.includes("v2-meal-export.js"), "來源頁未載入 V2 記錄或訂餐匯出介面");
-assert(publishedIndex.includes("v2-records.js") && publishedIndex.includes("v2-meal-export.js"), "發布頁未載入 V2 記錄或訂餐匯出介面");
-assert(sourceIndex.includes("v2-meal-api.js"), "來源頁未載入 V2 訂餐設定 API");
-assert(publishedIndex.includes("v2-meal-api.js"), "發布頁未載入 V2 訂餐設定 API");
+assert(sourceIndex.includes("app-config.js") && sourceIndex.includes("app.js") && !sourceIndex.includes("v2-api.js"), "來源頁必須只載入 app-config.js 與 app.js");
+assert(publishedIndex.includes("app-config.js") && publishedIndex.includes("app.js") && !publishedIndex.includes("v2-api.js"), "發布頁必須只載入 app-config.js 與 app.js");
+assert(sourceApp.includes("installV2ApiOverrides") && sourceApp.includes("installV2MealUi") && sourceApp.includes("installV2RecordsUi"), "JavaScript bundle 缺少必要 V2 模組");
+const publishedJsFiles = fs.readdirSync(path.join(root, "docs")).filter((name) => name.endsWith(".js"));
+assert(publishedJsFiles.every((name) => name === "app-config.js" || name === "app.js"), `docs 含有不應發布的 JavaScript 原始模組：${publishedJsFiles.join(", ")}`);
 
 console.log(`V2 final checks passed (${required.length} required files).`);
