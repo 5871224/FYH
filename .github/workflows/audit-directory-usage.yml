@@ -1,0 +1,27 @@
+name: Audit Directory RPC Usage
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          show-progress: false
+      - name: Directory RPC references
+        run: |
+          echo '=== get_employee_directory_v2 references ==='
+          grep -RIn --exclude='app.js' --exclude-dir='docs' 'get_employee_directory_v2\|getEmployeeDirectoryRows' . || true
+          echo '=== set_employee direct frontend reads ==='
+          grep -RIn --exclude='app.js' --exclude-dir='docs' 'restSelect("set_employee"\|restRpc("get_employee' src/renderer || true
+          echo '=== Edge Function employee reads ==='
+          grep -RIn 'from("set_employee")\|\.from("set_employee")\|set_employee' supabase/functions | head -n 300 || true
+          echo '=== role checks and pages ==='
+          grep -RIn --exclude='app.js' --exclude-dir='docs' 'hasManagerAccess\|hasAdminAccess\|currentProfile.*role\|profile.*role' src/renderer | head -n 300 || true
