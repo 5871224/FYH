@@ -4,6 +4,7 @@ const path = require("path");
 const rootDir = path.resolve(__dirname, "..");
 const sourceDir = path.join(rootDir, "src", "renderer");
 const outputDir = path.join(rootDir, "docs");
+// CSS modules are development sources; production publishes only the generated app.css.
 const sourceOnlyDirectories = new Set(["css"]);
 
 async function listFiles(dir, prefix = "") {
