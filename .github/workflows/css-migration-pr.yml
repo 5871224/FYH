@@ -1,0 +1,50 @@
+name: CSS Architecture Migration
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  migrate-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run migration
+        shell: bash
+        run: |
+          test -f scripts/migrate-css-architecture-once.js
+          node scripts/migrate-css-architecture-once.js
+          rm -f scripts/migrate-css-architecture-once.js
+          rm -f scripts/css-migration-trigger.txt
+          rm -f .github/workflows/css-migration-pr.yml
+
+      - name: Build and validate
+        run: |
+          npm run web:publish
+          npm run web:check
+          node scripts/check-normalized-storage.js
+          node scripts/check-expansion-acceptance.js
+          npm run v2:check
+
+      - name: Commit migration to PR branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "重整 CSS 架構並產生單一 bundle"
+          git push origin HEAD:${{ github.head_ref }}
