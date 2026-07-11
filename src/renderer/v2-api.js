@@ -145,72 +145,9 @@
     return [...ordered, ...list.filter((member) => !orderedSet.has(String(member.id || "")))];
   }
 
-  function stripAttendanceFields(value) {
-    if (Array.isArray(value)) return value.map(stripAttendanceFields);
-    if (!value || typeof value !== "object") return value;
-    const next = { ...value };
-    delete next.address;
-    delete next.latitude;
-    delete next.longitude;
-    delete next.attendance_enabled;
-    delete next.public_ip;
-    return next;
-  }
-
-  async function runManagerSafeWrite(operation) {
-    if (api.getAuthContext?.().profile?.role !== "manager") return operation();
-    const originalFetch = window.fetch.bind(window);
-    window.fetch = async function managerSafeFetch(input, init = {}) {
-      try {
-        const rawUrl = input instanceof Request ? input.url : String(input);
-        const url = new URL(rawUrl, window.location.href);
-        const method = String(init?.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
-
-        if (url.pathname.endsWith("/rest/v1/set_departments") && method !== "GET" && typeof init?.body === "string") {
-          const body = stripAttendanceFields(JSON.parse(init.body));
-          return originalFetch(input, { ...init, body: JSON.stringify(body) });
-        }
-      } catch {
-        // Fall back to the original request when it is not a JSON REST write.
-      }
-      return originalFetch(input, init);
-    };
-
-    try {
-      return await operation();
-    } finally {
-      window.fetch = originalFetch;
-    }
-  }
-
   const originalLoadState = api.loadState;
-  api.loadState = async function loadSafeState() {
-    const originalFetch = window.fetch.bind(window);
-    const safeDepartmentColumns = "id,name,start_date,end_date,hidden_from_schedule,sort_order,created_at,updated_at";
-    window.fetch = async function safeFetch(input, init) {
-      try {
-        const rawUrl = input instanceof Request ? input.url : String(input);
-        const url = new URL(rawUrl, window.location.href);
-        if (url.pathname.endsWith("/rest/v1/set_departments")) {
-          const selected = url.searchParams.get("select") || "";
-          if (/address|latitude|longitude|attendance_enabled/i.test(selected)) {
-            url.searchParams.set("select", safeDepartmentColumns);
-            const nextInput = input instanceof Request ? new Request(url.toString(), input) : url.toString();
-            return originalFetch(nextInput, init);
-          }
-        }
-      } catch {
-        // Use the original request when the URL cannot be parsed.
-      }
-      return originalFetch(input, init);
-    };
-
-    let state;
-    try {
-      state = await originalLoadState();
-    } finally {
-      window.fetch = originalFetch;
-    }
+  api.loadState = async function loadV2State() {
+    const state = await originalLoadState();
 
     if (api.getAuthContext?.().profile?.role === "admin") {
       const result = await callFunction("department-attendance-v2", {});
@@ -233,21 +170,11 @@
         const result = await callFunction("member-order-v2", { action: "list" });
         state.members = applyMemberOrder(state.members, result.memberIds);
       } catch {
-        // Keep the legacy employee-code order until migration 038 and member-order-v2 are deployed.
+        // Keep database sort order until member-order-v2 is available.
       }
     }
     return state;
   };
-
-  const originalSaveState = api.saveState;
-  if (typeof originalSaveState === "function") {
-    api.saveState = (payload) => runManagerSafeWrite(() => originalSaveState(payload));
-  }
-
-  const originalSaveDepartmentItem = api.saveDepartmentItem;
-  if (typeof originalSaveDepartmentItem === "function") {
-    api.saveDepartmentItem = (...args) => runManagerSafeWrite(() => originalSaveDepartmentItem(...args));
-  }
 
   api.getEmployeeOvertimeDates = () => callFunction("attendance-overtime-employee", { action: "dates" });
   api.getAttendanceOvertimeForDate = (workDate) => callFunction("attendance-overtime-employee", { action: "status", workDate });

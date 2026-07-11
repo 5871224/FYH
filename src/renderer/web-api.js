@@ -1,4 +1,4 @@
-﻿(function installWebSchedulerApi() {
+(function installWebSchedulerApi() {
   if (window.schedulerApi) {
     return;
   }
@@ -376,8 +376,18 @@
     );
   }
 
-  async function getEmployeeDirectoryRows() {
-    return await restRpc("get_employee_directory_v2", {}, { auth: true }) || [];
+  async function getMyProfileRow() {
+    const rows = await restRpc("get_my_profile_v2", {}, { auth: true }) || [];
+    return rows[0] || null;
+  }
+
+  async function getScheduleDirectoryRows() {
+    return await restRpc("get_schedule_directory_v2", {}, { auth: true }) || [];
+  }
+
+  async function getEmployeeAdminDirectoryRows() {
+    ensureManager();
+    return await restRpc("get_employee_admin_directory_v2", {}, { auth: true }) || [];
   }
 
   async function getDepartmentDirectoryRows() {
@@ -415,8 +425,8 @@
   }
 
   async function fetchProfile(userId) {
-    const rows = await getEmployeeDirectoryRows();
-    return rows.find((row) => row.id === userId) || null;
+    const profile = await getMyProfileRow();
+    return profile?.id === userId ? profile : null;
   }
 
   async function refreshAuthContext() {
@@ -896,7 +906,7 @@
 
   async function fetchRowsById(table) {
     const rows = table === "set_employee"
-      ? await getEmployeeDirectoryRows()
+      ? await getEmployeeAdminDirectoryRows()
       : table === "set_departments"
         ? await getDepartmentDirectoryRows()
         : await restSelect(table, {
@@ -914,7 +924,7 @@
       return null;
     }
     if (table === "set_employee") {
-      return (await getEmployeeDirectoryRows()).find((row) => row.id === rowId) || null;
+      return (await getEmployeeAdminDirectoryRows()).find((row) => row.id === rowId) || null;
     }
     if (table === "set_departments") {
       return (await getDepartmentDirectoryRows()).find((row) => row.id === rowId) || null;
@@ -1091,6 +1101,34 @@
       }));
   }
 
+  function mapMemberDirectoryRows(profileRows = []) {
+    return (profileRows || []).map((row) => {
+      const fallbackDeptId = row.home_department_id || "";
+      const scheduleShiftIds = normalizeTextArray(row.schedule_shift_ids)
+        .filter((value, index, list) => value && list.indexOf(value) === index);
+      return {
+        id: row.id,
+        code: row.employee_code || "",
+        name: row.full_name || "",
+        deptId: fallbackDeptId,
+        scheduleShiftIds,
+        positionId: "",
+        proxyMemberId: "",
+        hireDate: row.hire_date || "",
+        leaveDate: row.leave_date || "",
+        payByDay: Boolean(row.pay_by_day),
+        fixedRestWeekday: clampInteger(row.fixed_rest_weekday, 0, 6, 0),
+        monthlyRestDays: Math.max(0, Number(row.monthly_rest_days) || 0),
+        role: normalizeRole(row.role)
+      };
+    });
+  }
+
+  async function loadEmployeeAdminDirectory() {
+    ensureManager();
+    return mapMemberDirectoryRows(await getEmployeeAdminDirectoryRows());
+  }
+
   async function loadState() {
     const auth = Boolean(currentSession?.access_token);
     try {
@@ -1105,7 +1143,7 @@
       ] = await Promise.all([
         restSelect("scheduler_settings", { select: "*", filters: { id: `eq.${documentId}` }, limit: "1", auth }),
         getDepartmentDirectoryRows(),
-        getEmployeeDirectoryRows(),
+        getScheduleDirectoryRows(),
         restSelect("set_shift", { select: "*", order: "sort_order.asc,name.asc", auth }),
         restSelect("set_leave", { select: "*", order: "sort_order.asc,code.asc", auth }),
         restSelect("set_overtime", { select: "*", order: "sort_order.asc,name.asc", auth }),
@@ -1121,26 +1159,7 @@
         auth
       });
 
-      const members = (profileRows || []).map((row) => {
-        const fallbackDeptId = row.home_department_id || "";
-        const scheduleShiftIds = normalizeTextArray(row.schedule_shift_ids)
-          .filter((value, index, list) => value && list.indexOf(value) === index);
-        return {
-          id: row.id,
-          code: row.employee_code || "",
-          name: row.full_name || "",
-          deptId: fallbackDeptId,
-          scheduleShiftIds,
-          positionId: "",
-          proxyMemberId: "",
-          hireDate: row.hire_date || "",
-          leaveDate: row.leave_date || "",
-          payByDay: Boolean(row.pay_by_day),
-          fixedRestWeekday: clampInteger(row.fixed_rest_weekday, 0, 6, 0),
-          monthlyRestDays: Math.max(0, Number(row.monthly_rest_days) || 0),
-          role: normalizeRole(row.role)
-        };
-      });
+      const members = mapMemberDirectoryRows(profileRows);
       const schedule = mapScheduleRows(scheduleEntryRows, members);
 
       return {
@@ -1264,7 +1283,7 @@
     if (!members.length) {
       return new Map();
     }
-    let rows = await getEmployeeDirectoryRows();
+    let rows = await getEmployeeAdminDirectoryRows();
     const requestedCodes = new Set(members.map((member) => member.code));
     const existingCodes = new Set((rows || []).map((row) => row.employee_code).filter(Boolean));
     for (const member of members) {
@@ -1272,7 +1291,7 @@
         await syncMemberProfile(member, member.code);
       }
     }
-    rows = await getEmployeeDirectoryRows();
+    rows = await getEmployeeAdminDirectoryRows();
     return new Map((rows || [])
       .filter((row) => requestedCodes.has(row.employee_code))
       .map((row) => [row.employee_code, row]));
@@ -1632,7 +1651,7 @@
     if (!normalizedMemberCode) {
       throw new Error("找不到人員工號");
     }
-    const profile = (await getEmployeeDirectoryRows())
+    const profile = (await getEmployeeAdminDirectoryRows())
       .find((row) => String(row.employee_code || "").trim() === normalizedMemberCode);
     if (!profile?.id) {
       throw new Error(`找不到對應的人員資料：${normalizedMemberCode}`);
@@ -1910,6 +1929,7 @@
     getMealReport,
     deleteMemberProfile,
     loadState,
+    loadEmployeeAdminDirectory,
     loadScheduleEntries,
     saveState,
     syncCatalogs,

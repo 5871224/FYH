@@ -153,6 +153,8 @@ let departmentSettingsView = "department";
 let currentSession = null;
 let currentProfile = null;
 let currentMember = null;
+let managerDirectoryLoaded = false;
+let managerDirectoryLoading = null;
 let attendanceState = {
   loading: false,
   saving: false,
@@ -1054,7 +1056,7 @@ function sanitizeMember(member, fallbackIndex, merged) {
     : merged.departments[0]?.id || "";
   return {
     id: member?.id || uid(`m${fallbackIndex}`),
-    code: member?.code || `M${String(fallbackIndex + 1).padStart(3, "0")}`,
+    code: member?.code || "",
     name: member?.name || `人員 ${fallbackIndex + 1}`,
     deptId,
     scheduleShiftIds: normalizeScheduleShiftIds(member, merged.shifts),
@@ -2525,6 +2527,28 @@ function canEditSchedule() {
   return isManager();
 }
 
+async function ensureManagerDirectoryLoaded() {
+  if (!isManager() || managerDirectoryLoaded) {
+    return;
+  }
+  if (!managerDirectoryLoading) {
+    managerDirectoryLoading = window.schedulerApi.loadEmployeeAdminDirectory()
+      .then((adminMembers) => {
+        const adminById = new Map((adminMembers || []).map((member) => [member.id, member]));
+        state.members = state.members.map((member) => {
+          const adminMember = adminById.get(member.id);
+          return adminMember ? { ...member, ...adminMember, id: member.id } : member;
+        });
+        managerDirectoryLoaded = true;
+        currentMember = resolveCurrentMember();
+      })
+      .finally(() => {
+        managerDirectoryLoading = null;
+      });
+  }
+  await managerDirectoryLoading;
+}
+
 function getCurrentProfileName() {
   return currentProfile?.full_name || currentSession?.user?.email || "";
 }
@@ -2942,9 +2966,11 @@ async function loadMealAdminSettings(shouldRender = true) {
 }
 
 function resolveCurrentMember() {
-  if (!currentProfile?.employee_code) {
-    return null;
+  if (currentProfile?.id) {
+    const byId = state.members.find((member) => member.id === currentProfile.id);
+    if (byId) return byId;
   }
+  if (!currentProfile?.employee_code) return null;
   return state.members.find((member) => member.code === currentProfile.employee_code) || null;
 }
 
@@ -5502,7 +5528,13 @@ async function deleteListItem(category, id) {
   await forceSave();
 }
 
-function openDepartmentSettings() {
+async function openDepartmentSettings() {
+  try {
+    await ensureManagerDirectoryLoaded();
+  } catch (error) {
+    showInfoMessage(`讀取管理資料失敗：${error.message || error}`);
+    return;
+  }
   departmentSettingsView = "department";
   modalContext = { category: "department-settings", view: "department" };
   const activeMembers = state.members.filter(isMemberCurrentlyActive);
@@ -6138,7 +6170,13 @@ function refreshMemberSettingsList() {
   }
 }
 
-function openMemberSettings() {
+async function openMemberSettings() {
+  try {
+    await ensureManagerDirectoryLoaded();
+  } catch (error) {
+    showInfoMessage(`讀取管理資料失敗：${error.message || error}`);
+    return;
+  }
   modalContext = { category: "member-settings" };
   const body = `
       <div class="member-settings-filters">
@@ -7057,6 +7095,8 @@ function bindEvents() {
     currentSession = null;
     currentProfile = null;
     currentMember = null;
+    managerDirectoryLoaded = false;
+    managerDirectoryLoading = null;
     attendanceState = { loading: false, saving: false, record: null, serverDate: "", error: "" };
     attendanceOvertimeState = { loading: false, expanded: false, status: null, error: "" };
     mealOrderState = { loading: false, status: null, error: "" };
@@ -7108,6 +7148,12 @@ function bindEvents() {
         return;
       }
       if (target.dataset.homeAction === "schedule") {
+        try {
+          await ensureManagerDirectoryLoaded();
+        } catch (error) {
+          showInfoMessage(`讀取班表管理資料失敗：${error.message || error}`);
+          return;
+        }
         appView = "schedule";
         renderAll();
         return;
@@ -7298,11 +7344,11 @@ function bindEvents() {
       return;
     }
     if (target.dataset.openDepartmentSettings) {
-      openDepartmentSettings();
+      await openDepartmentSettings();
       return;
     }
     if (target.dataset.openMemberSettings) {
-      openMemberSettings();
+      await openMemberSettings();
       return;
     }
     if (target.dataset.openChangePassword) {
@@ -7812,6 +7858,8 @@ function bindEvents() {
 }
 
 async function loadApp() {
+  managerDirectoryLoaded = false;
+  managerDirectoryLoading = null;
   bindEvents();
   pushAppBackHistoryGuard();
   authErrorMessage = "";
