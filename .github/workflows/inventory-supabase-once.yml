@@ -1,0 +1,27 @@
+name: Inventory Supabase files once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/inventory-supabase-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build Supabase inventory
+        run: python scripts/inventory_supabase_once.py
+
+      - name: Commit inventory
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add supabase/_cleanup_summary.txt supabase/_cleanup_inventory.txt
+          git commit -m '產生 Supabase SQL 與文件盤點'
+          git push
