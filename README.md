@@ -28,12 +28,13 @@ Supabase PostgreSQL
 
 ## 專案結構
 
-- `src/renderer/`：前端原始碼。
-- `docs/`：GitHub Pages 正式發布內容。
+- `src/renderer/`：前端原始碼與自動產生的 `app.css`。
+- `src/renderer/css/`：模組化 CSS 唯一原始來源；分為基礎、班表、共用元件、響應式與頁面專屬樣式。
+- `docs/`：`npm run web:publish` 產生的 GitHub Pages 正式發布內容，不直接手動修改。
 - `supabase/001_current_schema.sql`：全新資料庫的基準結構。
 - `supabase/002_current_updates.sql`：基準結構後的現行正式更新。
 - `supabase/functions/`：Supabase Edge Functions 原始碼。
-- `scripts/`：檢查、同步與部署腳本。
+- `scripts/`：CSS 建置、檢查、同步與部署腳本。
 - `.github/workflows/`：GitHub Pages 與自動化流程。
 
 ## 本機執行與常用指令
@@ -41,30 +42,34 @@ Supabase PostgreSQL
 需要 Node.js。可在儲存庫根目錄執行：
 
 ```bash
+npm run css:build
+npm run css:check
 npm run web
 npm run web:check
 npm run web:publish
 npm run v2:check
 ```
 
-- `npm run web`：啟動本機靜態預覽伺服器。
+- `npm run css:build`：依固定模組順序產生單一 `src/renderer/app.css`。
+- `npm run css:check`：確認 `app.css` 與 CSS 模組及快取版本一致。
+- `npm run web`：先建立 CSS bundle，再啟動本機靜態預覽伺服器。
 - `npm run web:check`：檢查公開 Supabase 設定。
-- `npm run web:publish`：將 `src/renderer/` 同步到 `docs/`，並更新靜態資源版本參數。
-- `npm run v2:check`：執行 V2 結構與發布內容對齊檢查。
+- `npm run web:publish`：建立 CSS bundle、清理並重建 `docs/`，再更新靜態資源版本參數。
+- `npm run v2:check`：檢查 CSS bundle、V2 結構與發布內容對齊。
 
 ## 前端發布
 
-1. 修改前端原始碼時，只修改 `src/renderer/` 的正式來源。
-2. 完成後執行：
+1. CSS 只修改 `src/renderer/css/` 中對應模組，不直接修改 `app.css` 或 `docs/`。
+2. JavaScript、HTML 及其他前端來源只修改 `src/renderer/`。
+3. 完成後執行：
 
 ```bash
 npm run web:publish
+npm run v2:check
 ```
 
-3. 確認 `src/renderer/` 與 `docs/` 同步後提交至 `main`。
-4. GitHub Pages 工作流程 `.github/workflows/deploy-pages.yml` 會發布 `docs/`。
-
-GitHub Pages 是靜態網站，不需要在 Pages 工作流程執行 npm 建置。
+4. 發布腳本會把 CSS 模組依固定順序合併成單一 `app.css`，清理舊的 `docs/` 後完整重建發布內容。
+5. GitHub Pages 工作流程也會在上傳前執行 `npm run web:publish`，避免發布舊 bundle。
 
 ## Supabase 資料庫建置
 

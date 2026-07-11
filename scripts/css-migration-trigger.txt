@@ -1,2 +1,0 @@
-Trigger the one-time CSS architecture migration workflow.
-Retry: capture build and validation error log.

@@ -10,11 +10,8 @@ async function listFiles(dir, prefix = "") {
   const files = [];
   for (const entry of entries) {
     const relative = path.join(prefix, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...await listFiles(path.join(dir, entry.name), relative));
-    } else if (entry.isFile()) {
-      files.push(relative);
-    }
+    if (entry.isDirectory()) files.push(...await listFiles(path.join(dir, entry.name), relative));
+    else if (entry.isFile()) files.push(relative);
   }
   return files;
 }
@@ -50,11 +47,13 @@ async function rewriteIndexCacheBusters() {
 }
 
 async function main() {
+  await fs.access(path.join(sourceDir, "app.css"));
+  await fs.rm(outputDir, { recursive: true, force: true });
   await fs.mkdir(outputDir, { recursive: true });
   const files = await copyRendererFiles();
   await rewriteIndexCacheBusters();
   await fs.writeFile(path.join(outputDir, ".nojekyll"), "");
-  await fs.writeFile(path.join(outputDir, "README.txt"), "Static deploy output for GitHub Pages or FTP.\n\nUpload all files in this folder to your web root.\n", "utf8");
+  await fs.writeFile(path.join(outputDir, "README.txt"), "Generated static deploy output. Do not edit files in docs directly.\n", "utf8");
   console.log(`static web published to ${outputDir} (${files.length} renderer files)`);
 }
 

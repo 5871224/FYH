@@ -13,6 +13,8 @@
 主要目錄：
 
 - 前端原始碼：`src/renderer/`
+- CSS 模組原始碼：`src/renderer/css/`
+- CSS 產生檔：`src/renderer/app.css`、`docs/app.css`（不得直接修改）
 - GitHub Pages 發布檔案：`docs/`
 - Supabase 現行資料庫結構與 RPC：`supabase/`
 - 工具、檢查與部署腳本：`scripts/`
@@ -31,9 +33,11 @@
 npm run web:publish
 ```
 
-2. GitHub Pages 使用 `docs/`，不是 `src/renderer/`；前端來源與發布檔案必須保持同步。
-3. 若前端程式有修改，且使用者未明確要求不要提交，應提交並推送至 `main`。
-4. 最終回覆必須說明：
+2. GitHub Pages 使用 `docs/`；`docs/` 必須由 `npm run web:publish` 清理重建，不得直接手動修改。
+3. CSS 只修改 `src/renderer/css/` 的正確模組；不得直接修改 `app.css`，也不得新增 fix、refinement、final 等補丁 CSS。
+4. 共用按鈕、表單、頁籤、卡片、彈窗與一般表格以 `css/components.css` 為唯一正式規則；頁面檔只保留無法共用的差異。
+5. 若前端程式有修改，且使用者未明確要求不要提交，應提交並推送至 `main`。
+6. 最終回覆必須說明：
    - `docs/` 是否已更新。
    - 是否已推送至 `main`。
 
@@ -75,7 +79,7 @@ npm run web:publish
 ## 驗證原則
 
 - 依修改範圍執行既有檢查，不得只確認檔案可儲存。
-- 前端修改後確認 `src/renderer/` 與 `docs/` 一致。
+- 前端修改後執行 `npm run web:publish`，確認 `src/renderer/app.css` 與 `docs/app.css` 一致，且入口只載入單一 `app.css`。
 - 資料庫或班表儲存修改後，至少考慮執行：
 
 ```bash
