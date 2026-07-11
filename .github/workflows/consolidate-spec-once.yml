@@ -1,0 +1,235 @@
+name: Consolidate specification once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/consolidate-spec-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  consolidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Merge all specification documents
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('.')
+          main_path = root / '規格書.txt'
+          workflow_path = root / '.github/workflows/consolidate-spec-once.yml'
+
+          if not main_path.exists():
+              raise SystemExit('找不到規格書.txt')
+
+          def is_spec_source(path: Path) -> bool:
+              if not path.is_file() or path == main_path or path == workflow_path:
+                  return False
+              if any(part in {'.git', 'node_modules'} for part in path.parts):
+                  return False
+              if path.suffix.lower() not in {'.txt', '.md'}:
+                  return False
+              return '規格補充' in path.parts or '規格' in path.name
+
+          sources = sorted(
+              [p for p in root.rglob('*') if is_spec_source(p)],
+              key=lambda p: str(p).casefold()
+          )
+
+          spec = main_path.read_text(encoding='utf-8-sig')
+
+          section_order = [
+              '## 1.2.2 加班申請',
+              '## 1.3 其他相關規則',
+              '## 2.2.2 訂餐統計',
+              '## 2.2.3 訂餐設定',
+              '## 2.3 其他相關規則',
+              '## 3.3 設定、工具與其他規則',
+              '## 4.2.2 加班審核',
+              '## 4.2.3 打卡管理',
+              '## 4.3 其他相關規則',
+              '## 5.3 登入、首頁與帳號規則',
+              '## 5.4 共用時間、權限與安全規則',
+              '## 5.5 後端服務、RPC 與交易',
+              '## 5.6 資料庫共通規格',
+              '## 5.8 稽核、驗收與發佈',
+              '## 6.6 按鈕與頁籤',
+              '## 6.7 表格',
+              '## 6.9 手機版頁面配置',
+              '## 6.10 無障礙與實作規則',
+          ]
+
+          def choose_section(path: Path, text: str) -> str:
+              s = f'{path.as_posix()}\n{text}'.lower()
+              has = lambda *words: any(word.lower() in s for word in words)
+
+              if has('自動補班', '自動排班', 'schedule undo', 'schedule redo', '復原', '重做'):
+                  return '## 3.3 設定、工具與其他規則'
+              if has('拖曳排序', 'drag sort', '捲動位置'):
+                  return '## 6.10 無障礙與實作規則'
+              if has('手機', 'mobile', '字級', '外層卡片', '靠上', '安全間距', '今日標示'):
+                  return '## 6.9 手機版頁面配置'
+              if has('頁籤', '按鈕文字', '新增按鈕', 'add label', '按鈕樣式'):
+                  return '## 6.6 按鈕與頁籤'
+              if has('表格標題', 'table header', '欄標題', '表格樣式'):
+                  return '## 6.7 表格'
+              if has('加班審核', 'overtime review'):
+                  return '## 4.2.2 加班審核'
+              if has('打卡管理', 'attendance issue', '異常篩選', '補登'):
+                  return '## 4.2.3 打卡管理'
+              if has('記錄頁', '紀錄頁', 'record filter', '個人記錄'):
+                  return '## 4.3 其他相關規則'
+              if has('手動加班', '加班申請', 'overtime application'):
+                  return '## 1.2.2 加班申請'
+              if has('訂餐統計', 'meal report'):
+                  return '## 2.2.2 訂餐統計'
+              if has('訂餐設定', '商品刪除', '餐費補助', 'meal subsidy', 'meal product'):
+                  return '## 2.2.3 訂餐設定'
+              if has('訂餐', 'meal'):
+                  return '## 2.3 其他相關規則'
+              if has('班表', '排班', '班別', '假別'):
+                  return '## 3.3 設定、工具與其他規則'
+              if has('github pages', 'pages deployment', '發佈', '部署'):
+                  return '## 5.8 稽核、驗收與發佈'
+              if has('edge function', 'rpc', '交易', 'sql 執行順序'):
+                  return '## 5.5 後端服務、RPC 與交易'
+              if has('資料庫', 'supabase', 'migration', 'storage'):
+                  return '## 5.6 資料庫共通規格'
+              if has('權限', '安全', '時區'):
+                  return '## 5.4 共用時間、權限與安全規則'
+              if has('登入', '首頁', '帳號'):
+                  return '## 5.3 登入、首頁與帳號規則'
+              if has('打卡', 'attendance'):
+                  return '## 1.3 其他相關規則'
+              return '## 5.8 稽核、驗收與發佈'
+
+          def source_title(path: Path, text: str) -> str:
+              for line in text.splitlines():
+                  t = line.strip().lstrip('#').strip()
+                  if t:
+                      return t[:100]
+              return path.stem
+
+          def normalize_block(block: str) -> str:
+              return re.sub(r'\s+', '', block).lower()
+
+          existing_normalized = normalize_block(spec)
+          grouped: dict[str, list[str]] = {section: [] for section in section_order}
+
+          for path in sources:
+              raw = path.read_text(encoding='utf-8-sig').strip()
+              if not raw:
+                  continue
+
+              title = source_title(path, raw)
+              section = choose_section(path, raw)
+              if section not in grouped:
+                  grouped[section] = []
+
+              lines = raw.splitlines()
+              # 第一個標題由整合標題取代，避免重複。
+              for i, line in enumerate(lines):
+                  if line.strip():
+                      lines = lines[i + 1:]
+                      break
+
+              converted = []
+              for line in lines:
+                  match = re.match(r'^(#{1,6})\s*(.*)$', line)
+                  if match:
+                      level = min(6, 4 + len(match.group(1)) - 1)
+                      converted.append('#' * level + ' ' + match.group(2).strip())
+                  else:
+                      converted.append(line.rstrip())
+
+              body = '\n'.join(converted).strip()
+              if body and normalize_block(body) in existing_normalized:
+                  continue
+
+              grouped[section].append(
+                  f'#### {title}\n\n'
+                  f'> 本節整合自原檔：`{path.as_posix()}`。原檔已於整合後移除。\n\n'
+                  f'{body}'.rstrip()
+              )
+
+          def insert_at_section_end(document: str, heading: str, block: str) -> str:
+              start = document.find(heading)
+              if start < 0:
+                  fallback = '\n# 第五章　系統環境、資料庫與其他規格\n'
+                  start = document.find(fallback)
+                  if start < 0:
+                      return document.rstrip() + '\n\n' + block + '\n'
+              content_start = start + len(heading)
+              next_heading = re.search(r'\n##\s+', document[content_start:])
+              next_chapter = re.search(r'\n#\s+', document[content_start:])
+              candidates = []
+              if next_heading:
+                  candidates.append(content_start + next_heading.start())
+              if next_chapter:
+                  candidates.append(content_start + next_chapter.start())
+              end = min(candidates) if candidates else len(document)
+              return document[:end].rstrip() + '\n\n' + block.rstrip() + '\n\n' + document[end:].lstrip('\n')
+
+          for section in section_order:
+              entries = grouped.get(section) or []
+              if not entries:
+                  continue
+              block = '### 整合補充規格\n\n' + '\n\n'.join(entries)
+              spec = insert_at_section_end(spec, section, block)
+
+          spec = re.sub(r'\*\*文件版本：\*\*\s*[^\n]+', '**文件版本：** 2026-07-11', spec, count=1)
+          spec = re.sub(r'\*\*文件狀態：\*\*\s*[^\n]+', '**文件狀態：** 唯一正式規格', spec, count=1)
+          spec = re.sub(
+              r'\*\*取代文件：\*\*\s*[^\n]+',
+              '**取代文件：** 儲存庫內所有其他規格書、補充規格及 `規格補充` 資料夾文件',
+              spec,
+              count=1,
+          )
+
+          management_line = '**文件管理規則：** 後續所有需求、介面與技術規格一律直接更新本檔，不再新增獨立規格書或規格補充檔。'
+          if management_line not in spec:
+              anchor = '**取代文件：** 儲存庫內所有其他規格書、補充規格及 `規格補充` 資料夾文件'
+              spec = spec.replace(anchor, anchor + '  \n' + management_line, 1)
+
+          main_path.write_text(spec.rstrip() + '\n', encoding='utf-8-sig')
+
+          for path in sources:
+              path.unlink()
+
+          # Git 不追蹤空資料夾；移除空的規格補充目錄。
+          for directory in sorted([p for p in root.rglob('*') if p.is_dir()], key=lambda p: len(p.parts), reverse=True):
+              if '規格補充' in directory.parts:
+                  try:
+                      directory.rmdir()
+                  except OSError:
+                      pass
+
+          if workflow_path.exists():
+              workflow_path.unlink()
+
+          print(f'已整合 {len(sources)} 份規格文件：')
+          for path in sources:
+              print(f'- {path.as_posix()}')
+          PY
+
+      - name: Commit consolidated specification
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+            exit 0
+          fi
+          git commit -m '整合所有規格至規格書'
+          git push
