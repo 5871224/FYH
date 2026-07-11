@@ -15,19 +15,45 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Consolidate Supabase SQL and docs
-        run: python scripts/cleanup_supabase_once.py
-
-      - name: Run database checks
+      - name: Consolidate and validate
+        shell: bash
         run: |
-          node scripts/check-normalized-storage.js
-          node scripts/check-expansion-acceptance.js
-          npm run v2:check
+          set +e
+          log_file=/tmp/supabase-cleanup.log
+          : > "$log_file"
 
-      - name: Commit cleanup
-        run: |
+          python scripts/cleanup_supabase_once.py >> "$log_file" 2>&1
+          cleanup_status=$?
+
+          checks_status=0
+          if [ "$cleanup_status" -eq 0 ]; then
+            node scripts/check-normalized-storage.js >> "$log_file" 2>&1 || checks_status=$?
+            if [ "$checks_status" -eq 0 ]; then
+              node scripts/check-expansion-acceptance.js >> "$log_file" 2>&1 || checks_status=$?
+            fi
+            if [ "$checks_status" -eq 0 ]; then
+              npm run v2:check >> "$log_file" 2>&1 || checks_status=$?
+            fi
+          fi
+
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m '整併 Supabase SQL 與部署文件'
+
+          if [ "$cleanup_status" -eq 0 ] && [ "$checks_status" -eq 0 ]; then
+            git add -A
+            git commit -m '整併 Supabase SQL 與部署文件'
+            git push
+            exit 0
+          fi
+
+          git reset --hard HEAD
+          cp "$log_file" supabase/_cleanup_debug.txt
+          {
+            echo ""
+            echo "cleanup_status=$cleanup_status"
+            echo "checks_status=$checks_status"
+          } >> supabase/_cleanup_debug.txt
+          git add supabase/_cleanup_debug.txt
+          git commit -m '記錄 Supabase 清理失敗原因'
           git push
+          exit 1
