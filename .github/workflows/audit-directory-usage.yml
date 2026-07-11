@@ -15,13 +15,21 @@ jobs:
         with:
           fetch-depth: 1
           show-progress: false
-      - name: Directory RPC references
+      - name: Build audit report
+        shell: bash
         run: |
-          echo '=== get_employee_directory_v2 references ==='
-          grep -RIn --exclude='app.js' --exclude-dir='docs' 'get_employee_directory_v2\|getEmployeeDirectoryRows' . || true
-          echo '=== set_employee direct frontend reads ==='
-          grep -RIn --exclude='app.js' --exclude-dir='docs' 'restSelect("set_employee"\|restRpc("get_employee' src/renderer || true
-          echo '=== Edge Function employee reads ==='
-          grep -RIn 'from("set_employee")\|\.from("set_employee")\|set_employee' supabase/functions | head -n 300 || true
-          echo '=== role checks and pages ==='
-          grep -RIn --exclude='app.js' --exclude-dir='docs' 'hasManagerAccess\|hasAdminAccess\|currentProfile.*role\|profile.*role' src/renderer | head -n 300 || true
+          {
+            echo '=== get_employee_directory_v2 references ==='
+            grep -RIn --exclude='app.js' --exclude-dir='docs' 'get_employee_directory_v2\|getEmployeeDirectoryRows' . || true
+            echo '=== set_employee direct frontend reads ==='
+            grep -RIn --exclude='app.js' --exclude-dir='docs' 'restSelect("set_employee"\|restRpc("get_employee' src/renderer || true
+            echo '=== Edge Function employee reads ==='
+            grep -RIn 'from("set_employee")\|\.from("set_employee")\|set_employee' supabase/functions | head -n 500 || true
+            echo '=== role checks and pages ==='
+            grep -RIn --exclude='app.js' --exclude-dir='docs' 'hasManagerAccess\|hasAdminAccess\|currentProfile.*role\|profile.*role' src/renderer | head -n 500 || true
+          } | tee audit-directory-usage.txt
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: directory-usage-audit
+          path: audit-directory-usage.txt
