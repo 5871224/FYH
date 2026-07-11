@@ -1,0 +1,53 @@
+name: Refactor Directory RPCs
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  refactor-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply refactor
+        run: |
+          python3 scripts/refactor_directory_rpcs_once.py
+          rm -f scripts/refactor_directory_rpcs_once.py
+          rm -f .github/workflows/audit-directory-usage.yml
+          rm -f .github/workflows/refactor-directory-rpcs-once.yml
+
+      - name: Build published web
+        run: npm run web:publish
+
+      - name: Validate architecture and behavior
+        run: |
+          npm run js:check
+          node --check src/renderer/web-api.js
+          node --check src/renderer/v2-api.js
+          node --check src/renderer/renderer.js
+          node scripts/check-normalized-storage.js
+          node scripts/check-expansion-acceptance.js
+          node scripts/check-settings-lists.js
+          npm run v2:check
+
+      - name: Commit refactor to PR branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "依用途拆分人員資料 RPC 與頁面權限"
+          git push origin HEAD:${{ github.head_ref }}
