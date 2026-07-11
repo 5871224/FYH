@@ -1339,6 +1339,35 @@ Android 返回鍵：
 14. 外鍵與唯一限制用來保護歷史關聯及每日唯一資料。
 15. 資料表名稱與欄位採英文 snake_case；本規格提供中文意義。
 
+
+### 5.6.1 現行 SQL 建置檔
+
+1. 全新資料庫固定依序執行：
+   - `supabase/001_current_schema.sql`
+   - `supabase/002_current_updates.sql`
+2. `001_current_schema.sql` 建立目前系統的基準資料表、索引、RLS、權限保護與核心 RPC。
+3. `002_current_updates.sql` 依原始 migration 順序整併基準結構後所有仍有效的正式更新，包含班表批次儲存、訂餐、任職與角色保護、打卡與稽核、加班審核、帳號刪除、人員排序、唯一限制及私密資料存取強化。
+4. Edge Function 部署不會自動執行 SQL；兩份 SQL 必須先成功套用。
+5. SQL Editor 只要出現錯誤即停止，不可略過錯誤繼續執行。
+
+### 5.6.2 已淘汰資料物件
+
+下列舊物件不再是正式資料來源，不得在新功能中恢復使用：
+
+- `leave_requests`
+- `overtime_requests`
+- `request_status`
+- `request_type`
+- `public.get_public_schedule_requests()`
+- `clock_locations`
+- `attendance_logs`
+
+### 5.6.3 一般名錄與敏感欄位
+
+1. 人員與單位的一般名錄資料應透過受控安全 RPC 或後端 API 取得，不直接向瀏覽器開放私密主表的完整欄位。
+2. 固定對外 IP、原始 GPS、定位精準度、距離、管理稽核資料及其他敏感欄位，不得透過一般 REST 查詢提供給員工或主管。
+3. Edge Function 或正式後端回傳資料前必須依角色過濾欄位，只提供執行目前功能所需的最少資料。
+
 ## 5.7 資料表與欄位中文說明
 
 ### 5.7.1 `set_employee`－人員與登入對應
@@ -2056,25 +2085,29 @@ Edge Function／正式後端 API
 
 ## 7.4 現行後端功能清單
 
-下列 Edge Functions 均視為正式後端 API；未來遷移時需逐項建立對應端點或服務：
+正式 Edge Function 部署清單以 `scripts/deploy-v2-final.ps1` 的 `$functions` 陣列為準。`supabase/functions/` 中未列入該腳本的資料夾，不視為目前正式部署端點。
 
 | 現行 Edge Function | 主要責任 | 未來後端對應 |
 |---|---|---|
+| `member-auth-admin` | 建立、修改帳號與重設密碼 | 帳號管理 API＋身分服務介接 |
+| `catalog-admin` | 班別、假別與班表加班設定的受保護管理操作 | 設定管理 API＋目錄 Service |
+| `report-records` | 共用個人記錄、管理查詢與報表資料整合 | 記錄／報表查詢 API |
 | `attendance-clock` | 今日打卡狀態、GPS／IP 驗證、上下班打卡 | 打卡 Controller＋位置驗證 Service |
-| `attendance-overtime-employee` | 員工加班資格、送出、刪除與狀態 | 員工加班 API＋加班 Service |
-| `attendance-overtime-admin-list` | 管理員加班審核清單 | 管理端查詢 API |
+| `attendance-clock-safe` | 代理打卡請求並過濾敏感回傳欄位 | 安全 API Gateway／回應過濾層 |
+| `meal-order` | 今日訂餐、商品設定讀取與訂單保存 | 訂餐 API＋訂單 Service |
+| `attendance-overtime-employee` | 員工加班資格、狀態、送出與刪除 | 員工加班 API＋加班 Service |
+| `attendance-overtime-admin-list` | 管理員加班審核清單 | 管理端加班查詢 API |
 | `attendance-overtime-admin-action` | 調整、核准、退回、批次處理與代為申請 | 管理端命令 API＋交易 Service |
 | `attendance-admin-list-v2` | 管理員打卡資料與異常查詢 | 打卡管理查詢 API |
 | `attendance-admin-action-v2` | 補登、修改、清除與異動歷程 | 打卡管理命令 API＋稽核 Service |
-| `meal-order` | 今日訂餐、商品設定讀取與訂單保存 | 訂餐 API＋訂單 Service |
-| `meal-report-v2` | 訂餐統計與管理查詢 | 報表查詢 API |
-| `meal-cancel-v2` | 整張取消今日訂餐 | 訂單取消 API＋交易 Service |
-| `personal-records-v2` | 個人班表、打卡、加班與訂餐記錄 | 個人記錄彙整 API |
-| `member-auth-admin` | 建立帳號、修改、重設密碼與刪除 | 帳號管理 API＋身分服務介接 |
-| `member-order-v2` | 人員排序讀取與保存 | 排序設定 API |
 | `department-attendance-v2` | 管理員讀取及維護單位打卡敏感設定 | 單位打卡設定管理 API |
+| `member-delete-v2` | 帳號刪除、自刪驗證及最後管理員保護 | 帳號刪除 API＋交易 Service |
+| `member-order-v2` | 人員排序讀取與保存 | 排序設定 API |
+| `personal-records-v2` | 個人班表、打卡、加班與訂餐記錄 | 個人記錄彙整 API |
+| `meal-report-v2` | 訂餐統計與管理查詢 | 訂餐報表 API |
+| `meal-cancel-v2` | 整張取消今日訂餐 | 訂單取消 API＋交易 Service |
 
-實際清單以 `supabase/functions/` 及第五章主要 Edge Functions 為準；新增、移除或改名時，本表必須同步更新。
+新增、移除或改名正式 Edge Function 時，部署腳本、本節與根目錄 README 必須同步更新。
 
 ## 7.5 遷移至其他後端平台的對應原則
 

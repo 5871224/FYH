@@ -1,143 +1,105 @@
-# 排班系統
+# 福圓號排班系統
 
-這是瀏覽器版排班系統，資料存放在 Supabase，GitHub Pages 發佈內容在 `docs/`。
+福圓號排班系統是手機優先的瀏覽器應用程式，涵蓋排班、打卡、加班、訂餐、個人記錄與管理功能。前端以 GitHub Pages 發布，登入、資料庫、RPC 與伺服器端 API 由 Supabase 提供。
 
-## 主要功能
+## 文件分工
 
-- 單位、人員、班別、假別、加班、國定假日設定
-- 班表檢視與編輯
-- 員工登入、首頁、打卡、訂餐、個人記錄
-- 主管訂餐設定、訂餐統計與匯出
-- 管理員打卡管理、打卡修改歷程、加班審核
-- 透過 Supabase RPC 批次儲存班表格
-- 自動排班預覽 / 套用流程
-- 自動補班預覽 / 套用流程
-- 例假、休息日、連續上班檢查
-- 匯入 / 匯出輔助工具
+- `README.md`：專案入口、目錄、開發指令與部署方式。
+- `規格書.txt`：唯一正式功能、介面、資料模型、安全與驗收規格。
+- `AGENTS.md`：AI 開發代理人在本儲存庫工作時必須遵守的注意事項。
 
-## 規格書摘要
+README 不重複保存詳細功能規格；需求與實作有差異時，以 `規格書.txt` 為準。
 
-本 README 摘錄《規格書》的目前需求；完整且最新規格以儲存庫根目錄的 `規格書.txt` 為準。系統以手機優先，正式時間判定一律使用伺服器端 `Asia/Taipei`，不得用使用者本機時間作為到離職有效期、打卡、加班申請期限、訂餐日期與截止時間的正式判定。
+## 現行架構
 
-角色分為：
+```text
+瀏覽器前端（GitHub Pages）
+  ↓ 登入憑證與使用者操作
+Supabase Edge Functions／REST／RPC
+  ↓ 身分、角色、時間、安全及交易驗證
+Supabase PostgreSQL
+```
 
-- `employee`：查看完整班表、打卡、今日訂餐、個人記錄、提出與期限內重提自己的加班申請；沒有新增、修改或刪除帳號的權限。
-- `manager`：具備員工權限，可管理班表、員工與主管的非權限資料、一般單位、訂餐商品與截止時間，並查看及匯出訂餐統計。主管可刪除員工或主管帳號，但不可建立、修改、重設或刪除管理員帳號。
-- `admin`：具備全部功能，可管理角色、管理員、打卡設定、打卡補登/修改/刪除、打卡稽核資料、加班審核與批次操作。
-
-V2 頁面與權限重點：
-
-- 首頁只顯示主要入口；管理功能依角色顯示，不讓員工看到主管/管理員工具。
-- 手機版首頁的「修改密碼」與「登出」放在姓名右側並靠右對齊；首頁四個主入口按鈕採較小尺寸且文字置中。
-- 手機版（畫面寬度 640px 以下）的首頁、打卡頁、班表頁、訂餐頁與記錄頁不顯示最外層卡片的背景、邊框、圓角及陰影，只保留 8px 頁面安全間距；頁面內部功能卡片、表格與浮動工具列維持原有視覺區隔。
-- Android 系統返回鍵：目前畫面有可關閉視窗時等同按「關閉」；沒有可關閉視窗時回到首頁。
-- 打卡、訂餐、記錄頁的返回首頁控制使用 X 圖示，放在姓名右側並靠右對齊。
-- 班表頁所有登入角色都可查看完整班表表格；手機版班表頂部控制列必須可換行，不得撐破版面。
-- 主管與管理員可使用「自動補班預覽」，選擇日期範圍後，只將月薪人員完全空白的班表格預填為該人員設定的第一個排班班別；日薪人員與已有班別、假別或加班的格子不變。預覽不寫入資料，必須按「套用預覽」才正式儲存。
-- 手機登入使用可跨關閉保留的 48 小時滑動閒置期限；Android 平板、iPad、其他平板與觸控筆電一律視為電腦，使用分頁階段儲存與 30 分鐘滑動閒置期限。不確定裝置類型時預設視為電腦。
-- 刪除帳號時，Supabase Auth 登入帳號與 `set_employee` 人員資料必須由資料庫外鍵級聯在同一筆刪除交易中完成；任何一步失敗都不得留下單邊資料。
-- 打卡使用伺服器端有效任職檢查、單位打卡設定、GPS/IP/距離資料與異常標記。打卡頁顯示今日班別與時間，已打卡狀態顯示在上下班打卡按鈕內，例如 `08:50 在【莊敬】打卡 (GPS)`。管理員可補登或修改上下班時間，修改歷程寫入 `attendance_action_logs`；本次異動原因為選填。
-- 加班以 `attendance_overtime_requests` 為正式申請來源，審核歷程寫入 `overtime_review_logs`。打卡頁的員工加班申請預設只顯示「加班申請」勾選框，勾選後才載入完整申請區塊；只要申請日已有上下班打卡且仍在期限內，即可手動填寫 0.5 小時倍數的加班時數，不限制必須提早或延後至少 30 分鐘，也不在下班打卡後自動跳出加班建議。員工可在期限內刪除待審或退回申請後重新申請；管理員可審核、退回、調整核准時數與代為申請。
-- 訂餐以 `meal_orders` 為正式訂單來源，不另設訂單主檔。商品與價格在 `meal_products`，截止時間在 `meal_settings`。訂餐數量只能輸入 0 或正整數，負數、小數及其他非整數內容必須在輸入當下拒絕，不得自動轉成其他數值。
-- 主管與管理員可在訂餐頁設定商品、截止時間、查看訂餐統計與匯出 Excel。訂餐統計可切換「明細」、「品項」、「人員」報表；警告併入備註欄，不另顯示警告欄。訂餐統計與匯出不顯示員工工號、首次下訂時間及最後修改時間。
-- 記錄頁權限：員工只有個人記錄；管理員另有加班審核、打卡管理。訂餐統計不放在記錄頁。
-
-驗收重點：
-
-- 員工不能看到或呼叫主管/管理員資料與操作，也不能刪除任何帳號。
-- 主管可管理員工與主管，但不能建立、修改、重設或刪除管理員，不能使用打卡管理與加班審核。
-- 帳號刪除必須同步移除 Auth 與人員資料，不得先刪其中一邊再嘗試刪另一邊。
-- 管理員操作應留下必要歷程，打卡異動原因為選填，空白原因不得阻擋補登或修改。
-- 訂餐統計不顯示員工工號，不顯示首次下訂與最後修改欄位。
-- GitHub Pages 發佈內容必須由 `npm run web:publish` 更新 `docs/`。
+- GitHub Pages 只託管 `docs/` 內的靜態檔案。
+- 前端原始碼位於 `src/renderer/`。
+- Supabase Auth 負責登入身分。
+- PostgreSQL、RLS 與 RPC 負責正式資料、權限與交易一致性。
+- `supabase/functions/` 保存 Edge Function 原始碼；正式部署清單以 `scripts/deploy-v2-final.ps1` 為準，不以資料夾是否存在判定。
 
 ## 專案結構
 
 - `src/renderer/`：前端原始碼。
-- `docs/`：GitHub Pages 使用的靜態網站輸出。
-- `supabase/`：SQL migration、RPC、Edge Function。
-- `scripts/`：本機檢查與發佈輔助腳本。
+- `docs/`：GitHub Pages 正式發布內容。
+- `supabase/001_current_schema.sql`：全新資料庫的基準結構。
+- `supabase/002_current_updates.sql`：基準結構後的現行正式更新。
+- `supabase/functions/`：Supabase Edge Functions 原始碼。
+- `scripts/`：檢查、同步與部署腳本。
+- `.github/workflows/`：GitHub Pages 與自動化流程。
 
-## 常用指令
+## 本機執行與常用指令
+
+需要 Node.js。可在儲存庫根目錄執行：
 
 ```bash
 npm run web
 npm run web:check
 npm run web:publish
+npm run v2:check
 ```
 
 - `npm run web`：啟動本機靜態預覽伺服器。
 - `npm run web:check`：檢查公開 Supabase 設定。
-- `npm run web:publish`：將 `src/renderer/` 複製到 `docs/`，並更新資源版本參數。
+- `npm run web:publish`：將 `src/renderer/` 同步到 `docs/`，並更新靜態資源版本參數。
+- `npm run v2:check`：執行 V2 結構與發布內容對齊檢查。
 
-修改前端後要執行 `npm run web:publish`，否則 GitHub Pages 可能仍是舊版。
+## 前端發布
 
-## GitHub Pages 發佈
+1. 修改前端原始碼時，只修改 `src/renderer/` 的正式來源。
+2. 完成後執行：
 
-- Pages 發佈來源為 `docs/`。
-- 自訂工作流程位於 `.github/workflows/deploy-pages.yml`。
-- 工作流程使用 `actions/checkout@v5`、`actions/configure-pages@v5`、`actions/upload-pages-artifact@v5` 與 `actions/deploy-pages@v5`。
-- 網站為靜態檔案，不需要在 Pages 工作流程中執行 npm 建置。
+```bash
+npm run web:publish
+```
 
-## 目前儲存模型
+3. 確認 `src/renderer/` 與 `docs/` 同步後提交至 `main`。
+4. GitHub Pages 工作流程 `.github/workflows/deploy-pages.yml` 會發布 `docs/`。
 
-目前使用正規化 Supabase 資料表。舊的 JSON 文件儲存已不是正式資料來源。
+GitHub Pages 是靜態網站，不需要在 Pages 工作流程執行 npm 建置。
 
-目前班表格儲存方式：
+## Supabase 資料庫建置
 
-- `schedule_entries` 是班表格唯一正式來源。
-- 一個格子以 `member_id + work_date` 唯一識別。
-- 班別、假別、加班存在同一列。
-- 批次寫入使用 `public.save_schedule_entries_bulk(entries jsonb)`。
-- 打卡資料以 `attendance_records` 為目前有效資料，修改歷程寫入 `attendance_action_logs`。
-- 加班申請以 `attendance_overtime_requests` 為來源，審核歷程寫入 `overtime_review_logs`。
-- 訂餐商品、截止時間、訂單分別存在 `meal_products`、`meal_settings`、`meal_orders`。
+全新環境固定依下列順序，在 Supabase SQL Editor 完整執行：
 
-舊申請流程物件已移除，不應再使用：
+1. `supabase/001_current_schema.sql`
+2. `supabase/002_current_updates.sql`
 
-- `leave_requests`
-- `overtime_requests`
-- `request_status`
-- `request_type`
-- `get_public_schedule_requests()`
+`001_current_schema.sql` 建立基準資料表、索引、RLS、權限與核心 RPC；`002_current_updates.sql` 整併基準結構後所有仍有效的正式更新。
 
-## 自動排班與自動補班
+SQL 執行期間只要出現錯誤就應立即停止，不可略過錯誤繼續執行。Edge Function 部署不會自動套用 SQL。
 
-自動排班目前是「先預覽、再套用」流程，會使用：
+## Supabase Edge Functions 部署
 
-- 人員在職日期
-- 人員可支援單位順序
-- 班別需求人數
-- 固定休假星期
-- 每月休假天數目標
-- 例假 / 休息日 / 連續上班規則
+完成兩份 SQL 後，在 Windows PowerShell 由儲存庫根目錄執行：
 
-自動補班同樣採「先預覽、再套用」流程：
+```powershell
+.\scripts\deploy-v2-final.ps1
+```
 
-- 先選擇開始日期與結束日期。
-- 只處理月薪且在職的人員。
-- 只處理完全沒有班別、假別與加班的空白格。
-- 填入人員設定的第一個排班班別。
-- 人員未設定排班班別時略過並顯示提醒。
-- 按「套用預覽」前不寫入 `schedule_entries`。
-
-重要函式：
-
-- `buildAutoSchedulePreview()`
-- `findMinimumCostFlowAssignments()`
-- `placeDailySurplusRestDays()`
-- `applyAutoSchedulePreview()`
-- `buildAutoFillSchedulePreview()`（位於 `v2-auto-fill-schedule.js`）
+腳本透過 `npx supabase@latest functions deploy` 逐一部署目前正式使用的 Edge Functions。部署名單以該腳本內的 `$functions` 陣列為唯一準據；不要直接把 `supabase/functions/` 下所有資料夾都視為正式端點。
 
 ## 驗證
 
-常用檢查：
+依修改範圍執行下列檢查：
 
 ```bash
+npm run web:check
 node --check src/renderer/renderer.js
 node --check src/renderer/web-api.js
 node --check src/renderer/v2-auto-fill-schedule.js
 node scripts/check-normalized-storage.js
+node scripts/check-expansion-acceptance.js
 node scripts/check-settings-lists.js
-npm run web:publish
+npm run v2:check
 ```
+
+前端有修改時，最後仍須執行 `npm run web:publish` 並確認 `docs/` 已更新。
