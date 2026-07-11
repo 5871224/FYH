@@ -1,4 +1,38 @@
 === all is_active references outside generated bundles/docs ===
+./scripts/remove-employee-is-active-once.py:489:            if "is_active" not in fields or "hire_date" not in fields or "leave_date" not in fields:
+./scripts/remove-employee-is-active-once.py:491:            cleaned = ",".join(part for part in fields.split(",") if part.strip() != "is_active")
+./scripts/remove-employee-is-active-once.py:496:            r'Boolean\(\s*profile\?\.is_active(?:\s*!==\s*false)?\s*&&\s*',
+./scripts/remove-employee-is-active-once.py:500:        text = text.replace('profile.data.role !== "admin" || !profile.data.is_active || ', 'profile.data.role !== "admin" || ')
+./scripts/remove-employee-is-active-once.py:501:        text = text.replace('!profile.data.is_active || ', '')
+./scripts/remove-employee-is-active-once.py:502:        text = text.replace('!profile?.is_active || ', '')
+./scripts/remove-employee-is-active-once.py:503:        text = text.replace('\n    .eq("is_active", true)', '')
+./scripts/remove-employee-is-active-once.py:506:            text = re.sub(r'^\s*is_active:\s*true,?\s*\n', '', text, flags=re.M)
+./scripts/remove-employee-is-active-once.py:518:    "if (!profile?.is_active || (profile.hire_date && today < profile.hire_date) || (effectiveEndDate && today > effectiveEndDate)) {",
+./scripts/remove-employee-is-active-once.py:521:web_api = re.sub(r"\n\s*is_active:\s*true,?", "", web_api)
+./scripts/remove-employee-is-active-once.py:527:schema = replace_once(schema, "  is_active boolean not null default true,\n", "", "set_employee.is_active")
+./scripts/remove-employee-is-active-once.py:528:schema = schema.replace("create index if not exists idx_set_employee_active_code on public.set_employee (is_active, employee_code);\n", "")
+./scripts/remove-employee-is-active-once.py:529:schema = schema.replace("      and e.is_active = true\n", "")
+./scripts/remove-employee-is-active-once.py:530:schema = schema.replace("    and OLD.is_active is true\n", "")
+./scripts/remove-employee-is-active-once.py:531:schema = schema.replace("      and NEW.is_active is true\n", "")
+./scripts/remove-employee-is-active-once.py:532:schema = schema.replace("      or NEW.is_active is distinct from OLD.is_active\n", "")
+./scripts/remove-employee-is-active-once.py:533:schema = schema.replace("    or v_employee.is_active is not true\n", "")
+./scripts/remove-employee-is-active-once.py:564:alter table public.set_employee drop column if exists is_active;
+./scripts/remove-employee-is-active-once.py:580:updates = updates.replace("      and e.is_active = true\n", "")
+./scripts/remove-employee-is-active-once.py:581:updates = updates.replace("    or v_employee.is_active is not true\n", "")
+./scripts/remove-employee-is-active-once.py:582:updates = updates.replace("    and is_active = true\n", "")
+./scripts/remove-employee-is-active-once.py:586:    r"  if v_has_history then\n\s*update public\.set_employee\n\s*set is_active = false\n\s*where id = p_target_id;\n\n\s*return jsonb_build_object\(.*?\n\s*end if;",
+./scripts/remove-employee-is-active-once.py:629:final_marker = "區段 26：移除人員 is_active，任職狀態統一由日期判斷"
+./scripts/remove-employee-is-active-once.py:692:alter table public.set_employee drop column if exists is_active;
+./scripts/remove-employee-is-active-once.py:714:    "3. 全量儲存或畫面名錄缺少某人員時，不得據此把該人員改為停用；`is_active` 不作為刪除替代狀態。",
+./scripts/remove-employee-is-active-once.py:718:    "- `is_active`：帳號是否啟用。",
+./scripts/remove-employee-is-active-once.py:733:    'assert(!databaseUpdates.includes("block_direct_member_deactivation_v2"), "人員停用 trigger 尚未移除");\nassert(databaseUpdates.includes("alter table public.set_employee drop column if exists is_active"), "人員 is_active 欄位移除 migration 缺失");\nassert(databaseUpdates.includes("is_employee_account_effective") && databaseUpdates.includes("is_employee_employed_on"), "人員有效期共用函式缺失");',
+./scripts/remove-employee-is-active-once.py:736:    'assert(!memberAuthAdmin.includes("update({ is_active: false })"), "人員刪除仍會改成停用狀態");',
+./scripts/remove-employee-is-active-once.py:737:    'assert(!memberAuthAdmin.includes("is_active"), "人員管理端點仍依賴 is_active");',
+./scripts/remove-employee-is-active-once.py:740:    'assert(!saveStateSource.includes("is_active: false"), "全量儲存仍可能把未出現在畫面的人員改為停用");',
+./scripts/remove-employee-is-active-once.py:741:    'assert(!sourceWebApi.includes("profile?.is_active") && !saveStateSource.includes("is_active:"), "前端仍依賴人員 is_active");',
+./scripts/remove-employee-is-active-once.py:744:    insertion = '''\nconst setEmployeeBlock = currentSchema.slice(currentSchema.indexOf("create table if not exists public.set_employee"), currentSchema.indexOf("create table if not exists public.set_shift"));\nassert(!setEmployeeBlock.includes("is_active"), "set_employee 現行結構仍包含 is_active");\nconst employeeEdgeFiles = [\n  "report-records", "catalog-admin", "attendance-overtime-admin-list", "attendance-overtime-admin-action",\n  "member-auth-admin", "meal-report-v2", "member-order-v2", "personal-records-v2",\n  "attendance-admin-action-v2", "attendance-clock", "meal-order", "member-delete-v2",\n  "meal-cancel-v2", "attendance-admin-list-v2", "attendance-overtime-employee",\n  "department-attendance-v2"\n];\nemployeeEdgeFiles.forEach((name) => {\n  const source = read(`supabase/functions/${name}/index.ts`);\n  assert(!/profile\\?\\.is_active|profile\\.data\\.is_active|select\\(\"[^\"]*is_active[^\"]*hire_date|is_active:\\s*true/.test(source), `${name} 仍依賴人員 is_active`);\n});\n'''
+./scripts/remove-employee-is-active-once.py:753:        'assert(schema.includes("create table if not exists public.set_employee"), "schema should create set_employee");\nconst setEmployeeSchema = schema.slice(schema.indexOf("create table if not exists public.set_employee"), schema.indexOf("create table if not exists public.set_shift"));\nassert(!setEmployeeSchema.includes("is_active"), "set_employee should not keep an is_active column");',
+./scripts/remove-employee-is-active-once.py:766:print("employee is_active removal prepared")
 ./scripts/check-v2-final.js:87:assert(!memberAuthAdmin.includes("update({ is_active: false })"), "人員刪除仍會改成停用狀態");
 ./scripts/check-v2-final.js:164:assert(!saveStateSource.includes("is_active: false"), "全量儲存仍可能把未出現在畫面的人員改為停用");
 ./src/renderer/renderer.js:4137:            <td>${escapeHtml(product.name || "")}${product.is_active === false ? "（已停用）" : ""}</td>
