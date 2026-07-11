@@ -24,8 +24,28 @@ jobs:
           node-version: 22
 
       - name: Complete specification
+        id: complete
+        shell: bash
         run: |
-          python3 scripts/complete-professional-spec-once.py
+          set +e
+          python3 scripts/complete-professional-spec-once.py > professional-spec-update.log 2>&1
+          status=$?
+          cat professional-spec-update.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload update report
+        uses: actions/upload-artifact@v4
+        with:
+          name: professional-spec-update
+          path: professional-spec-update.log
+
+      - name: Stop on update failure
+        if: steps.complete.outputs.status != '0'
+        run: exit 1
+
+      - name: Remove one-time files
+        run: |
           rm -f scripts/complete-professional-spec-once.py
           rm -f .github/workflows/complete-professional-spec-once.yml
 
