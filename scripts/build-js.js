@@ -23,6 +23,7 @@ const modules = [
   "renderer-ui-helpers.js",
   "renderer-visibility.js",
   "renderer-state-normalization.js",
+  "renderer-schedule-interaction.js",
   "renderer.js",
   "v2-auto-fill-schedule.js",
   "v2-cross-department-member-drag.js",
