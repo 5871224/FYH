@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
+// 固定補丁整併前實際使用的復原／重做按鈕、堆疊與快捷鍵行為。
 const root = path.resolve(__dirname, "..");
 const interactionPath = path.join(root, "src", "renderer", "renderer-schedule-interaction.js");
 
