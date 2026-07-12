@@ -1,5 +1,5 @@
-/* 打卡管理、加班審核與訂餐設定操作。
- * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+/* 打卡管理、加班審核、個人記錄與訂餐設定操作。
+ * 後載入覆蓋已整合為唯一正式函式。
  */
 
 function timeValueFromIso(value) {
@@ -15,112 +15,163 @@ function findAttendanceAdminRow(userId, workDate, recordId) {
 }
 
 function openAttendanceEditModal(token) {
-  const [userId, workDate, recordId] = String(token || "").split(":");
-  const row = findAttendanceAdminRow(userId, workDate, recordId) || { user_id: userId, work_date: workDate };
-  openEntityListModal({
-    title: "編輯打卡",
-    modalClass: "modal modal-form-compact attendance-edit-modal",
-    hideFooterClose: true,
-    body: `
-      <div class="form-grid two-col">
+    const [userId, workDate, recordId] = String(token || "").split(":");
+    const row = findAttendanceAdminRow(userId, workDate, recordId) || { user_id: userId, work_date: workDate };
+    openEntityListModal({
+      title: "編輯打卡",
+      hideFooterClose: true,
+      body: `<div class="form-grid two-col">
         <div class="form-row"><label>上班時間</label><input id="adminClockInTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_in_at))}"></div>
         <div class="form-row"><label>上班單位</label><select id="adminClockInDepartment"><option value="">未指定</option>${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${row.clock_in_department_id === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}</select></div>
         <div class="form-row"><label>下班時間</label><input id="adminClockOutTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_out_at))}"></div>
         <div class="form-row"><label>下班單位</label><select id="adminClockOutDepartment"><option value="">未指定</option>${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${row.clock_out_department_id === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}</select></div>
-        <div class="form-row form-row-wide"><label>備註</label><textarea id="adminAttendanceNote" rows="3">${escapeHtml(row.attendance_note || "")}</textarea></div>
-      </div>
-    `,
-    footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-attendance-edit="${escapeHtml(userId)}:${escapeHtml(workDate)}:${escapeHtml(row.id || "")}">儲存</button>`
-  });
-}
+        <div class="form-row form-row-wide"><label>每日打卡備註</label><textarea id="adminAttendanceNote" rows="3">${escapeHtml(row.attendance_note || "")}</textarea></div>
+        <div class="form-row form-row-wide"><label>本次異動原因</label><textarea id="adminAttendanceReason" rows="2" placeholder="選填，會保存於修改歷程"></textarea></div>
+      </div>`,
+      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-attendance-edit="${escapeHtml(userId)}:${escapeHtml(workDate)}:${escapeHtml(row.id || "")}">儲存</button>`
+    });
+  }
 
 async function saveAttendanceEdit(token) {
-  const [userId, workDate, recordId] = String(token || "").split(":");
-  try {
-    await window.schedulerApi.saveAttendanceAdminRecord({
-      id: recordId || "",
-      userId,
-      workDate,
-      clockInTime: document.getElementById("adminClockInTime")?.value || "",
-      clockInDepartmentId: document.getElementById("adminClockInDepartment")?.value || "",
-      clockOutTime: document.getElementById("adminClockOutTime")?.value || "",
-      clockOutDepartmentId: document.getElementById("adminClockOutDepartment")?.value || "",
-      attendanceNote: document.getElementById("adminAttendanceNote")?.value || ""
-    });
-    closeModal();
-    await loadAttendanceAdmin();
-    await loadOvertimeReview(false);
-    showInfoMessage("打卡資料已更新");
-  } catch (error) {
-    setSaveStatus(`儲存打卡失敗：${error.message}`);
+    const [userId, workDate, recordId] = String(token || "").split(":");
+    const reason = document.getElementById("adminAttendanceReason")?.value.trim() || "";
+    try {
+      await window.schedulerApi.saveAttendanceAdminRecord({
+        id: recordId || "",
+        userId,
+        workDate,
+        clockInTime: document.getElementById("adminClockInTime")?.value || "",
+        clockInDepartmentId: document.getElementById("adminClockInDepartment")?.value || "",
+        clockOutTime: document.getElementById("adminClockOutTime")?.value || "",
+        clockOutDepartmentId: document.getElementById("adminClockOutDepartment")?.value || "",
+        attendanceNote: document.getElementById("adminAttendanceNote")?.value || "",
+        reason
+      });
+      closeModal();
+      await loadAttendanceAdmin();
+      await loadOvertimeReview(false);
+      showInfoMessage("打卡資料已更新");
+    } catch (error) {
+      setSaveStatus(`儲存打卡失敗：${error.message}`);
+    }
   }
-}
 
 async function openAttendanceHistoryModal(recordId) {
-  try {
-    const result = await window.schedulerApi.getAttendanceAdminHistory(recordId);
-    openEntityListModal({
-      title: "打卡修改歷程",
-      body: `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>時間</th><th>欄位</th><th>原值</th><th>新值</th><th>操作人</th></tr></thead><tbody>${(result.logs || []).map((log) => `<tr><td>${formatRecordDateTime(log.created_at)}</td><td>${escapeHtml(log.field_name || log.action_type || "")}</td><td>${escapeHtml(log.old_value || "")}</td><td>${escapeHtml(log.new_value || "")}</td><td>${escapeHtml(log.operator_name_snapshot || "")}</td></tr>`).join("") || '<tr><td colspan="5">沒有歷程</td></tr>'}</tbody></table></div>`
-    });
-  } catch (error) {
-    setSaveStatus(`讀取歷程失敗：${error.message}`);
+    try {
+      const result = await window.schedulerApi.getAttendanceAdminHistory(recordId);
+      openEntityListModal({
+        title: "打卡修改歷程",
+        body: `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>時間</th><th>欄位</th><th>原值</th><th>新值</th><th>原因</th><th>操作人</th></tr></thead><tbody>${(result.logs || []).map((log) => `<tr><td>${formatRecordDateTime(log.created_at)}</td><td>${escapeHtml(log.field_name || log.action_type || "")}</td><td>${escapeHtml(log.old_value || "")}</td><td>${escapeHtml(log.new_value || "")}</td><td>${escapeHtml(log.reason || "")}</td><td>${escapeHtml(log.operator_name_snapshot || "")}</td></tr>`).join("") || '<tr><td colspan="6">沒有歷程</td></tr>'}</tbody></table></div>`
+      });
+    } catch (error) {
+      setSaveStatus(`讀取歷程失敗：${error.message}`);
+    }
   }
-}
 
 function openOvertimeReviewModal(id) {
-  const row = recordsState.overtimeReview.requests.find((item) => item.id === id);
-  if (!row) return;
-  openEntityListModal({
-    title: "調整加班時數",
-    hideFooterClose: true,
-    body: `<div class="form-grid two-col"><div class="form-row"><label>提早上班</label><input id="reviewEarlyHours" type="number" min="0" step="0.5" value="${Number(row.early_overtime_hours || 0)}"></div><div class="form-row"><label>延後下班</label><input id="reviewLateHours" type="number" min="0" step="0.5" value="${Number(row.late_overtime_hours || 0)}"></div></div>`,
-    footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-overtime-review="${escapeHtml(id)}">儲存為待審</button>`
-  });
-}
+    const row = ensureOvertimeReviewState().requests.find((item) => item.id === id);
+    if (!row) return;
+    openEntityListModal({
+      title: "調整加班",
+      hideFooterClose: true,
+      body: `<div class="form-grid two-col">
+        <div class="form-row"><label>提早上班</label><input id="reviewEarlyHours" type="number" min="0" step="0.5" value="${Number(row.early_overtime_hours || 0)}"></div>
+        <div class="form-row"><label>延後下班</label><input id="reviewLateHours" type="number" min="0" step="0.5" value="${Number(row.late_overtime_hours || 0)}"></div>
+        <div class="form-row form-row-wide"><label>備註</label><textarea id="reviewEmployeeNote" rows="4">${escapeHtml(row.employee_note || "")}</textarea></div>
+      </div>`,
+      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-overtime-review="${escapeHtml(id)}">儲存為待審</button>`
+    });
+  }
 
 async function reviewOvertime(id, status, readHours = false) {
-  try {
-    await window.schedulerApi.reviewOvertimeRequest({
-      id,
-      status,
-      earlyHours: readHours ? document.getElementById("reviewEarlyHours")?.value : undefined,
-      lateHours: readHours ? document.getElementById("reviewLateHours")?.value : undefined
-    });
-    closeModal();
-    await loadOvertimeReview();
-    showInfoMessage("加班審核已更新");
-  } catch (error) {
-    setSaveStatus(`加班審核失敗：${error.message}`);
+    try {
+      await window.schedulerApi.reviewOvertimeRequest({
+        id,
+        status,
+        earlyHours: readHours ? document.getElementById("reviewEarlyHours")?.value : undefined,
+        lateHours: readHours ? document.getElementById("reviewLateHours")?.value : undefined,
+        employeeNote: readHours ? document.getElementById("reviewEmployeeNote")?.value || "" : undefined
+      });
+      closeModal();
+      await loadOvertimeReview();
+      showInfoMessage("加班審核已更新");
+    } catch (error) {
+      setSaveStatus(`加班審核失敗：${error.message}`);
+    }
   }
-}
 
 function openAdminOvertimeCreateModal() {
-  const members = recordsState.overtimeReview.members?.length
-    ? recordsState.overtimeReview.members
-    : recordsState.attendanceAdmin.members;
-  openEntityListModal({
-    title: "代為申請加班",
-    hideFooterClose: true,
-    body: `<div class="form-grid two-col"><div class="form-row"><label>人員</label><select id="adminOvertimeUser">${memberOptions("", members)}</select></div><div class="form-row"><label>日期</label><input id="adminOvertimeDate" type="date" value="${escapeHtml(getTodayDateString())}"></div><div class="form-row"><label>提早上班</label><input id="adminOvertimeEarly" type="number" min="0" step="0.5" value="0"></div><div class="form-row"><label>延後下班</label><input id="adminOvertimeLate" type="number" min="0" step="0.5" value="0"></div><div class="form-row form-row-wide"><label>備註</label><textarea id="adminOvertimeNote" rows="3"></textarea></div></div>`,
-    footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-admin-overtime-create="true">建立</button>`
-  });
-}
-
-async function saveAdminOvertimeCreate() {
-  try {
-    await window.schedulerApi.createAdminOvertimeRequest({
-      userId: document.getElementById("adminOvertimeUser")?.value || "",
-      workDate: document.getElementById("adminOvertimeDate")?.value || getTodayDateString(),
-      earlyHours: document.getElementById("adminOvertimeEarly")?.value || 0,
-      lateHours: document.getElementById("adminOvertimeLate")?.value || 0,
-      note: document.getElementById("adminOvertimeNote")?.value || ""
+    const review = ensureOvertimeReviewState();
+    openEntityListModal({
+      title: "代為申請加班",
+      hideFooterClose: true,
+      body: `<div class="form-grid two-col">
+        <div class="form-row"><label>人員</label><select id="adminOvertimeUser">${memberOptions("", review.members)}</select></div>
+        <div class="form-row"><label>日期</label><input id="adminOvertimeDate" type="date" value="${escapeHtml(getTodayDateString())}"></div>
+        <div class="form-row"><label>提早上班</label><input id="adminOvertimeEarly" type="number" min="0" step="0.5" value="0"></div>
+        <div class="form-row"><label>延後下班</label><input id="adminOvertimeLate" type="number" min="0" step="0.5" value="0"></div>
+        <div class="form-row form-row-wide"><label>備註</label><textarea id="adminOvertimeNote" rows="3"></textarea></div>
+      </div>`,
+      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="ghost-btn" type="button" data-v2-admin-overtime-create="pending">建立待審</button><button class="btn-primary" type="button" data-v2-admin-overtime-create="approved">建立並核准</button>`
     });
-    closeModal();
-    await loadOvertimeReview();
-    showInfoMessage("已建立代申請");
+  }
+
+async function createAdminOvertimeForEmployee(status) {
+    try {
+      await window.schedulerApi.createAdminOvertimeRequest({
+        userId: document.getElementById("adminOvertimeUser")?.value || "",
+        workDate: document.getElementById("adminOvertimeDate")?.value || getTodayDateString(),
+        earlyHours: document.getElementById("adminOvertimeEarly")?.value || 0,
+        lateHours: document.getElementById("adminOvertimeLate")?.value || 0,
+        note: document.getElementById("adminOvertimeNote")?.value || "",
+        status,
+        approve: status === "approved"
+      });
+      closeModal();
+      await loadOvertimeReview();
+      showInfoMessage(status === "approved" ? "已建立並核准" : "已建立待審申請");
+    } catch (error) {
+      setSaveStatus(`建立代申請失敗：${error.message}`);
+    }
+  }
+
+async function batchReviewOvertime(status) {
+    const ids = Array.from(document.querySelectorAll("[data-v2-overtime-check]:checked")).map((item) => item.dataset.v2OvertimeCheck).filter(Boolean);
+    if (!ids.length) {
+      showInfoMessage("請先勾選加班申請");
+      return;
+    }
+    const confirmed = await confirmAction(`確定要將 ${ids.length} 筆申請${status === "approved" ? "核准" : "退回"}嗎？`);
+    if (!confirmed) return;
+    try {
+      await window.schedulerApi.reviewOvertimeRequest({ ids, status });
+      await loadOvertimeReview();
+      showInfoMessage("批次審核已完成");
+    } catch (error) {
+      showInfoMessage(error.message || "批次審核失敗");
+    }
+  }
+
+async function cancelMealFromRecords() {
+    const confirmed = await confirmAction("確定要取消今日整張訂單嗎？");
+    if (!confirmed) return;
+    try {
+      await window.schedulerApi.cancelTodayMealOrder();
+      await loadRecordsPage();
+      showInfoMessage("今日訂餐已取消");
+    } catch (error) {
+      showInfoMessage(error.message || "取消訂餐失敗");
+    }
+  }
+
+async function deleteRecordOvertime(workDate) {
+  const confirmed = await confirmAction(`確定刪除 ${workDate} 的加班申請嗎？`);
+  if (!confirmed) return;
+  try {
+    await window.schedulerApi.deleteAttendanceOvertime(workDate);
+    await loadRecordsPage();
   } catch (error) {
-    setSaveStatus(`建立代申請失敗：${error.message}`);
+    showInfoMessage(error.message || "刪除加班申請失敗");
   }
 }
 
