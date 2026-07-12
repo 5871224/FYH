@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
+// 固定補丁整併前實際使用的跨單位與同單位人員拖曳排序行為。
 const root = path.resolve(__dirname, "..");
 const rendererPath = path.join(root, "src", "renderer", "renderer.js");
 
