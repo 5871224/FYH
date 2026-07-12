@@ -1,4 +1,4 @@
-name: Audit JavaScript Duplicates
+name: Prepare JavaScript Deduplication
 
 on:
   pull_request:
@@ -6,17 +6,18 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit:
-    if: github.head_ref == 'agent/js-deduplication'
+  prepare:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/js-deduplication'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Checkout branch
         uses: actions/checkout@v5
         with:
+          fetch-depth: 0
           ref: agent/js-deduplication
 
       - name: Setup Node.js
@@ -24,11 +25,44 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Audit JavaScript duplication
-        run: node scripts/audit-js-duplicates.js
+      - name: Consolidate JavaScript shared flows
+        run: |
+          set -o pipefail
+          node scripts/consolidate-js-helpers.js 2>&1 | tee js-deduplication-migration.log
 
-      - name: Upload JavaScript audit
+      - name: Build published web files
+        run: npm run web:publish
+
+      - name: Check JavaScript syntax
+        run: node --check src/renderer/app.js
+
+      - name: Run JavaScript architecture audit
+        run: npm run js:architecture
+
+      - name: Run complete checks without temporary workflow
+        run: |
+          set -o pipefail
+          cp .github/workflows/audit-js-duplicates.yml /tmp/audit-js-duplicates.yml
+          rm .github/workflows/audit-js-duplicates.yml
+          npm run ci:check 2>&1 | tee js-deduplication-ci.log
+          cp /tmp/audit-js-duplicates.yml .github/workflows/audit-js-duplicates.yml
+
+      - name: Upload diagnostics
+        if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: js-duplicate-report
-          path: js-duplicate-report.md
+          name: js-deduplication-report
+          path: |
+            js-duplicate-report.md
+            js-deduplication-migration.log
+            js-deduplication-ci.log
+          if-no-files-found: ignore
+
+      - name: Commit verified consolidation
+        run: |
+          rm -f scripts/consolidate-js-helpers.js js-duplicate-report.md js-deduplication-migration.log js-deduplication-ci.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "整合 JavaScript 共用流程與正式 UI 命名"
+          git push origin HEAD:agent/js-deduplication
