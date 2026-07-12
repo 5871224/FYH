@@ -43,6 +43,8 @@ test("路徑規則支援精確檔案、單層萬用字元與遞迴目錄", () =>
   assert.equal(matchesAny("src/renderer/css/pages.css", ["src/renderer/css/**"]), true);
   assert.equal(matchesAny("src/renderer/pages.css", ["src/renderer/*.css"]), true);
   assert.equal(matchesAny("src/renderer/css/pages.css", ["src/renderer/*.css"]), false);
+  assert.equal(matchesAny("src/renderer/renderer.js", ["src/renderer/**/*.js"]), true);
+  assert.equal(matchesAny("src/renderer/features/member/editor.js", ["src/renderer/**/*.js"]), true);
 });
 
 test("超出允許範圍或命中禁止範圍時應失敗", () => {
