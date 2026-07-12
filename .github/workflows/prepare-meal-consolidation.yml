@@ -1,0 +1,71 @@
+name: Prepare Meal Consolidation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/optimize-meal-patch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: agent/optimize-meal-patch
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Repair preparation script insertion
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/optimize-meal-patch.js')
+          text = p.read_text(encoding='utf-8')
+          needle = ');\nlet saveMealOrder = extractFunction(patch, "async function saveV2MealOrder()")'
+          replacement = ');\nwrite(mealPagePath, mealPage);\nlet saveMealOrder = extractFunction(patch, "async function saveV2MealOrder()")'
+          if needle not in text:
+              raise SystemExit('找不到訂餐模組寫入位置')
+          p.write_text(text.replace(needle, replacement, 1), encoding='utf-8')
+          PY
+
+      - name: Consolidate meal patch
+        run: node scripts/optimize-meal-patch.js
+
+      - name: Build published web files
+        run: npm run web:publish
+
+      - name: Run complete checks without temporary workflow
+        run: |
+          set -o pipefail
+          cp .github/workflows/prepare-meal-consolidation.yml /tmp/prepare-meal-consolidation.yml
+          rm .github/workflows/prepare-meal-consolidation.yml
+          npm run ci:check 2>&1 | tee meal-consolidation-ci.log
+          cp /tmp/prepare-meal-consolidation.yml .github/workflows/prepare-meal-consolidation.yml
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: meal-consolidation-ci-log
+          path: meal-consolidation-ci.log
+          if-no-files-found: ignore
+
+      - name: Commit verified consolidation
+        run: |
+          rm -f scripts/optimize-meal-patch.js
+          rm -f meal-consolidation-ci.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "整合訂餐補丁至正式模組"
+          git push origin HEAD:agent/optimize-meal-patch
