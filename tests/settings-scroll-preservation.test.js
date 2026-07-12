@@ -1,41 +1,4 @@
-const fs = require("node:fs");
-
-function patch(file, marker, insertion, guard) {
-  let source = fs.readFileSync(file, "utf8");
-  if (!source.includes(guard)) {
-    if (!source.includes(marker)) throw new Error(`找不到測試注入點：${file}`);
-    source = source.replace(marker, marker + insertion);
-    fs.writeFileSync(file, source, "utf8");
-  }
-}
-
-patch(
-  "tests/member-order-and-department-width.test.js",
-  '    openMemberSettings: async () => calls.push("open:member"),\n',
-  '    reopenSettingsModalPreservingScroll: async (value) => { calls.push("reopen:" + value.category); await context.openMemberSettings(); },\n',
-  "reopenSettingsModalPreservingScroll:"
-);
-
-patch(
-  "tests/renderer-phase7-admin-data-fixes.test.js",
-  "    confirmAction: async () => true,\n",
-  '    captureSettingsReturnContext: (value) => ({ ...value, scrollTop: 120 }),\n    reopenSettingsModalPreservingScroll: async (value) => calls.push("open:" + value.listCategory),\n',
-  "captureSettingsReturnContext:"
-);
-
-{
-  const file = "scripts/check-settings-lists.js";
-  let source = fs.readFileSync(file, "utf8");
-  const oldCheck = 'assert(renderer.includes("restoreSettingsScroll(returnTo);"), "drag reorder should restore modal scroll position after rerender");';
-  const newCheck = 'assert(renderer.includes("function reopenSettingsModalPreservingScroll") && renderer.includes("reopenSettingsModalPreservingScroll(returnTo)"), "settings rerender should restore modal scroll position through the shared helper");';
-  if (!source.includes(newCheck)) {
-    if (!source.includes(oldCheck)) throw new Error("找不到舊設定清單捲動檢查");
-    source = source.replace(oldCheck, newCheck);
-    fs.writeFileSync(file, source, "utf8");
-  }
-}
-
-const testContent = String.raw`const test = require("node:test");
+const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -110,7 +73,3 @@ test("所有主要設定刪除流程都必須使用共用捲動還原", () => {
   assert.match(member, /async function deleteMember[\s\S]*captureSettingsReturnContext[\s\S]*await reopenSettingsModalPreservingScroll/);
   assert.equal(ordering.includes("reopenSettingsModalPreservingScroll(returnTo)"), true);
 });
-`;
-
-fs.writeFileSync("tests/settings-scroll-preservation.test.js", testContent, "utf8");
-console.log("設定頁捲動測試修正完成");

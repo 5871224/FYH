@@ -395,7 +395,7 @@ async function saveMember(mode) {
   currentMember = resolveCurrentMember();
   closeModal();
   renderAll();
-  reopenModalFromContext(returnTo);
+  await reopenSettingsModalPreservingScroll(returnTo || { category: "member-settings", scrollTop: 0 });
 }
 
 async function exportMembersFromSettings() {
@@ -411,6 +411,7 @@ async function exportMembersFromSettings() {
 }
 
 async function importMembersFromSettings() {
+  const returnTo = captureSettingsReturnContext({ category: "member-settings" });
   try {
     const result = await window.schedulerApi.importMembers();
     if (result.canceled) {
@@ -483,7 +484,7 @@ async function importMembersFromSettings() {
 
     currentMember = resolveCurrentMember();
     renderAll();
-    openMemberSettings();
+    await reopenSettingsModalPreservingScroll(returnTo);
     queueSave();
     const summary = `匯入完成：新增 ${imported} 筆，更新 ${updated} 筆，略過 ${skipped} 筆，同步失敗 ${syncFailed} 筆`;
     if (syncFailed > 0) {
@@ -503,6 +504,7 @@ async function deleteMember(memberId) {
     showInfoMessage("只有管理員可以刪除管理員帳號");
     return;
   }
+  const returnTo = captureSettingsReturnContext({ category: "member-settings" });
   const confirmed = await confirmAction("確定要刪除這位人員嗎？");
   if (!confirmed) {
     return;
@@ -524,7 +526,7 @@ async function deleteMember(memberId) {
     proxyMemberId: member.proxyMemberId === memberId ? "" : member.proxyMemberId
   }));
   renderAll();
-  openMemberSettings();
+  await reopenSettingsModalPreservingScroll(returnTo);
 }
 
 async function resetMemberPasswordFromModal(employeeCode) {

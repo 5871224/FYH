@@ -288,7 +288,7 @@ async function saveShiftFromModal(mode) {
   }
   closeModal();
   renderAll();
-  reopenModalFromContext(returnTo || { category: "list-settings", listCategory: "shift" });
+  await reopenSettingsModalPreservingScroll(returnTo || { category: "list-settings", listCategory: "shift", scrollTop: 0 });
 }
 
 function openNamedColorFormModal(category, mode, targetId = "") {
@@ -515,7 +515,7 @@ async function saveNamedColorItem(category, mode) {
   if (category === "overtime") state.overtime = nextList;
   closeModal();
   renderAll();
-  reopenModalFromContext(returnTo || { category: "list-settings", listCategory: category });
+  await reopenSettingsModalPreservingScroll(returnTo || { category: "list-settings", listCategory: category, scrollTop: 0 });
 }
 
 async function deleteListItem(category, id) {
@@ -524,6 +524,10 @@ async function deleteListItem(category, id) {
     leave: "假別",
     overtime: "加班"
   };
+  const returnTo = captureSettingsReturnContext({
+    category: "list-settings",
+    listCategory: category
+  });
   const confirmed = await confirmAction(`確定要刪除這個${labelMap[category] || "項目"}嗎？`);
   if (!confirmed) {
     return;
@@ -547,5 +551,5 @@ async function deleteListItem(category, id) {
   if (category === "overtime") state.overtime = state.overtime.filter((item) => item.id !== id);
   removeAssignmentsByItem(category, id);
   renderAll();
-  openListSettings(category);
+  await reopenSettingsModalPreservingScroll(returnTo);
 }

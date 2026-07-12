@@ -21,6 +21,8 @@ function evaluateDelete(apiImpl) {
       members: [{ id: "M1", scheduleShiftIds: ["S1", "S2"] }]
     },
     confirmAction: async () => true,
+    captureSettingsReturnContext: (value) => ({ ...value, scrollTop: 120 }),
+    reopenSettingsModalPreservingScroll: async (value) => calls.push("open:" + value.listCategory),
     closeModal: () => calls.push("close"),
     window: { schedulerApi: { deleteCatalogItem: apiImpl } },
     setSaveStatus: (message) => calls.push(message),

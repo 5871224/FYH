@@ -63,6 +63,7 @@ test("拖曳人員只調整人員順序並重新開啟人員設定", async () =>
     },
     openDepartmentSettings: () => calls.push("open:department"),
     openMemberSettings: async () => calls.push("open:member"),
+    reopenSettingsModalPreservingScroll: async (value) => { calls.push("reopen:" + value.category); await context.openMemberSettings(); },
     openListSettings: (category) => calls.push(`open:list:${category}`),
     restoreSettingsScroll: (value) => calls.push(`restore:${value.category}`),
     renderAll: () => calls.push("render"),

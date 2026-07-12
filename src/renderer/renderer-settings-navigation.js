@@ -56,3 +56,21 @@ function restoreSettingsScroll(context) {
     });
   });
 }
+
+
+async function reopenSettingsModalPreservingScroll(context) {
+  if (!context?.category) {
+    return false;
+  }
+  if (context.category === "department-settings") {
+    await openDepartmentSettings();
+  } else if (context.category === "member-settings") {
+    await openMemberSettings();
+  } else if (context.category === "list-settings" && context.listCategory) {
+    openListSettings(context.listCategory);
+  } else {
+    return false;
+  }
+  restoreSettingsScroll(context);
+  return true;
+}
