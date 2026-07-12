@@ -1,0 +1,41 @@
+name: Rebuild Department Width and Member Drag
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    if: github.head_ref == 'agent/fix-department-member-drag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Build static web
+        run: npm run web:publish
+
+      - name: Run complete checks
+        run: npm run ci:check
+
+      - name: Commit verified rebuild
+        run: |
+          rm -f .github/workflows/fix-department-member-drag.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "同步單位欄寬建置檔"
+          git push origin HEAD:agent/fix-department-member-drag
