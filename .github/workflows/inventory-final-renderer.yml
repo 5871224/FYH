@@ -30,4 +30,6 @@ jobs:
             src/renderer/renderer.js
             scripts/build-js.js
             scripts/renderer-core-source.js
+            scripts/check-*.js
+            tests
             package.json
