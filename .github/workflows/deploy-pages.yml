@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: validate-deploy-${{ github.workflow }}-${{ github.ref }}
@@ -20,13 +20,12 @@ jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -41,32 +40,7 @@ jobs:
         run: npm run web:publish
 
       - name: Run complete checks
-        id: complete_checks
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run ci:check 2>&1 | tee tests/renderer-refactor-ci.txt
-
-      - name: Save check result
-        if: github.event_name == 'pull_request' && github.head_ref == 'agent/split-renderer-phase1'
-        run: |
-          git checkout origin/main -- .github/workflows/deploy-pages.yml
-          if [ "${{ steps.complete_checks.outcome }}" = "success" ]; then
-            rm -f tests/renderer-refactor-ci.txt
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f tests/renderer-refactor-ci.txt 2>/dev/null || true
-          git add .github/workflows/deploy-pages.yml
-          if ! git diff --cached --quiet; then
-            git commit -m "保存 renderer 拆分檢查結果 [renderer-ci-capture]"
-            git push origin HEAD:agent/split-renderer-phase1
-          fi
-
-      - name: Fail when complete checks failed
-        if: steps.complete_checks.outcome == 'failure'
-        run: exit 1
+        run: npm run ci:check
 
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
