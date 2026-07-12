@@ -1,0 +1,58 @@
+name: Prepare Tooltip Main Pages Split
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/split-tooltip-main-pages'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: agent/split-tooltip-main-pages
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Split tooltip and main pages
+        run: node scripts/split-tooltip-main-pages.js
+
+      - name: Build published web files
+        run: npm run web:publish
+
+      - name: Run complete checks without temporary workflow
+        run: |
+          set -o pipefail
+          cp .github/workflows/prepare-tooltip-main-pages-split.yml /tmp/prepare-tooltip-main-pages-split.yml
+          rm .github/workflows/prepare-tooltip-main-pages-split.yml
+          npm run ci:check 2>&1 | tee tooltip-main-pages-split-ci.log
+          cp /tmp/prepare-tooltip-main-pages-split.yml .github/workflows/prepare-tooltip-main-pages-split.yml
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: tooltip-main-pages-split-ci-log
+          path: tooltip-main-pages-split-ci.log
+          if-no-files-found: ignore
+
+      - name: Commit split modules
+        run: |
+          rm -f scripts/split-tooltip-main-pages.js
+          rm -f tooltip-main-pages-split-ci.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "拆分提示框與主頁渲染"
+          git push origin HEAD:agent/split-tooltip-main-pages
