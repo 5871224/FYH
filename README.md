@@ -32,11 +32,12 @@ Supabase PostgreSQL
 - `src/renderer/`：HTML、部署設定、前端 JavaScript 模組，以及自動產生的 `app.css`、`app.js`。
 - `src/renderer/css/`：模組化 CSS 唯一原始來源；分為基礎、班表、共用元件、響應式與頁面專屬樣式。
 - `scripts/build-js.js`：依固定順序把現行 JavaScript 模組合併成單一 `app.js`；第一階段保留既有全域行為。
+- `tests/`：可執行單元測試，驗證日期、匯出、金額、資格與其他可獨立計算的規則。
 - `docs/`：`npm run web:publish` 產生的 GitHub Pages 正式發布內容，不直接手動修改。
 - `supabase/001_current_schema.sql`：全新資料庫的基準結構。
 - `supabase/002_current_updates.sql`：基準結構後的現行正式更新。
 - `supabase/functions/`：Supabase Edge Functions 原始碼。
-- `scripts/`：CSS 建置、檢查、同步與部署腳本。
+- `scripts/`：CSS 建置、檢查、同步、修改範圍與部署腳本。
 - `.github/workflows/`：GitHub Pages 與自動化流程。
 
 ## 本機執行與常用指令
@@ -51,6 +52,8 @@ npm run js:check
 npm run web
 npm run web:check
 npm run web:publish
+npm run scope:check
+npm test
 npm run v2:check
 npm run ci:check
 ```
@@ -62,8 +65,17 @@ npm run ci:check
 - `npm run web`：先建立 CSS 與 JavaScript bundle，再啟動本機靜態預覽伺服器。
 - `npm run web:check`：檢查公開 Supabase 設定。
 - `npm run web:publish`：建立兩種 bundle、清理並重建 `docs/`，再更新靜態資源版本參數。
+- `npm run scope:check`：在 Pull Request 中比對 PR 說明聲明的允許／禁止修改範圍與實際變更檔案。
+- `npm test`：執行 `tests/` 中的 Node.js 單元測試。
 - `npm run v2:check`：檢查 CSS、JavaScript bundle、V2 結構與發布內容對齊。
-- `npm run ci:check`：執行 GitHub Actions 與本機共用的完整公開設定、資料結構、設定清單及 V2 驗證。
+- `npm run ci:check`：先執行單元測試，再執行 GitHub Actions 與本機共用的完整公開設定、資料結構、設定清單及 V2 驗證。
+
+## Pull Request 修改範圍
+
+1. 功能、介面、資料庫、權限或部署流程的修改，預設由工作分支建立 Draft Pull Request。
+2. PR 依 `.github/pull_request_template.md` 列出「允許修改範圍」、「禁止修改範圍」與驗收案例。
+3. Pull Request 的 CI 會執行 `npm run scope:check`；實際變更檔案未符合聲明範圍時，驗證失敗。
+4. 不可使用 `**` 或 `*` 允許整個儲存庫，必須列出實際檔案或有意義的子目錄。
 
 ## 前端發布
 
@@ -81,7 +93,7 @@ npm run v2:check
 6. 發布腳本會依固定順序產生單一 `app.css` 與 `app.js`，清理舊的 `docs/` 後完整重建發布內容。
 7. `docs/` 只發布 `app-config.js` 與 `app.js`，不發布個別 JavaScript 原始模組。
 8. GitHub Actions 正式流程只使用 `.github/workflows/deploy-pages.yml`。
-9. Pull Request 只執行建置與完整驗證，不部署正式網站。
+9. Pull Request 先執行修改範圍、建置、單元測試與完整驗證，不部署正式網站。
 10. 推送至 `main` 或由 `main` 手動執行時，先完成同一流程的 `validate` 工作；全部成功後，`deploy` 工作才上傳並發布 GitHub Pages。不得另建重複執行 V2 檢查或 Pages 部署的獨立 workflow。
 
 ## Supabase 資料庫建置
@@ -110,6 +122,7 @@ SQL 執行期間只要出現錯誤就應立即停止，不可略過錯誤繼續�
 依修改範圍執行下列檢查：
 
 ```bash
+npm test
 npm run web:check
 npm run css:check
 npm run js:check
@@ -122,4 +135,4 @@ node scripts/check-settings-lists.js
 npm run v2:check
 ```
 
-前端有修改時，最後仍須執行 `npm run web:publish` 並確認 `docs/` 已更新。
+Pull Request 另外由 GitHub Actions 執行 `npm run scope:check`。前端有修改時，最後仍須執行 `npm run web:publish` 並確認 `docs/` 已更新。
