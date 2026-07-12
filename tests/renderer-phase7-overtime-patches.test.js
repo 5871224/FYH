@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
+// 以整併前最終載入後的實際打卡與加班畫面作為回歸基準。
 const root = path.resolve(__dirname, "..");
 const modulePath = path.join(root, "src", "renderer", "renderer-overtime-employee.js");
 
