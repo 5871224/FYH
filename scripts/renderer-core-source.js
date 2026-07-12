@@ -18,6 +18,10 @@ const RENDERER_CORE_FILES = [
   "renderer-schedule-groups.js",
   "renderer-schedule-cells.js",
   "renderer-schedule-table.js",
+  "renderer-settings-catalog.js",
+  "renderer-settings-department.js",
+  "renderer-settings-ordering.js",
+  "renderer-settings-member.js",
   "renderer.js",
 ];
 
