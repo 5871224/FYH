@@ -528,6 +528,17 @@ async function deleteListItem(category, id) {
   if (!confirmed) {
     return;
   }
+
+  closeModal();
+  try {
+    await window.schedulerApi.deleteCatalogItem(category, id);
+  } catch (error) {
+    setSaveStatus(`${labelMap[category] || "項目"}刪除失敗：${error.message || error}`);
+    renderAll();
+    openListSettings(category);
+    return;
+  }
+
   if (category === "shift") {
     state.shifts = state.shifts.filter((item) => item.id !== id);
     state.members = state.members.map((member) => ({
@@ -540,5 +551,4 @@ async function deleteListItem(category, id) {
   removeAssignmentsByItem(category, id);
   renderAll();
   openListSettings(category);
-  await forceSave();
 }

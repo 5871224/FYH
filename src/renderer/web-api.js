@@ -1281,7 +1281,7 @@
         scheduleShiftIds: Array.isArray(member?.scheduleShiftIds) ? member.scheduleShiftIds : [],
         monthlyRestDays: Math.max(0, Number(member?.monthlyRestDays) || 0)
       },
-      previousEmployeeCode: String(previousEmployeeCode || member?.code || "").trim(),
+      previousEmployeeCode: String(previousEmployeeCode || "").trim(),
       defaultPassword: "0000"
     });
   }
@@ -1656,6 +1656,15 @@
     throw new Error(`不支援的設定類型：${category}`);
   }
 
+  async function deleteCatalogItem(category, id) {
+    ensureManager();
+    return requestFunction("catalog-admin", {
+      action: "delete",
+      category: String(category || ""),
+      id: String(id || "")
+    });
+  }
+
   async function resolveManagerMemberProfileId(memberId, memberCode) {
     const normalizedMemberId = String(memberId || "").trim();
     if (isUuid(normalizedMemberId)) {
@@ -1952,6 +1961,7 @@
     deleteDepartmentItem,
     saveShiftItem,
     saveCatalogItem,
+    deleteCatalogItem,
     saveScheduleCells,
     saveScheduleCell,
     syncMemberProfile,
