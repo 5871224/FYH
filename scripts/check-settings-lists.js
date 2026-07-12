@@ -3,7 +3,16 @@ const fs = require("fs");
 const path = require("path");
 
 const rootDir = path.resolve(__dirname, "..");
-const renderer = fs.readFileSync(path.join(rootDir, "src", "renderer", "renderer.js"), "utf8");
+const rendererFiles = [
+  "renderer-foundation.js",
+  "renderer-settings-navigation.js",
+  "renderer-schedule-layout.js",
+  "renderer-date-utils.js",
+  "renderer.js"
+];
+const renderer = rendererFiles
+  .map((file) => fs.readFileSync(path.join(rootDir, "src", "renderer", file), "utf8"))
+  .join("\n");
 const browserExporter = fs.readFileSync(path.join(rootDir, "src", "renderer", "browser-exporter.js"), "utf8");
 const styles = fs.readFileSync(path.join(rootDir, "src", "renderer", "app.css"), "utf8");
 const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js"), "utf8");
