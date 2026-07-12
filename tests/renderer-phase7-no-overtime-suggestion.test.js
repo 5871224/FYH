@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
+// 固定目前已生效的規則：下班完成後不自動詢問，員工仍可手動申請。
 const root = path.resolve(__dirname, "..");
 
 test("下班打卡後不應自動彈出加班建議", async () => {
