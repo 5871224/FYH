@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
+// 固定補丁整併前實際使用的人員拖曳列與篩選刷新行為。
 const root = path.resolve(__dirname, "..");
 const memberPath = path.join(root, "src", "renderer", "renderer-settings-member.js");
 
