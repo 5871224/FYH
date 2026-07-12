@@ -1,0 +1,60 @@
+name: Prepare Final V2 Consolidation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/remove-final-v2-patches'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: agent/remove-final-v2-patches
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Consolidate final V2 patches
+        run: node scripts/remove-final-v2-patches.js
+
+      - name: Build published web files
+        run: npm run web:publish
+
+      - name: Check JavaScript syntax
+        run: node --check src/renderer/app.js
+
+      - name: Run complete checks without temporary workflow
+        run: |
+          set -o pipefail
+          cp .github/workflows/prepare-final-v2-consolidation.yml /tmp/prepare-final-v2-consolidation.yml
+          rm .github/workflows/prepare-final-v2-consolidation.yml
+          npm run ci:check 2>&1 | tee final-v2-consolidation-ci.log
+          cp /tmp/prepare-final-v2-consolidation.yml .github/workflows/prepare-final-v2-consolidation.yml
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: final-v2-consolidation-ci-log
+          path: final-v2-consolidation-ci.log
+          if-no-files-found: ignore
+
+      - name: Commit verified consolidation
+        run: |
+          rm -f scripts/remove-final-v2-patches.js final-v2-consolidation-ci.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "整合最後 V2 補丁至正式模組"
+          git push origin HEAD:agent/remove-final-v2-patches
