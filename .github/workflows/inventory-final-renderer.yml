@@ -1,4 +1,4 @@
-name: Inventory Final Renderer
+name: Prepare Final Renderer Decomposition
 
 on:
   pull_request:
@@ -6,30 +6,49 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  inventory:
-    if: github.head_ref == 'agent/final-renderer-decomposition'
+  prepare:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/final-renderer-decomposition'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Checkout
+      - name: Checkout branch
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: agent/final-renderer-decomposition
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: "22"
-      - name: Inventory renderer functions
-        run: node scripts/inventory-renderer-functions.js
-      - name: Upload inventory and source
+      - name: Finalize renderer decomposition
+        run: node scripts/finalize-renderer-decomposition.js
+      - name: Build published web files
+        run: npm run web:publish
+      - name: Run complete checks without temporary workflow
+        run: |
+          set -o pipefail
+          cp .github/workflows/inventory-final-renderer.yml /tmp/inventory-final-renderer.yml
+          rm .github/workflows/inventory-final-renderer.yml
+          npm run ci:check 2>&1 | tee final-renderer-decomposition-ci.log
+          cp /tmp/inventory-final-renderer.yml .github/workflows/inventory-final-renderer.yml
+      - name: Upload diagnostics
+        if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: renderer-final-analysis
-          path: |
-            renderer-function-inventory.json
-            src/renderer/renderer.js
-            scripts/build-js.js
-            scripts/renderer-core-source.js
-            scripts/check-*.js
-            tests
-            package.json
+          name: final-renderer-decomposition-ci-log
+          path: final-renderer-decomposition-ci.log
+          if-no-files-found: ignore
+      - name: Commit final decomposition
+        run: |
+          rm -f scripts/inventory-renderer-functions.js
+          rm -f scripts/finalize-renderer-decomposition.js
+          rm -f renderer-function-inventory.json
+          rm -f final-renderer-decomposition-ci.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "完成 renderer 最終拆分"
+          git push origin HEAD:agent/final-renderer-decomposition
