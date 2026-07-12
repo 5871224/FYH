@@ -15,6 +15,7 @@ const mealSources = [
   "src/renderer/renderer-events-drag.js"
 ].map(read).join("\n");
 
+// 訂餐功能正式化後，所有行為都必須由上述模組提供，不能再新增後載入覆蓋。
 test("訂餐功能不再依賴 v2 補丁檔", () => {
   assert.equal(fs.existsSync(path.join(root, "src/renderer/v2-meal.js")), false);
   assert.doesNotMatch(read("scripts/build-js.js"), /v2-meal\.js/);
