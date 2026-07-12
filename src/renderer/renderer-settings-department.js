@@ -13,8 +13,9 @@ async function openDepartmentSettings() {
     const startDate = department.startDate || "-";
     const endDate = department.endDate || "-";
     return `
-      <div class="department-settings-row sortable-settings-item" draggable="true" data-sort-category="department" data-sort-item="${escapeHtml(department.id)}" data-drop-department="${escapeHtml(department.id)}">
-        <div class="department-settings-title">${escapeHtml(department.name)}</div>
+      <div class="department-settings-row sortable-settings-item" data-sort-category="department" data-sort-item="${escapeHtml(department.id)}" data-drop-department="${escapeHtml(department.id)}">
+         ${renderSettingsOrderDragColumn()}
+         <div class="department-settings-title">${escapeHtml(department.name)}</div>
         <div class="member-inline-list">
           ${homeMembers.length
             ? homeMembers.map((member) => `
@@ -40,7 +41,8 @@ async function openDepartmentSettings() {
       <div class="department-settings-table-wrap">
         <div class="department-settings-table department-settings-table-department">
           <div class="department-settings-row department-settings-head">
-            <div>單位</div>
+             ${renderSettingsOrderDragColumn(true)}
+             <div>單位</div>
             <div>所屬人員</div>
             <div>開始日期<br>結束日期</div>
             <div>不顯示</div>

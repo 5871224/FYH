@@ -7,7 +7,7 @@ const vm = require("node:vm");
 // 固定補丁整併前使用者實際看到的六欄單位設定畫面。
 const root = path.resolve(__dirname, "..");
 
-test("單位設定最終畫面應直接由正式模組提供六欄", async () => {
+test("單位設定最終畫面應直接由正式模組提供七欄", async () => {
   const source = fs.readFileSync(path.join(root, "src", "renderer", "renderer-settings-department.js"), "utf8");
   let modalConfig = null;
   const context = {
@@ -23,10 +23,12 @@ test("單位設定最終畫面應直接由正式模組提供六欄", async () =>
     getMemberHomeDeptId: (member) => member.deptId,
     escapeHtml: String,
     renderActionIconButton: (kind) => kind,
+    renderSettingsOrderDragColumn: (isHeader = false) => `<div class="settings-order-drag-col">${isHeader ? "" : '<span class="settings-order-drag-handle" draggable="true">≡</span>'}</div>`,
     openEntityListModal: (config) => { modalConfig = config; }
   };
   const api = vm.runInNewContext(source + "\n;({ openDepartmentSettings })", context);
   await api.openDepartmentSettings();
+  assert.equal(modalConfig.body.includes("settings-order-drag-col"), true);
   assert.equal(modalConfig.body.includes("開始日期<br>結束日期"), true);
   assert.equal(modalConfig.body.includes("不顯示"), true);
   assert.equal(modalConfig.body.includes("可否打卡"), true);

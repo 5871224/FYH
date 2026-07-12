@@ -101,6 +101,7 @@ function renderMemberSettingsList() {
         <div class="member-table-scroll">
           <div class="member-table">
             <div class="member-table-row member-table-head">
+              ${renderSettingsOrderDragColumn(true)}
               <div>工號</div>
               <div>姓名</div>
               <div>排班班別</div>
@@ -113,8 +114,9 @@ function renderMemberSettingsList() {
             ${filteredMembers.map((member) => {
               const canEditAccount = canEditMemberAccount(member);
               return `
-              <div class="member-table-row sortable-settings-item" draggable="true" data-sort-category="member" data-sort-item="${escapeHtml(member.id)}" data-member-settings-row="${escapeHtml(member.id)}">
-                <div class="member-table-code">${escapeHtml(member.code)}</div>
+              <div class="member-table-row sortable-settings-item" data-sort-category="member" data-sort-item="${escapeHtml(member.id)}" data-member-settings-row="${escapeHtml(member.id)}">
+                 ${renderSettingsOrderDragColumn()}
+                 <div class="member-table-code">${escapeHtml(member.code)}</div>
                 <div class="member-table-name">${escapeHtml(member.name)}</div>
                 <div class="member-shift-pill-list">${renderMemberScheduleShiftPills(member)}</div>
                 <div>${getRoleLabel(member.role)}</div>
@@ -500,33 +502,46 @@ async function importMembersFromSettings() {
 
 async function deleteMember(memberId) {
   const member = state.members.find((item) => item.id === memberId);
-  if (member && !canEditMemberAccount(member)) {
-    showInfoMessage("只有管理員可以刪除管理員帳號");
+  if (!member) return;
+  if (!canEditMemberAccount(member)) {
+    showInfoMessage("沒有權限刪除此帳號");
     return;
   }
   const returnTo = captureSettingsReturnContext({ category: "member-settings" });
-  const confirmed = await confirmAction("確定要刪除這位人員嗎？");
-  if (!confirmed) {
-    return;
+  const selfDelete = member.code === currentProfile?.employee_code;
+  const confirmed = await confirmAction(selfDelete
+    ? "確定要刪除自己的帳號嗎？刪除後會立即登出。"
+    : "確定要刪除這位人員嗎？");
+  if (!confirmed) return;
+  let currentPassword = "";
+  if (selfDelete) {
+    currentPassword = window.prompt("請輸入目前密碼以確認刪除帳號：") || "";
+    if (!currentPassword) {
+      showInfoMessage("未輸入目前密碼，已取消刪除");
+      return;
+    }
   }
+  let result;
   try {
-    await window.schedulerApi.deleteMemberProfile(member?.code || "");
+    result = await window.schedulerApi.deleteMemberProfile(member.code, currentPassword);
+    if (!result?.deleted) throw new Error("找不到這位人員，請重新整理後再試");
   } catch (error) {
-    showInfoMessage(error.message || "刪除人員失敗");
+    showInfoMessage(`刪除人員失敗：${error.message || error}`);
     return;
   }
-  if (member?.code && member.code === currentProfile?.employee_code) {
-    await signOut();
-    showInfoMessage("目前登入帳號已刪除，已自動登出。");
+  if (selfDelete) {
+    await window.schedulerApi.signOut();
+    window.location.reload();
     return;
   }
-  state.members = state.members.filter((member) => member.id !== memberId);
-  state.members = state.members.map((member) => ({
-    ...member,
-    proxyMemberId: member.proxyMemberId === memberId ? "" : member.proxyMemberId
+  state.members = state.members.filter((item) => item.id !== memberId);
+  state.members = state.members.map((item) => ({
+    ...item,
+    proxyMemberId: item.proxyMemberId === memberId ? "" : item.proxyMemberId
   }));
   renderAll();
   await reopenSettingsModalPreservingScroll(returnTo);
+  showInfoMessage(result?.softDeleted ? "人員已停用，歷史紀錄已保留" : "人員已刪除");
 }
 
 async function resetMemberPasswordFromModal(employeeCode) {

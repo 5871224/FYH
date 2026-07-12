@@ -64,12 +64,9 @@ const modules = [
   "renderer-events-form.js",
   "renderer-events-tooltip.js",
   "renderer-events-drag.js",
+  "renderer-drag-scroll-preserve.js",
   "renderer-events.js",
   "renderer.js",
-  "v2-drag-scroll-preserve.js",
-  "v2-settings-drag-handles.js",
-  "v2-meal-export.js",
-  "v2-account.js",
 ];
 
 function stripBom(text) {

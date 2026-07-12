@@ -45,5 +45,5 @@ test("分頁、批次審核、即時篩選與完整訂餐匯出仍存在", () =>
   assert.match(formalSource, /data-v2-personal-page/);
   assert.match(formalSource, /data-v2-overtime-batch/);
   assert.match(formalSource, /scheduleRecordsReload/);
-  assert.match(read("src/renderer/web-api.js"), /report\?\.exportDetails/);
+  assert.equal(read("src/renderer/web-api.js").includes("report.exportDetails"), true);
 });

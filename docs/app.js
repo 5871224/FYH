@@ -2581,10 +2581,11 @@
     });
   }
 
-  async function deleteMemberProfile(employeeCode) {
+  async function deleteMemberProfile(employeeCode, currentPassword = "") {
     ensureManager();
     return requestFunction("member-delete-v2", {
-      employeeCode: String(employeeCode || "").trim()
+      employeeCode: String(employeeCode || "").trim(),
+      currentPassword: String(currentPassword || "")
     });
   }
 
@@ -3095,29 +3096,78 @@
     return { canceled: false, filePath: fileName };
   }
 
-  async function exportMealReport(report) {
-    const details = Array.isArray(report?.exportDetails) ? report.exportDetails : (Array.isArray(report?.details) ? report.details : []);
-    if (!details.length) {
-      return { canceled: true, empty: true };
-    }
-    const workbook = new ExcelJS.Workbook();
-    const summarySheet = workbook.addWorksheet("每日備餐統計");
-    summarySheet.addRow(["日期", "單位", "品項", "數量", "金額"]);
-    (report.summary || []).forEach((row) => {
-      summarySheet.addRow([row.date, row.departmentName, row.productName, Number(row.quantity || 0), Number(row.amount || 0)]);
-    });
-    const detailSheet = workbook.addWorksheet("員工訂餐明細");
-    detailSheet.addRow(["日期", "單位", "員工", "品項", "數量", "單價", "小計", "備註", "下訂時間"]);
+  function compactMealExportDate(value) {
+    return String(value || "").replace(/[^0-9]/g, "").slice(0, 8);
+  }
+
+  function buildMealEmployeeRows(report, details) {
+    const companySubsidy = Number(report.companySubsidy || 55);
+    const employees = new Map();
     details.forEach((row) => {
-      detailSheet.addRow([row.date, row.departmentName, row.employeeName, row.productName, Number(row.quantity || 0), Number(row.unitPrice || 0), Number(row.amount || 0), row.note || "", row.submittedAt || ""]);
+      const key = String(row.employeeId || row.employeeCode || row.employeeName || "");
+      if (!key) return;
+      const current = employees.get(key) || {
+        employeeName: row.employeeName || "",
+        employeeCode: row.employeeCode || "",
+        dates: new Set(),
+        amount: 0
+      };
+      const quantity = Number(row.quantity || 0);
+      const amount = Number(row.amount ?? (quantity * Number(row.unitPrice || 0))) || 0;
+      if (quantity > 0 && row.date) current.dates.add(row.date);
+      current.amount += amount;
+      if (!current.employeeName && row.employeeName) current.employeeName = row.employeeName;
+      if (!current.employeeCode && row.employeeCode) current.employeeCode = row.employeeCode;
+      employees.set(key, current);
     });
-    [summarySheet, detailSheet].forEach((sheet) => {
-      sheet.columns.forEach((column) => {
-        column.width = 16;
-      });
+    return [...employees.values()].map((row) => {
+      const mealDays = row.dates.size;
+      return {
+        employeeName: row.employeeName,
+        employeeCode: row.employeeCode,
+        lunchAmount: row.amount - mealDays * companySubsidy,
+        lunchCount: mealDays
+      };
+    }).sort((a, b) => (
+      String(a.employeeName).localeCompare(String(b.employeeName), "zh-Hant")
+      || String(a.employeeCode).localeCompare(String(b.employeeCode))
+    ));
+  }
+
+  function styleMealExportSheet(sheet) {
+    sheet.views = [{ state: "frozen", ySplit: 1 }];
+    sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 10 } };
+    sheet.columns = Array.from({ length: 10 }, (_, index) => ({ width: index === 0 ? 18 : index === 1 ? 16 : 14 }));
+    sheet.getColumn(2).numFmt = "@";
+    sheet.getColumn(10).numFmt = "@";
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) row.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
     });
+  }
+
+  async function exportMealReport(report = {}) {
+    const details = Array.isArray(report.exportDetails)
+      ? report.exportDetails
+      : Array.isArray(report.details)
+        ? report.details
+        : [];
+    if (!details.length) return { canceled: true, empty: true };
+    const rows = buildMealEmployeeRows(report, details);
+    if (!rows.length) return { canceled: true, empty: true };
+    const reportDate = compactMealExportDate(report.toDate);
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "福圓號";
+    workbook.created = new Date();
+    const sheet = workbook.addWorksheet("訂餐統計");
+    sheet.addRow(["員工姓名", "員工編號", "早餐金額", "午餐金額", "晚餐金額", "早餐份數", "午餐份數", "晚餐份數", "總計", "日期"]);
+    rows.forEach((row) => {
+      sheet.addRow([row.employeeName, row.employeeCode, "", row.lunchAmount, "", "", row.lunchCount, "", "", reportDate]);
+    });
+    styleMealExportSheet(sheet);
     const blob = await exporter.workbookToBlob(workbook);
-    const fileName = `訂餐報表_${report.fromDate || ""}_${report.toDate || ""}.xlsx`;
+    const fileName = `訂餐統計_${compactMealExportDate(report.fromDate)}-${reportDate}.xlsx`;
     downloadBlob(blob, fileName);
     return { canceled: false, filePath: fileName };
   }
@@ -6245,7 +6295,8 @@ function openListSettings(category) {
           <div class="settings-table-scroll">
             <div class="settings-table">
               <div class="settings-table-row settings-table-head settings-table-row-${category}">
-                <div>預覽</div>
+                 ${renderSettingsOrderDragColumn(true)}
+                 <div>預覽</div>
                 ${category === "leave" ? "<div>假別代碼</div>" : ""}
                 ${category === "shift" ? "" : `<div>${category === "leave" ? "假別" : "加班"}</div>`}
                 <div>${category === "shift" ? "適用單位" : category === "leave" ? "需填時間" : "時段"}</div>
@@ -6258,8 +6309,9 @@ function openListSettings(category) {
                 <div class="settings-table-actions-head">操作</div>
               </div>
               ${list.map((item) => `
-                <div class="settings-table-row settings-table-row-${category} sortable-settings-item" draggable="true" data-sort-category="${category}" data-sort-item="${item.id}">
-                  <div class="settings-table-color">
+                <div class="settings-table-row settings-table-row-${category} sortable-settings-item" data-sort-category="${category}" data-sort-item="${item.id}">
+                   ${renderSettingsOrderDragColumn()}
+                   <div class="settings-table-color">
                     <div class="settings-table-preview" style="background:${escapeHtml(item.color)};color:${escapeHtml(getItemTextColor(item, item.color))}">${escapeHtml(item.name || item.code || "名稱")}</div>
                   </div>
                   ${category === "leave" ? `<div class="settings-table-code">${escapeHtml(item.code || "")}</div>` : ""}
@@ -6795,8 +6847,9 @@ async function openDepartmentSettings() {
     const startDate = department.startDate || "-";
     const endDate = department.endDate || "-";
     return `
-      <div class="department-settings-row sortable-settings-item" draggable="true" data-sort-category="department" data-sort-item="${escapeHtml(department.id)}" data-drop-department="${escapeHtml(department.id)}">
-        <div class="department-settings-title">${escapeHtml(department.name)}</div>
+      <div class="department-settings-row sortable-settings-item" data-sort-category="department" data-sort-item="${escapeHtml(department.id)}" data-drop-department="${escapeHtml(department.id)}">
+         ${renderSettingsOrderDragColumn()}
+         <div class="department-settings-title">${escapeHtml(department.name)}</div>
         <div class="member-inline-list">
           ${homeMembers.length
             ? homeMembers.map((member) => `
@@ -6822,7 +6875,8 @@ async function openDepartmentSettings() {
       <div class="department-settings-table-wrap">
         <div class="department-settings-table department-settings-table-department">
           <div class="department-settings-row department-settings-head">
-            <div>單位</div>
+             ${renderSettingsOrderDragColumn(true)}
+             <div>單位</div>
             <div>所屬人員</div>
             <div>開始日期<br>結束日期</div>
             <div>不顯示</div>
@@ -7199,6 +7253,10 @@ function previewDepartmentMember(targetElement, clientY) {
 ;
 
 /* ===== renderer-settings-ordering.js ===== */
+function renderSettingsOrderDragColumn(isHeader = false) {
+  return `<div class="settings-order-drag-col">${isHeader ? "" : '<span class="settings-order-drag-handle" draggable="true" title="拖曳排序" aria-label="拖曳排序">≡</span>'}</div>`;
+}
+
 function getOrderedIdsFromDom(selector, attributeName) {
   return Array.from(document.querySelectorAll(selector))
     .map((element) => element instanceof HTMLElement ? element.dataset[attributeName] || "" : "")
@@ -7419,6 +7477,7 @@ function renderMemberSettingsList() {
         <div class="member-table-scroll">
           <div class="member-table">
             <div class="member-table-row member-table-head">
+              ${renderSettingsOrderDragColumn(true)}
               <div>工號</div>
               <div>姓名</div>
               <div>排班班別</div>
@@ -7431,8 +7490,9 @@ function renderMemberSettingsList() {
             ${filteredMembers.map((member) => {
               const canEditAccount = canEditMemberAccount(member);
               return `
-              <div class="member-table-row sortable-settings-item" draggable="true" data-sort-category="member" data-sort-item="${escapeHtml(member.id)}" data-member-settings-row="${escapeHtml(member.id)}">
-                <div class="member-table-code">${escapeHtml(member.code)}</div>
+              <div class="member-table-row sortable-settings-item" data-sort-category="member" data-sort-item="${escapeHtml(member.id)}" data-member-settings-row="${escapeHtml(member.id)}">
+                 ${renderSettingsOrderDragColumn()}
+                 <div class="member-table-code">${escapeHtml(member.code)}</div>
                 <div class="member-table-name">${escapeHtml(member.name)}</div>
                 <div class="member-shift-pill-list">${renderMemberScheduleShiftPills(member)}</div>
                 <div>${getRoleLabel(member.role)}</div>
@@ -7818,33 +7878,46 @@ async function importMembersFromSettings() {
 
 async function deleteMember(memberId) {
   const member = state.members.find((item) => item.id === memberId);
-  if (member && !canEditMemberAccount(member)) {
-    showInfoMessage("只有管理員可以刪除管理員帳號");
+  if (!member) return;
+  if (!canEditMemberAccount(member)) {
+    showInfoMessage("沒有權限刪除此帳號");
     return;
   }
   const returnTo = captureSettingsReturnContext({ category: "member-settings" });
-  const confirmed = await confirmAction("確定要刪除這位人員嗎？");
-  if (!confirmed) {
-    return;
+  const selfDelete = member.code === currentProfile?.employee_code;
+  const confirmed = await confirmAction(selfDelete
+    ? "確定要刪除自己的帳號嗎？刪除後會立即登出。"
+    : "確定要刪除這位人員嗎？");
+  if (!confirmed) return;
+  let currentPassword = "";
+  if (selfDelete) {
+    currentPassword = window.prompt("請輸入目前密碼以確認刪除帳號：") || "";
+    if (!currentPassword) {
+      showInfoMessage("未輸入目前密碼，已取消刪除");
+      return;
+    }
   }
+  let result;
   try {
-    await window.schedulerApi.deleteMemberProfile(member?.code || "");
+    result = await window.schedulerApi.deleteMemberProfile(member.code, currentPassword);
+    if (!result?.deleted) throw new Error("找不到這位人員，請重新整理後再試");
   } catch (error) {
-    showInfoMessage(error.message || "刪除人員失敗");
+    showInfoMessage(`刪除人員失敗：${error.message || error}`);
     return;
   }
-  if (member?.code && member.code === currentProfile?.employee_code) {
-    await signOut();
-    showInfoMessage("目前登入帳號已刪除，已自動登出。");
+  if (selfDelete) {
+    await window.schedulerApi.signOut();
+    window.location.reload();
     return;
   }
-  state.members = state.members.filter((member) => member.id !== memberId);
-  state.members = state.members.map((member) => ({
-    ...member,
-    proxyMemberId: member.proxyMemberId === memberId ? "" : member.proxyMemberId
+  state.members = state.members.filter((item) => item.id !== memberId);
+  state.members = state.members.map((item) => ({
+    ...item,
+    proxyMemberId: item.proxyMemberId === memberId ? "" : item.proxyMemberId
   }));
   renderAll();
   await reopenSettingsModalPreservingScroll(returnTo);
+  showInfoMessage(result?.softDeleted ? "人員已停用，歷史紀錄已保留" : "人員已刪除");
 }
 
 async function resetMemberPasswordFromModal(employeeCode) {
@@ -12502,6 +12575,10 @@ function bindDragAndDropEvents() {
     }
     const sortItem = event.target.closest("[data-sort-item]");
     if (sortItem) {
+      if (!event.target.closest(".settings-order-drag-handle")) {
+        event.preventDefault();
+        return;
+      }
       dragSortItemId = sortItem.dataset.sortItem || "";
       dragSortCategory = sortItem.dataset.sortCategory || "";
       event.dataTransfer.effectAllowed = "move";
@@ -12649,6 +12726,87 @@ function bindDragAndDropEvents() {
 }
 ;
 
+/* ===== renderer-drag-scroll-preserve.js ===== */
+/* 拖曳排序期間保存視窗與表格捲動位置。 */
+let dragScrollSnapshot = null;
+let dragScrollRestoreUntil = 0;
+
+const DRAG_SCROLL_SELECTORS = [
+  ".department-settings-modal [data-sort-item]",
+  ".catalog-settings-modal [data-sort-item]",
+  "[data-meal-product-row]",
+  "[data-table-member-id]",
+  "[data-table-department-id]"
+].join(",");
+
+function getDragScrollKey(element, index) {
+  if (!(element instanceof HTMLElement)) return `scroll-${index}`;
+  const classKey = Array.from(element.classList).filter((name) => /scroll|body|wrap/.test(name)).join(".");
+  return classKey ? `.${classKey}` : `scroll-${index}`;
+}
+
+function collectDragScrollableElements() {
+  const modal = document.querySelector("#modalRoot .modal-overlay");
+  const scope = modal || document;
+  return Array.from(scope.querySelectorAll(".modal-body, .settings-table-scroll, .member-table-scroll, .department-settings-table-wrap, .settings-table-wrap, .member-table-wrap, .table-wrap"))
+    .filter((element) => element instanceof HTMLElement)
+    .filter((element) => element.scrollHeight > element.clientHeight + 1 || element.scrollWidth > element.clientWidth + 1);
+}
+
+function captureDragScrollPosition() {
+  dragScrollSnapshot = {
+    windowX: window.scrollX,
+    windowY: window.scrollY,
+    entries: collectDragScrollableElements().map((element, index) => ({
+      key: getDragScrollKey(element, index),
+      top: element.scrollTop,
+      left: element.scrollLeft
+    }))
+  };
+  dragScrollRestoreUntil = Date.now() + 1500;
+}
+
+function findDragScrollableElement(key, index) {
+  if (key.startsWith(".")) {
+    const selector = key.split(".").filter(Boolean).map((part) => `.${CSS.escape(part)}`).join("");
+    const found = document.querySelector(`#modalRoot ${selector}, ${selector}`);
+    if (found instanceof HTMLElement) return found;
+  }
+  return collectDragScrollableElements()[index] || null;
+}
+
+function restoreDragScrollPosition() {
+  if (!dragScrollSnapshot || Date.now() > dragScrollRestoreUntil) return;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    window.scrollTo(dragScrollSnapshot.windowX, dragScrollSnapshot.windowY);
+    dragScrollSnapshot.entries.forEach((entry, index) => {
+      const element = findDragScrollableElement(entry.key, index);
+      if (element) {
+        element.scrollTop = entry.top;
+        element.scrollLeft = entry.left;
+      }
+    });
+  }));
+}
+
+function bindDragScrollPreservation() {
+  document.addEventListener("dragstart", (event) => {
+    const target = event.target instanceof Element ? event.target.closest(DRAG_SCROLL_SELECTORS) : null;
+    if (target) captureDragScrollPosition();
+  }, true);
+  document.addEventListener("drop", () => {
+    if (!dragScrollSnapshot) return;
+    dragScrollRestoreUntil = Date.now() + 1500;
+    restoreDragScrollPosition();
+    setTimeout(restoreDragScrollPosition, 0);
+    setTimeout(restoreDragScrollPosition, 80);
+    setTimeout(restoreDragScrollPosition, 220);
+  }, true);
+  const modalRoot = document.getElementById("modalRoot");
+  if (modalRoot) new MutationObserver(restoreDragScrollPosition).observe(modalRoot, { childList: true, subtree: true });
+}
+;
+
 /* ===== renderer-events.js ===== */
 /* 全域事件註冊總控。
  * 由 renderer.js 最終拆分；只協調各責任模組。
@@ -12686,6 +12844,7 @@ function bindEvents() {
   bindRecordsEvents();
   bindScheduleTooltipEvents();
   bindDragAndDropEvents();
+  bindDragScrollPreservation();
   bindCoreMenuDismissEvent();
 }
 ;
@@ -12828,366 +12987,4 @@ async function refreshScheduleCatalogsAfterInitialRender() {
 }
 
 loadApp();
-;
-
-/* ===== v2-drag-scroll-preserve.js ===== */
-(() => {
-  let snapshot = null;
-  let restoreUntil = 0;
-
-  const dragSelectors = [
-    ".department-settings-modal [data-sort-item]",
-    ".catalog-settings-modal [data-sort-item]",
-    "[data-meal-product-row]",
-    "[data-table-member-id]",
-    "[data-table-department-id]"
-  ].join(",");
-
-  function getScrollKey(element, index) {
-    if (!(element instanceof HTMLElement)) return `scroll-${index}`;
-    const classKey = Array.from(element.classList).filter((name) => /scroll|body|wrap/.test(name)).join(".");
-    return classKey ? `.${classKey}` : `scroll-${index}`;
-  }
-
-  function collectScrollableElements() {
-    const modal = document.querySelector("#modalRoot .modal-overlay");
-    const scope = modal || document;
-    return Array.from(scope.querySelectorAll(".modal-body, .settings-table-scroll, .member-table-scroll, .department-settings-table-wrap, .settings-table-wrap, .member-table-wrap, .table-wrap"))
-      .filter((element) => element instanceof HTMLElement)
-      .filter((element) => element.scrollHeight > element.clientHeight + 1 || element.scrollWidth > element.clientWidth + 1);
-  }
-
-  function captureScroll() {
-    const elements = collectScrollableElements();
-    snapshot = {
-      windowX: window.scrollX,
-      windowY: window.scrollY,
-      entries: elements.map((element, index) => ({
-        key: getScrollKey(element, index),
-        top: element.scrollTop,
-        left: element.scrollLeft
-      }))
-    };
-    restoreUntil = Date.now() + 1500;
-  }
-
-  function findByKey(key, index) {
-    if (key.startsWith(".")) {
-      const selector = key.split(".").filter(Boolean).map((part) => `.${CSS.escape(part)}`).join("");
-      const found = document.querySelector(`#modalRoot ${selector}, ${selector}`);
-      if (found instanceof HTMLElement) return found;
-    }
-    return collectScrollableElements()[index] || null;
-  }
-
-  function restoreScroll() {
-    if (!snapshot || Date.now() > restoreUntil) return;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        window.scrollTo(snapshot.windowX, snapshot.windowY);
-        snapshot.entries.forEach((entry, index) => {
-          const element = findByKey(entry.key, index);
-          if (element) {
-            element.scrollTop = entry.top;
-            element.scrollLeft = entry.left;
-          }
-        });
-      });
-    });
-  }
-
-  document.addEventListener("dragstart", (event) => {
-    const target = event.target instanceof Element ? event.target.closest(dragSelectors) : null;
-    if (!target) return;
-    captureScroll();
-  }, true);
-
-  document.addEventListener("drop", () => {
-    if (!snapshot) return;
-    restoreUntil = Date.now() + 1500;
-    restoreScroll();
-    setTimeout(restoreScroll, 0);
-    setTimeout(restoreScroll, 80);
-    setTimeout(restoreScroll, 220);
-  }, true);
-
-  const modalRoot = document.getElementById("modalRoot");
-  if (modalRoot) {
-    new MutationObserver(() => restoreScroll()).observe(modalRoot, { childList: true, subtree: true });
-  }
-})();
-;
-
-/* ===== v2-settings-drag-handles.js ===== */
-(function installV2SettingsDragHandles() {
-
-  function createDragColumn() {
-    const column = document.createElement("div");
-    column.className = "settings-order-drag-col";
-    const handle = document.createElement("span");
-    handle.className = "settings-order-drag-handle";
-    handle.draggable = true;
-    handle.title = "拖曳排序";
-    handle.setAttribute("aria-label", "拖曳排序");
-    handle.textContent = "≡";
-    column.appendChild(handle);
-    return column;
-  }
-
-  function addHeaderColumn(row) {
-    if (!(row instanceof HTMLElement) || row.querySelector(":scope > .settings-order-drag-col")) return;
-    const column = document.createElement("div");
-    column.className = "settings-order-drag-col";
-    row.prepend(column);
-  }
-
-  function addRowHandle(row) {
-    if (!(row instanceof HTMLElement)) return;
-    row.draggable = false;
-    row.removeAttribute("draggable");
-    if (!row.querySelector(":scope > .settings-order-drag-col")) row.prepend(createDragColumn());
-  }
-
-  function enhanceSettingsModals() {
-    document.querySelectorAll(".member-settings-modal .member-table-head").forEach(addHeaderColumn);
-    document.querySelectorAll('.member-settings-modal .sortable-settings-item[data-sort-category="member"]').forEach(addRowHandle);
-
-    document.querySelectorAll(".catalog-settings-modal .settings-table-head").forEach(addHeaderColumn);
-    document.querySelectorAll(".catalog-settings-modal .sortable-settings-item[data-sort-item]").forEach(addRowHandle);
-
-    document.querySelectorAll(".department-settings-table-department .department-settings-head").forEach(addHeaderColumn);
-    document.querySelectorAll('.department-settings-table-department .sortable-settings-item[data-sort-category="department"]').forEach(addRowHandle);
-  }
-
-  const modalRoot = document.getElementById("modalRoot");
-  if (modalRoot) {
-    new MutationObserver(enhanceSettingsModals).observe(modalRoot, { childList: true, subtree: true });
-  }
-  enhanceSettingsModals();
-
-  document.addEventListener("dragstart", (event) => {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const row = target.closest(".member-settings-modal [data-sort-item], .catalog-settings-modal [data-sort-item], .department-settings-modal [data-sort-item]");
-    if (!row) return;
-    if (target.closest("[data-member-card]")) return;
-    if (!target.closest(".settings-order-drag-handle")) event.preventDefault();
-  }, true);
-})();
-;
-
-/* ===== v2-meal-export.js ===== */
-(function installV2MealExport() {
-  if (!window.schedulerApi || typeof ExcelJS === "undefined") return;
-
-  function downloadBlob(blob, fileName) {
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = fileName;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  function compactDate(value) {
-    return String(value || "").replace(/[^0-9]/g, "").slice(0, 8);
-  }
-
-  function buildEmployeeRows(report, details) {
-    const companySubsidy = Number(report.companySubsidy || 55);
-    const employees = new Map();
-
-    details.forEach((row) => {
-      const key = String(row.employeeId || row.employeeCode || row.employeeName || "");
-      if (!key) return;
-      const current = employees.get(key) || {
-        employeeName: row.employeeName || "",
-        employeeCode: row.employeeCode || "",
-        dates: new Set(),
-        amount: 0
-      };
-      const quantity = Number(row.quantity || 0);
-      const amount = Number(row.amount ?? (quantity * Number(row.unitPrice || 0))) || 0;
-      if (quantity > 0 && row.date) current.dates.add(row.date);
-      current.amount += amount;
-      if (!current.employeeName && row.employeeName) current.employeeName = row.employeeName;
-      if (!current.employeeCode && row.employeeCode) current.employeeCode = row.employeeCode;
-      employees.set(key, current);
-    });
-
-    return [...employees.values()]
-      .map((row) => {
-        const mealDays = row.dates.size;
-        return {
-          employeeName: row.employeeName,
-          employeeCode: row.employeeCode,
-          lunchAmount: row.amount - mealDays * companySubsidy,
-          lunchCount: mealDays
-        };
-      })
-      .sort((a, b) => (
-        String(a.employeeName).localeCompare(String(b.employeeName), "zh-Hant")
-        || String(a.employeeCode).localeCompare(String(b.employeeCode))
-      ));
-  }
-
-  function styleSheet(sheet) {
-    sheet.views = [{ state: "frozen", ySplit: 1 }];
-    sheet.autoFilter = {
-      from: { row: 1, column: 1 },
-      to: { row: 1, column: 10 }
-    };
-    sheet.columns = [
-      { width: 18 },
-      { width: 16 },
-      { width: 14 },
-      { width: 14 },
-      { width: 14 },
-      { width: 14 },
-      { width: 14 },
-      { width: 14 },
-      { width: 14 },
-      { width: 14 }
-    ];
-    sheet.getColumn(2).numFmt = "@";
-    sheet.getColumn(10).numFmt = "@";
-    sheet.getRow(1).font = { bold: true };
-    sheet.getRow(1).alignment = { vertical: "middle", horizontal: "center", wrapText: true };
-    sheet.eachRow((row, rowNumber) => {
-      if (rowNumber > 1) row.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
-    });
-  }
-
-  window.schedulerApi.exportMealReport = async function exportV2MealReport(report = {}) {
-    const details = Array.isArray(report.exportDetails)
-      ? report.exportDetails
-      : Array.isArray(report.details)
-        ? report.details
-        : [];
-    if (!details.length) return { canceled: true, empty: true };
-
-    const rows = buildEmployeeRows(report, details);
-    if (!rows.length) return { canceled: true, empty: true };
-
-    const reportDate = compactDate(report.toDate);
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = "福圓號";
-    workbook.created = new Date();
-
-    const sheet = workbook.addWorksheet("訂餐統計");
-    sheet.addRow([
-      "員工姓名",
-      "員工編號",
-      "早餐金額",
-      "午餐金額",
-      "晚餐金額",
-      "早餐份數",
-      "午餐份數",
-      "晚餐份數",
-      "總計",
-      "日期"
-    ]);
-    rows.forEach((row) => {
-      sheet.addRow([
-        row.employeeName,
-        row.employeeCode,
-        "",
-        row.lunchAmount,
-        "",
-        "",
-        row.lunchCount,
-        "",
-        "",
-        reportDate
-      ]);
-    });
-    styleSheet(sheet);
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    });
-    const fileName = `訂餐統計_${compactDate(report.fromDate)}-${reportDate}.xlsx`;
-    downloadBlob(blob, fileName);
-    return { canceled: false, filePath: fileName };
-  };
-})();
-;
-
-/* ===== v2-account.js ===== */
-(function installV2AccountDeletion() {
-  if (!window.schedulerApi || typeof renderAll !== "function") return;
-  const config = window.SCHEDULER_CONFIG || {};
-  const baseUrl = String(config.supabaseUrl || "").replace(/\/+$/, "");
-  const anonKey = String(config.supabaseAnonKey || "");
-
-  async function removeProfile(employeeCode, currentPassword) {
-    const session = window.schedulerApi.getAuthContext?.().session;
-    if (!session?.access_token) throw new Error("請先登入");
-    const response = await fetch(`${baseUrl}/functions/v1/member-delete-v2`, {
-      method: "POST",
-      headers: {
-        apikey: anonKey,
-        Authorization: `Bearer ${session.access_token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ employeeCode, currentPassword })
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.message || "刪除人員失敗");
-    return result;
-  }
-
-  deleteMember = async function deleteMemberV2(memberId) {
-    const member = state.members.find((item) => item.id === memberId);
-    if (!member) return;
-    if (!canEditMemberAccount(member)) {
-      showInfoMessage("沒有權限刪除此帳號");
-      return;
-    }
-
-    const selfDelete = member.code === currentProfile?.employee_code;
-    const confirmed = await confirmAction(selfDelete
-      ? "確定要刪除自己的帳號嗎？刪除後會立即登出。"
-      : "確定要刪除這位人員嗎？");
-    if (!confirmed) return;
-
-    let currentPassword = "";
-    if (selfDelete) {
-      currentPassword = window.prompt("請輸入目前密碼以確認刪除帳號：") || "";
-      if (!currentPassword) {
-        showInfoMessage("未輸入目前密碼，已取消刪除");
-        return;
-      }
-    }
-
-    let result;
-    try {
-      result = await removeProfile(member.code, currentPassword);
-      if (!result?.deleted) {
-        throw new Error("找不到這位人員，請重新整理後再試");
-      }
-    } catch (error) {
-      showInfoMessage(`刪除人員失敗：${error.message || error}`);
-      return;
-    }
-
-    if (selfDelete) {
-      await window.schedulerApi.signOut();
-      window.location.reload();
-      return;
-    }
-
-    state.members = state.members.filter((item) => item.id !== memberId);
-    state.members = state.members.map((item) => ({
-      ...item,
-      proxyMemberId: item.proxyMemberId === memberId ? "" : item.proxyMemberId
-    }));
-    renderAll();
-    openMemberSettings();
-    showInfoMessage(result?.softDeleted ? "人員已停用，歷史紀錄已保留" : "人員已刪除");
-  };
-})();
 ;

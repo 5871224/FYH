@@ -1,3 +1,7 @@
+function renderSettingsOrderDragColumn(isHeader = false) {
+  return `<div class="settings-order-drag-col">${isHeader ? "" : '<span class="settings-order-drag-handle" draggable="true" title="拖曳排序" aria-label="拖曳排序">≡</span>'}</div>`;
+}
+
 function getOrderedIdsFromDom(selector, attributeName) {
   return Array.from(document.querySelectorAll(selector))
     .map((element) => element instanceof HTMLElement ? element.dataset[attributeName] || "" : "")

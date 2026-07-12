@@ -35,11 +35,13 @@ test("人員設定列應直接提供拖曳排序識別值", () => {
     getRoleLabel: () => "員工",
     getSalaryTypeLabel: () => "月薪",
     getRestWeekdayLabel: () => "週日",
-    renderActionIconButton: (kind) => kind
+    renderActionIconButton: (kind) => kind,
+    renderSettingsOrderDragColumn: (isHeader = false) => `<div class="settings-order-drag-col">${isHeader ? "" : '<span class="settings-order-drag-handle" draggable="true">≡</span>'}</div>`
   };
   const api = vm.runInNewContext(renderSource + "\n;({ renderMemberSettingsList })", context);
   const html = api.renderMemberSettingsList();
-  assert.equal(html.includes('draggable="true"'), true);
+  assert.equal(html.includes('class="settings-order-drag-handle" draggable="true"'), true);
+  assert.equal(html.includes('sortable-settings-item" draggable="true"'), false);
   assert.equal(html.includes('data-sort-category="member"'), true);
   assert.equal(html.includes('data-sort-item="M1"'), true);
   assert.equal(html.includes('data-member-settings-row="M1"'), true);

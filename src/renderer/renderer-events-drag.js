@@ -46,6 +46,10 @@ function bindDragAndDropEvents() {
     }
     const sortItem = event.target.closest("[data-sort-item]");
     if (sortItem) {
+      if (!event.target.closest(".settings-order-drag-handle")) {
+        event.preventDefault();
+        return;
+      }
       dragSortItemId = sortItem.dataset.sortItem || "";
       dragSortCategory = sortItem.dataset.sortCategory || "";
       event.dataTransfer.effectAllowed = "move";
