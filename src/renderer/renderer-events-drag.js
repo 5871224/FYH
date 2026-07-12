@@ -35,6 +35,10 @@ function bindDragAndDropEvents() {
     }
     const mealProductRow = event.target.closest("[data-meal-product-row]");
     if (mealProductRow) {
+      if (!event.target.closest(".meal-drag-handle")) {
+        event.preventDefault();
+        return;
+      }
       dragMealProductIndex = mealProductRow.dataset.mealProductRow || "";
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData("text/plain", dragMealProductIndex);

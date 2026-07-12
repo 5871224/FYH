@@ -150,4 +150,5 @@ function renderMealPage() {
     ${mealOrderState.loading ? '<p class="clock-loading">處理中，請稍候...</p>' : ""}
     `}
   `;
+  applyMealInputLimits();
 }

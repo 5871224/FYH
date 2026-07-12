@@ -66,7 +66,6 @@ const modules = [
   "renderer.js",
   "v2-drag-scroll-preserve.js",
   "v2-settings-drag-handles.js",
-  "v2-meal.js",
   "v2-meal-export.js",
   "v2-records.js",
   "v2-personal-record-layout.js",
