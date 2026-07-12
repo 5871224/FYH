@@ -24,6 +24,9 @@ const RENDERER_CORE_FILES = [
   "renderer-settings-ordering.js",
   "renderer-settings-member.js",
   "renderer-overtime-employee.js",
+  "renderer-attendance-page.js",
+  "renderer-meal-page.js",
+  "renderer-records-page.js",
   "renderer.js",
 ];
 
