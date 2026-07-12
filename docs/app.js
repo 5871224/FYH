@@ -2096,66 +2096,33 @@
     });
   }
 
-  async function getPersonalRecords() {
+  async function getPersonalRecords(filters = {}) {
     ensureSignedIn();
-    return requestFunction("report-records", {
-      action: "personal"
-    });
+    return requestFunction("personal-records-v2", filters);
   }
 
-  async function getMealStatsReport() {
-    ensureSignedIn();
-    return requestFunction("report-records", {
-      action: "meal_stats"
-    });
+  async function getMealStatsReport(filters = {}) {
+    return getMealReport(filters);
   }
 
   async function getAttendanceAdminRecords(filters = {}) {
     ensureSignedIn();
-    return requestFunction("report-records", {
-      action: "attendance_admin_list",
-      ...filters
-    });
+    return requestFunction("attendance-admin-list-v2", filters);
   }
 
   async function getAttendanceAdminHistory(recordId) {
     ensureSignedIn();
-    return requestFunction("report-records", {
-      action: "attendance_admin_history",
-      recordId
-    });
+    return requestFunction("attendance-admin-action-v2", { action: "history", recordId });
   }
 
   async function saveAttendanceAdminRecord(record) {
     ensureSignedIn();
-    return requestFunction("report-records", {
-      action: "attendance_admin_save",
-      record
-    });
+    return requestFunction("attendance-admin-action-v2", { action: "save", record });
   }
 
-  async function getOvertimeReviewList(filters = {}) {
+        async function cancelTodayMealOrder() {
     ensureSignedIn();
-    return requestFunction("attendance-overtime", {
-      action: "admin_list",
-      ...filters
-    });
-  }
-
-  async function reviewOvertimeRequest(payload = {}) {
-    ensureSignedIn();
-    return requestFunction("attendance-overtime", {
-      action: "admin_review",
-      ...payload
-    });
-  }
-
-  async function createAdminOvertimeRequest(payload = {}) {
-    ensureSignedIn();
-    return requestFunction("attendance-overtime", {
-      action: "admin_create",
-      ...payload
-    });
+    return requestFunction("meal-cancel-v2", {});
   }
 
   async function getMealAdminSettings() {
@@ -2185,10 +2152,7 @@
 
   async function getMealReport(filters = {}) {
     ensureSignedIn();
-    return requestFunction("report-records", {
-      action: "meal_stats",
-      ...filters
-    });
+    return requestFunction("meal-report-v2", filters);
   }
 
   async function fetchRowsById(table) {
@@ -3132,7 +3096,7 @@
   }
 
   async function exportMealReport(report) {
-    const details = Array.isArray(report?.details) ? report.details : [];
+    const details = Array.isArray(report?.exportDetails) ? report.exportDetails : (Array.isArray(report?.details) ? report.details : []);
     if (!details.length) {
       return { canceled: true, empty: true };
     }
@@ -3277,6 +3241,7 @@
     saveMealAdminSettings,
     deleteMealProduct,
     getMealReport,
+    cancelTodayMealOrder,
     deleteMemberProfile,
     loadState,
     loadEmployeeAdminDirectory,
@@ -8760,8 +8725,8 @@ function renderMealPage() {
 ;
 
 /* ===== renderer-records-views.js ===== */
-/* 記錄頁、訂餐統計、加班審核、打卡管理與訂餐設定畫面。
- * 由 renderer.js 拆分；不變更查詢、審核或儲存流程。
+/* 個人記錄、訂餐統計、加班審核、打卡管理與訂餐設定畫面。
+ * 每種畫面只保留一份正式實作。
  */
 
 function formatRecordDateTime(value) {
@@ -8773,14 +8738,14 @@ function renderHomeIconButton() {
 }
 
 function renderRecordsTabs() {
-  const tabs = [
-    ["personal", "個人記錄", true],
-    ["overtime", "加班審核", isAdmin()],
-    ["attendance", "打卡管理", isAdmin()]
-  ].filter((tab) => tab[2]);
-  if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
-  return `<div class="record-tabs">${tabs.map(([id, label]) => `<button class="ghost-btn compact-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
-}
+    const tabs = [
+      ["personal", "個人記錄", true],
+      ["overtime", "加班審核", isAdmin()],
+      ["attendance", "打卡管理", isAdmin()]
+    ].filter((tab) => tab[2]);
+    if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
+    return `<div class="record-tabs">${tabs.map(([id, label]) => `<button class="ghost-btn compact-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
+  }
 
 function memberOptions(selectedValue, members = state.members) {
   return `<option value="">全部人員</option>${(members || []).map((member) => `<option value="${escapeHtml(member.id)}" ${selectedValue === member.id ? "selected" : ""}>${escapeHtml(member.full_name || member.name || member.employee_code || member.code || "")}</option>`).join("")}`;
@@ -8790,27 +8755,277 @@ function departmentOptions(selectedValue) {
   return `<option value="">全部單位</option>${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${selectedValue === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}`;
 }
 
+function findSegmentItem(segment) {
+    const itemId = String(segment?.itemId || "");
+    if (!itemId) return null;
+    if (segment.category === "shift") return (state.shifts || []).find((item) => item.id === itemId) || null;
+    if (segment.category === "leave") return (state.leaves || []).find((item) => item.id === itemId) || null;
+    if (segment.category === "overtime") return (state.overtime || []).find((item) => item.id === itemId) || null;
+    return null;
+  }
+
+function normalizeScheduleSegments(record) {
+    const source = Array.isArray(record?.scheduleSegments) ? record.scheduleSegments : [];
+    if (source.length) return source.slice(0, 3);
+    if (!record?.shiftName) return [];
+    const shift = (state.shifts || []).find((item) => item.name === record.shiftName) || null;
+    return [{
+      category: "shift",
+      itemId: shift?.id || "",
+      name: record.shiftName,
+      color: shift?.color || "#888780",
+      textColor: shift?.textColor || ""
+    }];
+  }
+
+function renderScheduleIcon(record) {
+    const segments = normalizeScheduleSegments(record);
+    if (!segments.length) return '<div class="cell-inner personal-record-schedule-cell"></div>';
+    const hasShift = segments.some((segment) => segment.category === "shift");
+    return `<div class="cell-inner personal-record-schedule-cell">${segments.map((segment) => {
+      const item = findSegmentItem(segment);
+      const color = item?.color || segment.color || (segment.category === "overtime" ? "#D85A30" : "#888780");
+      const itemText = item ? getItemTextColor(item, color) : (segment.textColor || textColor(color));
+      const specialLeaveText = segment.category === "leave" && String(segment.code || item?.code || "") === "0047" && hasShift;
+      const foreground = specialLeaveText ? "rgb(112, 112, 112)" : itemText;
+      const name = item?.name || segment.name || (segment.category === "overtime" ? "加班" : "");
+      return `<div class="seg" style="background-color:${escapeHtml(color)};color:${escapeHtml(foreground)}"><span class="seg-label ${getScheduleSegmentSizeClass({ name }, segments.length)}">${escapeHtml(name)}</span></div>`;
+    }).join("")}</div>`;
+  }
+
+function punchLine(value, department) {
+    if (!value) return "-";
+    return `${formatRecordDateTime(value)}${department ? ` ${escapeHtml(department)}` : ""}`;
+  }
+
 function renderPersonalRecordsSection() {
-  return `<section class="records-section"><h2>個人記錄</h2><div class="records-table-wrap"><table class="records-table"><thead><tr><th>日期</th><th>班別</th><th>上班</th><th>下班</th><th>加班</th><th>訂餐</th></tr></thead><tbody>${recordsState.personal.map((record) => `<tr><td>${escapeHtml(record.date || "")}</td><td>${escapeHtml(record.shiftName || "-")}<br><span>${escapeHtml(record.shiftTime || "")}</span></td><td>${formatRecordDateTime(record.clockIn)}<br><span>${escapeHtml(record.clockInDepartment || "")}</span></td><td>${formatRecordDateTime(record.clockOut)}<br><span>${escapeHtml(record.clockOutDepartment || "")}</span></td><td>${escapeHtml(getOvertimeStatusLabel(record.overtimeStatus || ""))}<br><span>${Number(record.overtimeHours || 0)} 小時</span></td><td>${escapeHtml(record.mealText || "-")}</td></tr>`).join("") || '<tr><td colspan="6">沒有資料</td></tr>'}</tbody></table></div></section>`;
-}
+    const today = getTodayDateString();
+    recordsState.personalFilters = recordsState.personalFilters || {
+      fromDate: addDaysToDateString(today, -49),
+      toDate: today
+    };
+    recordsState.personalPage = Number(recordsState.personalPage || 1);
+    recordsState.personalTotal = Number(recordsState.personalTotal || 0);
+    recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
+
+    const filters = recordsState.personalFilters;
+    const page = Number(recordsState.personalPage || 1);
+    const pageSize = Number(recordsState.personalPageSize || 50);
+    const total = Number(recordsState.personalTotal || 0);
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+
+    return `<section class="records-section">
+      <h2>個人記錄</h2>
+      <div class="records-admin-toolbar personal-record-toolbar">
+        <div class="records-admin-filters personal-record-filters">
+          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-v2-personal-filter="fromDate"></label>
+          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-v2-personal-filter="toDate"></label>
+        </div>
+      </div>
+      <div class="records-table-wrap"><table class="records-table v2-personal-record-table">
+        <thead><tr><th>日期</th><th class="personal-schedule-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>異常</th><th>加班</th><th>打卡備註</th><th>加班備註</th><th>訂餐</th></tr></thead>
+        <tbody>${(recordsState.personal || []).map((record) => `<tr>
+          <td>${escapeHtml(record.date || "")}</td>
+          <td class="personal-schedule-icon-col">${renderScheduleIcon(record)}</td>
+          <td>${escapeHtml(record.shiftName || "-")}<br><span>${escapeHtml(record.shiftTime || "")}</span></td>
+          <td class="personal-punch-stack"><div>${punchLine(record.clockIn, record.clockInDepartment)}</div><div>${punchLine(record.clockOut, record.clockOutDepartment)}</div></td>
+          <td>${escapeHtml((record.issues || []).join("、") || "正常")}</td>
+          <td>${escapeHtml(getOvertimeStatusLabel(record.overtimeStatus || ""))}<br><span>${Number(record.overtimeHours || 0)} 小時</span></td>
+          <td>${escapeHtml(record.attendanceNote || "")}</td>
+          <td>${escapeHtml(record.overtimeNote || "")}</td>
+          <td><span class="meal-record-text">${escapeHtml(record.mealText || "-")}</span>${record.mealClockDeletedWarning ? '<br><span class="auth-error-inline">所依據的上班打卡已被刪除</span>' : ""}</td>
+        </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
+      </table></div>
+      <div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-v2-personal-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-v2-personal-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>
+    </section>`;
+  }
 
 function renderMealReportSection() {
-  const report = recordsState.mealStats || {};
-  const filters = recordsState.mealFilters;
-  return `<section class="records-section"><h2>訂餐統計</h2><div class="records-filter-row"><input type="date" value="${escapeHtml(filters.fromDate)}" data-meal-report-filter="fromDate"><input type="date" value="${escapeHtml(filters.toDate)}" data-meal-report-filter="toDate"><select data-meal-report-filter="departmentId">${departmentOptions(filters.departmentId)}</select><select data-meal-report-filter="memberId">${memberOptions(filters.memberId)}</select><button class="primary-btn compact-btn" type="button" data-load-meal-report="true">查詢</button><button class="ghost-btn compact-btn" type="button" data-export-meal-report="true">匯出</button></div>${report.error ? `<div class="auth-error">${escapeHtml(report.error)}</div>` : ""}<div class="meal-stats-grid"><div><strong>${Number(report.totals?.quantity || 0)}</strong><span>期間總數量</span></div><div><strong>$${Number(report.totals?.amount || 0).toFixed(0)}</strong><span>期間總金額</span></div></div><div class="records-table-wrap"><table class="records-table"><thead><tr><th>日期</th><th>單位</th><th>員工</th><th>品項</th><th>數量</th><th>小計</th><th>備註</th></tr></thead><tbody>${(report.details || []).map((row) => `<tr><td>${escapeHtml(row.date || "")}</td><td>${escapeHtml(row.departmentName || "")}</td><td>${escapeHtml(row.employeeName || "")}</td><td>${escapeHtml(row.productName || "")}</td><td>${Number(row.quantity || 0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td><td>${escapeHtml(row.note || "")}</td></tr>`).join("") || '<tr><td colspan="7">沒有訂餐資料</td></tr>'}</tbody></table></div></section>`;
-}
+    ensureRecordsState();
+    const report = recordsState.mealStats || {};
+    const filters = recordsState.mealFilters;
+    const view = recordsState.mealReportView || "detail";
+    const page = Number(report.page || recordsState.mealPage || 1);
+    const pageSize = Number(report.pageSize || 50);
+    const total = Number(report.total || 0);
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    const allDetails = Array.isArray(report.exportDetails) ? report.exportDetails : (report.details || []);
+    const details = report.details || [];
+    const companySubsidy = Number(report.companySubsidy || 55);
+    const withWarningNote = (row) => [row.note || "", row.clockDeletedWarning ? "上班打卡已刪除" : ""].filter(Boolean).join("；");
+    const itemRows = Array.from(allDetails.reduce((map, row) => {
+      const key = `${row.productName || ""}:${Number(row.unitPrice || 0)}`;
+      const current = map.get(key) || { productName: row.productName || "", quantity: 0, unitPrice: Number(row.unitPrice || 0), amount: 0 };
+      current.quantity += Number(row.quantity || 0);
+      current.amount += Number(row.amount || 0);
+      map.set(key, current);
+      return map;
+    }, new Map()).values()).sort((a, b) => String(a.productName).localeCompare(String(b.productName)));
+    const fallbackMemberRows = Array.from(allDetails.reduce((map, row) => {
+      const key = row.employeeId || row.employeeName || "";
+      const current = map.get(key) || { employeeName: row.employeeName || "", dates: new Set(), amount: 0 };
+      if (Number(row.quantity || 0) > 0 && row.date) current.dates.add(row.date);
+      current.amount += Number(row.amount || 0);
+      map.set(key, current);
+      return map;
+    }, new Map()).values()).map((row) => {
+      const days = row.dates.size;
+      return { employeeName: row.employeeName, days, amount: row.amount, selfPay: row.amount - days * companySubsidy };
+    });
+    const memberRows = (Array.isArray(report.memberSummary) && report.memberSummary.length
+      ? report.memberSummary
+      : fallbackMemberRows
+    ).slice().sort((a, b) => String(a.employeeName).localeCompare(String(b.employeeName)));
+    const table = view === "item"
+      ? `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>品項</th><th>數量</th><th>單價</th><th>小計</th></tr></thead><tbody>${itemRows.map((row) => `<tr><td>${escapeHtml(row.productName)}</td><td>${Number(row.quantity || 0)}</td><td>$${Number(row.unitPrice || 0).toFixed(0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td></tr>`).join("") || '<tr><td colspan="4">沒有訂餐資料</td></tr>'}</tbody></table></div>`
+      : view === "member"
+        ? `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>姓名</th><th>訂餐日數</th><th>金額</th><th>自付額</th></tr></thead><tbody>${memberRows.map((row) => `<tr><td>${escapeHtml(row.employeeName)}</td><td>${Number(row.days || 0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td><td>$${Number(row.selfPay || 0).toFixed(0)}</td></tr>`).join("") || '<tr><td colspan="4">沒有訂餐資料</td></tr>'}</tbody></table></div>`
+        : `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>日期</th><th>單位</th><th>員工</th><th>品項</th><th>數量</th><th>單價</th><th>小計</th><th>備註</th></tr></thead><tbody>${details.map((row) => `<tr><td>${escapeHtml(row.date || "")}</td><td>${escapeHtml(row.departmentName || "")}</td><td>${escapeHtml(row.employeeName || "")}</td><td>${escapeHtml(row.productName || "")}</td><td>${Number(row.quantity || 0)}</td><td>$${Number(row.unitPrice || 0).toFixed(0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td><td>${escapeHtml(withWarningNote(row))}</td></tr>`).join("") || '<tr><td colspan="8">沒有訂餐資料</td></tr>'}</tbody></table></div>`;
+    return `<section class="records-section">
+      <h2>訂餐統計</h2>
+      <div class="meal-admin-toolbar meal-report-toolbar">
+        <div class="meal-toolbar-fields meal-report-fields">
+          <label class="meal-toolbar-field meal-field-from">
+            <span>開始日期</span>
+            <input type="date" value="${escapeHtml(filters.fromDate)}" data-meal-report-filter="fromDate">
+          </label>
+          <label class="meal-toolbar-field meal-field-to">
+            <span>結束日期</span>
+            <input type="date" value="${escapeHtml(filters.toDate)}" data-meal-report-filter="toDate">
+          </label>
+          <label class="meal-toolbar-field meal-field-department">
+            <span>單位</span>
+            <select data-meal-report-filter="departmentId">${departmentOptions(filters.departmentId)}</select>
+          </label>
+          <label class="meal-toolbar-field meal-field-member">
+            <span>人員</span>
+            <select data-meal-report-filter="memberId">${memberOptions(filters.memberId)}</select>
+          </label>
+          <label class="meal-toolbar-field meal-field-view">
+            <span>報表內容</span>
+            <select data-meal-report-view>
+              <option value="detail" ${view === "detail" ? "selected" : ""}>明細</option>
+              <option value="item" ${view === "item" ? "selected" : ""}>品項</option>
+              <option value="member" ${view === "member" ? "selected" : ""}>人員</option>
+            </select>
+          </label>
+          <div class="meal-toolbar-field meal-field-export">
+            <span aria-hidden="true">操作</span>
+            <button class="ghost-btn" type="button" data-export-meal-report="true">匯出 Excel</button>
+          </div>
+        </div>
+      </div>
+      ${report.error ? `<div class="auth-error">${escapeHtml(report.error)}</div>` : ""}
+      <div class="meal-stats-grid"><div><strong>${Number(report.totals?.quantity || 0)}</strong><span>總數量</span></div><div><strong>$${Number(report.totals?.amount || 0).toFixed(0)}</strong><span>總金額</span></div></div>
+      ${table}
+      ${view === "detail" ? `<div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-v2-meal-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-v2-meal-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>` : ""}
+    </section>`;
+  }
+
+function formatHours(value) {
+    const hours = Number(value || 0);
+    return Number.isFinite(hours) ? String(hours) : "0";
+  }
+
+function formatPunchTime(value) {
+    return value ? formatClockTime(value) : "-";
+  }
+
+function renderOvertimeReviewPagination(review) {
+    const page = Number(review.page || 1);
+    const pageSize = Number(review.pageSize || 20);
+    const total = Number(review.total || 0);
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    return `<div class="records-filter-row records-pagination">
+      <button class="ghost-btn compact-btn" type="button" data-v2-overtime-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
+      <span>共 ${total} 筆，第 ${page} / ${pages} 頁</span>
+      <button class="ghost-btn compact-btn" type="button" data-v2-overtime-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
+    </div>`;
+  }
 
 function renderOvertimeReviewSection() {
-  const review = recordsState.overtimeReview;
-  const filters = review.filters;
-  return `<section class="records-section"><h2>加班審核</h2><div class="records-filter-row"><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-overtime-review-filter="fromDate"><input type="date" value="${escapeHtml(filters.toDate || "")}" data-overtime-review-filter="toDate"><select data-overtime-review-filter="status"><option value="pending" ${filters.status === "pending" ? "selected" : ""}>待審</option><option value="approved" ${filters.status === "approved" ? "selected" : ""}>核准</option><option value="returned" ${filters.status === "returned" ? "selected" : ""}>退回</option><option value="all" ${filters.status === "all" ? "selected" : ""}>全部</option></select><button class="primary-btn compact-btn" type="button" data-load-overtime-review="true">查詢</button><button class="ghost-btn compact-btn" type="button" data-open-admin-overtime-create="true">代為申請</button></div>${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}<div class="records-table-wrap"><table class="records-table"><thead><tr><th>日期</th><th>員工</th><th>狀態</th><th>提早</th><th>延後</th><th>合計</th><th>備註</th><th>操作</th></tr></thead><tbody>${review.requests.map((row) => `<tr><td>${escapeHtml(row.work_date || "")}${row.attendance_changed_warning ? "<br><span>打卡時間已異動</span>" : ""}</td><td>${escapeHtml(row.employee?.full_name || "")}</td><td>${escapeHtml(getOvertimeStatusLabel(row.status || ""))}</td><td>${Number(row.early_overtime_hours || 0)}</td><td>${Number(row.late_overtime_hours || 0)}</td><td>${Number(row.total_overtime_hours || 0)}</td><td>${escapeHtml(row.employee_note || "")}</td><td><button class="ghost-btn compact-btn" type="button" data-open-overtime-review="${escapeHtml(row.id)}">調整</button><button class="primary-btn compact-btn" type="button" data-approve-overtime="${escapeHtml(row.id)}">核准</button><button class="ghost-btn compact-btn" type="button" data-return-overtime="${escapeHtml(row.id)}">退回</button></td></tr>`).join("") || '<tr><td colspan="8">沒有資料</td></tr>'}</tbody></table></div></section>`;
-}
+    const review = ensureOvertimeReviewState();
+    const filters = review.filters;
+    const rows = review.requests || [];
+    return `<section class="records-section">
+      <h2>加班審核</h2>
+      <div class="records-admin-toolbar overtime-review-toolbar">
+        <div class="records-admin-filters overtime-review-filters">
+          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-overtime-review-filter="fromDate"></label>
+          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-overtime-review-filter="toDate"></label>
+          <label class="records-admin-field"><span>人員</span><select data-overtime-review-filter="memberId">${memberOptions(filters.memberId, review.members)}</select></label>
+          <label class="records-admin-field"><span>狀態</span><select data-overtime-review-filter="status">
+            <option value="pending" ${filters.status === "pending" ? "selected" : ""}>待審</option>
+            <option value="approved" ${filters.status === "approved" ? "selected" : ""}>核准</option>
+            <option value="returned" ${filters.status === "returned" ? "selected" : ""}>退回</option>
+            <option value="all" ${filters.status === "all" ? "selected" : ""}>全部</option>
+          </select></label>
+        </div>
+        <div class="records-admin-actions overtime-review-actions">
+          <button class="ghost-btn compact-btn" type="button" data-open-admin-overtime-create="true">代為申請</button>
+          <button class="primary-btn compact-btn" type="button" data-v2-overtime-batch="approved">批次核准</button>
+          <button class="ghost-btn compact-btn" type="button" data-v2-overtime-batch="returned">批次退回</button>
+        </div>
+      </div>
+      ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
+      <div class="records-table-wrap">
+        <table class="records-table v2-overtime-review-table">
+          <thead><tr><th class="v2-overtime-check-col"><input type="checkbox" data-v2-overtime-check-all></th><th class="v2-overtime-date-col">日期</th><th>員工</th><th>班別</th><th>打卡時間</th><th>加班時數</th><th>備註</th><th class="v2-overtime-status-col">狀態</th><th class="v2-overtime-action-col">操作</th></tr></thead>
+          <tbody>${rows.map((row) => `<tr>
+            <td class="v2-overtime-check-col"><input type="checkbox" data-v2-overtime-check="${escapeHtml(row.id)}"></td>
+            <td class="v2-overtime-date-col">${escapeHtml(row.work_date || "")}${row.attendance_changed_warning ? '<br><span class="auth-error-inline">打卡時間已異動</span>' : ""}</td>
+            <td>${escapeHtml(row.employee?.full_name || "")}</td>
+            <td>${escapeHtml(row.shift?.name || "-")}<br><span>${escapeHtml(`${String(row.shift?.start_time || "").slice(0, 5)}-${String(row.shift?.end_time || "").slice(0, 5)}`)}</span></td>
+            <td>上班 ${formatPunchTime(row.attendance?.clock_in_at)}<br>下班 ${formatPunchTime(row.attendance?.clock_out_at)}</td>
+            <td>${formatHours(row.early_overtime_hours)}＋${formatHours(row.late_overtime_hours)}=${formatHours(row.total_overtime_hours)}</td>
+            <td>${escapeHtml(row.employee_note || "")}</td>
+            <td class="v2-overtime-status-col">${escapeHtml(getOvertimeStatusLabel(row.status || ""))}</td>
+            <td class="v2-overtime-action-col"><div class="v2-overtime-action-buttons"><button class="ghost-btn compact-btn" type="button" data-open-overtime-review="${escapeHtml(row.id)}">調整</button><button class="primary-btn compact-btn" type="button" data-approve-overtime="${escapeHtml(row.id)}">核准</button><button class="ghost-btn compact-btn" type="button" data-return-overtime="${escapeHtml(row.id)}">退回</button></div></td>
+          </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
+        </table>
+      </div>
+      ${renderOvertimeReviewPagination(review)}
+    </section>`;
+  }
 
 function renderAttendanceAdminSection() {
-  const admin = recordsState.attendanceAdmin;
-  const filters = admin.filters;
-  return `<section class="records-section"><h2>打卡管理</h2><div class="records-admin-toolbar attendance-admin-toolbar"><div class="records-admin-filters attendance-admin-filters"><label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate)}" data-attendance-filter="fromDate"></label><label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate)}" data-attendance-filter="toDate"></label><label class="records-admin-field"><span>人員</span><select data-attendance-filter="memberId">${memberOptions(filters.memberId, admin.members)}</select></label><label class="records-admin-field"><span>異常類型</span><select data-attendance-filter="issueType"><option value="__all__" ${filters.abnormalOnly ? "" : "selected"}>全部顯示</option><option value="" ${filters.abnormalOnly && !filters.issueType ? "selected" : ""}>全部異常</option>${admin.issueTypes.map((type) => `<option value="${escapeHtml(type)}" ${filters.issueType === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label></div></div>${admin.error ? `<div class="auth-error">${escapeHtml(admin.error)}</div>` : ""}<div class="records-table-wrap"><table class="records-table"><thead><tr><th>日期</th><th>員工</th><th>班別</th><th>上班</th><th>下班</th><th>異常</th><th>備註</th><th>操作</th></tr></thead><tbody>${admin.rows.map((row) => `<tr><td>${escapeHtml(row.work_date || "")}</td><td>${escapeHtml(row.employee_name_snapshot || "")}<br><span>${escapeHtml(row.employee_code_snapshot || "")}</span></td><td>${escapeHtml(row.shift_name || "-")}<br><span>${escapeHtml(`${String(row.shift_start_time || "").slice(0, 5)}-${String(row.shift_end_time || "").slice(0, 5)}`)}</span></td><td>${formatRecordDateTime(row.clock_in_at)}<br><span>${escapeHtml(row.clock_in_department_name_snapshot || "")}</span></td><td>${formatRecordDateTime(row.clock_out_at)}<br><span>${escapeHtml(row.clock_out_department_name_snapshot || "")}</span></td><td>${escapeHtml((row.issues || []).join("、") || "正常")}</td><td>${escapeHtml(row.attendance_note || "")}</td><td><button class="ghost-btn compact-btn" type="button" data-edit-attendance="${escapeHtml(row.user_id)}:${escapeHtml(row.work_date)}:${escapeHtml(row.id || "")}">編輯</button>${row.id ? `<button class="ghost-btn compact-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}">歷程</button>` : ""}</td></tr>`).join("") || '<tr><td colspan="8">沒有資料</td></tr>'}</tbody></table></div><p class="home-subtitle">共 ${Number(admin.total || 0)} 筆，第 ${Number(admin.page || 1)} 頁</p></section>`;
-}
+    const admin = recordsState.attendanceAdmin;
+    const filters = admin.filters;
+    const page = Number(admin.page || 1);
+    const pageSize = Number(admin.pageSize || 50);
+    const total = Number(admin.total || 0);
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    return `<section class="records-section">
+      <h2>打卡管理</h2>
+      <div class="records-admin-toolbar attendance-admin-toolbar">
+        <div class="records-admin-filters attendance-admin-filters">
+          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate)}" data-attendance-filter="fromDate"></label>
+          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate)}" data-attendance-filter="toDate"></label>
+          <label class="records-admin-field"><span>人員</span><select data-attendance-filter="memberId">${memberOptions(filters.memberId, admin.members)}</select></label>
+          <label class="records-admin-field"><span>異常類型</span><select data-attendance-filter="issueType"><option value="__all__" ${filters.abnormalOnly ? "" : "selected"}>全部顯示</option><option value="" ${filters.abnormalOnly && !filters.issueType ? "selected" : ""}>全部異常</option>${admin.issueTypes.map((type) => `<option value="${escapeHtml(type)}" ${filters.issueType === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
+        </div>
+      </div>
+      ${admin.error ? `<div class="auth-error">${escapeHtml(admin.error)}</div>` : ""}
+      <div class="records-table-wrap"><table class="records-table">
+        <thead><tr><th>日期</th><th>員工</th><th>班別</th><th>上班</th><th>下班</th><th>異常</th><th>備註</th><th>操作</th></tr></thead>
+        <tbody>${admin.rows.map((row) => `<tr>
+          <td>${escapeHtml(row.work_date || "")}</td>
+          <td>${escapeHtml(row.employee_name_snapshot || "")}<br><span>${escapeHtml(row.employee_code_snapshot || "")}</span></td>
+          <td>${escapeHtml(row.shift_name || "-")}<br><span>${escapeHtml(`${String(row.shift_start_time || "").slice(0, 5)}-${String(row.shift_end_time || "").slice(0, 5)}`)}</span></td>
+          <td>${formatRecordDateTime(row.clock_in_at)}<br><span>${escapeHtml(row.clock_in_department_name_snapshot || "")}</span></td>
+          <td>${formatRecordDateTime(row.clock_out_at)}<br><span>${escapeHtml(row.clock_out_department_name_snapshot || "")}</span></td>
+          <td>${escapeHtml((row.issues || []).join("、") || "正常")}</td>
+          <td>${escapeHtml(row.attendance_note || "")}</td>
+          <td><button class="ghost-btn compact-btn" type="button" data-edit-attendance="${escapeHtml(row.user_id)}:${escapeHtml(row.work_date)}:${escapeHtml(row.id || "")}">編輯</button>${row.id ? `<button class="ghost-btn compact-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}">歷程</button>` : ""}</td>
+        </tr>`).join("") || '<tr><td colspan="8">沒有資料</td></tr>'}</tbody>
+      </table></div>
+      <div class="records-filter-row records-pagination">
+        <button class="ghost-btn compact-btn" type="button" data-v2-attendance-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
+        <span>共 ${total} 筆，第 ${page} / ${pages} 頁</span>
+        <button class="ghost-btn compact-btn" type="button" data-v2-attendance-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
+      </div>
+    </section>`;
+  }
 
 function renderMealSettingsSection() {
     const mealAdmin = recordsState.mealAdmin;
@@ -9483,102 +9698,156 @@ async function saveTodayMealOrder() {
 ;
 
 /* ===== renderer-records-page.js ===== */
-/* 記錄頁及主管報表資料讀取控制。
- * 由 renderer.js 拆分；維持既有全域 bundle 執行方式。
+/* 記錄頁、管理報表及分頁資料讀取控制。
+ * 所有記錄功能使用正式 API 與單一狀態初始化來源。
  */
 
-async function loadRecordsPage() {
-  if (!isLoggedIn()) {
-    return;
-  }
-  recordsState = { ...recordsState, loading: true, error: "" };
-  renderAll();
-  try {
-    const personal = await window.schedulerApi.getPersonalRecords();
-    recordsState = {
-      ...recordsState,
-      loading: false,
-      personal: personal.records || [],
-      error: ""
+function ensureRecordsState() {
+    const today = getTodayDateString();
+    recordsState.personalFilters = recordsState.personalFilters || {
+      fromDate: addDaysToDateString(today, -49),
+      toDate: today
     };
-    if (isAdmin()) {
-      await Promise.all([loadOvertimeReview(false), loadAttendanceAdmin(false)]);
+    recordsState.personalPage = Number(recordsState.personalPage || 1);
+    recordsState.personalTotal = Number(recordsState.personalTotal || 0);
+    recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
+    recordsState.mealPage = Number(recordsState.mealPage || 1);
+    recordsState.mealReportView = recordsState.mealReportView || "detail";
+    return recordsState;
+  }
+
+function ensureOvertimeReviewState() {
+    const current = recordsState.overtimeReview || {};
+    const filters = current.filters || {};
+    recordsState.overtimeReview = {
+      loading: Boolean(current.loading),
+      requests: current.requests || [],
+      members: current.members || [],
+      total: Number(current.total || 0),
+      page: Number(current.page || 1),
+      pageSize: Number(current.pageSize || 20),
+      filters: {
+        status: filters.status || "pending",
+        fromDate: filters.fromDate || addDaysToDateString(getTodayDateString(), -30),
+        toDate: filters.toDate || getTodayDateString(),
+        memberId: filters.memberId || ""
+      },
+      error: current.error || ""
+    };
+    return recordsState.overtimeReview;
+  }
+
+async function loadRecordsPage() {
+    if (!isLoggedIn()) return;
+    ensureRecordsState();
+    recordsState = { ...recordsState, loading: true, error: "" };
+    renderAll();
+    try {
+      const result = await window.schedulerApi.getPersonalRecords({
+        ...recordsState.personalFilters,
+        page: recordsState.personalPage
+      });
+      recordsState = {
+        ...recordsState,
+        loading: false,
+        personal: result.records || [],
+        personalTotal: Number(result.total || 0),
+        personalPage: Number(result.page || 1),
+        personalPageSize: Number(result.pageSize || 50),
+        error: ""
+      };
+      if (isAdmin()) await Promise.all([loadOvertimeReview(false), loadAttendanceAdmin(false)]);
+    } catch (error) {
+      recordsState = { ...recordsState, loading: false, personal: [], error: error.message || "讀取記錄失敗" };
     }
     renderAll();
-  } catch (error) {
-    recordsState = { ...recordsState, loading: false, personal: [], error: error.message || "讀取記錄失敗" };
   }
-  renderAll();
-}
 
 async function loadMealReport(shouldRender = true) {
-  if (!isManager()) return;
-  recordsState = { ...recordsState, mealStats: { ...(recordsState.mealStats || {}), loading: true, error: "" } };
-  if (shouldRender) renderAll();
-  try {
-    const mealStats = await window.schedulerApi.getMealReport(recordsState.mealFilters);
-    recordsState = { ...recordsState, mealStats };
-  } catch (error) {
-    recordsState = { ...recordsState, mealStats: { error: error.message || "讀取訂餐統計失敗" } };
+    if (!isManager()) return;
+    ensureRecordsState();
+    recordsState = { ...recordsState, mealStats: { ...(recordsState.mealStats || {}), loading: true, error: "" } };
+    if (shouldRender) renderAll();
+    try {
+      const result = await window.schedulerApi.getMealReport({
+        ...recordsState.mealFilters,
+        page: recordsState.mealPage
+      });
+      recordsState = { ...recordsState, mealStats: result, mealPage: Number(result.page || 1) };
+    } catch (error) {
+      recordsState = { ...recordsState, mealStats: { error: error.message || "讀取訂餐統計失敗" } };
+    }
+    if (shouldRender) renderAll();
   }
-  if (shouldRender) renderAll();
-}
 
 async function loadOvertimeReview(shouldRender = true) {
-  if (!isAdmin()) return;
-  recordsState = {
-    ...recordsState,
-    overtimeReview: { ...recordsState.overtimeReview, loading: true, error: "" }
-  };
-  if (shouldRender) renderAll();
-  try {
-    const result = await window.schedulerApi.getOvertimeReviewList(recordsState.overtimeReview.filters);
+    if (!isAdmin()) return;
+    const review = ensureOvertimeReviewState();
     recordsState = {
       ...recordsState,
-      overtimeReview: { ...recordsState.overtimeReview, loading: false, requests: result.requests || [], members: result.members || [], error: "" }
+      overtimeReview: { ...review, loading: true, error: "" }
     };
-  } catch (error) {
-    recordsState = {
-      ...recordsState,
-      overtimeReview: { ...recordsState.overtimeReview, loading: false, requests: [], error: error.message === "加班操作失敗" ? "讀取加班審核失敗" : (error.message || "讀取加班審核失敗") }
-    };
+    if (shouldRender) renderAll();
+    try {
+      const result = await window.schedulerApi.getOvertimeReviewList({
+        ...recordsState.overtimeReview.filters,
+        page: recordsState.overtimeReview.page
+      });
+      recordsState = {
+        ...recordsState,
+        overtimeReview: {
+          ...recordsState.overtimeReview,
+          loading: false,
+          requests: result.requests || [],
+          members: result.members || [],
+          total: Number(result.total || 0),
+          page: Number(result.page || 1),
+          pageSize: Number(result.pageSize || 20),
+          error: ""
+        }
+      };
+    } catch (error) {
+      recordsState = {
+        ...recordsState,
+        overtimeReview: {
+          ...recordsState.overtimeReview,
+          loading: false,
+          requests: [],
+          error: error.message || "讀取加班審核失敗"
+        }
+      };
+    }
+    if (shouldRender) renderAll();
   }
-  if (shouldRender) renderAll();
-}
 
 async function loadAttendanceAdmin(shouldRender = true) {
-  if (!isAdmin()) return;
-  recordsState = {
-    ...recordsState,
-    attendanceAdmin: { ...recordsState.attendanceAdmin, loading: true, error: "" }
-  };
-  if (shouldRender) renderAll();
-  try {
-    const result = await window.schedulerApi.getAttendanceAdminRecords({
-      ...recordsState.attendanceAdmin.filters,
-      page: recordsState.attendanceAdmin.page
-    });
-    recordsState = {
-      ...recordsState,
-      attendanceAdmin: {
-        ...recordsState.attendanceAdmin,
-        loading: false,
-        rows: result.rows || [],
-        members: result.members || [],
-        issueTypes: result.issueTypes || [],
-        total: Number(result.total || 0),
-        page: Number(result.page || 1),
-        error: ""
-      }
-    };
-  } catch (error) {
-    recordsState = {
-      ...recordsState,
-      attendanceAdmin: { ...recordsState.attendanceAdmin, loading: false, rows: [], error: error.message === "讀取報表失敗" ? "讀取打卡管理失敗" : (error.message || "讀取打卡管理失敗") }
-    };
+    if (!isAdmin()) return;
+    recordsState = { ...recordsState, attendanceAdmin: { ...recordsState.attendanceAdmin, loading: true, error: "" } };
+    if (shouldRender) renderAll();
+    try {
+      const result = await window.schedulerApi.getAttendanceAdminRecords({
+        ...recordsState.attendanceAdmin.filters,
+        page: recordsState.attendanceAdmin.page
+      });
+      recordsState = {
+        ...recordsState,
+        attendanceAdmin: {
+          ...recordsState.attendanceAdmin,
+          loading: false,
+          rows: result.rows || [],
+          members: result.members || [],
+          issueTypes: result.issueTypes || [],
+          total: Number(result.total || 0),
+          page: Number(result.page || 1),
+          pageSize: Number(result.pageSize || 50),
+          error: ""
+        }
+      };
+    } catch (error) {
+      recordsState = { ...recordsState, attendanceAdmin: { ...recordsState.attendanceAdmin, loading: false, rows: [], error: error.message || "讀取打卡管理失敗" } };
+    }
+    if (shouldRender) renderAll();
   }
-  if (shouldRender) renderAll();
-}
 
 async function loadMealAdminSettings(shouldRender = true) {
   if (!isManager()) return;
@@ -9600,6 +9869,97 @@ async function loadMealAdminSettings(shouldRender = true) {
     };
   }
   if (shouldRender) renderAll();
+}
+;
+
+/* ===== renderer-records-events.js ===== */
+/* 記錄頁篩選、分頁、批次審核與個人操作事件。 */
+
+const recordsReloadTimers = new Map();
+
+function scheduleRecordsReload(key, callback) {
+  const previous = recordsReloadTimers.get(key);
+  if (previous) clearTimeout(previous);
+  recordsReloadTimers.set(key, setTimeout(() => {
+    recordsReloadTimers.delete(key);
+    if (typeof callback === "function") void callback();
+  }, 0));
+}
+
+function bindRecordsEvents() {
+  document.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
+
+    if (target.dataset.v2PersonalFilter !== undefined) {
+      ensureRecordsState().personalFilters[target.dataset.v2PersonalFilter] = target.value;
+      recordsState.personalPage = 1;
+      scheduleRecordsReload("personal", loadRecordsPage);
+      return;
+    }
+    if (target.dataset.mealReportFilter !== undefined) {
+      recordsState.mealFilters[target.dataset.mealReportFilter] = target.value || "";
+      recordsState.mealPage = 1;
+      scheduleRecordsReload("meal", loadMealReport);
+      return;
+    }
+    if (target.dataset.mealReportView !== undefined) {
+      recordsState.mealReportView = target.value || "detail";
+      renderAll();
+      return;
+    }
+    if (target.dataset.overtimeReviewFilter !== undefined) {
+      ensureOvertimeReviewState().filters[target.dataset.overtimeReviewFilter] = target.value || "";
+      recordsState.overtimeReview.page = 1;
+      scheduleRecordsReload("overtime", loadOvertimeReview);
+      return;
+    }
+    if (target.dataset.attendanceFilter !== undefined) {
+      const field = target.dataset.attendanceFilter;
+      if (field === "issueType") {
+        const showAll = target.value === "__all__";
+        recordsState.attendanceAdmin.filters.abnormalOnly = !showAll;
+        recordsState.attendanceAdmin.filters.issueType = showAll ? "" : target.value || "";
+      } else {
+        recordsState.attendanceAdmin.filters[field] = target.value || "";
+      }
+      recordsState.attendanceAdmin.page = 1;
+      scheduleRecordsReload("attendance", loadAttendanceAdmin);
+      return;
+    }
+    if (target instanceof HTMLInputElement && target.dataset.v2OvertimeCheckAll !== undefined) {
+      document.querySelectorAll("[data-v2-overtime-check]").forEach((input) => { input.checked = target.checked; });
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    const target = event.target.closest("button");
+    if (!target) return;
+    if (target.dataset.v2PersonalPage) {
+      const page = Number(target.dataset.v2PersonalPage || 1);
+      if (page > 0) { recordsState.personalPage = page; void loadRecordsPage(); }
+      return;
+    }
+    if (target.dataset.v2MealPage) {
+      const page = Number(target.dataset.v2MealPage || 1);
+      if (page > 0) { recordsState.mealPage = page; void loadMealReport(); }
+      return;
+    }
+    if (target.dataset.v2OvertimePage) {
+      const page = Number(target.dataset.v2OvertimePage || 1);
+      if (page > 0) { ensureOvertimeReviewState().page = page; void loadOvertimeReview(); }
+      return;
+    }
+    if (target.dataset.v2AttendancePage) {
+      const page = Number(target.dataset.v2AttendancePage || 1);
+      if (page > 0) { recordsState.attendanceAdmin.page = page; void loadAttendanceAdmin(); }
+      return;
+    }
+    if (target.dataset.v2OvertimeBatch) { void batchReviewOvertime(target.dataset.v2OvertimeBatch); return; }
+    if (target.dataset.v2AdminOvertimeCreate) { void createAdminOvertimeForEmployee(target.dataset.v2AdminOvertimeCreate); return; }
+    if (target.dataset.v2DeleteRecordOvertime) { void deleteRecordOvertime(target.dataset.v2DeleteRecordOvertime); return; }
+    if (target.dataset.v2CancelRecordMeal) { void cancelMealFromRecords(); }
+  });
 }
 ;
 
@@ -9712,8 +10072,8 @@ function getLeaveLabel(leave) {
 ;
 
 /* ===== renderer-records-actions.js ===== */
-/* 打卡管理、加班審核與訂餐設定操作。
- * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+/* 打卡管理、加班審核、個人記錄與訂餐設定操作。
+ * 後載入覆蓋已整合為唯一正式函式。
  */
 
 function timeValueFromIso(value) {
@@ -9729,112 +10089,163 @@ function findAttendanceAdminRow(userId, workDate, recordId) {
 }
 
 function openAttendanceEditModal(token) {
-  const [userId, workDate, recordId] = String(token || "").split(":");
-  const row = findAttendanceAdminRow(userId, workDate, recordId) || { user_id: userId, work_date: workDate };
-  openEntityListModal({
-    title: "編輯打卡",
-    modalClass: "modal modal-form-compact attendance-edit-modal",
-    hideFooterClose: true,
-    body: `
-      <div class="form-grid two-col">
+    const [userId, workDate, recordId] = String(token || "").split(":");
+    const row = findAttendanceAdminRow(userId, workDate, recordId) || { user_id: userId, work_date: workDate };
+    openEntityListModal({
+      title: "編輯打卡",
+      hideFooterClose: true,
+      body: `<div class="form-grid two-col">
         <div class="form-row"><label>上班時間</label><input id="adminClockInTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_in_at))}"></div>
         <div class="form-row"><label>上班單位</label><select id="adminClockInDepartment"><option value="">未指定</option>${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${row.clock_in_department_id === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}</select></div>
         <div class="form-row"><label>下班時間</label><input id="adminClockOutTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_out_at))}"></div>
         <div class="form-row"><label>下班單位</label><select id="adminClockOutDepartment"><option value="">未指定</option>${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${row.clock_out_department_id === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}</select></div>
-        <div class="form-row form-row-wide"><label>備註</label><textarea id="adminAttendanceNote" rows="3">${escapeHtml(row.attendance_note || "")}</textarea></div>
-      </div>
-    `,
-    footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-attendance-edit="${escapeHtml(userId)}:${escapeHtml(workDate)}:${escapeHtml(row.id || "")}">儲存</button>`
-  });
-}
+        <div class="form-row form-row-wide"><label>每日打卡備註</label><textarea id="adminAttendanceNote" rows="3">${escapeHtml(row.attendance_note || "")}</textarea></div>
+        <div class="form-row form-row-wide"><label>本次異動原因</label><textarea id="adminAttendanceReason" rows="2" placeholder="選填，會保存於修改歷程"></textarea></div>
+      </div>`,
+      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-attendance-edit="${escapeHtml(userId)}:${escapeHtml(workDate)}:${escapeHtml(row.id || "")}">儲存</button>`
+    });
+  }
 
 async function saveAttendanceEdit(token) {
-  const [userId, workDate, recordId] = String(token || "").split(":");
-  try {
-    await window.schedulerApi.saveAttendanceAdminRecord({
-      id: recordId || "",
-      userId,
-      workDate,
-      clockInTime: document.getElementById("adminClockInTime")?.value || "",
-      clockInDepartmentId: document.getElementById("adminClockInDepartment")?.value || "",
-      clockOutTime: document.getElementById("adminClockOutTime")?.value || "",
-      clockOutDepartmentId: document.getElementById("adminClockOutDepartment")?.value || "",
-      attendanceNote: document.getElementById("adminAttendanceNote")?.value || ""
-    });
-    closeModal();
-    await loadAttendanceAdmin();
-    await loadOvertimeReview(false);
-    showInfoMessage("打卡資料已更新");
-  } catch (error) {
-    setSaveStatus(`儲存打卡失敗：${error.message}`);
+    const [userId, workDate, recordId] = String(token || "").split(":");
+    const reason = document.getElementById("adminAttendanceReason")?.value.trim() || "";
+    try {
+      await window.schedulerApi.saveAttendanceAdminRecord({
+        id: recordId || "",
+        userId,
+        workDate,
+        clockInTime: document.getElementById("adminClockInTime")?.value || "",
+        clockInDepartmentId: document.getElementById("adminClockInDepartment")?.value || "",
+        clockOutTime: document.getElementById("adminClockOutTime")?.value || "",
+        clockOutDepartmentId: document.getElementById("adminClockOutDepartment")?.value || "",
+        attendanceNote: document.getElementById("adminAttendanceNote")?.value || "",
+        reason
+      });
+      closeModal();
+      await loadAttendanceAdmin();
+      await loadOvertimeReview(false);
+      showInfoMessage("打卡資料已更新");
+    } catch (error) {
+      setSaveStatus(`儲存打卡失敗：${error.message}`);
+    }
   }
-}
 
 async function openAttendanceHistoryModal(recordId) {
-  try {
-    const result = await window.schedulerApi.getAttendanceAdminHistory(recordId);
-    openEntityListModal({
-      title: "打卡修改歷程",
-      body: `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>時間</th><th>欄位</th><th>原值</th><th>新值</th><th>操作人</th></tr></thead><tbody>${(result.logs || []).map((log) => `<tr><td>${formatRecordDateTime(log.created_at)}</td><td>${escapeHtml(log.field_name || log.action_type || "")}</td><td>${escapeHtml(log.old_value || "")}</td><td>${escapeHtml(log.new_value || "")}</td><td>${escapeHtml(log.operator_name_snapshot || "")}</td></tr>`).join("") || '<tr><td colspan="5">沒有歷程</td></tr>'}</tbody></table></div>`
-    });
-  } catch (error) {
-    setSaveStatus(`讀取歷程失敗：${error.message}`);
+    try {
+      const result = await window.schedulerApi.getAttendanceAdminHistory(recordId);
+      openEntityListModal({
+        title: "打卡修改歷程",
+        body: `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>時間</th><th>欄位</th><th>原值</th><th>新值</th><th>原因</th><th>操作人</th></tr></thead><tbody>${(result.logs || []).map((log) => `<tr><td>${formatRecordDateTime(log.created_at)}</td><td>${escapeHtml(log.field_name || log.action_type || "")}</td><td>${escapeHtml(log.old_value || "")}</td><td>${escapeHtml(log.new_value || "")}</td><td>${escapeHtml(log.reason || "")}</td><td>${escapeHtml(log.operator_name_snapshot || "")}</td></tr>`).join("") || '<tr><td colspan="6">沒有歷程</td></tr>'}</tbody></table></div>`
+      });
+    } catch (error) {
+      setSaveStatus(`讀取歷程失敗：${error.message}`);
+    }
   }
-}
 
 function openOvertimeReviewModal(id) {
-  const row = recordsState.overtimeReview.requests.find((item) => item.id === id);
-  if (!row) return;
-  openEntityListModal({
-    title: "調整加班時數",
-    hideFooterClose: true,
-    body: `<div class="form-grid two-col"><div class="form-row"><label>提早上班</label><input id="reviewEarlyHours" type="number" min="0" step="0.5" value="${Number(row.early_overtime_hours || 0)}"></div><div class="form-row"><label>延後下班</label><input id="reviewLateHours" type="number" min="0" step="0.5" value="${Number(row.late_overtime_hours || 0)}"></div></div>`,
-    footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-overtime-review="${escapeHtml(id)}">儲存為待審</button>`
-  });
-}
+    const row = ensureOvertimeReviewState().requests.find((item) => item.id === id);
+    if (!row) return;
+    openEntityListModal({
+      title: "調整加班",
+      hideFooterClose: true,
+      body: `<div class="form-grid two-col">
+        <div class="form-row"><label>提早上班</label><input id="reviewEarlyHours" type="number" min="0" step="0.5" value="${Number(row.early_overtime_hours || 0)}"></div>
+        <div class="form-row"><label>延後下班</label><input id="reviewLateHours" type="number" min="0" step="0.5" value="${Number(row.late_overtime_hours || 0)}"></div>
+        <div class="form-row form-row-wide"><label>備註</label><textarea id="reviewEmployeeNote" rows="4">${escapeHtml(row.employee_note || "")}</textarea></div>
+      </div>`,
+      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-overtime-review="${escapeHtml(id)}">儲存為待審</button>`
+    });
+  }
 
 async function reviewOvertime(id, status, readHours = false) {
-  try {
-    await window.schedulerApi.reviewOvertimeRequest({
-      id,
-      status,
-      earlyHours: readHours ? document.getElementById("reviewEarlyHours")?.value : undefined,
-      lateHours: readHours ? document.getElementById("reviewLateHours")?.value : undefined
-    });
-    closeModal();
-    await loadOvertimeReview();
-    showInfoMessage("加班審核已更新");
-  } catch (error) {
-    setSaveStatus(`加班審核失敗：${error.message}`);
+    try {
+      await window.schedulerApi.reviewOvertimeRequest({
+        id,
+        status,
+        earlyHours: readHours ? document.getElementById("reviewEarlyHours")?.value : undefined,
+        lateHours: readHours ? document.getElementById("reviewLateHours")?.value : undefined,
+        employeeNote: readHours ? document.getElementById("reviewEmployeeNote")?.value || "" : undefined
+      });
+      closeModal();
+      await loadOvertimeReview();
+      showInfoMessage("加班審核已更新");
+    } catch (error) {
+      setSaveStatus(`加班審核失敗：${error.message}`);
+    }
   }
-}
 
 function openAdminOvertimeCreateModal() {
-  const members = recordsState.overtimeReview.members?.length
-    ? recordsState.overtimeReview.members
-    : recordsState.attendanceAdmin.members;
-  openEntityListModal({
-    title: "代為申請加班",
-    hideFooterClose: true,
-    body: `<div class="form-grid two-col"><div class="form-row"><label>人員</label><select id="adminOvertimeUser">${memberOptions("", members)}</select></div><div class="form-row"><label>日期</label><input id="adminOvertimeDate" type="date" value="${escapeHtml(getTodayDateString())}"></div><div class="form-row"><label>提早上班</label><input id="adminOvertimeEarly" type="number" min="0" step="0.5" value="0"></div><div class="form-row"><label>延後下班</label><input id="adminOvertimeLate" type="number" min="0" step="0.5" value="0"></div><div class="form-row form-row-wide"><label>備註</label><textarea id="adminOvertimeNote" rows="3"></textarea></div></div>`,
-    footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-admin-overtime-create="true">建立</button>`
-  });
-}
-
-async function saveAdminOvertimeCreate() {
-  try {
-    await window.schedulerApi.createAdminOvertimeRequest({
-      userId: document.getElementById("adminOvertimeUser")?.value || "",
-      workDate: document.getElementById("adminOvertimeDate")?.value || getTodayDateString(),
-      earlyHours: document.getElementById("adminOvertimeEarly")?.value || 0,
-      lateHours: document.getElementById("adminOvertimeLate")?.value || 0,
-      note: document.getElementById("adminOvertimeNote")?.value || ""
+    const review = ensureOvertimeReviewState();
+    openEntityListModal({
+      title: "代為申請加班",
+      hideFooterClose: true,
+      body: `<div class="form-grid two-col">
+        <div class="form-row"><label>人員</label><select id="adminOvertimeUser">${memberOptions("", review.members)}</select></div>
+        <div class="form-row"><label>日期</label><input id="adminOvertimeDate" type="date" value="${escapeHtml(getTodayDateString())}"></div>
+        <div class="form-row"><label>提早上班</label><input id="adminOvertimeEarly" type="number" min="0" step="0.5" value="0"></div>
+        <div class="form-row"><label>延後下班</label><input id="adminOvertimeLate" type="number" min="0" step="0.5" value="0"></div>
+        <div class="form-row form-row-wide"><label>備註</label><textarea id="adminOvertimeNote" rows="3"></textarea></div>
+      </div>`,
+      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="ghost-btn" type="button" data-v2-admin-overtime-create="pending">建立待審</button><button class="btn-primary" type="button" data-v2-admin-overtime-create="approved">建立並核准</button>`
     });
-    closeModal();
-    await loadOvertimeReview();
-    showInfoMessage("已建立代申請");
+  }
+
+async function createAdminOvertimeForEmployee(status) {
+    try {
+      await window.schedulerApi.createAdminOvertimeRequest({
+        userId: document.getElementById("adminOvertimeUser")?.value || "",
+        workDate: document.getElementById("adminOvertimeDate")?.value || getTodayDateString(),
+        earlyHours: document.getElementById("adminOvertimeEarly")?.value || 0,
+        lateHours: document.getElementById("adminOvertimeLate")?.value || 0,
+        note: document.getElementById("adminOvertimeNote")?.value || "",
+        status,
+        approve: status === "approved"
+      });
+      closeModal();
+      await loadOvertimeReview();
+      showInfoMessage(status === "approved" ? "已建立並核准" : "已建立待審申請");
+    } catch (error) {
+      setSaveStatus(`建立代申請失敗：${error.message}`);
+    }
+  }
+
+async function batchReviewOvertime(status) {
+    const ids = Array.from(document.querySelectorAll("[data-v2-overtime-check]:checked")).map((item) => item.dataset.v2OvertimeCheck).filter(Boolean);
+    if (!ids.length) {
+      showInfoMessage("請先勾選加班申請");
+      return;
+    }
+    const confirmed = await confirmAction(`確定要將 ${ids.length} 筆申請${status === "approved" ? "核准" : "退回"}嗎？`);
+    if (!confirmed) return;
+    try {
+      await window.schedulerApi.reviewOvertimeRequest({ ids, status });
+      await loadOvertimeReview();
+      showInfoMessage("批次審核已完成");
+    } catch (error) {
+      showInfoMessage(error.message || "批次審核失敗");
+    }
+  }
+
+async function cancelMealFromRecords() {
+    const confirmed = await confirmAction("確定要取消今日整張訂單嗎？");
+    if (!confirmed) return;
+    try {
+      await window.schedulerApi.cancelTodayMealOrder();
+      await loadRecordsPage();
+      showInfoMessage("今日訂餐已取消");
+    } catch (error) {
+      showInfoMessage(error.message || "取消訂餐失敗");
+    }
+  }
+
+async function deleteRecordOvertime(workDate) {
+  const confirmed = await confirmAction(`確定刪除 ${workDate} 的加班申請嗎？`);
+  if (!confirmed) return;
+  try {
+    await window.schedulerApi.deleteAttendanceOvertime(workDate);
+    await loadRecordsPage();
   } catch (error) {
-    setSaveStatus(`建立代申請失敗：${error.message}`);
+    showInfoMessage(error.message || "刪除加班申請失敗");
   }
 }
 
@@ -10972,6 +11383,287 @@ async function exportLeave() {
 }
 ;
 
+/* ===== renderer-period-exports.js ===== */
+(function installPeriodExports() {
+  const exporter = window.schedulerBrowserExporter;
+  const api = window.schedulerApi;
+  const originalExporters = exporter ? {
+    getSapLeaveExportRows: exporter.getSapLeaveExportRows,
+    getOvertimeExportRows: exporter.getOvertimeExportRows,
+    getLeaveExportRows: exporter.getLeaveExportRows
+  } : null;
+
+    function parseIsoDate(value) {
+    const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function formatIsoDate(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  }
+
+  function addDays(date, days) {
+    const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    next.setDate(next.getDate() + days);
+    return next;
+  }
+
+  function daysInMonth(year, month) {
+    return new Date(year, month + 1, 0).getDate();
+  }
+
+  function dateAtMonthStartDay(year, month, startDay) {
+    return new Date(year, month, Math.min(startDay, daysInMonth(year, month)));
+  }
+
+  function getPeriodStartForDate(date, startDay) {
+    const thisMonthStart = dateAtMonthStartDay(date.getFullYear(), date.getMonth(), startDay);
+    return date >= thisMonthStart
+      ? thisMonthStart
+      : dateAtMonthStartDay(date.getFullYear(), date.getMonth() - 1, startDay);
+  }
+
+  function getPreviousPeriodDefaults() {
+    if (typeof getVisibleDateRange === "function") {
+      const visible = getVisibleDateRange();
+      if (parseIsoDate(visible?.startDate) && parseIsoDate(visible?.endDate)) {
+        return { startDay: 1, startDate: visible.startDate, endDate: visible.endDate };
+      }
+    }
+    const today = parseIsoDate(typeof getTodayDateString === "function" ? getTodayDateString() : "") || new Date();
+    const rawStartDay = Number(typeof getConfiguredMonthStartDay === "function"
+      ? getConfiguredMonthStartDay()
+      : state?.rules?.monthStartDay || 1);
+    const startDay = Number.isInteger(rawStartDay) && rawStartDay >= 1 && rawStartDay <= 31 ? rawStartDay : 1;
+    const currentPeriodStart = getPeriodStartForDate(today, startDay);
+    const previousEnd = addDays(currentPeriodStart, -1);
+    const previousStart = getPeriodStartForDate(previousEnd, startDay);
+    return {
+      startDay,
+      startDate: formatIsoDate(previousStart),
+      endDate: formatIsoDate(previousEnd)
+    };
+  }
+
+  function compactDate(isoDate) {
+    return String(isoDate || "").replaceAll("-", "");
+  }
+
+  function enumerateMonths(startDate, endDate) {
+    const start = parseIsoDate(startDate);
+    const end = parseIsoDate(endDate);
+    if (!start || !end || start > end) return [];
+    const months = [];
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    const last = new Date(end.getFullYear(), end.getMonth(), 1);
+    while (cursor <= last) {
+      months.push({ year: cursor.getFullYear(), month: cursor.getMonth() });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return months;
+  }
+
+  function aggregateRows(payload, original, dateColumnIndex) {
+    if (Array.isArray(payload?.exportRows) && typeof original === "function") {
+      return original(payload);
+    }
+    if (!payload?.startDate || !payload?.endDate || typeof original !== "function") {
+      return typeof original === "function" ? original(payload) : [];
+    }
+    const start = compactDate(payload.startDate);
+    const end = compactDate(payload.endDate);
+    return enumerateMonths(payload.startDate, payload.endDate).flatMap(({ year, month }) => (
+      original({ ...payload, startDate: "", endDate: "", year, month })
+        .filter((row) => {
+          const value = String(row?.[dateColumnIndex] || "");
+          return value >= start && value <= end;
+        })
+    ));
+  }
+
+  function csvEscape(value) {
+    const text = String(value ?? "");
+    return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+  }
+
+  function styleWorksheet(sheet, widths) {
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EBD8" } };
+    sheet.columns = widths.map((width) => ({ width }));
+    sheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFD8D2C7" } },
+          left: { style: "thin", color: { argb: "FFD8D2C7" } },
+          bottom: { style: "thin", color: { argb: "FFD8D2C7" } },
+          right: { style: "thin", color: { argb: "FFD8D2C7" } }
+        };
+        cell.alignment = cell.alignment || { horizontal: "center", vertical: "middle", wrapText: true };
+      });
+    });
+  }
+
+  function installRangeExporters() {
+    if (!exporter || !api || !originalExporters) return;
+
+    exporter.getSapLeaveExportRows = (payload) => aggregateRows(payload, originalExporters.getSapLeaveExportRows, 2);
+    exporter.getOvertimeExportRows = (payload) => aggregateRows(payload, originalExporters.getOvertimeExportRows, 1);
+    exporter.getLeaveExportRows = (payload) => aggregateRows(payload, originalExporters.getLeaveExportRows, 1);
+    exporter.buildSapLeaveCsvContent = (payload) => {
+      const rows = exporter.getSapLeaveExportRows(payload);
+      const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\r\n");
+      return rows.length ? `\uFEFF${csv}\r\n` : "\uFEFF";
+    };
+    exporter.createOvertimeWorkbook = async (payload) => {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("匯出加班");
+      const headers = ["員工編號", "加班日期", "加班時間(起)", "加班時間(迄)", "前一日", "加班補貼類型", "休息1(起)", "休息1(迄)", "支薪1", "休息2(起)", "休息2(迄)", "支薪2"];
+      sheet.addRow(headers);
+      exporter.getOvertimeExportRows(payload).forEach((row) => sheet.addRow(row));
+      styleWorksheet(sheet, headers.map((_, index) => index === 0 ? 14 : [4, 5, 8, 11].includes(index) ? 10 : 14));
+      return workbook;
+    };
+    exporter.createLeaveWorkbook = async (payload) => {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("匯出請假");
+      const headers = ["員工編號", "請假日期(起)", "請假日期(迄)", "請假時間(起)", "請假時間(迄)", "假別", "說明"];
+      sheet.addRow(headers);
+      exporter.getLeaveExportRows(payload).forEach((row) => sheet.addRow(row));
+      styleWorksheet(sheet, [14, 14, 14, 14, 14, 12, 28]);
+      return workbook;
+    };
+
+    function downloadBlob(blob, fileName) {
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    }
+
+    function rangeFileName(prefix, payload, extension) {
+      return `${prefix}_${compactDate(payload.startDate)}-${compactDate(payload.endDate)}.${extension}`;
+    }
+
+    api.exportSapCsv = async (payload) => {
+      const rows = exporter.getSapLeaveExportRows(payload);
+      if (!rows.length) return { canceled: true, empty: true };
+      const blob = new Blob([exporter.buildSapLeaveCsvContent(payload)], { type: "text/csv;charset=utf-8" });
+      const fileName = rangeFileName("sap請假", payload, "csv");
+      downloadBlob(blob, fileName);
+      return { canceled: false, filePath: fileName };
+    };
+    api.exportOvertime = async (payload) => {
+      if (!exporter.getOvertimeExportRows(payload).length) return { canceled: true, empty: true };
+      const blob = await exporter.workbookToBlob(await exporter.createOvertimeWorkbook(payload));
+      const fileName = rangeFileName("匯出加班", payload, "xlsx");
+      downloadBlob(blob, fileName);
+      return { canceled: false, filePath: fileName };
+    };
+    api.exportLeave = async (payload) => {
+      if (!exporter.getLeaveExportRows(payload).length) return { canceled: true, empty: true };
+      const blob = await exporter.workbookToBlob(await exporter.createLeaveWorkbook(payload));
+      const fileName = rangeFileName("匯出請假", payload, "xlsx");
+      downloadBlob(blob, fileName);
+      return { canceled: false, filePath: fileName };
+    };
+  }
+
+  async function ensureScheduleRangeLoaded(startDate, endDate) {
+    if (!api?.loadScheduleEntries) return;
+    const loaded = await api.loadScheduleEntries({ startDate, endDate, members: state.members });
+    state.schedule = { ...(state.schedule || {}), ...(loaded?.schedule || {}) };
+    state.scheduleLoadedRanges = [
+      ...(Array.isArray(state.scheduleLoadedRanges) ? state.scheduleLoadedRanges : []),
+      ...(Array.isArray(loaded?.scheduleLoadedRanges) ? loaded.scheduleLoadedRanges : [])
+    ];
+  }
+
+  function openExportPeriodDialog(type) {
+    const defaults = getPreviousPeriodDefaults();
+    const labels = {
+      sap: { title: "匯出休例假期間", action: "匯出休例假" },
+      leave: { title: "匯出請假期間", action: "匯出請假" },
+      overtime: { title: "匯出加班期間", action: "匯出加班" }
+    };
+    const label = labels[type];
+    if (!label || typeof openEntityListModal !== "function") return;
+    openEntityListModal({
+      title: label.title,
+      modalClass: "modal modal-member-form",
+      body: `<div class="form-grid">
+        <div class="form-row"><label for="exportPeriodStart">開始日期</label><input id="exportPeriodStart" type="date" value="${defaults.startDate}"></div>
+        <div class="form-row"><label for="exportPeriodEnd">結束日期</label><input id="exportPeriodEnd" type="date" value="${defaults.endDate}"></div>
+      </div>`,
+      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-run-period-export="${type}">${label.action}</button>`,
+      hideFooterClose: true
+    });
+  }
+
+  async function runPeriodExport(type) {
+    const startDate = document.getElementById("exportPeriodStart")?.value || "";
+    const endDate = document.getElementById("exportPeriodEnd")?.value || "";
+    const start = parseIsoDate(startDate);
+    const end = parseIsoDate(endDate);
+    if (!start || !end) {
+      if (typeof reportValidationError === "function") reportValidationError("請選擇開始日期與結束日期");
+      return;
+    }
+    if (start > end) {
+      if (typeof reportValidationError === "function") reportValidationError("開始日期必須早於或等於結束日期");
+      return;
+    }
+    const method = type === "sap" ? "exportSapCsv" : type === "leave" ? "exportLeave" : "exportOvertime";
+    const emptyMessage = type === "sap" ? "目前沒有可匯出的休例假資料" : type === "leave" ? "目前沒有可匯出的請假資料" : "目前沒有可匯出的加班資料";
+    try {
+      if (typeof setSaveStatus === "function") setSaveStatus("正在準備匯出資料...", true);
+      const exportRows = typeof api.loadScheduleExportRows === "function"
+        ? await api.loadScheduleExportRows(startDate, endDate)
+        : (await ensureScheduleRangeLoaded(startDate, endDate), null);
+      const result = await api[method]({
+        state,
+        startDate,
+        endDate,
+        exportRows,
+        year: start.getFullYear(),
+        month: start.getMonth()
+      });
+      if (result?.empty && typeof showInfoMessage === "function") showInfoMessage(emptyMessage);
+      if (typeof closeModal === "function") closeModal();
+      if (typeof setSaveStatus === "function") setSaveStatus("");
+    } catch (error) {
+      if (typeof setSaveStatus === "function") setSaveStatus(`匯出失敗：${error.message || error}`);
+    }
+  }
+
+    installRangeExporters();
+
+  document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest("button");
+    if (!button) return;
+    const type = button.id === "exportSapButton" ? "sap" : button.id === "exportLeaveButton" ? "leave" : button.id === "exportOvertimeButton" ? "overtime" : "";
+    if (type) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      openExportPeriodDialog(type);
+      return;
+    }
+    if (button.dataset.runPeriodExport) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      void runPeriodExport(button.dataset.runPeriodExport);
+    }
+  }, true);
+})();
+;
+
 /* ===== renderer-events-toolbar.js ===== */
 /* 工具列、班表捲動與篩選事件。
  * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
@@ -11991,6 +12683,7 @@ function bindEvents() {
   bindScheduleSessionEvents();
   bindDelegatedClickEvents();
   bindDelegatedFormEvents();
+  bindRecordsEvents();
   bindScheduleTooltipEvents();
   bindDragAndDropEvents();
   bindCoreMenuDismissEvent();
@@ -12420,1129 +13113,6 @@ loadApp();
     downloadBlob(blob, fileName);
     return { canceled: false, filePath: fileName };
   };
-})();
-;
-
-/* ===== v2-records.js ===== */
-(function installV2RecordsUi() {
-  if (!window.schedulerApi || typeof renderAll !== "function") return;
-  const config = window.SCHEDULER_CONFIG || {};
-  const baseUrl = String(config.supabaseUrl || "").replace(/\/+$/, "");
-  const anonKey = String(config.supabaseAnonKey || "");
-  const originalExportMealReport = window.schedulerApi.exportMealReport;
-
-  async function call(name, payload = {}) {
-    const session = window.schedulerApi.getAuthContext?.().session;
-    if (!session?.access_token) throw new Error("請先登入");
-    const response = await fetch(`${baseUrl}/functions/v1/${name}`, {
-      method: "POST",
-      headers: { apikey: anonKey, Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.message || "讀取資料失敗");
-    return result;
-  }
-
-  window.schedulerApi.getPersonalRecords = (filters = {}) => call("personal-records-v2", filters);
-  window.schedulerApi.getMealReport = (filters = {}) => call("meal-report-v2", filters);
-  window.schedulerApi.cancelTodayMealOrder = () => call("meal-cancel-v2", {});
-  window.schedulerApi.exportMealReport = (report) => originalExportMealReport({
-    ...report,
-    details: report?.exportDetails || report?.details || []
-  });
-
-  function ensureState() {
-    const today = getTodayDateString();
-    recordsState.personalFilters = recordsState.personalFilters || {
-      fromDate: addDaysToDateString(today, -49),
-      toDate: today
-    };
-    recordsState.personalPage = Number(recordsState.personalPage || 1);
-    recordsState.personalTotal = Number(recordsState.personalTotal || 0);
-    recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
-    recordsState.mealPage = Number(recordsState.mealPage || 1);
-    recordsState.mealReportView = recordsState.mealReportView || "detail";
-    return recordsState;
-  }
-
-  loadRecordsPage = async function loadV2RecordsPage() {
-    if (!isLoggedIn()) return;
-    ensureState();
-    recordsState = { ...recordsState, loading: true, error: "" };
-    renderAll();
-    try {
-      const result = await window.schedulerApi.getPersonalRecords({
-        ...recordsState.personalFilters,
-        page: recordsState.personalPage
-      });
-      recordsState = {
-        ...recordsState,
-        loading: false,
-        personal: result.records || [],
-        personalTotal: Number(result.total || 0),
-        personalPage: Number(result.page || 1),
-        personalPageSize: Number(result.pageSize || 50),
-        error: ""
-      };
-      if (isAdmin()) await Promise.all([loadOvertimeReview(false), loadAttendanceAdmin(false)]);
-    } catch (error) {
-      recordsState = { ...recordsState, loading: false, personal: [], error: error.message || "讀取記錄失敗" };
-    }
-    renderAll();
-  };
-
-  loadMealReport = async function loadV2MealReport(shouldRender = true) {
-    if (!isManager()) return;
-    ensureState();
-    recordsState = { ...recordsState, mealStats: { ...(recordsState.mealStats || {}), loading: true, error: "" } };
-    if (shouldRender) renderAll();
-    try {
-      const result = await window.schedulerApi.getMealReport({
-        ...recordsState.mealFilters,
-        page: recordsState.mealPage
-      });
-      recordsState = { ...recordsState, mealStats: result, mealPage: Number(result.page || 1) };
-    } catch (error) {
-      recordsState = { ...recordsState, mealStats: { error: error.message || "讀取訂餐統計失敗" } };
-    }
-    if (shouldRender) renderAll();
-  };
-
-  renderRecordsTabs = function renderV2RecordsTabs() {
-    const tabs = [
-      ["personal", "個人記錄", true],
-      ["overtime", "加班審核", isAdmin()],
-      ["attendance", "打卡管理", isAdmin()]
-    ].filter((tab) => tab[2]);
-    if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
-    return `<div class="record-tabs">${tabs.map(([id, label]) => `<button class="ghost-btn compact-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
-  };
-
-  renderPersonalRecordsSection = function renderV2PersonalRecordsSection() {
-    ensureState();
-    const filters = recordsState.personalFilters;
-    const page = Number(recordsState.personalPage || 1);
-    const pageSize = Number(recordsState.personalPageSize || 50);
-    const total = Number(recordsState.personalTotal || 0);
-    const pages = Math.max(1, Math.ceil(total / pageSize));
-    return `<section class="records-section">
-      <h2>個人記錄</h2>
-      <div class="records-admin-toolbar personal-record-toolbar">
-        <div class="records-admin-filters personal-record-filters">
-          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-v2-personal-filter="fromDate"></label>
-          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-v2-personal-filter="toDate"></label>
-        </div>
-      </div>
-      <div class="records-table-wrap"><table class="records-table">
-        <thead><tr><th>日期</th><th>班別</th><th>上班</th><th>下班</th><th>異常</th><th>加班</th><th>打卡備註</th><th>加班備註</th><th>訂餐</th><th>操作</th></tr></thead>
-        <tbody>${recordsState.personal.map((record) => `<tr>
-          <td>${escapeHtml(record.date || "")}</td>
-          <td>${escapeHtml(record.shiftName || "-")}<br><span>${escapeHtml(record.shiftTime || "")}</span></td>
-          <td>${formatRecordDateTime(record.clockIn)}<br><span>${escapeHtml(record.clockInDepartment || "")}${record.clockInSource ? `（${escapeHtml(record.clockInSource)}）` : ""}</span></td>
-          <td>${formatRecordDateTime(record.clockOut)}<br><span>${escapeHtml(record.clockOutDepartment || "")}${record.clockOutSource ? `（${escapeHtml(record.clockOutSource)}）` : ""}</span></td>
-          <td>${escapeHtml((record.issues || []).join("、") || "正常")}</td>
-          <td>${escapeHtml(getOvertimeStatusLabel(record.overtimeStatus || ""))}<br><span>${Number(record.overtimeHours || 0)} 小時</span></td>
-          <td>${escapeHtml(record.attendanceNote || "")}</td>
-          <td>${escapeHtml(record.overtimeNote || "")}</td>
-          <td><span class="meal-record-text">${escapeHtml(record.mealText || "-")}</span>${record.mealClockDeletedWarning ? '<br><span class="auth-error-inline">所依據的上班打卡已被刪除</span>' : ""}</td>
-          <td>${record.canDeleteOvertime ? `<button class="ghost-btn compact-btn" type="button" data-v2-delete-record-overtime="${escapeHtml(record.date)}">刪除加班</button>` : ""}${record.canCancelMeal ? `<button class="ghost-btn compact-btn" type="button" data-v2-cancel-record-meal="${escapeHtml(record.date)}">取消訂餐</button>` : ""}</td>
-        </tr>`).join("") || '<tr><td colspan="10">沒有資料</td></tr>'}</tbody>
-      </table></div>
-      <div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-v2-personal-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-v2-personal-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>
-    </section>`;
-  };
-
-  renderMealReportSection = function renderV2MealReportSection() {
-    ensureState();
-    const report = recordsState.mealStats || {};
-    const filters = recordsState.mealFilters;
-    const view = recordsState.mealReportView || "detail";
-    const page = Number(report.page || recordsState.mealPage || 1);
-    const pageSize = Number(report.pageSize || 50);
-    const total = Number(report.total || 0);
-    const pages = Math.max(1, Math.ceil(total / pageSize));
-    const allDetails = Array.isArray(report.exportDetails) ? report.exportDetails : (report.details || []);
-    const details = report.details || [];
-    const companySubsidy = Number(report.companySubsidy || 55);
-    const withWarningNote = (row) => [row.note || "", row.clockDeletedWarning ? "上班打卡已刪除" : ""].filter(Boolean).join("；");
-    const itemRows = Array.from(allDetails.reduce((map, row) => {
-      const key = `${row.productName || ""}:${Number(row.unitPrice || 0)}`;
-      const current = map.get(key) || { productName: row.productName || "", quantity: 0, unitPrice: Number(row.unitPrice || 0), amount: 0 };
-      current.quantity += Number(row.quantity || 0);
-      current.amount += Number(row.amount || 0);
-      map.set(key, current);
-      return map;
-    }, new Map()).values()).sort((a, b) => String(a.productName).localeCompare(String(b.productName)));
-    const fallbackMemberRows = Array.from(allDetails.reduce((map, row) => {
-      const key = row.employeeId || row.employeeName || "";
-      const current = map.get(key) || { employeeName: row.employeeName || "", dates: new Set(), amount: 0 };
-      if (Number(row.quantity || 0) > 0 && row.date) current.dates.add(row.date);
-      current.amount += Number(row.amount || 0);
-      map.set(key, current);
-      return map;
-    }, new Map()).values()).map((row) => {
-      const days = row.dates.size;
-      return { employeeName: row.employeeName, days, amount: row.amount, selfPay: row.amount - days * companySubsidy };
-    });
-    const memberRows = (Array.isArray(report.memberSummary) && report.memberSummary.length
-      ? report.memberSummary
-      : fallbackMemberRows
-    ).slice().sort((a, b) => String(a.employeeName).localeCompare(String(b.employeeName)));
-    const table = view === "item"
-      ? `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>品項</th><th>數量</th><th>單價</th><th>小計</th></tr></thead><tbody>${itemRows.map((row) => `<tr><td>${escapeHtml(row.productName)}</td><td>${Number(row.quantity || 0)}</td><td>$${Number(row.unitPrice || 0).toFixed(0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td></tr>`).join("") || '<tr><td colspan="4">沒有訂餐資料</td></tr>'}</tbody></table></div>`
-      : view === "member"
-        ? `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>姓名</th><th>訂餐日數</th><th>金額</th><th>自付額</th></tr></thead><tbody>${memberRows.map((row) => `<tr><td>${escapeHtml(row.employeeName)}</td><td>${Number(row.days || 0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td><td>$${Number(row.selfPay || 0).toFixed(0)}</td></tr>`).join("") || '<tr><td colspan="4">沒有訂餐資料</td></tr>'}</tbody></table></div>`
-        : `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>日期</th><th>單位</th><th>員工</th><th>品項</th><th>數量</th><th>單價</th><th>小計</th><th>備註</th></tr></thead><tbody>${details.map((row) => `<tr><td>${escapeHtml(row.date || "")}</td><td>${escapeHtml(row.departmentName || "")}</td><td>${escapeHtml(row.employeeName || "")}</td><td>${escapeHtml(row.productName || "")}</td><td>${Number(row.quantity || 0)}</td><td>$${Number(row.unitPrice || 0).toFixed(0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td><td>${escapeHtml(withWarningNote(row))}</td></tr>`).join("") || '<tr><td colspan="8">沒有訂餐資料</td></tr>'}</tbody></table></div>`;
-    return `<section class="records-section">
-      <h2>訂餐統計</h2>
-      <div class="meal-admin-toolbar meal-report-toolbar">
-        <div class="meal-toolbar-fields meal-report-fields">
-          <label class="meal-toolbar-field meal-field-from">
-            <span>開始日期</span>
-            <input type="date" value="${escapeHtml(filters.fromDate)}" data-meal-report-filter="fromDate">
-          </label>
-          <label class="meal-toolbar-field meal-field-to">
-            <span>結束日期</span>
-            <input type="date" value="${escapeHtml(filters.toDate)}" data-meal-report-filter="toDate">
-          </label>
-          <label class="meal-toolbar-field meal-field-department">
-            <span>單位</span>
-            <select data-meal-report-filter="departmentId">${departmentOptions(filters.departmentId)}</select>
-          </label>
-          <label class="meal-toolbar-field meal-field-member">
-            <span>人員</span>
-            <select data-meal-report-filter="memberId">${memberOptions(filters.memberId)}</select>
-          </label>
-          <label class="meal-toolbar-field meal-field-view">
-            <span>報表內容</span>
-            <select data-meal-report-view>
-              <option value="detail" ${view === "detail" ? "selected" : ""}>明細</option>
-              <option value="item" ${view === "item" ? "selected" : ""}>品項</option>
-              <option value="member" ${view === "member" ? "selected" : ""}>人員</option>
-            </select>
-          </label>
-          <div class="meal-toolbar-field meal-field-export">
-            <span aria-hidden="true">操作</span>
-            <button class="ghost-btn" type="button" data-export-meal-report="true">匯出 Excel</button>
-          </div>
-        </div>
-      </div>
-      ${report.error ? `<div class="auth-error">${escapeHtml(report.error)}</div>` : ""}
-      <div class="meal-stats-grid"><div><strong>${Number(report.totals?.quantity || 0)}</strong><span>總數量</span></div><div><strong>$${Number(report.totals?.amount || 0).toFixed(0)}</strong><span>總金額</span></div></div>
-      ${table}
-      ${view === "detail" ? `<div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-v2-meal-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-v2-meal-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>` : ""}
-    </section>`;
-  };
-
-  renderRecordsPage = function renderV2RecordsPage() {
-    const recordsCard = document.getElementById("recordsCard");
-    if (!recordsCard) return;
-    if (!isLoggedIn()) { recordsCard.innerHTML = ""; return; }
-    const activeSection = recordsState.activeTab === "overtime"
-        ? renderOvertimeReviewSection()
-        : recordsState.activeTab === "attendance"
-          ? renderAttendanceAdminSection()
-          : renderPersonalRecordsSection();
-    recordsCard.innerHTML = `<div class="clock-page-header"><div><p class="home-eyebrow">記錄</p><h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1></div>${renderHomeIconButton()}</div>${renderRecordsTabs()}${recordsState.error ? `<div class="auth-error clock-error">${escapeHtml(recordsState.error)}</div>` : ""}${activeSection}${recordsState.loading ? '<p class="clock-loading">讀取中，請稍候...</p>' : ""}`;
-  };
-
-  async function cancelMeal() {
-    const confirmed = await confirmAction("確定要取消今日整張訂單嗎？");
-    if (!confirmed) return;
-    try {
-      await window.schedulerApi.cancelTodayMealOrder();
-      await loadRecordsPage();
-      showInfoMessage("今日訂餐已取消");
-    } catch (error) {
-      showInfoMessage(error.message || "取消訂餐失敗");
-    }
-  }
-
-  document.addEventListener("change", (event) => {
-    const target = event.target;
-    if ((target instanceof HTMLInputElement || target instanceof HTMLSelectElement) && target.dataset.v2PersonalFilter) {
-      ensureState().personalFilters[target.dataset.v2PersonalFilter] = target.value;
-      recordsState.personalPage = 1;
-    }
-    if ((target instanceof HTMLInputElement || target instanceof HTMLSelectElement) && target.dataset.mealReportFilter) {
-      recordsState.mealPage = 1;
-    }
-    if (target instanceof HTMLSelectElement && target.dataset.mealReportView !== undefined) {
-      recordsState.mealReportView = target.value || "detail";
-      renderAll();
-    }
-  });
-
-  document.addEventListener("click", (event) => {
-    const target = event.target.closest("button");
-    if (!target) return;
-    if (target.dataset.v2PersonalSearch !== undefined) void loadRecordsPage();
-    if (target.dataset.v2PersonalPage) {
-      const page = Number(target.dataset.v2PersonalPage || 1);
-      if (page > 0) { recordsState.personalPage = page; void loadRecordsPage(); }
-    }
-    if (target.dataset.v2MealPage) {
-      const page = Number(target.dataset.v2MealPage || 1);
-      if (page > 0) { recordsState.mealPage = page; void loadMealReport(); }
-    }
-    if (target.dataset.v2DeleteRecordOvertime) {
-      void (async () => {
-        const confirmed = await confirmAction(`確定刪除 ${target.dataset.v2DeleteRecordOvertime} 的加班申請嗎？`);
-        if (!confirmed) return;
-        try { await window.schedulerApi.deleteAttendanceOvertime(target.dataset.v2DeleteRecordOvertime); await loadRecordsPage(); }
-        catch (error) { showInfoMessage(error.message || "刪除加班申請失敗"); }
-      })();
-    }
-    if (target.dataset.v2CancelRecordMeal) void cancelMeal();
-  });
-})();
-;
-
-/* ===== v2-personal-record-layout.js ===== */
-(function installV2PersonalRecordLayout() {
-  if (typeof renderPersonalRecordsSection !== "function" || typeof renderAll !== "function") return;
-
-
-  function findSegmentItem(segment) {
-    const itemId = String(segment?.itemId || "");
-    if (!itemId) return null;
-    if (segment.category === "shift") return (state.shifts || []).find((item) => item.id === itemId) || null;
-    if (segment.category === "leave") return (state.leaves || []).find((item) => item.id === itemId) || null;
-    if (segment.category === "overtime") return (state.overtime || []).find((item) => item.id === itemId) || null;
-    return null;
-  }
-
-  function normalizeScheduleSegments(record) {
-    const source = Array.isArray(record?.scheduleSegments) ? record.scheduleSegments : [];
-    if (source.length) return source.slice(0, 3);
-    if (!record?.shiftName) return [];
-    const shift = (state.shifts || []).find((item) => item.name === record.shiftName) || null;
-    return [{
-      category: "shift",
-      itemId: shift?.id || "",
-      name: record.shiftName,
-      color: shift?.color || "#888780",
-      textColor: shift?.textColor || ""
-    }];
-  }
-
-  function renderScheduleIcon(record) {
-    const segments = normalizeScheduleSegments(record);
-    if (!segments.length) return '<div class="cell-inner personal-record-schedule-cell"></div>';
-    const hasShift = segments.some((segment) => segment.category === "shift");
-    return `<div class="cell-inner personal-record-schedule-cell">${segments.map((segment) => {
-      const item = findSegmentItem(segment);
-      const color = item?.color || segment.color || (segment.category === "overtime" ? "#D85A30" : "#888780");
-      const itemText = item ? getItemTextColor(item, color) : (segment.textColor || textColor(color));
-      const specialLeaveText = segment.category === "leave" && String(segment.code || item?.code || "") === "0047" && hasShift;
-      const foreground = specialLeaveText ? "rgb(112, 112, 112)" : itemText;
-      const name = item?.name || segment.name || (segment.category === "overtime" ? "加班" : "");
-      return `<div class="seg" style="background-color:${escapeHtml(color)};color:${escapeHtml(foreground)}"><span class="seg-label ${getScheduleSegmentSizeClass({ name }, segments.length)}">${escapeHtml(name)}</span></div>`;
-    }).join("")}</div>`;
-  }
-
-  function punchLine(value, department) {
-    if (!value) return "-";
-    return `${formatRecordDateTime(value)}${department ? ` ${escapeHtml(department)}` : ""}`;
-  }
-
-  renderPersonalRecordsSection = function renderV2PersonalRecordsLayout() {
-    const today = getTodayDateString();
-    recordsState.personalFilters = recordsState.personalFilters || {
-      fromDate: addDaysToDateString(today, -49),
-      toDate: today
-    };
-    recordsState.personalPage = Number(recordsState.personalPage || 1);
-    recordsState.personalTotal = Number(recordsState.personalTotal || 0);
-    recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
-
-    const filters = recordsState.personalFilters;
-    const page = Number(recordsState.personalPage || 1);
-    const pageSize = Number(recordsState.personalPageSize || 50);
-    const total = Number(recordsState.personalTotal || 0);
-    const pages = Math.max(1, Math.ceil(total / pageSize));
-
-    return `<section class="records-section">
-      <h2>個人記錄</h2>
-      <div class="records-admin-toolbar personal-record-toolbar">
-        <div class="records-admin-filters personal-record-filters">
-          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-v2-personal-filter="fromDate"></label>
-          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-v2-personal-filter="toDate"></label>
-        </div>
-      </div>
-      <div class="records-table-wrap"><table class="records-table v2-personal-record-table">
-        <thead><tr><th>日期</th><th class="personal-schedule-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>異常</th><th>加班</th><th>打卡備註</th><th>加班備註</th><th>訂餐</th></tr></thead>
-        <tbody>${(recordsState.personal || []).map((record) => `<tr>
-          <td>${escapeHtml(record.date || "")}</td>
-          <td class="personal-schedule-icon-col">${renderScheduleIcon(record)}</td>
-          <td>${escapeHtml(record.shiftName || "-")}<br><span>${escapeHtml(record.shiftTime || "")}</span></td>
-          <td class="personal-punch-stack"><div>${punchLine(record.clockIn, record.clockInDepartment)}</div><div>${punchLine(record.clockOut, record.clockOutDepartment)}</div></td>
-          <td>${escapeHtml((record.issues || []).join("、") || "正常")}</td>
-          <td>${escapeHtml(getOvertimeStatusLabel(record.overtimeStatus || ""))}<br><span>${Number(record.overtimeHours || 0)} 小時</span></td>
-          <td>${escapeHtml(record.attendanceNote || "")}</td>
-          <td>${escapeHtml(record.overtimeNote || "")}</td>
-          <td><span class="meal-record-text">${escapeHtml(record.mealText || "-")}</span>${record.mealClockDeletedWarning ? '<br><span class="auth-error-inline">所依據的上班打卡已被刪除</span>' : ""}</td>
-        </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
-      </table></div>
-      <div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-v2-personal-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-v2-personal-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>
-    </section>`;
-  };
-})();
-;
-
-/* ===== v2-overtime-admin.js ===== */
-(function installV2OvertimeAdminUi() {
-  if (!window.schedulerApi || typeof renderAll !== "function") return;
-
-
-  function ensureReviewState() {
-    const current = recordsState.overtimeReview || {};
-    const filters = current.filters || {};
-    recordsState.overtimeReview = {
-      loading: Boolean(current.loading),
-      requests: current.requests || [],
-      members: current.members || [],
-      total: Number(current.total || 0),
-      page: Number(current.page || 1),
-      pageSize: Number(current.pageSize || 20),
-      filters: {
-        status: filters.status || "pending",
-        fromDate: filters.fromDate || addDaysToDateString(getTodayDateString(), -30),
-        toDate: filters.toDate || getTodayDateString(),
-        memberId: filters.memberId || ""
-      },
-      error: current.error || ""
-    };
-    return recordsState.overtimeReview;
-  }
-
-  loadOvertimeReview = async function loadV2OvertimeReview(shouldRender = true) {
-    if (!isAdmin()) return;
-    const review = ensureReviewState();
-    recordsState = {
-      ...recordsState,
-      overtimeReview: { ...review, loading: true, error: "" }
-    };
-    if (shouldRender) renderAll();
-    try {
-      const result = await window.schedulerApi.getOvertimeReviewList({
-        ...recordsState.overtimeReview.filters,
-        page: recordsState.overtimeReview.page
-      });
-      recordsState = {
-        ...recordsState,
-        overtimeReview: {
-          ...recordsState.overtimeReview,
-          loading: false,
-          requests: result.requests || [],
-          members: result.members || [],
-          total: Number(result.total || 0),
-          page: Number(result.page || 1),
-          pageSize: Number(result.pageSize || 20),
-          error: ""
-        }
-      };
-    } catch (error) {
-      recordsState = {
-        ...recordsState,
-        overtimeReview: {
-          ...recordsState.overtimeReview,
-          loading: false,
-          requests: [],
-          error: error.message || "讀取加班審核失敗"
-        }
-      };
-    }
-    if (shouldRender) renderAll();
-  };
-
-  function formatHours(value) {
-    const hours = Number(value || 0);
-    return Number.isFinite(hours) ? String(hours) : "0";
-  }
-
-  function formatPunchTime(value) {
-    return value ? formatClockTime(value) : "-";
-  }
-
-  function pageButtons(review) {
-    const page = Number(review.page || 1);
-    const pageSize = Number(review.pageSize || 20);
-    const total = Number(review.total || 0);
-    const pages = Math.max(1, Math.ceil(total / pageSize));
-    return `<div class="records-filter-row records-pagination">
-      <button class="ghost-btn compact-btn" type="button" data-v2-overtime-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
-      <span>共 ${total} 筆，第 ${page} / ${pages} 頁</span>
-      <button class="ghost-btn compact-btn" type="button" data-v2-overtime-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
-    </div>`;
-  }
-
-  renderOvertimeReviewSection = function renderV2OvertimeReviewSection() {
-    const review = ensureReviewState();
-    const filters = review.filters;
-    const rows = review.requests || [];
-    return `<section class="records-section">
-      <h2>加班審核</h2>
-      <div class="records-admin-toolbar overtime-review-toolbar">
-        <div class="records-admin-filters overtime-review-filters">
-          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-overtime-review-filter="fromDate"></label>
-          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-overtime-review-filter="toDate"></label>
-          <label class="records-admin-field"><span>人員</span><select data-overtime-review-filter="memberId">${memberOptions(filters.memberId, review.members)}</select></label>
-          <label class="records-admin-field"><span>狀態</span><select data-overtime-review-filter="status">
-            <option value="pending" ${filters.status === "pending" ? "selected" : ""}>待審</option>
-            <option value="approved" ${filters.status === "approved" ? "selected" : ""}>核准</option>
-            <option value="returned" ${filters.status === "returned" ? "selected" : ""}>退回</option>
-            <option value="all" ${filters.status === "all" ? "selected" : ""}>全部</option>
-          </select></label>
-        </div>
-        <div class="records-admin-actions overtime-review-actions">
-          <button class="ghost-btn compact-btn" type="button" data-open-admin-overtime-create="true">代為申請</button>
-          <button class="primary-btn compact-btn" type="button" data-v2-overtime-batch="approved">批次核准</button>
-          <button class="ghost-btn compact-btn" type="button" data-v2-overtime-batch="returned">批次退回</button>
-        </div>
-      </div>
-      ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
-      <div class="records-table-wrap">
-        <table class="records-table v2-overtime-review-table">
-          <thead><tr><th class="v2-overtime-check-col"><input type="checkbox" data-v2-overtime-check-all></th><th class="v2-overtime-date-col">日期</th><th>員工</th><th>班別</th><th>打卡時間</th><th>加班時數</th><th>備註</th><th class="v2-overtime-status-col">狀態</th><th class="v2-overtime-action-col">操作</th></tr></thead>
-          <tbody>${rows.map((row) => `<tr>
-            <td class="v2-overtime-check-col"><input type="checkbox" data-v2-overtime-check="${escapeHtml(row.id)}"></td>
-            <td class="v2-overtime-date-col">${escapeHtml(row.work_date || "")}${row.attendance_changed_warning ? '<br><span class="auth-error-inline">打卡時間已異動</span>' : ""}</td>
-            <td>${escapeHtml(row.employee?.full_name || "")}</td>
-            <td>${escapeHtml(row.shift?.name || "-")}<br><span>${escapeHtml(`${String(row.shift?.start_time || "").slice(0, 5)}-${String(row.shift?.end_time || "").slice(0, 5)}`)}</span></td>
-            <td>上班 ${formatPunchTime(row.attendance?.clock_in_at)}<br>下班 ${formatPunchTime(row.attendance?.clock_out_at)}</td>
-            <td>${formatHours(row.early_overtime_hours)}＋${formatHours(row.late_overtime_hours)}=${formatHours(row.total_overtime_hours)}</td>
-            <td>${escapeHtml(row.employee_note || "")}</td>
-            <td class="v2-overtime-status-col">${escapeHtml(getOvertimeStatusLabel(row.status || ""))}</td>
-            <td class="v2-overtime-action-col"><div class="v2-overtime-action-buttons"><button class="ghost-btn compact-btn" type="button" data-open-overtime-review="${escapeHtml(row.id)}">調整</button><button class="primary-btn compact-btn" type="button" data-approve-overtime="${escapeHtml(row.id)}">核准</button><button class="ghost-btn compact-btn" type="button" data-return-overtime="${escapeHtml(row.id)}">退回</button></div></td>
-          </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
-        </table>
-      </div>
-      ${pageButtons(review)}
-    </section>`;
-  };
-
-  openOvertimeReviewModal = function openV2OvertimeReviewModal(id) {
-    const row = ensureReviewState().requests.find((item) => item.id === id);
-    if (!row) return;
-    openEntityListModal({
-      title: "調整加班",
-      hideFooterClose: true,
-      body: `<div class="form-grid two-col">
-        <div class="form-row"><label>提早上班</label><input id="reviewEarlyHours" type="number" min="0" step="0.5" value="${Number(row.early_overtime_hours || 0)}"></div>
-        <div class="form-row"><label>延後下班</label><input id="reviewLateHours" type="number" min="0" step="0.5" value="${Number(row.late_overtime_hours || 0)}"></div>
-        <div class="form-row form-row-wide"><label>備註</label><textarea id="reviewEmployeeNote" rows="4">${escapeHtml(row.employee_note || "")}</textarea></div>
-      </div>`,
-      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-overtime-review="${escapeHtml(id)}">儲存為待審</button>`
-    });
-  };
-
-  reviewOvertime = async function reviewV2Overtime(id, status, readHours = false) {
-    try {
-      await window.schedulerApi.reviewOvertimeRequest({
-        id,
-        status,
-        earlyHours: readHours ? document.getElementById("reviewEarlyHours")?.value : undefined,
-        lateHours: readHours ? document.getElementById("reviewLateHours")?.value : undefined,
-        employeeNote: readHours ? document.getElementById("reviewEmployeeNote")?.value || "" : undefined
-      });
-      closeModal();
-      await loadOvertimeReview();
-      showInfoMessage("加班審核已更新");
-    } catch (error) {
-      setSaveStatus(`加班審核失敗：${error.message}`);
-    }
-  };
-
-  openAdminOvertimeCreateModal = function openV2AdminOvertimeCreateModal() {
-    const review = ensureReviewState();
-    openEntityListModal({
-      title: "代為申請加班",
-      hideFooterClose: true,
-      body: `<div class="form-grid two-col">
-        <div class="form-row"><label>人員</label><select id="adminOvertimeUser">${memberOptions("", review.members)}</select></div>
-        <div class="form-row"><label>日期</label><input id="adminOvertimeDate" type="date" value="${escapeHtml(getTodayDateString())}"></div>
-        <div class="form-row"><label>提早上班</label><input id="adminOvertimeEarly" type="number" min="0" step="0.5" value="0"></div>
-        <div class="form-row"><label>延後下班</label><input id="adminOvertimeLate" type="number" min="0" step="0.5" value="0"></div>
-        <div class="form-row form-row-wide"><label>備註</label><textarea id="adminOvertimeNote" rows="3"></textarea></div>
-      </div>`,
-      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="ghost-btn" type="button" data-v2-admin-overtime-create="pending">建立待審</button><button class="btn-primary" type="button" data-v2-admin-overtime-create="approved">建立並核准</button>`
-    });
-  };
-
-  async function createForEmployee(status) {
-    try {
-      await window.schedulerApi.createAdminOvertimeRequest({
-        userId: document.getElementById("adminOvertimeUser")?.value || "",
-        workDate: document.getElementById("adminOvertimeDate")?.value || getTodayDateString(),
-        earlyHours: document.getElementById("adminOvertimeEarly")?.value || 0,
-        lateHours: document.getElementById("adminOvertimeLate")?.value || 0,
-        note: document.getElementById("adminOvertimeNote")?.value || "",
-        status,
-        approve: status === "approved"
-      });
-      closeModal();
-      await loadOvertimeReview();
-      showInfoMessage(status === "approved" ? "已建立並核准" : "已建立待審申請");
-    } catch (error) {
-      setSaveStatus(`建立代申請失敗：${error.message}`);
-    }
-  }
-
-  async function batchReview(status) {
-    const ids = Array.from(document.querySelectorAll("[data-v2-overtime-check]:checked")).map((item) => item.dataset.v2OvertimeCheck).filter(Boolean);
-    if (!ids.length) {
-      showInfoMessage("請先勾選加班申請");
-      return;
-    }
-    const confirmed = await confirmAction(`確定要將 ${ids.length} 筆申請${status === "approved" ? "核准" : "退回"}嗎？`);
-    if (!confirmed) return;
-    try {
-      await window.schedulerApi.reviewOvertimeRequest({ ids, status });
-      await loadOvertimeReview();
-      showInfoMessage("批次審核已完成");
-    } catch (error) {
-      showInfoMessage(error.message || "批次審核失敗");
-    }
-  }
-
-  document.addEventListener("change", (event) => {
-    const target = event.target;
-    if (target instanceof HTMLInputElement && target.dataset.v2OvertimeCheckAll !== undefined) {
-      document.querySelectorAll("[data-v2-overtime-check]").forEach((input) => { input.checked = target.checked; });
-    }
-    if ((target instanceof HTMLInputElement || target instanceof HTMLSelectElement) && target.dataset.overtimeReviewFilter) {
-      ensureReviewState().page = 1;
-    }
-  });
-
-  document.addEventListener("click", (event) => {
-    const target = event.target.closest("button");
-    if (!target) return;
-    if (target.dataset.v2OvertimePage) {
-      const page = Number(target.dataset.v2OvertimePage || 1);
-      if (page > 0) {
-        ensureReviewState().page = page;
-        void loadOvertimeReview();
-      }
-    }
-    if (target.dataset.v2OvertimeBatch) void batchReview(target.dataset.v2OvertimeBatch);
-    if (target.dataset.v2AdminOvertimeCreate) void createForEmployee(target.dataset.v2AdminOvertimeCreate);
-  });
-})();
-;
-
-/* ===== v2-attendance-admin.js ===== */
-(function installV2AttendanceAdminUi() {
-  if (!window.schedulerApi || typeof renderAll !== "function") return;
-  const config = window.SCHEDULER_CONFIG || {};
-  const baseUrl = String(config.supabaseUrl || "").replace(/\/+$/, "");
-  const anonKey = String(config.supabaseAnonKey || "");
-
-  async function call(name, payload) {
-    const session = window.schedulerApi.getAuthContext?.().session;
-    if (!session?.access_token) throw new Error("請先登入");
-    const response = await fetch(`${baseUrl}/functions/v1/${name}`, {
-      method: "POST",
-      headers: { apikey: anonKey, Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload || {})
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.message || "打卡管理操作失敗");
-    return result;
-  }
-
-  window.schedulerApi.getAttendanceAdminRecords = (filters = {}) => call("attendance-admin-list-v2", filters);
-  window.schedulerApi.getAttendanceAdminHistory = (recordId) => call("attendance-admin-action-v2", { action: "history", recordId });
-  window.schedulerApi.saveAttendanceAdminRecord = (record) => call("attendance-admin-action-v2", { action: "save", record });
-
-  loadAttendanceAdmin = async function loadV2AttendanceAdmin(shouldRender = true) {
-    if (!isAdmin()) return;
-    recordsState = { ...recordsState, attendanceAdmin: { ...recordsState.attendanceAdmin, loading: true, error: "" } };
-    if (shouldRender) renderAll();
-    try {
-      const result = await window.schedulerApi.getAttendanceAdminRecords({
-        ...recordsState.attendanceAdmin.filters,
-        page: recordsState.attendanceAdmin.page
-      });
-      recordsState = {
-        ...recordsState,
-        attendanceAdmin: {
-          ...recordsState.attendanceAdmin,
-          loading: false,
-          rows: result.rows || [],
-          members: result.members || [],
-          issueTypes: result.issueTypes || [],
-          total: Number(result.total || 0),
-          page: Number(result.page || 1),
-          pageSize: Number(result.pageSize || 50),
-          error: ""
-        }
-      };
-    } catch (error) {
-      recordsState = { ...recordsState, attendanceAdmin: { ...recordsState.attendanceAdmin, loading: false, rows: [], error: error.message || "讀取打卡管理失敗" } };
-    }
-    if (shouldRender) renderAll();
-  };
-
-  renderAttendanceAdminSection = function renderV2AttendanceAdminSection() {
-    const admin = recordsState.attendanceAdmin;
-    const filters = admin.filters;
-    const page = Number(admin.page || 1);
-    const pageSize = Number(admin.pageSize || 50);
-    const total = Number(admin.total || 0);
-    const pages = Math.max(1, Math.ceil(total / pageSize));
-    return `<section class="records-section">
-      <h2>打卡管理</h2>
-      <div class="records-admin-toolbar attendance-admin-toolbar">
-        <div class="records-admin-filters attendance-admin-filters">
-          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate)}" data-attendance-filter="fromDate"></label>
-          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate)}" data-attendance-filter="toDate"></label>
-          <label class="records-admin-field"><span>人員</span><select data-attendance-filter="memberId">${memberOptions(filters.memberId, admin.members)}</select></label>
-          <label class="records-admin-field"><span>異常類型</span><select data-attendance-filter="issueType"><option value="__all__" ${filters.abnormalOnly ? "" : "selected"}>全部顯示</option><option value="" ${filters.abnormalOnly && !filters.issueType ? "selected" : ""}>全部異常</option>${admin.issueTypes.map((type) => `<option value="${escapeHtml(type)}" ${filters.issueType === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
-        </div>
-      </div>
-      ${admin.error ? `<div class="auth-error">${escapeHtml(admin.error)}</div>` : ""}
-      <div class="records-table-wrap"><table class="records-table">
-        <thead><tr><th>日期</th><th>員工</th><th>班別</th><th>上班</th><th>下班</th><th>異常</th><th>備註</th><th>操作</th></tr></thead>
-        <tbody>${admin.rows.map((row) => `<tr>
-          <td>${escapeHtml(row.work_date || "")}</td>
-          <td>${escapeHtml(row.employee_name_snapshot || "")}<br><span>${escapeHtml(row.employee_code_snapshot || "")}</span></td>
-          <td>${escapeHtml(row.shift_name || "-")}<br><span>${escapeHtml(`${String(row.shift_start_time || "").slice(0, 5)}-${String(row.shift_end_time || "").slice(0, 5)}`)}</span></td>
-          <td>${formatRecordDateTime(row.clock_in_at)}<br><span>${escapeHtml(row.clock_in_department_name_snapshot || "")}</span></td>
-          <td>${formatRecordDateTime(row.clock_out_at)}<br><span>${escapeHtml(row.clock_out_department_name_snapshot || "")}</span></td>
-          <td>${escapeHtml((row.issues || []).join("、") || "正常")}</td>
-          <td>${escapeHtml(row.attendance_note || "")}</td>
-          <td><button class="ghost-btn compact-btn" type="button" data-edit-attendance="${escapeHtml(row.user_id)}:${escapeHtml(row.work_date)}:${escapeHtml(row.id || "")}">編輯</button>${row.id ? `<button class="ghost-btn compact-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}">歷程</button>` : ""}</td>
-        </tr>`).join("") || '<tr><td colspan="8">沒有資料</td></tr>'}</tbody>
-      </table></div>
-      <div class="records-filter-row records-pagination">
-        <button class="ghost-btn compact-btn" type="button" data-v2-attendance-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
-        <span>共 ${total} 筆，第 ${page} / ${pages} 頁</span>
-        <button class="ghost-btn compact-btn" type="button" data-v2-attendance-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
-      </div>
-    </section>`;
-  };
-
-  openAttendanceEditModal = function openV2AttendanceEditModal(token) {
-    const [userId, workDate, recordId] = String(token || "").split(":");
-    const row = findAttendanceAdminRow(userId, workDate, recordId) || { user_id: userId, work_date: workDate };
-    openEntityListModal({
-      title: "編輯打卡",
-      hideFooterClose: true,
-      body: `<div class="form-grid two-col">
-        <div class="form-row"><label>上班時間</label><input id="adminClockInTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_in_at))}"></div>
-        <div class="form-row"><label>上班單位</label><select id="adminClockInDepartment"><option value="">未指定</option>${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${row.clock_in_department_id === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}</select></div>
-        <div class="form-row"><label>下班時間</label><input id="adminClockOutTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_out_at))}"></div>
-        <div class="form-row"><label>下班單位</label><select id="adminClockOutDepartment"><option value="">未指定</option>${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${row.clock_out_department_id === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}</select></div>
-        <div class="form-row form-row-wide"><label>每日打卡備註</label><textarea id="adminAttendanceNote" rows="3">${escapeHtml(row.attendance_note || "")}</textarea></div>
-        <div class="form-row form-row-wide"><label>本次異動原因</label><textarea id="adminAttendanceReason" rows="2" placeholder="選填，會保存於修改歷程"></textarea></div>
-      </div>`,
-      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-attendance-edit="${escapeHtml(userId)}:${escapeHtml(workDate)}:${escapeHtml(row.id || "")}">儲存</button>`
-    });
-  };
-
-  saveAttendanceEdit = async function saveV2AttendanceEdit(token) {
-    const [userId, workDate, recordId] = String(token || "").split(":");
-    const reason = document.getElementById("adminAttendanceReason")?.value.trim() || "";
-    try {
-      await window.schedulerApi.saveAttendanceAdminRecord({
-        id: recordId || "",
-        userId,
-        workDate,
-        clockInTime: document.getElementById("adminClockInTime")?.value || "",
-        clockInDepartmentId: document.getElementById("adminClockInDepartment")?.value || "",
-        clockOutTime: document.getElementById("adminClockOutTime")?.value || "",
-        clockOutDepartmentId: document.getElementById("adminClockOutDepartment")?.value || "",
-        attendanceNote: document.getElementById("adminAttendanceNote")?.value || "",
-        reason
-      });
-      closeModal();
-      await loadAttendanceAdmin();
-      await loadOvertimeReview(false);
-      showInfoMessage("打卡資料已更新");
-    } catch (error) {
-      setSaveStatus(`儲存打卡失敗：${error.message}`);
-    }
-  };
-
-  openAttendanceHistoryModal = async function openV2AttendanceHistory(recordId) {
-    try {
-      const result = await window.schedulerApi.getAttendanceAdminHistory(recordId);
-      openEntityListModal({
-        title: "打卡修改歷程",
-        body: `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>時間</th><th>欄位</th><th>原值</th><th>新值</th><th>原因</th><th>操作人</th></tr></thead><tbody>${(result.logs || []).map((log) => `<tr><td>${formatRecordDateTime(log.created_at)}</td><td>${escapeHtml(log.field_name || log.action_type || "")}</td><td>${escapeHtml(log.old_value || "")}</td><td>${escapeHtml(log.new_value || "")}</td><td>${escapeHtml(log.reason || "")}</td><td>${escapeHtml(log.operator_name_snapshot || "")}</td></tr>`).join("") || '<tr><td colspan="6">沒有歷程</td></tr>'}</tbody></table></div>`
-      });
-    } catch (error) {
-      setSaveStatus(`讀取歷程失敗：${error.message}`);
-    }
-  };
-
-  document.addEventListener("change", (event) => {
-    const target = event.target;
-    if ((target instanceof HTMLInputElement || target instanceof HTMLSelectElement) && target.dataset.attendanceFilter) {
-      recordsState.attendanceAdmin.page = 1;
-    }
-  });
-
-  document.addEventListener("click", (event) => {
-    const target = event.target.closest("button");
-    if (!target?.dataset.v2AttendancePage) return;
-    const page = Number(target.dataset.v2AttendancePage || 1);
-    if (page > 0) {
-      recordsState.attendanceAdmin.page = page;
-      void loadAttendanceAdmin();
-    }
-  });
-})();
-;
-
-/* ===== v2-live-report-filters.js ===== */
-(function installV2LiveReportFilters() {
-  const timers = new Map();
-  const exporter = window.schedulerBrowserExporter;
-  const api = window.schedulerApi;
-  const originalExporters = exporter ? {
-    getSapLeaveExportRows: exporter.getSapLeaveExportRows,
-    getOvertimeExportRows: exporter.getOvertimeExportRows,
-    getLeaveExportRows: exporter.getLeaveExportRows
-  } : null;
-
-  function scheduleReload(key, callback) {
-    const previous = timers.get(key);
-    if (previous) clearTimeout(previous);
-    timers.set(key, setTimeout(() => {
-      timers.delete(key);
-      if (typeof callback === "function") void callback();
-    }, 0));
-  }
-
-  function parseIsoDate(value) {
-    const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (!match) return null;
-    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  function formatIsoDate(date) {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-  }
-
-  function addDays(date, days) {
-    const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    next.setDate(next.getDate() + days);
-    return next;
-  }
-
-  function daysInMonth(year, month) {
-    return new Date(year, month + 1, 0).getDate();
-  }
-
-  function dateAtMonthStartDay(year, month, startDay) {
-    return new Date(year, month, Math.min(startDay, daysInMonth(year, month)));
-  }
-
-  function getPeriodStartForDate(date, startDay) {
-    const thisMonthStart = dateAtMonthStartDay(date.getFullYear(), date.getMonth(), startDay);
-    return date >= thisMonthStart
-      ? thisMonthStart
-      : dateAtMonthStartDay(date.getFullYear(), date.getMonth() - 1, startDay);
-  }
-
-  function getPreviousPeriodDefaults() {
-    if (typeof getVisibleDateRange === "function") {
-      const visible = getVisibleDateRange();
-      if (parseIsoDate(visible?.startDate) && parseIsoDate(visible?.endDate)) {
-        return { startDay: 1, startDate: visible.startDate, endDate: visible.endDate };
-      }
-    }
-    const today = parseIsoDate(typeof getTodayDateString === "function" ? getTodayDateString() : "") || new Date();
-    const rawStartDay = Number(typeof getConfiguredMonthStartDay === "function"
-      ? getConfiguredMonthStartDay()
-      : state?.rules?.monthStartDay || 1);
-    const startDay = Number.isInteger(rawStartDay) && rawStartDay >= 1 && rawStartDay <= 31 ? rawStartDay : 1;
-    const currentPeriodStart = getPeriodStartForDate(today, startDay);
-    const previousEnd = addDays(currentPeriodStart, -1);
-    const previousStart = getPeriodStartForDate(previousEnd, startDay);
-    return {
-      startDay,
-      startDate: formatIsoDate(previousStart),
-      endDate: formatIsoDate(previousEnd)
-    };
-  }
-
-  function compactDate(isoDate) {
-    return String(isoDate || "").replaceAll("-", "");
-  }
-
-  function enumerateMonths(startDate, endDate) {
-    const start = parseIsoDate(startDate);
-    const end = parseIsoDate(endDate);
-    if (!start || !end || start > end) return [];
-    const months = [];
-    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-    const last = new Date(end.getFullYear(), end.getMonth(), 1);
-    while (cursor <= last) {
-      months.push({ year: cursor.getFullYear(), month: cursor.getMonth() });
-      cursor.setMonth(cursor.getMonth() + 1);
-    }
-    return months;
-  }
-
-  function aggregateRows(payload, original, dateColumnIndex) {
-    if (Array.isArray(payload?.exportRows) && typeof original === "function") {
-      return original(payload);
-    }
-    if (!payload?.startDate || !payload?.endDate || typeof original !== "function") {
-      return typeof original === "function" ? original(payload) : [];
-    }
-    const start = compactDate(payload.startDate);
-    const end = compactDate(payload.endDate);
-    return enumerateMonths(payload.startDate, payload.endDate).flatMap(({ year, month }) => (
-      original({ ...payload, startDate: "", endDate: "", year, month })
-        .filter((row) => {
-          const value = String(row?.[dateColumnIndex] || "");
-          return value >= start && value <= end;
-        })
-    ));
-  }
-
-  function csvEscape(value) {
-    const text = String(value ?? "");
-    return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
-  }
-
-  function styleWorksheet(sheet, widths) {
-    sheet.getRow(1).font = { bold: true };
-    sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-    sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EBD8" } };
-    sheet.columns = widths.map((width) => ({ width }));
-    sheet.eachRow((row) => {
-      row.eachCell((cell) => {
-        cell.border = {
-          top: { style: "thin", color: { argb: "FFD8D2C7" } },
-          left: { style: "thin", color: { argb: "FFD8D2C7" } },
-          bottom: { style: "thin", color: { argb: "FFD8D2C7" } },
-          right: { style: "thin", color: { argb: "FFD8D2C7" } }
-        };
-        cell.alignment = cell.alignment || { horizontal: "center", vertical: "middle", wrapText: true };
-      });
-    });
-  }
-
-  function installRangeExporters() {
-    if (!exporter || !api || !originalExporters) return;
-
-    exporter.getSapLeaveExportRows = (payload) => aggregateRows(payload, originalExporters.getSapLeaveExportRows, 2);
-    exporter.getOvertimeExportRows = (payload) => aggregateRows(payload, originalExporters.getOvertimeExportRows, 1);
-    exporter.getLeaveExportRows = (payload) => aggregateRows(payload, originalExporters.getLeaveExportRows, 1);
-    exporter.buildSapLeaveCsvContent = (payload) => {
-      const rows = exporter.getSapLeaveExportRows(payload);
-      const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\r\n");
-      return rows.length ? `\uFEFF${csv}\r\n` : "\uFEFF";
-    };
-    exporter.createOvertimeWorkbook = async (payload) => {
-      const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet("匯出加班");
-      const headers = ["員工編號", "加班日期", "加班時間(起)", "加班時間(迄)", "前一日", "加班補貼類型", "休息1(起)", "休息1(迄)", "支薪1", "休息2(起)", "休息2(迄)", "支薪2"];
-      sheet.addRow(headers);
-      exporter.getOvertimeExportRows(payload).forEach((row) => sheet.addRow(row));
-      styleWorksheet(sheet, headers.map((_, index) => index === 0 ? 14 : [4, 5, 8, 11].includes(index) ? 10 : 14));
-      return workbook;
-    };
-    exporter.createLeaveWorkbook = async (payload) => {
-      const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet("匯出請假");
-      const headers = ["員工編號", "請假日期(起)", "請假日期(迄)", "請假時間(起)", "請假時間(迄)", "假別", "說明"];
-      sheet.addRow(headers);
-      exporter.getLeaveExportRows(payload).forEach((row) => sheet.addRow(row));
-      styleWorksheet(sheet, [14, 14, 14, 14, 14, 12, 28]);
-      return workbook;
-    };
-
-    function downloadBlob(blob, fileName) {
-      const objectUrl = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = objectUrl;
-      anchor.download = fileName;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-    }
-
-    function rangeFileName(prefix, payload, extension) {
-      return `${prefix}_${compactDate(payload.startDate)}-${compactDate(payload.endDate)}.${extension}`;
-    }
-
-    api.exportSapCsv = async (payload) => {
-      const rows = exporter.getSapLeaveExportRows(payload);
-      if (!rows.length) return { canceled: true, empty: true };
-      const blob = new Blob([exporter.buildSapLeaveCsvContent(payload)], { type: "text/csv;charset=utf-8" });
-      const fileName = rangeFileName("sap請假", payload, "csv");
-      downloadBlob(blob, fileName);
-      return { canceled: false, filePath: fileName };
-    };
-    api.exportOvertime = async (payload) => {
-      if (!exporter.getOvertimeExportRows(payload).length) return { canceled: true, empty: true };
-      const blob = await exporter.workbookToBlob(await exporter.createOvertimeWorkbook(payload));
-      const fileName = rangeFileName("匯出加班", payload, "xlsx");
-      downloadBlob(blob, fileName);
-      return { canceled: false, filePath: fileName };
-    };
-    api.exportLeave = async (payload) => {
-      if (!exporter.getLeaveExportRows(payload).length) return { canceled: true, empty: true };
-      const blob = await exporter.workbookToBlob(await exporter.createLeaveWorkbook(payload));
-      const fileName = rangeFileName("匯出請假", payload, "xlsx");
-      downloadBlob(blob, fileName);
-      return { canceled: false, filePath: fileName };
-    };
-  }
-
-  async function ensureScheduleRangeLoaded(startDate, endDate) {
-    if (!api?.loadScheduleEntries) return;
-    const loaded = await api.loadScheduleEntries({ startDate, endDate, members: state.members });
-    state.schedule = { ...(state.schedule || {}), ...(loaded?.schedule || {}) };
-    state.scheduleLoadedRanges = [
-      ...(Array.isArray(state.scheduleLoadedRanges) ? state.scheduleLoadedRanges : []),
-      ...(Array.isArray(loaded?.scheduleLoadedRanges) ? loaded.scheduleLoadedRanges : [])
-    ];
-  }
-
-  function openExportPeriodDialog(type) {
-    const defaults = getPreviousPeriodDefaults();
-    const labels = {
-      sap: { title: "匯出休例假期間", action: "匯出休例假" },
-      leave: { title: "匯出請假期間", action: "匯出請假" },
-      overtime: { title: "匯出加班期間", action: "匯出加班" }
-    };
-    const label = labels[type];
-    if (!label || typeof openEntityListModal !== "function") return;
-    openEntityListModal({
-      title: label.title,
-      modalClass: "modal modal-member-form",
-      body: `<div class="form-grid">
-        <div class="form-row"><label for="v2ExportPeriodStart">開始日期</label><input id="v2ExportPeriodStart" type="date" value="${defaults.startDate}"></div>
-        <div class="form-row"><label for="v2ExportPeriodEnd">結束日期</label><input id="v2ExportPeriodEnd" type="date" value="${defaults.endDate}"></div>
-      </div>`,
-      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-v2-run-period-export="${type}">${label.action}</button>`,
-      hideFooterClose: true
-    });
-  }
-
-  async function runPeriodExport(type) {
-    const startDate = document.getElementById("v2ExportPeriodStart")?.value || "";
-    const endDate = document.getElementById("v2ExportPeriodEnd")?.value || "";
-    const start = parseIsoDate(startDate);
-    const end = parseIsoDate(endDate);
-    if (!start || !end) {
-      if (typeof reportValidationError === "function") reportValidationError("請選擇開始日期與結束日期");
-      return;
-    }
-    if (start > end) {
-      if (typeof reportValidationError === "function") reportValidationError("開始日期必須早於或等於結束日期");
-      return;
-    }
-    const method = type === "sap" ? "exportSapCsv" : type === "leave" ? "exportLeave" : "exportOvertime";
-    const emptyMessage = type === "sap" ? "目前沒有可匯出的休例假資料" : type === "leave" ? "目前沒有可匯出的請假資料" : "目前沒有可匯出的加班資料";
-    try {
-      if (typeof setSaveStatus === "function") setSaveStatus("正在準備匯出資料...", true);
-      const exportRows = typeof api.loadScheduleExportRows === "function"
-        ? await api.loadScheduleExportRows(startDate, endDate)
-        : (await ensureScheduleRangeLoaded(startDate, endDate), null);
-      const result = await api[method]({
-        state,
-        startDate,
-        endDate,
-        exportRows,
-        year: start.getFullYear(),
-        month: start.getMonth()
-      });
-      if (result?.empty && typeof showInfoMessage === "function") showInfoMessage(emptyMessage);
-      if (typeof closeModal === "function") closeModal();
-      if (typeof setSaveStatus === "function") setSaveStatus("");
-    } catch (error) {
-      if (typeof setSaveStatus === "function") setSaveStatus(`匯出失敗：${error.message || error}`);
-    }
-  }
-
-  async function loadPersonalRecordsLive() {
-  if (!api?.getPersonalRecords) return;
-  recordsState = { ...recordsState, loading: true, error: "" };
-  if (typeof renderAll === "function") renderAll();
-  try {
-    const result = await api.getPersonalRecords({
-      ...(recordsState.personalFilters || {}),
-      page: Number(recordsState.personalPage || 1)
-    });
-    recordsState = {
-      ...recordsState,
-      loading: false,
-      personal: result.records || [],
-      personalTotal: Number(result.total || 0),
-      personalPage: Number(result.page || 1),
-      personalPageSize: Number(result.pageSize || 50),
-      error: ""
-    };
-  } catch (error) {
-    recordsState = {
-      ...recordsState,
-      loading: false,
-      personal: [],
-      error: error.message || "讀取記錄失敗"
-    };
-  }
-  if (typeof renderAll === "function") renderAll();
-}
-
-  installRangeExporters();
-
-  document.addEventListener("change", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
-
-    if (target.dataset.v2PersonalFilter !== undefined) {
-      recordsState.personalPage = 1;
-      scheduleReload("personal", loadPersonalRecordsLive);
-      return;
-    }
-
-    if (target.dataset.mealReportFilter !== undefined) {
-      recordsState.mealPage = 1;
-      scheduleReload("meal", typeof loadMealReport === "function" ? loadMealReport : null);
-      return;
-    }
-
-    if (target.dataset.overtimeReviewFilter !== undefined) {
-      recordsState.overtimeReview.page = 1;
-      scheduleReload("overtime", typeof loadOvertimeReview === "function" ? loadOvertimeReview : null);
-      return;
-    }
-
-    if (target.dataset.attendanceFilter !== undefined) {
-      recordsState.attendanceAdmin.page = 1;
-      scheduleReload("attendance", typeof loadAttendanceAdmin === "function" ? loadAttendanceAdmin : null);
-    }
-  });
-
-  document.addEventListener("click", (event) => {
-    if (!(event.target instanceof Element)) return;
-    const button = event.target.closest("button");
-    if (!button) return;
-    const type = button.id === "exportSapButton" ? "sap" : button.id === "exportLeaveButton" ? "leave" : button.id === "exportOvertimeButton" ? "overtime" : "";
-    if (type) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openExportPeriodDialog(type);
-      return;
-    }
-    if (button.dataset.v2RunPeriodExport) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      void runPeriodExport(button.dataset.v2RunPeriodExport);
-    }
-  }, true);
 })();
 ;
 

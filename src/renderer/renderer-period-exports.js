@@ -1,5 +1,4 @@
-(function installV2LiveReportFilters() {
-  const timers = new Map();
+(function installPeriodExports() {
   const exporter = window.schedulerBrowserExporter;
   const api = window.schedulerApi;
   const originalExporters = exporter ? {
@@ -8,16 +7,7 @@
     getLeaveExportRows: exporter.getLeaveExportRows
   } : null;
 
-  function scheduleReload(key, callback) {
-    const previous = timers.get(key);
-    if (previous) clearTimeout(previous);
-    timers.set(key, setTimeout(() => {
-      timers.delete(key);
-      if (typeof callback === "function") void callback();
-    }, 0));
-  }
-
-  function parseIsoDate(value) {
+    function parseIsoDate(value) {
     const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!match) return null;
     const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
@@ -222,17 +212,17 @@
       title: label.title,
       modalClass: "modal modal-member-form",
       body: `<div class="form-grid">
-        <div class="form-row"><label for="v2ExportPeriodStart">開始日期</label><input id="v2ExportPeriodStart" type="date" value="${defaults.startDate}"></div>
-        <div class="form-row"><label for="v2ExportPeriodEnd">結束日期</label><input id="v2ExportPeriodEnd" type="date" value="${defaults.endDate}"></div>
+        <div class="form-row"><label for="exportPeriodStart">開始日期</label><input id="exportPeriodStart" type="date" value="${defaults.startDate}"></div>
+        <div class="form-row"><label for="exportPeriodEnd">結束日期</label><input id="exportPeriodEnd" type="date" value="${defaults.endDate}"></div>
       </div>`,
-      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-v2-run-period-export="${type}">${label.action}</button>`,
+      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-run-period-export="${type}">${label.action}</button>`,
       hideFooterClose: true
     });
   }
 
   async function runPeriodExport(type) {
-    const startDate = document.getElementById("v2ExportPeriodStart")?.value || "";
-    const endDate = document.getElementById("v2ExportPeriodEnd")?.value || "";
+    const startDate = document.getElementById("exportPeriodStart")?.value || "";
+    const endDate = document.getElementById("exportPeriodEnd")?.value || "";
     const start = parseIsoDate(startDate);
     const end = parseIsoDate(endDate);
     if (!start || !end) {
@@ -266,64 +256,7 @@
     }
   }
 
-  async function loadPersonalRecordsLive() {
-  if (!api?.getPersonalRecords) return;
-  recordsState = { ...recordsState, loading: true, error: "" };
-  if (typeof renderAll === "function") renderAll();
-  try {
-    const result = await api.getPersonalRecords({
-      ...(recordsState.personalFilters || {}),
-      page: Number(recordsState.personalPage || 1)
-    });
-    recordsState = {
-      ...recordsState,
-      loading: false,
-      personal: result.records || [],
-      personalTotal: Number(result.total || 0),
-      personalPage: Number(result.page || 1),
-      personalPageSize: Number(result.pageSize || 50),
-      error: ""
-    };
-  } catch (error) {
-    recordsState = {
-      ...recordsState,
-      loading: false,
-      personal: [],
-      error: error.message || "讀取記錄失敗"
-    };
-  }
-  if (typeof renderAll === "function") renderAll();
-}
-
-  installRangeExporters();
-
-  document.addEventListener("change", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
-
-    if (target.dataset.v2PersonalFilter !== undefined) {
-      recordsState.personalPage = 1;
-      scheduleReload("personal", loadPersonalRecordsLive);
-      return;
-    }
-
-    if (target.dataset.mealReportFilter !== undefined) {
-      recordsState.mealPage = 1;
-      scheduleReload("meal", typeof loadMealReport === "function" ? loadMealReport : null);
-      return;
-    }
-
-    if (target.dataset.overtimeReviewFilter !== undefined) {
-      recordsState.overtimeReview.page = 1;
-      scheduleReload("overtime", typeof loadOvertimeReview === "function" ? loadOvertimeReview : null);
-      return;
-    }
-
-    if (target.dataset.attendanceFilter !== undefined) {
-      recordsState.attendanceAdmin.page = 1;
-      scheduleReload("attendance", typeof loadAttendanceAdmin === "function" ? loadAttendanceAdmin : null);
-    }
-  });
+    installRangeExporters();
 
   document.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
@@ -336,10 +269,10 @@
       openExportPeriodDialog(type);
       return;
     }
-    if (button.dataset.v2RunPeriodExport) {
+    if (button.dataset.runPeriodExport) {
       event.preventDefault();
       event.stopImmediatePropagation();
-      void runPeriodExport(button.dataset.v2RunPeriodExport);
+      void runPeriodExport(button.dataset.runPeriodExport);
     }
   }, true);
 })();

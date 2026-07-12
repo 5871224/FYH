@@ -31,6 +31,7 @@ function bindEvents() {
   bindScheduleSessionEvents();
   bindDelegatedClickEvents();
   bindDelegatedFormEvents();
+  bindRecordsEvents();
   bindScheduleTooltipEvents();
   bindDragAndDropEvents();
   bindCoreMenuDismissEvent();

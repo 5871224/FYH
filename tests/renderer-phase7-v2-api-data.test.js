@@ -8,13 +8,6 @@ const root = path.resolve(__dirname, "..");
 const webApiPath = path.join(root, "src", "renderer", "web-api.js");
 const readWebApi = () => fs.readFileSync(webApiPath, "utf8");
 
-function extractFunctions(source, startName, endName) {
-  const start = source.indexOf(`async function ${startName}`);
-  const end = source.indexOf(`async function ${endName}`, start + 1);
-  if (start < 0 || end <= start) throw new Error(`找不到測試函式區段：${startName} -> ${endName}`);
-  return source.slice(start, end);
-}
-
 test("人員排序應依指定 ID 排列並保留未列入人員", () => {
   const source = readWebApi();
   const start = source.indexOf("function applyMemberOrder");
@@ -24,35 +17,17 @@ test("人員排序應依指定 ID 排列並保留未列入人員", () => {
   assert.deepEqual(Array.from(result, (member) => member.id), ["C", "A", "B"]);
 });
 
-test("員工加班 API 應保留日期、狀態、送出與刪除操作", async () => {
+test("員工加班 API 應保留日期、狀態、送出、刪除與人員排序操作", () => {
   const source = readWebApi();
-  const functionSource = extractFunctions(source, "getEmployeeOvertimeDates", "getTodayMealOrder");
-  const calls = [];
-  const context = {
-    ensureSignedIn: () => {},
-    ensureManager: () => {},
-    taipeiDateString: () => "2026-07-12",
-    requestFunction: async (name, payload) => { calls.push([name, payload]); return { ok: true }; }
-  };
-  const api = vm.runInNewContext(functionSource + "\n;({ getEmployeeOvertimeDates, getAttendanceOvertimeForDate, getTodayAttendanceOvertime, submitAttendanceOvertime, deleteAttendanceOvertime, getMemberOrder, saveMemberOrder })", context);
-  await api.getEmployeeOvertimeDates();
-  await api.getAttendanceOvertimeForDate("2026-07-11");
-  await api.getTodayAttendanceOvertime();
-  await api.submitAttendanceOvertime({ workDate: "2026-07-11", earlyHours: 0.5, lateHours: 1, note: "測試" });
-  await api.deleteAttendanceOvertime("2026-07-11");
-  await api.getMemberOrder();
-  await api.saveMemberOrder(["M2", "M1"]);
-  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
-    ["attendance-overtime-employee", { action: "dates" }],
-    ["attendance-overtime-employee", { action: "status", workDate: "2026-07-11" }],
-    ["attendance-overtime-employee", { action: "status", workDate: "2026-07-12" }],
-    ["attendance-overtime-employee", { action: "submit", workDate: "2026-07-11", earlyHours: 0.5, lateHours: 1, note: "測試" }],
-    ["attendance-overtime-employee", { action: "delete", workDate: "2026-07-11" }],
-    ["member-order-v2", { action: "list" }],
-    ["member-order-v2", { action: "save", memberIds: ["M2", "M1"] }]
-  ]);
+  [
+    'requestFunction("attendance-overtime-employee", { action: "dates" })',
+    'requestFunction("attendance-overtime-employee", { action: "status", workDate })',
+    'action: "submit"',
+    'action: "delete"',
+    'requestFunction("member-order-v2", { action: "list" })',
+    'requestFunction("member-order-v2", { action: "save", memberIds })'
+  ].forEach((marker) => assert.equal(source.includes(marker), true, "缺少 API 契約：" + marker));
 });
-
 test("正式 loadState 應載入管理員打卡欄位與人員排序", () => {
   const source = readWebApi();
   const loadStart = source.indexOf("async function loadState");

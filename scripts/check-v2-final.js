@@ -29,10 +29,7 @@ const required = [
   "docs/app.js",
   "scripts/build-js.js",
   "src/renderer/renderer-overtime-employee.js",
-  "src/renderer/v2-overtime-admin.js",
   "src/renderer/v2-account.js",
-  "src/renderer/v2-attendance-admin.js",
-  "src/renderer/v2-records.js",
   "src/renderer/v2-meal-export.js",
 ];
 
@@ -228,7 +225,7 @@ const sourceMeal = [
 ].map(read).join("\n");
 assert(!exists("src/renderer/v2-meal.js"), "訂餐仍依賴後載入補丁模組");
 const sourceExporter = read("src/renderer/browser-exporter.js");
-const sourceLiveReports = read("src/renderer/v2-live-report-filters.js");
+const sourceLiveReports = ["src/renderer/renderer-period-exports.js", "src/renderer/renderer-records-events.js"].map(read).join("\n");
 assert(sourceExporter.includes("getOfficialLeaveRows") && sourceExporter.includes("getOfficialOvertimeRows"), "請假或加班匯出未使用正式後端資料列");
 assert(sourceLiveReports.includes("api.loadScheduleExportRows") && sourceLiveReports.includes("exportRows"), "期間匯出仍只依賴畫面班表資料");
 assert(sourceLiveReports.includes("getVisibleDateRange"), "匯出期間未預設目前八週班表範圍");
@@ -255,7 +252,7 @@ assert(!sourceExport.includes("員工工號"), "訂餐 Excel 不應顯示員工�
 assert(!sourceExport.includes('"警告"'), "訂餐 Excel 不應有獨立警告欄");
 assert(sourceExport.includes("row.amount - mealDays * companySubsidy"), "訂餐 Excel 未依公司補助計算人員自付額");
 
-const sourceRecords = read("src/renderer/v2-records.js");
+const sourceRecords = ["src/renderer/renderer-records-page.js", "src/renderer/renderer-records-views.js", "src/renderer/renderer-records-actions.js", "src/renderer/renderer-records-events.js"].map(read).join("\n");
 assert(!sourceRecords.includes('["meal", "訂餐統計", isManager()]'), "記錄頁不應顯示訂餐統計頁籤");
 assert(sourceRecords.includes("data-meal-report-view"), "訂餐統計缺少報表切換下拉選單");
 assert(sourceRecords.includes('value="item"') && sourceRecords.includes('value="member"'), "訂餐統計缺少品項或人員報表");
@@ -298,7 +295,8 @@ const sourceIndex = read("src/renderer/index.html");
 const publishedIndex = read("docs/index.html");
 assert(sourceIndex.includes("app-config.js") && sourceIndex.includes("app.js") && !sourceIndex.includes("v2-api.js"), "來源頁必須只載入 app-config.js 與 app.js");
 assert(publishedIndex.includes("app-config.js") && publishedIndex.includes("app.js") && !publishedIndex.includes("v2-api.js"), "發布頁必須只載入 app-config.js 與 app.js");
-assert(sourceApp.includes("function isTabletDevice") && sourceApp.includes("function renderMealPage") && sourceApp.includes("function validateMealOrderItems") && sourceApp.includes("installV2RecordsUi") && !sourceApp.includes("installV2MealUi"), "JavaScript bundle 缺少必要正式模組");
+["v2-records.js", "v2-personal-record-layout.js", "v2-overtime-admin.js", "v2-attendance-admin.js", "v2-live-report-filters.js"].forEach((file) => assert(!exists(`src/renderer/${file}`), `記錄管理仍依賴後載入補丁：${file}`));
+assert(sourceApp.includes("function isTabletDevice") && sourceApp.includes("function renderMealPage") && sourceApp.includes("function validateMealOrderItems") && sourceApp.includes("function loadRecordsPage") && sourceApp.includes("function renderPersonalRecordsSection") && sourceApp.includes("function bindRecordsEvents") && sourceApp.includes("function installPeriodExports") && !sourceApp.includes("installV2MealUi") && !sourceApp.includes("installV2RecordsUi") && !sourceApp.includes("installV2PersonalRecordLayout") && !sourceApp.includes("installV2OvertimeAdmin") && !sourceApp.includes("installV2AttendanceAdmin"), "JavaScript bundle 缺少必要正式模組");
 const publishedJsFiles = fs.readdirSync(path.join(root, "docs")).filter((name) => name.endsWith(".js"));
 assert(publishedJsFiles.every((name) => name === "app-config.js" || name === "app.js"), `docs 含有不應發布的 JavaScript 原始模組：${publishedJsFiles.join(", ")}`);
 

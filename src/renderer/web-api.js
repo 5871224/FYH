@@ -876,66 +876,33 @@
     });
   }
 
-  async function getPersonalRecords() {
+  async function getPersonalRecords(filters = {}) {
     ensureSignedIn();
-    return requestFunction("report-records", {
-      action: "personal"
-    });
+    return requestFunction("personal-records-v2", filters);
   }
 
-  async function getMealStatsReport() {
-    ensureSignedIn();
-    return requestFunction("report-records", {
-      action: "meal_stats"
-    });
+  async function getMealStatsReport(filters = {}) {
+    return getMealReport(filters);
   }
 
   async function getAttendanceAdminRecords(filters = {}) {
     ensureSignedIn();
-    return requestFunction("report-records", {
-      action: "attendance_admin_list",
-      ...filters
-    });
+    return requestFunction("attendance-admin-list-v2", filters);
   }
 
   async function getAttendanceAdminHistory(recordId) {
     ensureSignedIn();
-    return requestFunction("report-records", {
-      action: "attendance_admin_history",
-      recordId
-    });
+    return requestFunction("attendance-admin-action-v2", { action: "history", recordId });
   }
 
   async function saveAttendanceAdminRecord(record) {
     ensureSignedIn();
-    return requestFunction("report-records", {
-      action: "attendance_admin_save",
-      record
-    });
+    return requestFunction("attendance-admin-action-v2", { action: "save", record });
   }
 
-  async function getOvertimeReviewList(filters = {}) {
+        async function cancelTodayMealOrder() {
     ensureSignedIn();
-    return requestFunction("attendance-overtime", {
-      action: "admin_list",
-      ...filters
-    });
-  }
-
-  async function reviewOvertimeRequest(payload = {}) {
-    ensureSignedIn();
-    return requestFunction("attendance-overtime", {
-      action: "admin_review",
-      ...payload
-    });
-  }
-
-  async function createAdminOvertimeRequest(payload = {}) {
-    ensureSignedIn();
-    return requestFunction("attendance-overtime", {
-      action: "admin_create",
-      ...payload
-    });
+    return requestFunction("meal-cancel-v2", {});
   }
 
   async function getMealAdminSettings() {
@@ -965,10 +932,7 @@
 
   async function getMealReport(filters = {}) {
     ensureSignedIn();
-    return requestFunction("report-records", {
-      action: "meal_stats",
-      ...filters
-    });
+    return requestFunction("meal-report-v2", filters);
   }
 
   async function fetchRowsById(table) {
@@ -1912,7 +1876,7 @@
   }
 
   async function exportMealReport(report) {
-    const details = Array.isArray(report?.details) ? report.details : [];
+    const details = Array.isArray(report?.exportDetails) ? report.exportDetails : (Array.isArray(report?.details) ? report.details : []);
     if (!details.length) {
       return { canceled: true, empty: true };
     }
@@ -2057,6 +2021,7 @@
     saveMealAdminSettings,
     deleteMealProduct,
     getMealReport,
+    cancelTodayMealOrder,
     deleteMemberProfile,
     loadState,
     loadEmployeeAdminDirectory,

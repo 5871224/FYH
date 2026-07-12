@@ -47,6 +47,7 @@ const modules = [
   "renderer-attendance-page.js",
   "renderer-meal-page.js",
   "renderer-records-page.js",
+  "renderer-records-events.js",
   "renderer-runtime-helpers.js",
   "renderer-records-actions.js",
   "renderer-app-shell.js",
@@ -56,6 +57,7 @@ const modules = [
   "renderer-schedule-compliance-settings.js",
   "renderer-auth-actions.js",
   "renderer-export-actions.js",
+  "renderer-period-exports.js",
   "renderer-events-toolbar.js",
   "renderer-events-session.js",
   "renderer-events-click.js",
@@ -67,11 +69,6 @@ const modules = [
   "v2-drag-scroll-preserve.js",
   "v2-settings-drag-handles.js",
   "v2-meal-export.js",
-  "v2-records.js",
-  "v2-personal-record-layout.js",
-  "v2-overtime-admin.js",
-  "v2-attendance-admin.js",
-  "v2-live-report-filters.js",
   "v2-account.js",
 ];
 
