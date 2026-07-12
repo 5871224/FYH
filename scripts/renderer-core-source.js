@@ -9,6 +9,7 @@ const RENDERER_CORE_FILES = [
   "renderer-ui-helpers.js",
   "renderer-visibility.js",
   "renderer-state-normalization.js",
+  "renderer-schedule-interaction.js",
   "renderer.js"
 ];
 
