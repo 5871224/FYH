@@ -31,6 +31,9 @@ jobs:
       - name: Consolidate CSS rules
         run: node scripts/consolidate-css-rules.js
 
+      - name: Fix CSS consolidation tests
+        run: node scripts/fix-css-consolidation-tests.js
+
       - name: Build published web files
         run: npm run web:publish
 
@@ -57,7 +60,7 @@ jobs:
 
       - name: Commit verified consolidation
         run: |
-          rm -f scripts/consolidate-css-rules.js scripts/fix-css-consolidator.js css-duplicate-report.md css-consolidation-ci.log
+          rm -f scripts/consolidate-css-rules.js scripts/fix-css-consolidator.js scripts/fix-css-consolidation-tests.js css-duplicate-report.md css-consolidation-ci.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
