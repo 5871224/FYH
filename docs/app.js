@@ -3472,7 +3472,11 @@
 })();
 ;
 
-/* ===== renderer.js ===== */
+/* ===== renderer-foundation.js ===== */
+/* 排班主程式共用常數與初始狀態工廠
+ * 由 renderer.js 第一階段拆分；維持既有全域 bundle 執行方式。
+ */
+
 const COLORS = [
   { hex: "#378ADD", label: "藍色" },
   { hex: "#185FA5", label: "深藍" },
@@ -3609,74 +3613,6 @@ const REST_WEEKDAY_OPTIONS = [
 
 const SCHEDULE_HISTORY_LIMIT = 20;
 
-let state = createEmptyState();
-let modalColor = COLORS[0].hex;
-let modalTextColor = "#ffffff";
-let modalTextColorAuto = true;
-let modalContext = {};
-let saveTimer = null;
-let isSaving = false;
-let latestSaveStatus = "";
-let appInfo = null;
-let dragMemberId = "";
-let dragScheduleShiftId = "";
-let leaveTooltipTimer = null;
-let coreActionsOpen = false;
-let appView = "home";
-const APP_BACK_HISTORY_STATE = { schedulerBackGuard: true };
-let departmentSettingsView = "department";
-let currentSession = null;
-let currentProfile = null;
-let currentMember = null;
-let managerDirectoryLoaded = false;
-let managerDirectoryLoading = null;
-let attendanceState = {
-  loading: false,
-  saving: false,
-  record: null,
-  serverDate: "",
-  error: ""
-};
-let attendanceOvertimeState = {
-  loading: false,
-  expanded: false,
-  status: null,
-  error: ""
-};
-let mealOrderState = {
-  loading: false,
-  status: null,
-  error: ""
-};
-let mealOrderLoadSequence = 0;
-let mealPageTab = "order";
-let recordsState = createRecordsState();
-let memberSettingsFilters = {
-  name: "",
-  department: "all",
-  role: "all",
-  employment: "active",
-  salaryType: "all"
-};
-let authErrorMessage = "";
-let authPromptMessage = "";
-let authModalOpen = false;
-let eventsBound = false;
-let dragSortItemId = "";
-let dragSortCategory = "";
-let dragPreviewElement = null;
-let dragScheduleTableDeptId = "";
-let dragScheduleTableMemberId = "";
-let dragMealProductIndex = "";
-let toolbarCollapsed = false;
-let toolbarCollapseInitialized = false;
-let measureTextContext = null;
-let scheduleRangeSelection = null;
-let scheduleDragSelecting = false;
-let scheduleHeaderDragSelection = null;
-let scheduleSuppressNextCellClick = false;
-let scheduleClipboard = null;
-
 function createRecordsState() {
   const today = getTodayDateString();
   return {
@@ -3691,9 +3627,12 @@ function createRecordsState() {
     error: ""
   };
 }
-let scheduleUndoStack = [];
-let scheduleRedoStack = [];
-let autoSchedulePreview = null;
+;
+
+/* ===== renderer-settings-navigation.js ===== */
+/* 設定彈窗捲動位置與返回狀態
+ * 由 renderer.js 第一階段拆分；維持既有全域 bundle 執行方式。
+ */
 
 function getSettingsScrollElement(selector = "") {
   if (selector) {
@@ -3749,6 +3688,12 @@ function restoreSettingsScroll(context) {
     });
   });
 }
+;
+
+/* ===== renderer-schedule-layout.js ===== */
+/* 班表固定表頭與欄寬版面計算
+ * 由 renderer.js 第一階段拆分；維持既有全域 bundle 執行方式。
+ */
 
 function renderStickyTableHeader(dates) {
   const container = document.getElementById("tableStickyHeaderDays");
@@ -4003,6 +3948,12 @@ function syncScheduleColumnWidths() {
   root.style.setProperty("--stats-col-width", `${statsWidth}px`);
   root.style.setProperty("--day-col-width", `${dayWidth}px`);
 }
+;
+
+/* ===== renderer-date-utils.js ===== */
+/* 班表日期、週期、時間與區間工具
+ * 由 renderer.js 第一階段拆分；維持既有全域 bundle 執行方式。
+ */
 
 function scheduleKey(memberId, year, month, day) {
   return `${memberId}_${year}_${month}_${day}`;
@@ -4294,6 +4245,80 @@ function isValidDateTimeRange(startDate, startTime, endDate, endTime) {
   }
   return `${startDate}T${normalizedStartTime}` < `${endDate}T${normalizedEndTime}`;
 }
+;
+
+/* ===== renderer.js ===== */
+let state = createEmptyState();
+let modalColor = COLORS[0].hex;
+let modalTextColor = "#ffffff";
+let modalTextColorAuto = true;
+let modalContext = {};
+let saveTimer = null;
+let isSaving = false;
+let latestSaveStatus = "";
+let appInfo = null;
+let dragMemberId = "";
+let dragScheduleShiftId = "";
+let leaveTooltipTimer = null;
+let coreActionsOpen = false;
+let appView = "home";
+const APP_BACK_HISTORY_STATE = { schedulerBackGuard: true };
+let departmentSettingsView = "department";
+let currentSession = null;
+let currentProfile = null;
+let currentMember = null;
+let managerDirectoryLoaded = false;
+let managerDirectoryLoading = null;
+let attendanceState = {
+  loading: false,
+  saving: false,
+  record: null,
+  serverDate: "",
+  error: ""
+};
+let attendanceOvertimeState = {
+  loading: false,
+  expanded: false,
+  status: null,
+  error: ""
+};
+let mealOrderState = {
+  loading: false,
+  status: null,
+  error: ""
+};
+let mealOrderLoadSequence = 0;
+let mealPageTab = "order";
+let recordsState = createRecordsState();
+let memberSettingsFilters = {
+  name: "",
+  department: "all",
+  role: "all",
+  employment: "active",
+  salaryType: "all"
+};
+let authErrorMessage = "";
+let authPromptMessage = "";
+let authModalOpen = false;
+let eventsBound = false;
+let dragSortItemId = "";
+let dragSortCategory = "";
+let dragPreviewElement = null;
+let dragScheduleTableDeptId = "";
+let dragScheduleTableMemberId = "";
+let dragMealProductIndex = "";
+let toolbarCollapsed = false;
+let toolbarCollapseInitialized = false;
+let measureTextContext = null;
+let scheduleRangeSelection = null;
+let scheduleDragSelecting = false;
+let scheduleHeaderDragSelection = null;
+let scheduleSuppressNextCellClick = false;
+let scheduleClipboard = null;
+
+let scheduleUndoStack = [];
+let scheduleRedoStack = [];
+let autoSchedulePreview = null;
 
 function reportValidationError(message) {
   setSaveStatus(message);
@@ -10354,7 +10379,6 @@ async function changeScheduleWindowWeeks(weeks) {
   renderAll();
   await forceSave();
 }
-
 
 async function exportSapCsv() {
   if (!hasSapLeaveRows()) {
