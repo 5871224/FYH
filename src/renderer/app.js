@@ -4247,78 +4247,10 @@ function isValidDateTimeRange(startDate, startTime, endDate, endTime) {
 }
 ;
 
-/* ===== renderer.js ===== */
-let state = createEmptyState();
-let modalColor = COLORS[0].hex;
-let modalTextColor = "#ffffff";
-let modalTextColorAuto = true;
-let modalContext = {};
-let saveTimer = null;
-let isSaving = false;
-let latestSaveStatus = "";
-let appInfo = null;
-let dragMemberId = "";
-let dragScheduleShiftId = "";
-let leaveTooltipTimer = null;
-let coreActionsOpen = false;
-let appView = "home";
-const APP_BACK_HISTORY_STATE = { schedulerBackGuard: true };
-let departmentSettingsView = "department";
-let currentSession = null;
-let currentProfile = null;
-let currentMember = null;
-let managerDirectoryLoaded = false;
-let managerDirectoryLoading = null;
-let attendanceState = {
-  loading: false,
-  saving: false,
-  record: null,
-  serverDate: "",
-  error: ""
-};
-let attendanceOvertimeState = {
-  loading: false,
-  expanded: false,
-  status: null,
-  error: ""
-};
-let mealOrderState = {
-  loading: false,
-  status: null,
-  error: ""
-};
-let mealOrderLoadSequence = 0;
-let mealPageTab = "order";
-let recordsState = createRecordsState();
-let memberSettingsFilters = {
-  name: "",
-  department: "all",
-  role: "all",
-  employment: "active",
-  salaryType: "all"
-};
-let authErrorMessage = "";
-let authPromptMessage = "";
-let authModalOpen = false;
-let eventsBound = false;
-let dragSortItemId = "";
-let dragSortCategory = "";
-let dragPreviewElement = null;
-let dragScheduleTableDeptId = "";
-let dragScheduleTableMemberId = "";
-let dragMealProductIndex = "";
-let toolbarCollapsed = false;
-let toolbarCollapseInitialized = false;
-let measureTextContext = null;
-let scheduleRangeSelection = null;
-let scheduleDragSelecting = false;
-let scheduleHeaderDragSelection = null;
-let scheduleSuppressNextCellClick = false;
-let scheduleClipboard = null;
-
-let scheduleUndoStack = [];
-let scheduleRedoStack = [];
-let autoSchedulePreview = null;
+/* ===== renderer-ui-helpers.js ===== */
+/* 共用訊息、操作確認與時間輸入元件工具
+ * 由 renderer.js 第二階段拆分；維持既有全域 bundle 執行方式。
+ */
 
 function reportValidationError(message) {
   setSaveStatus(message);
@@ -4431,6 +4363,12 @@ function setTimeInputDisabled(id, disabled) {
     minuteInput.disabled = disabled;
   }
 }
+;
+
+/* ===== renderer-visibility.js ===== */
+/* 人員與單位任職、營運及班表顯示區間判定
+ * 由 renderer.js 第二階段拆分；維持既有全域 bundle 執行方式。
+ */
 
 function isMemberActiveOnDate(member, year, month, day) {
   const date = toDateString(year, month, day);
@@ -4503,6 +4441,12 @@ function isMemberActiveInVisibleRange(member) {
   const { startDate, endDate } = getVisibleDateRange();
   return doesDateRangeOverlapRange(member?.hireDate || "", member?.leaveDate || "", startDate, endDate);
 }
+;
+
+/* ===== renderer-state-normalization.js ===== */
+/* 排班狀態清理、目錄正規化與顏色工具
+ * 由 renderer.js 第二階段拆分；維持既有全域 bundle 執行方式。
+ */
 
 function textColor(hex) {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -4775,6 +4719,80 @@ function normalizeState(payload) {
 
   return merged;
 }
+;
+
+/* ===== renderer.js ===== */
+let state = createEmptyState();
+let modalColor = COLORS[0].hex;
+let modalTextColor = "#ffffff";
+let modalTextColorAuto = true;
+let modalContext = {};
+let saveTimer = null;
+let isSaving = false;
+let latestSaveStatus = "";
+let appInfo = null;
+let dragMemberId = "";
+let dragScheduleShiftId = "";
+let leaveTooltipTimer = null;
+let coreActionsOpen = false;
+let appView = "home";
+const APP_BACK_HISTORY_STATE = { schedulerBackGuard: true };
+let departmentSettingsView = "department";
+let currentSession = null;
+let currentProfile = null;
+let currentMember = null;
+let managerDirectoryLoaded = false;
+let managerDirectoryLoading = null;
+let attendanceState = {
+  loading: false,
+  saving: false,
+  record: null,
+  serverDate: "",
+  error: ""
+};
+let attendanceOvertimeState = {
+  loading: false,
+  expanded: false,
+  status: null,
+  error: ""
+};
+let mealOrderState = {
+  loading: false,
+  status: null,
+  error: ""
+};
+let mealOrderLoadSequence = 0;
+let mealPageTab = "order";
+let recordsState = createRecordsState();
+let memberSettingsFilters = {
+  name: "",
+  department: "all",
+  role: "all",
+  employment: "active",
+  salaryType: "all"
+};
+let authErrorMessage = "";
+let authPromptMessage = "";
+let authModalOpen = false;
+let eventsBound = false;
+let dragSortItemId = "";
+let dragSortCategory = "";
+let dragPreviewElement = null;
+let dragScheduleTableDeptId = "";
+let dragScheduleTableMemberId = "";
+let dragMealProductIndex = "";
+let toolbarCollapsed = false;
+let toolbarCollapseInitialized = false;
+let measureTextContext = null;
+let scheduleRangeSelection = null;
+let scheduleDragSelecting = false;
+let scheduleHeaderDragSelection = null;
+let scheduleSuppressNextCellClick = false;
+let scheduleClipboard = null;
+
+let scheduleUndoStack = [];
+let scheduleRedoStack = [];
+let autoSchedulePreview = null;
 
 function setSaveStatus(message, saving = false) {
   latestSaveStatus = message;

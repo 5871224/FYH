@@ -180,7 +180,8 @@ assert(sourceApi.includes("isAndroidTablet"), "Android 平板 Session 判斷缺�
 assert(sourceApi.includes("isIPad"), "iPad Session 判斷缺失");
 assert(sourceApi.includes("30 * 60 * 1000"), "平板未使用電腦版 30 分鐘閒置期限");
 
-const sourceRenderer = read("src/renderer/renderer.js");
+const { readRendererCore } = require("./renderer-core-source.js");
+const sourceRenderer = readRendererCore(root);
 const sourceWebApi = read("src/renderer/web-api.js");
 assert(sourceWebApi.includes("get_my_profile_v2") && sourceWebApi.includes("get_schedule_directory_v2") && sourceWebApi.includes("get_employee_admin_directory_v2") && sourceWebApi.includes("get_department_directory_v2"), "前端尚未依用途使用安全名錄 RPC");
 assert(!sourceWebApi.includes("get_employee_directory_v2"), "前端仍使用混合用途舊人員名錄 RPC");
