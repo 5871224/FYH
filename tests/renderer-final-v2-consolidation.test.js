@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+// 前端正式化後不得重新加入任何 v2 後載入補丁或同名函式覆蓋。
 
 test("renderer 不再含任何 v2 JavaScript 補丁", () => {
   const files = fs.readdirSync(path.join(root, "src/renderer")).filter((file) => /^v2-.*\.js$/.test(file));
