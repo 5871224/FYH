@@ -66,7 +66,7 @@ updateFile("tests/renderer-records-admin-consolidation.test.js", (source) => {
 });
 
 updateFile("tests/renderer-final-v2-consolidation.test.js", (source) => {
-  const oldLine = '  assert.match(api, /row.amount - mealDays \\* companySubsidy/);';
+  const oldLine = '  assert.match(api, /row.amount - mealDays * companySubsidy/);';
   const newLine = '  assert.equal(api.includes("row.amount - mealDays * companySubsidy"), true);';
   if (!source.includes(oldLine)) throw new Error("找不到訂餐補助公式測試");
   return source.replace(oldLine, newLine);
