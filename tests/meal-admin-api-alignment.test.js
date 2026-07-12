@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
+// 防止前端訂餐管理 action 再次與已部署的 meal-order Edge Function 分岔。
 const root = path.resolve(__dirname, "..");
 
 test("訂餐管理前端 action 必須與 meal-order 後端一致", () => {
