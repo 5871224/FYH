@@ -25,9 +25,26 @@ const newExtractor = `function extractFunction(source, name) {
   if (start < 0) throw new Error(\`找不到測試函式：\${name}\`);
   const braceStart = source.indexOf("{", start);
   let depth = 0;
+  let mode = "code";
+  let escaped = false;
   for (let index = braceStart; index < source.length; index += 1) {
-    if (source[index] === "{") depth += 1;
-    if (source[index] === "}" && --depth === 0) return source.slice(start, index + 1);
+    const char = source[index];
+    const next = source[index + 1];
+    if (mode === "line") { if (char === "\\n") mode = "code"; continue; }
+    if (mode === "block") { if (char === "*" && next === "/") { mode = "code"; index += 1; } continue; }
+    if (["single", "double", "template"].includes(mode)) {
+      if (escaped) { escaped = false; continue; }
+      if (char === "\\\\") { escaped = true; continue; }
+      if ((mode === "single" && char === "'") || (mode === "double" && char === '"') || (mode === "template" && char === "\`")) mode = "code";
+      continue;
+    }
+    if (char === "/" && next === "/") { mode = "line"; index += 1; continue; }
+    if (char === "/" && next === "*") { mode = "block"; index += 1; continue; }
+    if (char === "'") { mode = "single"; continue; }
+    if (char === '"') { mode = "double"; continue; }
+    if (char === "\`") { mode = "template"; continue; }
+    if (char === "{") depth += 1;
+    if (char === "}" && --depth === 0) return source.slice(start, index + 1);
   }
   throw new Error(\`測試函式未完整結束：\${name}\`);
 }`;
