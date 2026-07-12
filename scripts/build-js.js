@@ -36,6 +36,7 @@ const modules = [
   "renderer-settings-department.js",
   "renderer-settings-ordering.js",
   "renderer-settings-member.js",
+  "renderer-overtime-employee.js",
   "renderer.js",
   "v2-auto-fill-schedule.js",
   "v2-cross-department-member-drag.js",
@@ -51,8 +52,6 @@ const modules = [
   "v2-overtime-admin.js",
   "v2-attendance-admin.js",
   "v2-live-report-filters.js",
-  "v2-overtime-employee.js",
-  "v2-clock-page-refinement.js",
   "v2-account.js",
   "v2-schedule-history-controls.js"
 ];
