@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-// 固定補丁整併前已生效的安全刪除與新增人員上一工號行為。
+// 固定安全目錄刪除與新增人員上一工號行為。
 const root = path.resolve(__dirname, "..");
 const catalogPath = path.join(root, "src", "renderer", "renderer-settings-catalog.js");
 
@@ -48,13 +48,15 @@ test("後端刪除失敗時不應先移除前端資料", async () => {
   assert.deepEqual(Array.from(context.state.leaves, (item) => item.id), ["L1"]);
   assert.equal(calls.some((value) => String(value).includes("已有歷史資料")), true);
   assert.equal(calls.includes("remove:leave:L1"), false);
+  assert.equal(calls.includes("close"), false);
 });
 
 test("安全目錄 API 與人員同步應由正式 web-api 提供", () => {
   const webApi = fs.readFileSync(path.join(root, "src", "renderer", "web-api.js"), "utf8");
   const build = fs.readFileSync(path.join(root, "scripts", "build-js.js"), "utf8");
-  assert.equal(webApi.includes('async function deleteCatalogItem(category, id)'), true);
+  assert.equal(webApi.includes('async function deleteCatalogItem(category, itemId)'), true);
   assert.equal(webApi.includes('requestFunction("catalog-admin"'), true);
+  assert.equal(webApi.includes('itemId: String(itemId || "")'), true);
   assert.equal(webApi.includes("    deleteCatalogItem,"), true);
   assert.equal(webApi.includes('previousEmployeeCode: String(previousEmployeeCode || "").trim()'), true);
   assert.equal(webApi.includes('previousEmployeeCode: String(previousEmployeeCode || member?.code'), false);
