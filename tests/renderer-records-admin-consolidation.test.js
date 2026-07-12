@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+// 記錄、管理與期間匯出行為必須全部由正式模組提供，不得重新加入後載入覆蓋。
 const formalFiles = [
   "src/renderer/renderer-records-page.js",
   "src/renderer/renderer-records-views.js",
