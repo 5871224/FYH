@@ -2,7 +2,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
-const webApiPath = path.join(root, "src", "renderer", "web-api.js");
+const runtimePaths = [
+  path.join(root, "src", "renderer", "web-api.js"),
+  path.join(root, "src", "renderer", "app.js"),
+  path.join(root, "docs", "app.js")
+];
 const regressionTestPath = path.join(root, "tests", "renderer-phase7-small-api-overrides.test.js");
 const finalCheckPath = path.join(root, "scripts", "check-v2-final.js");
 
@@ -13,10 +17,12 @@ function replaceRequired(source, oldValue, newValue, label) {
   return source.replaceAll(oldValue, newValue);
 }
 
-let webApi = fs.readFileSync(webApiPath, "utf8");
-webApi = replaceRequired(webApi, 'action: "admin_get"', 'action: "admin_settings"', "訂餐設定讀取 action");
-webApi = replaceRequired(webApi, 'action: "admin_save"', 'action: "save_admin_settings"', "訂餐設定儲存 action");
-fs.writeFileSync(webApiPath, webApi);
+for (const runtimePath of runtimePaths) {
+  let source = fs.readFileSync(runtimePath, "utf8");
+  source = replaceRequired(source, 'action: "admin_get"', 'action: "admin_settings"', `${path.relative(root, runtimePath)} 訂餐設定讀取 action`);
+  source = replaceRequired(source, 'action: "admin_save"', 'action: "save_admin_settings"', `${path.relative(root, runtimePath)} 訂餐設定儲存 action`);
+  fs.writeFileSync(runtimePath, source);
+}
 
 let regressionTest = fs.readFileSync(regressionTestPath, "utf8");
 regressionTest = replaceRequired(regressionTest, '["meal-order", { action: "admin_get" }]', '["meal-order", { action: "admin_settings" }]', "讀取 API 測試");
@@ -41,17 +47,24 @@ const root = path.resolve(__dirname, "..");
 
 test("訂餐管理前端 action 必須與 meal-order 後端一致", () => {
   const webApi = fs.readFileSync(path.join(root, "src", "renderer", "web-api.js"), "utf8");
+  const sourceApp = fs.readFileSync(path.join(root, "src", "renderer", "app.js"), "utf8");
+  const publishedApp = fs.readFileSync(path.join(root, "docs", "app.js"), "utf8");
   const mealOrder = fs.readFileSync(path.join(root, "supabase", "functions", "meal-order", "index.ts"), "utf8");
 
   const requiredActions = ["admin_settings", "save_admin_settings", "delete_admin_product"];
   requiredActions.forEach((action) => {
-    assert.equal(webApi.includes(\`action: "\${action}"\`), true, \`前端缺少 action：\${action}\`);
+    assert.equal(webApi.includes(\`action: "\${action}"\`), true, \`來源前端缺少 action：\${action}\`);
+    assert.equal(sourceApp.includes(\`action: "\${action}"\`), true, \`執行 bundle 缺少 action：\${action}\`);
+    assert.equal(publishedApp.includes(\`action: "\${action}"\`), true, \`發布 bundle 缺少 action：\${action}\`);
     assert.equal(mealOrder.includes(\`body?.action === "\${action}"\`), true, \`後端缺少 action：\${action}\`);
   });
 
-  assert.equal(webApi.includes('action: "admin_get"'), false);
-  assert.equal(webApi.includes('action: "admin_save"'), false);
+  [webApi, sourceApp, publishedApp].forEach((source) => {
+    assert.equal(source.includes('action: "admin_get"'), false);
+    assert.equal(source.includes('action: "admin_save"'), false);
+  });
+  assert.equal(sourceApp, publishedApp);
 });
 `);
 
-console.log("訂餐管理 API action 已與後端對齊");
+console.log("訂餐管理 API action 已與後端對齊，來源與發布 bundle 已同步");
