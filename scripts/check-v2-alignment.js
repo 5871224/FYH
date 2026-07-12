@@ -21,7 +21,7 @@ const requiredFiles = [
   "supabase/functions/personal-records-v2/index.ts",
   "supabase/functions/meal-report-v2/index.ts",
   "supabase/functions/meal-cancel-v2/index.ts",
-  "src/renderer/v2-api.js",
+  "src/renderer/v2-tablet-session.js",
   "src/renderer/renderer-overtime-employee.js",
   "src/renderer/v2-overtime-admin.js",
   "src/renderer/v2-meal.js",
@@ -67,7 +67,7 @@ const mealOrder = read("supabase/functions/meal-order/index.ts");
 assert(mealOrder.includes('rpc("save_meal_order_v2"'), "Meal order does not preserve the first department snapshot");
 assert(mealOrder.includes("停用品項只能減少或取消"), "Disabled meal-item increase protection is missing");
 
-const sourceApi = read("src/renderer/v2-api.js");
+const sourceApi = read("src/renderer/v2-tablet-session.js");
 const sourceWebApi = read("src/renderer/web-api.js");
 assert(!sourceApi.includes("safeDepartmentColumns") && !sourceApi.includes("runManagerSafeWrite") && !sourceApi.includes("managerSafeFetch"), "Front-end still uses fetch interception as a permission boundary");
 assert(sourceWebApi.includes("get_my_profile_v2") && sourceWebApi.includes("get_schedule_directory_v2") && sourceWebApi.includes("get_employee_admin_directory_v2"), "Purpose-specific employee RPCs are missing from the web API");
