@@ -28,6 +28,7 @@ const RENDERER_CORE_FILES = [
   "renderer-auth-context.js",
   "renderer-schedule-tooltip.js",
   "renderer-main-pages.js",
+  "renderer-records-views.js",
   "renderer-modal-navigation.js",
   "renderer-schedule-ordering.js",
   "renderer-schedule-keyboard.js",
