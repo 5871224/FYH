@@ -21,8 +21,13 @@ jobs:
           node-version: "22"
       - name: Inventory renderer functions
         run: node scripts/inventory-renderer-functions.js
-      - name: Upload inventory
+      - name: Upload inventory and source
         uses: actions/upload-artifact@v5
         with:
-          name: renderer-function-inventory
-          path: renderer-function-inventory.json
+          name: renderer-final-analysis
+          path: |
+            renderer-function-inventory.json
+            src/renderer/renderer.js
+            scripts/build-js.js
+            scripts/renderer-core-source.js
+            package.json
