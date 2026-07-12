@@ -1968,22 +1968,9 @@
 
   async function getTodayAttendance() {
     ensureSignedIn();
-    const serverDate = taipeiDateString();
-    const rows = await restSelect("attendance_records", {
-      select: "*",
-      filters: {
-        user_id: `eq.${currentSession.user.id}`,
-        work_date: `eq.${serverDate}`
-      },
-      limit: "1",
-      auth: true
+    return requestFunction("attendance-clock", {
+      action: "today"
     });
-    return {
-      ok: true,
-      profile: currentProfile,
-      record: rows?.[0] || null,
-      serverDate
-    };
   }
 
   async function clockAttendance(action, position = {}) {
@@ -2103,16 +2090,25 @@
   async function getMealAdminSettings() {
     ensureSignedIn();
     return requestFunction("meal-order", {
-      action: "admin_settings"
+      action: "admin_get"
     });
   }
 
   async function saveMealAdminSettings(payload = {}) {
     ensureSignedIn();
     return requestFunction("meal-order", {
-      action: "save_admin_settings",
+      action: "admin_save",
       products: Array.isArray(payload.products) ? payload.products : [],
-      dailyCutoffTime: payload.dailyCutoffTime || "10:30"
+      dailyCutoffTime: payload.dailyCutoffTime || "10:30",
+      companySubsidy: Number(payload.companySubsidy)
+    });
+  }
+
+  async function deleteMealProduct(productId) {
+    ensureSignedIn();
+    return requestFunction("meal-order", {
+      action: "delete_admin_product",
+      productId: String(productId || "")
     });
   }
 
@@ -3169,6 +3165,7 @@
     createAdminOvertimeRequest,
     getMealAdminSettings,
     saveMealAdminSettings,
+    deleteMealProduct,
     getMealReport,
     deleteMemberProfile,
     loadState,
@@ -3408,77 +3405,6 @@
   api.createAdminOvertimeRequest = (payload = {}) => callFunction("attendance-overtime-admin-action", { action: "create", ...payload });
   api.getMemberOrder = () => callFunction("member-order-v2", { action: "list" });
   api.saveMemberOrder = (memberIds = []) => callFunction("member-order-v2", { action: "save", memberIds });
-})();
-;
-
-/* ===== v2-attendance-status.js ===== */
-(function installV2AttendanceStatusApi() {
-  const api = window.schedulerApi;
-  const config = window.SCHEDULER_CONFIG || {};
-  const baseUrl = String(config.supabaseUrl || "").replace(/\/+$/, "");
-  const anonKey = String(config.supabaseAnonKey || "");
-  if (!api || !baseUrl || !anonKey) return;
-
-  api.getTodayAttendance = async function getTodayAttendanceV2() {
-    const session = api.getAuthContext?.().session;
-    if (!session?.access_token) throw new Error("請先登入");
-
-    const response = await fetch(`${baseUrl}/functions/v1/attendance-clock`, {
-      method: "POST",
-      headers: {
-        apikey: anonKey,
-        Authorization: `Bearer ${session.access_token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json"
-      },
-      body: JSON.stringify({ action: "today" })
-    });
-
-    const text = await response.text();
-    let result = {};
-    try { result = text ? JSON.parse(text) : {}; } catch { result = { message: text }; }
-    if (!response.ok) throw new Error(result.message || `HTTP ${response.status}`);
-    return result;
-  };
-})();
-;
-
-/* ===== v2-meal-api.js ===== */
-(function installV2MealApi() {
-  const api = window.schedulerApi;
-  const config = window.SCHEDULER_CONFIG || {};
-  const baseUrl = String(config.supabaseUrl || "").replace(/\/+$/, "");
-  const anonKey = String(config.supabaseAnonKey || "");
-  if (!api || !baseUrl || !anonKey) return;
-
-  async function callMealOrder(payload = {}) {
-    const session = api.getAuthContext?.().session;
-    if (!session?.access_token) throw new Error("請先登入");
-    const response = await fetch(`${baseUrl}/functions/v1/meal-order`, {
-      method: "POST",
-      headers: {
-        apikey: anonKey,
-        Authorization: `Bearer ${session.access_token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.message || "訂餐設定操作失敗");
-    return result;
-  }
-
-  api.getMealAdminSettings = () => callMealOrder({ action: "admin_settings" });
-  api.saveMealAdminSettings = (payload = {}) => callMealOrder({
-    action: "save_admin_settings",
-    products: Array.isArray(payload.products) ? payload.products : [],
-    dailyCutoffTime: payload.dailyCutoffTime || "10:30",
-    companySubsidy: payload.companySubsidy
-  });
-  api.deleteMealProduct = (productId) => callMealOrder({
-    action: "delete_admin_product",
-    productId
-  });
 })();
 ;
 
