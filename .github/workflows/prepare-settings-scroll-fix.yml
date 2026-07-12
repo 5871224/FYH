@@ -1,0 +1,45 @@
+name: Prepare Settings Scroll Fix
+
+on:
+  push:
+    branches:
+      - agent/preserve-settings-scroll
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: agent/preserve-settings-scroll
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Apply scroll preservation fix
+        run: node scripts/apply-settings-scroll-fix.js
+
+      - name: Build published web files
+        run: npm run web:publish
+
+      - name: Run complete checks
+        run: npm run ci:check
+
+      - name: Commit prepared changes
+        run: |
+          rm -f scripts/apply-settings-scroll-fix.js
+          rm -f .github/workflows/prepare-settings-scroll-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "修正設定頁重新整理後的捲動位置"
+          git push origin HEAD:agent/preserve-settings-scroll
