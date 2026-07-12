@@ -8,14 +8,9 @@ function updateFile(file, transform) {
 }
 
 updateFile("tests/member-order-and-department-width.test.js", (source) => {
-  const oldBlock = `test("人員設定應由第一欄拖曳把手啟動排序", () => {
-  const source = read("src/renderer/v2-settings-drag-handles.js");
-  assert.equal(source.includes(".member-settings-modal .member-table-head"), true);
-  assert.equal(source.includes('data-sort-category="member"'), true);
-  assert.equal(source.includes(".member-settings-modal [data-sort-item]"), true);
-  assert.equal(source.includes("row.removeAttribute(\"draggable\")"), true);
-  assert.equal(source.includes("settings-order-drag-handle"), true);
-});`;
+  const start = source.indexOf('test("人員設定應由第一欄拖曳把手啟動排序"');
+  const end = source.indexOf('\ntest("拖曳人員只調整人員順序並重新開啟人員設定"', start);
+  if (start < 0 || end <= start) throw new Error("找不到舊人員拖曳把手測試");
   const newBlock = `test("人員設定應直接由正式模組輸出第一欄拖曳把手", () => {
   const ordering = read("src/renderer/renderer-settings-ordering.js");
   const member = read("src/renderer/renderer-settings-member.js");
@@ -27,9 +22,9 @@ updateFile("tests/member-order-and-department-width.test.js", (source) => {
   assert.match(member, /data-sort-category="member"/);
   assert.doesNotMatch(member, /sortable-settings-item" draggable="true"/);
   assert.match(dragEvents, /!event\.target\.closest\("\.settings-order-drag-handle"\)/);
-});`;
-  if (!source.includes(oldBlock)) throw new Error("找不到舊人員拖曳把手測試");
-  return source.replace(oldBlock, newBlock);
+});
+`;
+  return `${source.slice(0, start)}${newBlock}${source.slice(end + 1)}`;
 });
 
 updateFile("tests/renderer-phase7-department-patch.test.js", (source) => {
