@@ -13,7 +13,6 @@ const modules = [
   "browser-exporter.js",
   "rest-compliance.js",
   "web-api.js",
-  "v2-tablet-session.js",
   "renderer-foundation.js",
   "renderer-settings-navigation.js",
   "renderer-schedule-layout.js",
