@@ -1,0 +1,34 @@
+name: Audit JavaScript Duplicates
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    if: github.head_ref == 'agent/js-deduplication'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          ref: agent/js-deduplication
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Audit JavaScript duplication
+        run: node scripts/audit-js-duplicates.js
+
+      - name: Upload JavaScript audit
+        uses: actions/upload-artifact@v5
+        with:
+          name: js-duplicate-report
+          path: js-duplicate-report.md
