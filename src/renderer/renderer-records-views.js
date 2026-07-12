@@ -51,6 +51,38 @@ function renderAttendanceAdminSection() {
 }
 
 function renderMealSettingsSection() {
-  const mealAdmin = recordsState.mealAdmin;
-  return `<section class="records-section"><h2>訂餐設定</h2><div class="records-filter-row"><label>訂餐截止時間 <input type="time" value="${escapeHtml(String(mealAdmin.settings?.daily_cutoff_time || "10:30").slice(0, 5))}" data-meal-cutoff-time></label><button class="ghost-btn compact-btn" type="button" data-add-meal-product="true">新增商品</button><button class="primary-btn compact-btn" type="button" data-save-meal-settings="true">儲存</button></div>${mealAdmin.error ? `<div class="auth-error">${escapeHtml(mealAdmin.error)}</div>` : ""}<div class="meal-settings-table-wrap"><table class="meal-settings-table"><thead><tr><th class="meal-settings-drag-col"></th><th>品項</th><th class="meal-settings-price-col">價格</th><th class="meal-settings-active-col">啟用</th></tr></thead><tbody>${mealAdmin.products.map((product, index) => `<tr draggable="true" data-meal-product-row="${index}"><td class="meal-settings-drag-col"><span class="meal-drag-handle" title="拖曳排序">≡</span></td><td><input type="text" value="${escapeHtml(product.name || "")}" data-meal-product-field="name"></td><td><input type="number" min="0" step="1" value="${escapeHtml(String(product.price || 0))}" data-meal-product-field="price"></td><td><input type="checkbox" ${product.is_active !== false ? "checked" : ""} data-meal-product-field="isActive"><input type="hidden" value="${escapeHtml(product.id || "")}" data-meal-product-field="id"></td></tr>`).join("") || '<tr><td colspan="4">尚無商品</td></tr>'}</tbody></table></div></section>`;
-}
+    const mealAdmin = recordsState.mealAdmin;
+    const subsidy = Number(mealAdmin.settings?.company_subsidy || 55);
+    return `<section class="records-section">
+      <h2>訂餐設定</h2>
+      <div class="meal-admin-toolbar meal-settings-toolbar">
+        <div class="meal-toolbar-fields meal-settings-fields">
+          <label class="meal-toolbar-field meal-settings-toolbar-label">
+            <span>截止時間</span>
+            <input type="time" value="${escapeHtml(String(mealAdmin.settings?.daily_cutoff_time || "10:30").slice(0, 5))}" data-meal-cutoff-time>
+          </label>
+          <label class="meal-toolbar-field meal-settings-toolbar-label">
+            <span>公司補助（元）</span>
+            <input type="number" min="1" step="1" inputmode="numeric" pattern="[1-9][0-9]*" value="${escapeHtml(String(subsidy))}" data-meal-company-subsidy data-last-valid-company-subsidy="${escapeHtml(String(subsidy))}">
+          </label>
+        </div>
+        <div class="meal-toolbar-actions">
+          <button class="ghost-btn" type="button" data-add-meal-product="true">新增商品</button>
+          <button class="primary-btn" type="button" data-save-meal-settings="true">儲存設定</button>
+        </div>
+      </div>
+      ${mealAdmin.error ? `<div class="auth-error">${escapeHtml(mealAdmin.error)}</div>` : ""}
+      <div class="meal-settings-table-wrap">
+        <table class="meal-settings-table">
+          <thead><tr><th class="meal-settings-drag-col"></th><th class="meal-settings-name-col">品項</th><th class="meal-settings-price-col">價格</th><th class="meal-settings-active-col">啟用</th><th class="meal-settings-operation-col">操作</th></tr></thead>
+          <tbody>${mealAdmin.products.map((product, index) => `<tr data-meal-product-row="${index}">
+            <td class="meal-settings-drag-col"><span class="meal-drag-handle" draggable="true" title="拖曳排序" aria-label="拖曳排序">≡</span></td>
+            <td class="meal-settings-name-col"><input type="text" value="${escapeHtml(product.name || "")}" data-meal-product-field="name"></td>
+            <td class="meal-settings-price-col"><input type="number" min="0" step="1" value="${escapeHtml(String(product.price || 0))}" data-meal-product-field="price"></td>
+            <td class="meal-settings-active-col"><input type="checkbox" ${product.is_active !== false ? "checked" : ""} data-meal-product-field="isActive"><input type="hidden" value="${escapeHtml(product.id || "")}" data-meal-product-field="id"></td>
+            <td class="meal-settings-operation-col"><button class="ghost-btn compact-btn" type="button" data-delete-meal-product="${escapeHtml(String(index))}">刪除</button></td>
+          </tr>`).join("") || '<tr><td colspan="5">尚無商品</td></tr>'}</tbody>
+        </table>
+      </div>
+    </section>`;
+  }

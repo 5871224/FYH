@@ -23,13 +23,13 @@ const requiredFiles = [
   "supabase/functions/meal-cancel-v2/index.ts",
   "src/renderer/renderer-overtime-employee.js",
   "src/renderer/v2-overtime-admin.js",
-  "src/renderer/v2-meal.js",
   "src/renderer/v2-account.js",
   "src/renderer/v2-attendance-admin.js",
   "src/renderer/v2-records.js"
 ];
 
 requiredFiles.forEach((file) => assert(exists(file), `Missing V2 file: ${file}`));
+assert(!exists("src/renderer/v2-meal.js"), "Meal UI still depends on a late-loaded patch module");
 
 const reportRecords = read("supabase/functions/report-records/index.ts");
 assert(!reportRecords.includes("full_name, department_id"), "report-records still queries retired set_employee.department_id");

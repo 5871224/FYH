@@ -162,6 +162,10 @@ function bindDelegatedClickEvents() {
       renderAll();
       return;
     }
+    if (target.dataset.deleteMealProduct !== undefined) {
+      await deleteMealProduct(target);
+      return;
+    }
     if (target.dataset.saveMealSettings) {
       await saveMealSettingsFromPage();
       return;

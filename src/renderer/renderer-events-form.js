@@ -13,9 +13,27 @@ function bindDelegatedFormEvents() {
       refreshMemberSettingsList();
       return;
     }
-    if (target.dataset.mealProductId) {
-      target.value = String(Math.max(0, Math.floor(Number(target.value || 0) || 0)));
+    if (isMealQuantityInput(target)) {
+      const raw = target.value.trim();
+      if (raw !== "" && !/^\d+$/.test(raw)) {
+        target.value = target.dataset.lastValidMealQuantity || "0";
+        rejectQuantityInput(target, event);
+        return;
+      }
+      target.setCustomValidity("");
+      target.dataset.lastValidMealQuantity = raw || "0";
       updateMealOrderLiveSummary();
+      return;
+    }
+    if (isCompanySubsidyInput(target)) {
+      const raw = target.value.trim();
+      if (raw !== "" && !/^[1-9]\d*$/.test(raw)) {
+        target.value = target.dataset.lastValidCompanySubsidy || "55";
+        rejectInput(target, event, MEAL_SUBSIDY_ERROR);
+        return;
+      }
+      target.setCustomValidity("");
+      if (raw) target.dataset.lastValidCompanySubsidy = raw;
       return;
     }
     if (target.id === "shiftName") {
@@ -129,4 +147,33 @@ function bindDelegatedFormEvents() {
       }
     });
   });
+
+  document.addEventListener("keydown", (event) => {
+    const input = event.target;
+    if (isMealQuantityInput(input) && ["-", "+", ".", ",", "e", "E"].includes(event.key)) {
+      rejectQuantityInput(input, event);
+    }
+    if (isCompanySubsidyInput(input) && ["-", "+", ".", ",", "e", "E"].includes(event.key)) {
+      rejectInput(input, event, MEAL_SUBSIDY_ERROR);
+    }
+  }, true);
+
+  document.addEventListener("beforeinput", (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || !String(event.inputType || "").startsWith("insert")) return;
+    if (event.inputType === "insertFromPaste") return;
+    const start = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
+    const end = Number.isInteger(input.selectionEnd) ? input.selectionEnd : start;
+    const nextValue = `${input.value.slice(0, start)}${event.data || ""}${input.value.slice(end)}`;
+    if (isMealQuantityInput(input) && !/^\d*$/.test(nextValue)) rejectQuantityInput(input, event);
+    if (isCompanySubsidyInput(input) && !/^(?:|[1-9]\d*)$/.test(nextValue)) rejectInput(input, event, MEAL_SUBSIDY_ERROR);
+  }, true);
+
+  document.addEventListener("paste", (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    const pasted = event.clipboardData?.getData("text")?.trim() || "";
+    if (isMealQuantityInput(input) && !/^\d+$/.test(pasted)) rejectQuantityInput(input, event);
+    if (isCompanySubsidyInput(input) && !/^[1-9]\d*$/.test(pasted)) rejectInput(input, event, MEAL_SUBSIDY_ERROR);
+  }, true);
 }

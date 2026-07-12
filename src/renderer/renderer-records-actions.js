@@ -139,15 +139,48 @@ function commitMealProductOrderFromDom() {
   renderAll();
 }
 
-async function saveMealSettingsFromPage() {
-  try {
-    await window.schedulerApi.saveMealAdminSettings({
-      dailyCutoffTime: document.querySelector("[data-meal-cutoff-time]")?.value || "10:30",
-      products: readMealAdminProducts()
-    });
-    await loadMealAdminSettings();
-    showInfoMessage("訂餐設定已儲存");
-  } catch (error) {
-    setSaveStatus(`訂餐設定儲存失敗：${error.message}`);
+async function deleteMealProduct(button) {
+    const row = button.closest("[data-meal-product-row]");
+    if (!(row instanceof HTMLTableRowElement)) return;
+    const productId = row.querySelector('[data-meal-product-field="id"]')?.value || "";
+    const productName = row.querySelector('[data-meal-product-field="name"]')?.value?.trim() || "此品項";
+    const rowIndex = Number(row.dataset.mealProductRow || button.dataset.deleteMealProduct || -1);
+
+    if (!productId) {
+      if (rowIndex >= 0) recordsState.mealAdmin.products.splice(rowIndex, 1);
+      renderAll();
+      return;
+    }
+
+    const confirmed = await confirmAction(`確定刪除「${productName}」嗎？已有訂餐記錄的品項不能刪除，只能取消啟用。`);
+    if (!confirmed) return;
+    try {
+      await window.schedulerApi.deleteMealProduct(productId);
+      await loadMealAdminSettings(false);
+      renderAll();
+      showInfoMessage("品項已刪除");
+    } catch (error) {
+      showInfoMessage(error.message || "刪除品項失敗");
+    }
   }
-}
+
+async function saveMealSettingsFromPage() {
+    const subsidyInput = document.querySelector("[data-meal-company-subsidy]");
+    const rawSubsidy = subsidyInput instanceof HTMLInputElement ? subsidyInput.value.trim() : "";
+    if (!/^[1-9]\d*$/.test(rawSubsidy)) {
+      if (subsidyInput instanceof HTMLInputElement) rejectInput(subsidyInput, null, MEAL_SUBSIDY_ERROR);
+      return;
+    }
+    try {
+      await window.schedulerApi.saveMealAdminSettings({
+        dailyCutoffTime: document.querySelector("[data-meal-cutoff-time]")?.value || "10:30",
+        companySubsidy: Number(rawSubsidy),
+        products: readMealAdminProducts()
+      });
+      await loadMealAdminSettings(false);
+      await loadTodayMealOrder();
+      showInfoMessage("訂餐設定已儲存");
+    } catch (error) {
+      setSaveStatus(`訂餐設定儲存失敗：${error.message}`);
+    }
+  }
