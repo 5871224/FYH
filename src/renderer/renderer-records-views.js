@@ -72,15 +72,7 @@ function punchLine(value, department) {
   }
 
 function renderPersonalRecordsSection() {
-    const today = getTodayDateString();
-    recordsState.personalFilters = recordsState.personalFilters || {
-      fromDate: addDaysToDateString(today, -49),
-      toDate: today
-    };
-    recordsState.personalPage = Number(recordsState.personalPage || 1);
-    recordsState.personalTotal = Number(recordsState.personalTotal || 0);
-    recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
-
+    ensureRecordsState();
     const filters = recordsState.personalFilters;
     const page = Number(recordsState.personalPage || 1);
     const pageSize = Number(recordsState.personalPageSize || 50);
