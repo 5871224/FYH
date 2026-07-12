@@ -1,0 +1,48 @@
+name: Prepare V2 Data API
+
+on:
+  push:
+    branches:
+      - agent/split-v2-api-responsibilities
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: agent/split-v2-api-responsibilities
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Canonicalize V2 data APIs
+        run: node scripts/canonicalize-v2-data-api-current.js
+
+      - name: Build published web files
+        run: npm run web:publish
+
+      - name: Run complete checks without temporary workflow
+        run: |
+          cp .github/workflows/prepare-v2-data-api.yml /tmp/prepare-v2-data-api.yml
+          rm .github/workflows/prepare-v2-data-api.yml
+          npm run ci:check
+          cp /tmp/prepare-v2-data-api.yml .github/workflows/prepare-v2-data-api.yml
+
+      - name: Commit canonical data APIs
+        run: |
+          rm -f scripts/canonicalize-v2-data-api-current.js
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "正式化 V2 資料與加班 API"
+          git push origin HEAD:agent/split-v2-api-responsibilities
