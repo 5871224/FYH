@@ -51,7 +51,11 @@ function globToRegExp(pattern) {
   for (let index = 0; index < normalized.length; index += 1) {
     const char = normalized[index];
     const next = normalized[index + 1];
-    if (char === "*" && next === "*") {
+    const following = normalized[index + 2];
+    if (char === "*" && next === "*" && following === "/") {
+      expression += "(?:.*/)?";
+      index += 2;
+    } else if (char === "*" && next === "*") {
       expression += ".*";
       index += 1;
     } else if (char === "*") {
