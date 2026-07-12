@@ -2872,12 +2872,12 @@
     throw new Error(`不支援的設定類型：${category}`);
   }
 
-  async function deleteCatalogItem(category, id) {
+  async function deleteCatalogItem(category, itemId) {
     ensureManager();
     return requestFunction("catalog-admin", {
       action: "delete",
       category: String(category || ""),
-      id: String(id || "")
+      itemId: String(itemId || "")
     });
   }
 
@@ -6853,13 +6853,10 @@ async function deleteListItem(category, id) {
     return;
   }
 
-  closeModal();
   try {
     await window.schedulerApi.deleteCatalogItem(category, id);
   } catch (error) {
     setSaveStatus(`${labelMap[category] || "項目"}刪除失敗：${error.message || error}`);
-    renderAll();
-    openListSettings(category);
     return;
   }
 

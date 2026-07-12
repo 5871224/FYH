@@ -529,13 +529,10 @@ async function deleteListItem(category, id) {
     return;
   }
 
-  closeModal();
   try {
     await window.schedulerApi.deleteCatalogItem(category, id);
   } catch (error) {
     setSaveStatus(`${labelMap[category] || "項目"}刪除失敗：${error.message || error}`);
-    renderAll();
-    openListSettings(category);
     return;
   }
 

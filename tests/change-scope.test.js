@@ -1,10 +1,15 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { execFileSync } = require("node:child_process");
 
 const {
   extractScopeSection,
   matchesAny,
-  assessScope
+  assessScope,
+  getChangedFiles
 } = require("../scripts/check-change-scope.js");
 
 test("可從 PR 說明讀取允許與禁止修改範圍", () => {
@@ -68,4 +73,26 @@ test("禁止使用允許整個儲存庫的過度寬泛規則", () => {
     () => assessScope({ allowedPatterns: ["**"], changedFiles: ["README.md"] }),
     /過度寬泛/
   );
+});
+
+test("Git 修改清單應保留中文檔名而不是引號跳脫碼", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "scope-unicode-"));
+  try {
+    execFileSync("git", ["init", "-q"], { cwd: directory });
+    execFileSync("git", ["config", "user.name", "Scope Test"], { cwd: directory });
+    execFileSync("git", ["config", "user.email", "scope@example.com"], { cwd: directory });
+    fs.writeFileSync(path.join(directory, "README.md"), "base\n");
+    execFileSync("git", ["add", "README.md"], { cwd: directory });
+    execFileSync("git", ["commit", "-q", "-m", "base"], { cwd: directory });
+    const baseSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: directory, encoding: "utf8" }).trim();
+
+    fs.writeFileSync(path.join(directory, "規格書.md"), "規格\n");
+    execFileSync("git", ["add", "規格書.md"], { cwd: directory });
+    execFileSync("git", ["commit", "-q", "-m", "unicode"], { cwd: directory });
+    const headSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: directory, encoding: "utf8" }).trim();
+
+    assert.deepEqual(getChangedFiles(baseSha, headSha, directory), ["規格書.md"]);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });

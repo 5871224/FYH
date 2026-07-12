@@ -3528,6 +3528,27 @@ thead th.today,
   display: none;
 }
 
+/* Desktop schedule width contract: keep the page within the viewport and
+ * leave eight-week horizontal movement inside the synchronized table scrollers. */
+@media (min-width: 769px) {
+  .calendar-card {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .calendar-nav,
+  .table-sticky-header,
+  .table-wrap {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .table-top-scrollbar {
+    width: calc(100% - var(--schedule-frozen-width));
+    max-width: calc(100% - var(--schedule-frozen-width));
+  }
+}
+
 /* ===== Shared design system and components: components.css ===== */
 :root {
   --ui-control-height: 40px;
@@ -3551,6 +3572,8 @@ thead th.today,
   --ui-control-shadow: 0 1px 2px rgba(72, 52, 31, 0.05);
   --ui-row-hover: #fdf8ef;
   --schedule-nav-control-height: var(--ui-control-height);
+  --settings-drag-column-width: 30px;
+  --settings-action-column-width: 72px;
 }
 
 /* Shared typography and interaction foundation. */
@@ -4024,16 +4047,16 @@ input[type="time"] {
 }
 
 .member-settings-modal .member-table-row {
-  grid-template-columns: 30px 104px minmax(86px, .9fr) minmax(170px, 1.45fr) 64px 108px 84px 78px 76px;
+  grid-template-columns: var(--settings-drag-column-width) 104px minmax(86px, .9fr) minmax(170px, 1.45fr) 64px 108px 84px 78px var(--settings-action-column-width);
 }
 
 .catalog-settings-modal .settings-table-row-shift {
-  grid-template-columns: 30px minmax(76px, .55fr) minmax(96px, .65fr) minmax(64px, .42fr) minmax(280px, 2.7fr) minmax(92px, .62fr) minmax(68px, .45fr) minmax(72px, .45fr);
+  grid-template-columns: var(--settings-drag-column-width) minmax(76px, .55fr) minmax(96px, .65fr) minmax(64px, .42fr) minmax(280px, 2.7fr) minmax(92px, .62fr) minmax(68px, .45fr) var(--settings-action-column-width);
 }
 
 .catalog-settings-modal .settings-table-row-leave,
 .catalog-settings-modal .settings-table-row-overtime {
-  grid-template-columns: 30px repeat(7, minmax(0, 1fr));
+  grid-template-columns: var(--settings-drag-column-width) repeat(6, minmax(0, 1fr)) var(--settings-action-column-width);
 }
 
 .department-settings-table-department .department-settings-row {
@@ -4139,7 +4162,7 @@ input[type="time"] {
 
 @media (max-width: 900px) {
   .member-settings-modal .member-table-row {
-    grid-template-columns: 30px 92px minmax(72px, .85fr) minmax(150px, 1.25fr) 54px 92px 72px 68px 70px;
+    grid-template-columns: var(--settings-drag-column-width) 92px minmax(72px, .85fr) minmax(150px, 1.25fr) 54px 92px 72px 68px var(--settings-action-column-width);
   }
 }
 
@@ -4305,8 +4328,8 @@ input[type="time"] {
 
 /* Keep the sticky member-table header opaque across horizontal scrolling. */
 .member-settings-modal .member-table {
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
 }
 
 .member-settings-modal .member-table-row {
@@ -4376,7 +4399,11 @@ input[type="time"] {
   border-radius: 999px;
 }
 
-.catalog-settings-modal .settings-table,
+.catalog-settings-modal .settings-table {
+  width: 100%;
+  min-width: 0;
+}
+
 .department-settings-modal .department-settings-table {
   width: max-content;
   min-width: 100%;
@@ -4387,19 +4414,9 @@ input[type="time"] {
   width: 100%;
 }
 
-.catalog-settings-modal .settings-table-row-shift {
-  min-width: 1040px;
-  grid-template-columns: 30px 120px 120px 90px minmax(300px, 1fr) 130px 90px 76px;
-}
-
-.catalog-settings-modal .settings-table-row-leave {
-  min-width: 880px;
-  grid-template-columns: 30px 130px 100px 150px 100px 100px 90px 76px;
-}
-
-.catalog-settings-modal .settings-table-row-overtime {
-  min-width: 1060px;
-  grid-template-columns: 30px 130px 150px 160px 160px 160px 90px 76px;
+.catalog-settings-modal .settings-table-row > *,
+.member-settings-modal .member-table-row > * {
+  min-width: 0;
 }
 
 .department-settings-modal .modal-body {
