@@ -34,7 +34,9 @@ jobs:
           node scripts/remove-final-v2-patches.js 2>&1 | tee final-v2-migration.log
 
       - name: Update regression tests for formal modules
-        run: node scripts/update-final-v2-tests.js
+        run: |
+          set -o pipefail
+          node scripts/update-final-v2-tests.js 2>&1 | tee final-v2-test-update.log
 
       - name: Build published web files
         run: npm run web:publish
@@ -57,12 +59,13 @@ jobs:
           name: final-v2-consolidation-ci-log
           path: |
             final-v2-migration.log
+            final-v2-test-update.log
             final-v2-consolidation-ci.log
           if-no-files-found: ignore
 
       - name: Commit verified consolidation
         run: |
-          rm -f scripts/remove-final-v2-patches.js scripts/fix-final-v2-script.js scripts/update-final-v2-tests.js final-v2-migration.log final-v2-consolidation-ci.log
+          rm -f scripts/remove-final-v2-patches.js scripts/fix-final-v2-script.js scripts/update-final-v2-tests.js final-v2-migration.log final-v2-test-update.log final-v2-consolidation-ci.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
