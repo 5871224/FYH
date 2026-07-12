@@ -30,7 +30,6 @@ const required = [
   "docs/app.js",
   "scripts/build-js.js",
   "src/renderer/renderer-overtime-employee.js",
-  "src/renderer/v2-no-overtime-suggestion.js",
   "src/renderer/v2-overtime-admin.js",
   "src/renderer/v2-meal.js",
   "src/renderer/v2-meal-api.js",
@@ -200,8 +199,8 @@ assert(attendanceClockSource.includes("目前位置或網路不符合打卡條�
 assert(sourceWebApi.includes('restSelect("attendance_records"') && sourceWebApi.includes("function getTodayAttendance"), "今日打卡紀錄應直接讀資料庫");
 assert(sourceRenderer.includes("function getTodayShiftSummary") && sourceRenderer.includes("clock-today-line"), "打卡頁未顯示今日班別與時間");
 assert(sourceRenderer.includes("function formatClockButtonStatus") && !sourceRenderer.includes("上班地點</span>"), "打卡地點與方式應顯示在打卡按鈕內");
-const noOvertimeSuggestion = read("src/renderer/v2-no-overtime-suggestion.js");
-assert(noOvertimeSuggestion.includes("return false"), "下班打卡後仍可能自動建議加班");
+const overtimePromptSource = sourceRenderer.slice(sourceRenderer.indexOf("async function maybePromptOvertimeAfterClockOut"), sourceRenderer.indexOf("async function submitAttendanceClock"));
+assert(overtimePromptSource.includes("return false") && !overtimePromptSource.includes("confirmAction"), "下班打卡後仍可能自動建議加班");
 const sourceOvertimeUi = read("src/renderer/renderer-overtime-employee.js");
 assert(sourceRenderer.includes("data-toggle-overtime-panel") && sourceOvertimeUi.includes("data-toggle-overtime-panel"), "加班申請區塊應先顯示勾選框");
 assert(sourceOvertimeUi.includes("overtime-hours-grid"), "提早上班與延後下班時數未固定在同一個雙欄群組");
