@@ -7,6 +7,7 @@ const vm = require("node:vm");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
+// 固定設定清單重新建立後仍回到操作前的垂直位置。
 test("共用設定返回流程應在重新開頁後還原捲動位置", async () => {
   class FakeHTMLElement {
     constructor() {
