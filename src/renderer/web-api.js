@@ -1652,12 +1652,12 @@
     throw new Error(`不支援的設定類型：${category}`);
   }
 
-  async function deleteCatalogItem(category, id) {
+  async function deleteCatalogItem(category, itemId) {
     ensureManager();
     return requestFunction("catalog-admin", {
       action: "delete",
       category: String(category || ""),
-      id: String(id || "")
+      itemId: String(itemId || "")
     });
   }
 

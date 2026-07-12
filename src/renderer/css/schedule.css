@@ -170,3 +170,24 @@
   content: none;
   display: none;
 }
+
+/* Desktop schedule width contract: keep the page within the viewport and
+ * leave eight-week horizontal movement inside the synchronized table scrollers. */
+@media (min-width: 769px) {
+  .calendar-card {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .calendar-nav,
+  .table-sticky-header,
+  .table-wrap {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .table-top-scrollbar {
+    width: calc(100% - var(--schedule-frozen-width));
+    max-width: calc(100% - var(--schedule-frozen-width));
+  }
+}
