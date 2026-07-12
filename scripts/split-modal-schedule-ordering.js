@@ -100,7 +100,7 @@ test("第十一階段應移出彈窗與排序控制並維持模組順序", () =>
   ["closeModal", "handleAppBackNavigation", "reopenModalFromContext", "getReorderedVisibleIds", "reorderScheduleTableDepartment", "reorderScheduleTableMember"].forEach((name) => {
     assert.equal(renderer.includes("function " + name), false, "renderer.js 仍保留 " + name);
   });
-  assert.ok(renderer.split("\n").length < 2800, "renderer.js 未明顯縮小");
+  assert.ok(renderer.split(String.fromCharCode(10)).length < 2800, "renderer.js 未明顯縮小");
 });
 `;
 fs.writeFileSync(testPath, testSource);
