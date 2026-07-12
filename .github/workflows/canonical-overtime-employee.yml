@@ -29,6 +29,7 @@ jobs:
         run: |
           set -o pipefail
           node scripts/canonicalize-overtime-employee.js 2>&1 | tee overtime-employee-refactor.log
+          node scripts/fix-overtime-regression-test.js
 
       - name: Upload refactor diagnostics
         if: always()
@@ -57,6 +58,7 @@ jobs:
       - name: Commit canonical overtime employee module
         run: |
           rm -f scripts/canonicalize-overtime-employee.js
+          rm -f scripts/fix-overtime-regression-test.js
           rm -f .github/workflows/canonical-overtime-employee.yml
           rm -f overtime-employee-refactor.log overtime-employee-ci.log
           git config user.name "github-actions[bot]"
