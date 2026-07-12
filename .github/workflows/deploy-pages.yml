@@ -24,11 +24,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: "22"
+
+      - name: Check declared change scope
+        if: github.event_name == 'pull_request'
+        run: npm run scope:check
 
       - name: Build static web
         run: npm run web:publish
@@ -58,6 +64,6 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
