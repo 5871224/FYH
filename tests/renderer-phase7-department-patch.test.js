@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
+// 固定補丁整併前使用者實際看到的六欄單位設定畫面。
 const root = path.resolve(__dirname, "..");
 
 test("單位設定最終畫面應直接由正式模組提供六欄", async () => {
