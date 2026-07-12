@@ -16,12 +16,12 @@ updateFile("tests/member-order-and-department-width.test.js", (source) => {
   const member = read("src/renderer/renderer-settings-member.js");
   const dragEvents = read("src/renderer/renderer-events-drag.js");
   assert.equal(fs.existsSync(path.join(root, "src/renderer/v2-settings-drag-handles.js")), false);
-  assert.match(ordering, /function renderSettingsOrderDragColumn/);
-  assert.match(member, /renderSettingsOrderDragColumn\(true\)/);
-  assert.match(member, /renderSettingsOrderDragColumn\(\)/);
-  assert.match(member, /data-sort-category="member"/);
-  assert.doesNotMatch(member, /sortable-settings-item" draggable="true"/);
-  assert.match(dragEvents, /!event\.target\.closest\("\.settings-order-drag-handle"\)/);
+  assert.equal(ordering.includes("function renderSettingsOrderDragColumn"), true);
+  assert.equal(member.includes("renderSettingsOrderDragColumn(true)"), true);
+  assert.equal(member.includes("renderSettingsOrderDragColumn()"), true);
+  assert.equal(member.includes('data-sort-category="member"'), true);
+  assert.equal(member.includes('sortable-settings-item" draggable="true"'), false);
+  assert.equal(dragEvents.includes('!event.target.closest(".settings-order-drag-handle")'), true);
 });
 `;
   return `${source.slice(0, start)}${newBlock}${source.slice(end + 1)}`;
