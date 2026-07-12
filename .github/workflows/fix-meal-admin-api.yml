@@ -1,15 +1,16 @@
 name: Fix Meal Admin API
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/fix-meal-admin-api
+      - main
 
 permissions:
   contents: write
 
 jobs:
   fix:
+    if: github.head_ref == 'agent/fix-meal-admin-api'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -17,7 +18,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: agent/fix-meal-admin-api
+          ref: ${{ github.head_ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
