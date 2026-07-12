@@ -3,10 +3,11 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
+const { readRendererCore } = require("../scripts/renderer-core-source.js");
 
 // 固定補丁整併前實際使用的跨單位與同單位人員拖曳排序行為。
 const root = path.resolve(__dirname, "..");
-const rendererPath = path.join(root, "src", "renderer", "renderer.js");
+const orderingPath = path.join(root, "src", "renderer", "renderer-schedule-ordering.js");
 
 function extractFunction(source, name) {
   const start = source.search(new RegExp("(?:async\\s+)?function\\s+" + name + "\\s*\\("));
@@ -18,8 +19,8 @@ function extractFunction(source, name) {
 }
 
 function evaluateReorder(members) {
-  const renderer = fs.readFileSync(rendererPath, "utf8");
-  const source = extractFunction(renderer, "reorderScheduleTableMember");
+  const ordering = fs.readFileSync(orderingPath, "utf8");
+  const source = extractFunction(ordering, "reorderScheduleTableMember");
   const context = {
     state: { members: JSON.parse(JSON.stringify(members)) },
     currentMember: null,
@@ -55,12 +56,13 @@ test("同單位人員排序仍應正常運作", async () => {
 });
 
 test("跨單位拖曳應由正式函式提供而非後載入覆蓋", () => {
-  const renderer = fs.readFileSync(rendererPath, "utf8");
+  const ordering = fs.readFileSync(orderingPath, "utf8");
+  const rendererCore = readRendererCore(root);
   const build = fs.readFileSync(path.join(root, "scripts", "build-js.js"), "utf8");
   assert.equal(fs.existsSync(path.join(root, "src", "renderer", "v2-cross-department-member-drag.js")), false);
   assert.equal(build.includes("v2-cross-department-member-drag.js"), false);
-  assert.equal((renderer.match(/async function reorderScheduleTableMember\b/g) || []).length, 1);
-  assert.equal(renderer.includes("reorderScheduleTableMember = async function"), false);
-  assert.equal(renderer.includes("tableMember.dataset.tableMemberId !== dragScheduleTableMemberId"), true);
-  assert.equal(renderer.includes("tableMember.dataset.tableMemberDepartmentId === getMemberHomeDeptId(draggedMember)"), false);
+  assert.equal((ordering.match(/async function reorderScheduleTableMember\b/g) || []).length, 1);
+  assert.equal(ordering.includes("reorderScheduleTableMember = async function"), false);
+  assert.equal(rendererCore.includes("tableMember.dataset.tableMemberId !== dragScheduleTableMemberId"), true);
+  assert.equal(rendererCore.includes("tableMember.dataset.tableMemberDepartmentId === getMemberHomeDeptId(draggedMember)"), false);
 });
