@@ -5,6 +5,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 // 固定補丁整併前實際使用的自動補班預覽、套用與共用按鈕分流行為。
+// 同時確認原有自動排班流程未被自動補班模組取代。
 const root = path.resolve(__dirname, "..");
 const autoFillPath = path.join(root, "src", "renderer", "renderer-auto-fill-schedule.js");
 const autoSchedulePath = path.join(root, "src", "renderer", "renderer-auto-schedule.js");
