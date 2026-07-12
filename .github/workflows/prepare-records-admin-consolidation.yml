@@ -37,6 +37,9 @@ jobs:
       - name: Fix alignment check list
         run: node scripts/fix-records-alignment-check.js
 
+      - name: Fix final check source
+        run: node scripts/fix-records-final-check.js
+
       - name: Build published web files
         run: npm run web:publish
 
@@ -77,6 +80,7 @@ jobs:
           rm -f scripts/update-records-admin-tests.js
           rm -f scripts/fix-records-consolidator-parser.js
           rm -f scripts/fix-records-alignment-check.js
+          rm -f scripts/fix-records-final-check.js
           rm -f records-admin-consolidation-ci.log syntax-error.log syntax-context.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
