@@ -3850,7 +3850,12 @@ function getWeekStripeClass(day) {
 function getWeekIndexForDate(dateString) {
   const dates = getVisibleDates();
   const index = dates.indexOf(dateString);
-  return index >= 0 ? Math.floor(index / 7) : 0;
+  const firstDate = toDateObject(dates[0]);
+  if (index < 0 || !firstDate) {
+    return 0;
+  }
+  const offset = (firstDate.getDay() - getConfiguredWeekStart() + 7) % 7;
+  return Math.floor((index + offset) / 7);
 }
 
 function getWeekStripeClassForDate(dateString) {

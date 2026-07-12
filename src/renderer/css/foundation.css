@@ -1318,7 +1318,7 @@ body.is-records-view .app-shell {
 }
 
 .table-sticky-cell-day.week-boundary-end {
-  border-right: 2px solid #b39a75;
+  border-right: 0;
 }
 
 .table-sticky-cell-day:last-child {
@@ -1627,8 +1627,8 @@ thead th.today,
   border-left: 2px solid #b39a75;
 }
 
-.cell.week-boundary-end {
-  border-right: 2px solid #b39a75;
+#mainTable td.cell.week-boundary-end {
+  border-right: 0;
 }
 
 #mainTable tr > :last-child {
