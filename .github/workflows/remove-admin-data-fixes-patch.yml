@@ -1,0 +1,45 @@
+name: Remove Admin Data Fixes Patch
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: github.head_ref == 'agent/remove-admin-data-fixes-patch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Merge admin data fixes patch
+        run: node scripts/remove-admin-data-fixes-patch.js
+
+      - name: Build static web
+        run: npm run web:publish
+
+      - name: Run complete checks
+        run: npm run ci:check
+
+      - name: Commit canonical admin data flow
+        run: |
+          rm -f scripts/remove-admin-data-fixes-patch.js
+          rm -f .github/workflows/remove-admin-data-fixes-patch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "整併管理資料修正補丁"
+          git push origin HEAD:agent/remove-admin-data-fixes-patch
