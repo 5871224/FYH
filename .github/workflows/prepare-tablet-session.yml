@@ -26,7 +26,9 @@ jobs:
           node-version: "22"
 
       - name: Canonicalize tablet session
-        run: node scripts/canonicalize-tablet-session.js
+        run: |
+          node scripts/canonicalize-tablet-session.js
+          node scripts/update-v2-data-test-for-session.js
 
       - name: Build published web files
         run: npm run web:publish
@@ -50,6 +52,7 @@ jobs:
       - name: Commit canonical tablet session
         run: |
           rm -f scripts/canonicalize-tablet-session.js
+          rm -f scripts/update-v2-data-test-for-session.js
           rm -f tablet-session-ci.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
