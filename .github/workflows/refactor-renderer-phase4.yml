@@ -26,7 +26,7 @@ jobs:
           node-version: "22"
 
       - name: Apply renderer phase 4 refactor
-        run: node scripts/refactor-renderer-phase4.js
+        run: node scripts/refactor-renderer-phase4-v2.js
 
       - name: Build static web
         run: npm run web:publish
@@ -37,6 +37,7 @@ jobs:
       - name: Commit renderer phase 4 refactor
         run: |
           rm -f scripts/refactor-renderer-phase4.js
+          rm -f scripts/refactor-renderer-phase4-v2.js
           rm -f .github/workflows/refactor-renderer-phase4.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
