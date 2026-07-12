@@ -1,0 +1,45 @@
+name: Canonicalize V2 API Data
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: github.head_ref == 'agent/canonicalize-v2-api-data'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Merge V2 data APIs
+        run: node scripts/canonicalize-v2-api-data.js
+
+      - name: Build static web
+        run: npm run web:publish
+
+      - name: Run complete checks
+        run: npm run ci:check
+
+      - name: Commit canonical V2 data APIs
+        run: |
+          rm -f scripts/canonicalize-v2-api-data.js
+          rm -f .github/workflows/canonicalize-v2-api-data.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "整併 V2 資料與加班 API"
+          git push origin HEAD:agent/canonicalize-v2-api-data
