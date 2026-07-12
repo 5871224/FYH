@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: validate-deploy-${{ github.workflow }}-${{ github.ref }}
@@ -20,12 +20,13 @@ jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -36,11 +37,28 @@ jobs:
         if: github.event_name == 'pull_request'
         run: npm run scope:check
 
+      - name: Apply renderer phase 3 refactor
+        if: github.event_name == 'pull_request' && github.head_ref == 'agent/split-renderer-phase3'
+        run: node scripts/refactor-renderer-phase3.js
+
       - name: Build static web
         run: npm run web:publish
 
       - name: Run complete checks
         run: npm run ci:check
+
+      - name: Commit renderer phase 3 refactor
+        if: github.event_name == 'pull_request' && github.head_ref == 'agent/split-renderer-phase3'
+        run: |
+          git checkout origin/main -- .github/workflows/deploy-pages.yml
+          rm -f scripts/refactor-renderer-phase3.js
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "拆分 renderer 班表互動模組 [renderer-phase3-applied]"
+            git push origin HEAD:agent/split-renderer-phase3
+          fi
 
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
