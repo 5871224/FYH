@@ -28,12 +28,7 @@ async function handleSignOut() {
   authModalOpen = false;
   currentSession = null;
   currentProfile = null;
-  currentMember = null;
-  attendanceState = { loading: false, saving: false, record: null, serverDate: "", error: "" };
-  attendanceOvertimeState = { loading: false, expanded: false, status: null, error: "" };
-  mealOrderState = { loading: false, status: null, error: "" };
-  recordsState = createRecordsState();
-  appInfo = null;
+  resetLoadedUserRuntimeState();
   closeModal();
   closeCoreActionsMenu();
   await loadApp();

@@ -417,7 +417,7 @@ input[type="time"] {
   width: 92px;
 }
 
-.v2-personal-record-table .personal-schedule-icon-col {
+.personal-record-table .personal-schedule-icon-col {
   width: var(--day-col-width);
   min-width: var(--day-col-width);
   max-width: var(--day-col-width);
@@ -426,7 +426,7 @@ input[type="time"] {
   vertical-align: middle;
 }
 
-.v2-personal-record-table th.personal-schedule-icon-col {
+.personal-record-table th.personal-schedule-icon-col {
   padding-left: 2px;
   padding-right: 2px;
 }
@@ -436,7 +436,7 @@ input[type="time"] {
   min-height: 36px;
 }
 
-.v2-personal-record-table .personal-record-schedule-cell .seg-label {
+.personal-record-table .personal-record-schedule-cell .seg-label {
   color: inherit;
   font-size: inherit;
 }
@@ -521,7 +521,7 @@ input[type="time"] {
   cursor: default;
 }
 
-.v2-overtime-review-table .v2-overtime-check-col {
+.overtime-review-table .overtime-review-check-col {
   width: 40px;
   min-width: 40px;
   max-width: 40px;
@@ -531,7 +531,7 @@ input[type="time"] {
   white-space: nowrap;
 }
 
-.v2-overtime-review-table .v2-overtime-date-col {
+.overtime-review-table .overtime-review-date-col {
   width: 112px;
   min-width: 112px;
   padding-left: 12px;
@@ -539,7 +539,7 @@ input[type="time"] {
   white-space: nowrap;
 }
 
-.v2-overtime-review-table .v2-overtime-status-col {
+.overtime-review-table .overtime-review-status-col {
   width: 62px;
   min-width: 62px;
   max-width: 62px;
@@ -549,18 +549,18 @@ input[type="time"] {
   white-space: nowrap;
 }
 
-.v2-overtime-review-table .v2-overtime-action-col {
+.overtime-review-table .overtime-review-action-col {
   width: 116px;
   min-width: 116px;
 }
 
-.v2-overtime-review-table .v2-overtime-action-buttons {
+.overtime-review-table .overtime-review-action-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
 }
 
-.v2-overtime-review-table .v2-overtime-action-buttons .compact-btn {
+.overtime-review-table .overtime-review-action-buttons .compact-btn {
   padding-left: 10px !important;
   padding-right: 10px !important;
 }

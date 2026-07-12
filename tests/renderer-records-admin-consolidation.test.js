@@ -42,8 +42,8 @@ test("正式 web API 使用 V2 記錄與管理端點且沒有同名重複宣告"
 });
 
 test("分頁、批次審核、即時篩選與完整訂餐匯出仍存在", () => {
-  assert.match(formalSource, /data-v2-personal-page/);
-  assert.match(formalSource, /data-v2-overtime-batch/);
+  assert.match(formalSource, /data-personal-record-page/);
+  assert.match(formalSource, /data-overtime-review-batch/);
   assert.match(formalSource, /scheduleRecordsReload/);
   assert.equal(read("src/renderer/web-api.js").includes("report.exportDetails"), true);
 });

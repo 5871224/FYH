@@ -158,23 +158,12 @@ async function applyAutoFillSchedulePreview() {
   if (!await confirmAction("確定要套用目前綠色自動補班預覽嗎？套用後才會正式寫入班表。")) {
     return;
   }
-  const previewSlots = autoSchedulePreview?.slots || {};
-  const changedCells = Object.keys(previewSlots).map(parseScheduleKeyParts).filter(Boolean);
-  if (!changedCells.length) {
-    autoSchedulePreview = null;
-    renderAll();
+  const changedCount = await applySchedulePreviewSlots(autoSchedulePreview?.slots || {});
+  if (!changedCount) {
     showInfoMessage("自動補班預覽沒有需要套用的變更");
     return;
   }
-  rememberScheduleUndoSnapshot();
-  Object.entries(previewSlots).forEach(([key, slot]) => {
-    state.schedule[key] = deepClone(slot);
-  });
-  autoSchedulePreview = null;
-  pruneEmptySchedule();
-  renderAll();
-  await persistScheduleCells(changedCells);
-  showInfoMessage(`已套用自動補班預覽，共寫入 ${changedCells.length} 格`);
+  showInfoMessage(`已套用自動補班預覽，共寫入 ${changedCount} 格`);
 }
 
 function cancelAutoFillSchedulePreview() {

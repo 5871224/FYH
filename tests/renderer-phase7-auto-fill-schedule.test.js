@@ -9,10 +9,26 @@ const vm = require("node:vm");
 const root = path.resolve(__dirname, "..");
 const autoFillPath = path.join(root, "src", "renderer", "renderer-auto-fill-schedule.js");
 const autoSchedulePath = path.join(root, "src", "renderer", "renderer-auto-schedule.js");
+const scheduleInteractionPath = path.join(root, "src", "renderer", "renderer-schedule-interaction.js");
+
+function extractNamedFunction(source, name) {
+  const marker = "async function " + name + "(";
+  const start = source.indexOf(marker);
+  if (start < 0) throw new Error("找不到共用函式：" + name);
+  const open = source.indexOf("{", start);
+  let depth = 0;
+  for (let index = open; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] === "}" && --depth === 0) return source.slice(start, index + 1);
+  }
+  throw new Error("共用函式未完整結束：" + name);
+}
 
 function evaluateAutoFill(context, expression) {
-  const source = fs.readFileSync(autoFillPath, "utf8");
-  return vm.runInNewContext(source + "\n;" + expression, context);
+  const autoFillSource = fs.readFileSync(autoFillPath, "utf8");
+  const interactionSource = fs.readFileSync(scheduleInteractionPath, "utf8");
+  const sharedHelper = extractNamedFunction(interactionSource, "applySchedulePreviewSlots");
+  return vm.runInNewContext(sharedHelper + "\n" + autoFillSource + "\n;" + expression, context);
 }
 
 test("自動補班只處理月薪人員的完全空白格", () => {

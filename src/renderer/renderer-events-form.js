@@ -71,25 +71,6 @@ function bindDelegatedFormEvents() {
       openMemberSettings();
       return;
     }
-    if (target instanceof HTMLSelectElement && target.dataset.mealReportFilter) {
-      recordsState.mealFilters[target.dataset.mealReportFilter] = target.value || "";
-      return;
-    }
-    if (target instanceof HTMLSelectElement && target.dataset.overtimeReviewFilter) {
-      recordsState.overtimeReview.filters[target.dataset.overtimeReviewFilter] = target.value || "";
-      return;
-    }
-    if (target instanceof HTMLSelectElement && target.dataset.attendanceFilter) {
-      const field = target.dataset.attendanceFilter;
-      if (field === "issueType") {
-        const showAll = target.value === "__all__";
-        recordsState.attendanceAdmin.filters.abnormalOnly = !showAll;
-        recordsState.attendanceAdmin.filters.issueType = showAll ? "" : target.value || "";
-      } else {
-        recordsState.attendanceAdmin.filters[field] = target.value || "";
-      }
-      return;
-    }
     if (target instanceof HTMLInputElement && target.dataset.toggleOvertimePanel) {
       attendanceOvertimeState = { ...attendanceOvertimeState, expanded: target.checked };
       if (target.checked && !attendanceOvertimeState.status && !attendanceOvertimeState.loading) {
@@ -100,19 +81,6 @@ function bindDelegatedFormEvents() {
       return;
     }
     if (!(target instanceof HTMLInputElement)) {
-      return;
-    }
-    if (target.dataset.mealReportFilter) {
-      recordsState.mealFilters[target.dataset.mealReportFilter] = target.value || "";
-      return;
-    }
-    if (target.dataset.overtimeReviewFilter) {
-      recordsState.overtimeReview.filters[target.dataset.overtimeReviewFilter] = target.value || "";
-      return;
-    }
-    if (target.dataset.attendanceFilter) {
-      const field = target.dataset.attendanceFilter;
-      recordsState.attendanceAdmin.filters[field] = target.type === "checkbox" ? target.checked : target.value || "";
       return;
     }
     const toggleMap = {

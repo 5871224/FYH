@@ -16,8 +16,8 @@ function bindRecordsEvents() {
     const target = event.target;
     if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
 
-    if (target.dataset.v2PersonalFilter !== undefined) {
-      ensureRecordsState().personalFilters[target.dataset.v2PersonalFilter] = target.value;
+    if (target.dataset.personalRecordFilter !== undefined) {
+      ensureRecordsState().personalFilters[target.dataset.personalRecordFilter] = target.value;
       recordsState.personalPage = 1;
       scheduleRecordsReload("personal", loadRecordsPage);
       return;
@@ -52,37 +52,37 @@ function bindRecordsEvents() {
       scheduleRecordsReload("attendance", loadAttendanceAdmin);
       return;
     }
-    if (target instanceof HTMLInputElement && target.dataset.v2OvertimeCheckAll !== undefined) {
-      document.querySelectorAll("[data-v2-overtime-check]").forEach((input) => { input.checked = target.checked; });
+    if (target instanceof HTMLInputElement && target.dataset.overtimeReviewCheckAll !== undefined) {
+      document.querySelectorAll("[data-overtime-review-check]").forEach((input) => { input.checked = target.checked; });
     }
   });
 
   document.addEventListener("click", (event) => {
     const target = event.target.closest("button");
     if (!target) return;
-    if (target.dataset.v2PersonalPage) {
-      const page = Number(target.dataset.v2PersonalPage || 1);
+    if (target.dataset.personalRecordPage) {
+      const page = Number(target.dataset.personalRecordPage || 1);
       if (page > 0) { recordsState.personalPage = page; void loadRecordsPage(); }
       return;
     }
-    if (target.dataset.v2MealPage) {
-      const page = Number(target.dataset.v2MealPage || 1);
+    if (target.dataset.mealReportPage) {
+      const page = Number(target.dataset.mealReportPage || 1);
       if (page > 0) { recordsState.mealPage = page; void loadMealReport(); }
       return;
     }
-    if (target.dataset.v2OvertimePage) {
-      const page = Number(target.dataset.v2OvertimePage || 1);
+    if (target.dataset.overtimeReviewPage) {
+      const page = Number(target.dataset.overtimeReviewPage || 1);
       if (page > 0) { ensureOvertimeReviewState().page = page; void loadOvertimeReview(); }
       return;
     }
-    if (target.dataset.v2AttendancePage) {
-      const page = Number(target.dataset.v2AttendancePage || 1);
+    if (target.dataset.attendanceAdminPage) {
+      const page = Number(target.dataset.attendanceAdminPage || 1);
       if (page > 0) { recordsState.attendanceAdmin.page = page; void loadAttendanceAdmin(); }
       return;
     }
-    if (target.dataset.v2OvertimeBatch) { void batchReviewOvertime(target.dataset.v2OvertimeBatch); return; }
-    if (target.dataset.v2AdminOvertimeCreate) { void createAdminOvertimeForEmployee(target.dataset.v2AdminOvertimeCreate); return; }
-    if (target.dataset.v2DeleteRecordOvertime) { void deleteRecordOvertime(target.dataset.v2DeleteRecordOvertime); return; }
-    if (target.dataset.v2CancelRecordMeal) { void cancelMealFromRecords(); }
+    if (target.dataset.overtimeReviewBatch) { void batchReviewOvertime(target.dataset.overtimeReviewBatch); return; }
+    if (target.dataset.adminOvertimeCreate) { void createAdminOvertimeForEmployee(target.dataset.adminOvertimeCreate); return; }
+    if (target.dataset.deleteRecordOvertime) { void deleteRecordOvertime(target.dataset.deleteRecordOvertime); return; }
+    if (target.dataset.cancelRecordMeal) { void cancelMealFromRecords(); }
   });
 }

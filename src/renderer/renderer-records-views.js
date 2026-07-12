@@ -91,11 +91,11 @@ function renderPersonalRecordsSection() {
       <h2>個人記錄</h2>
       <div class="records-admin-toolbar personal-record-toolbar">
         <div class="records-admin-filters personal-record-filters">
-          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-v2-personal-filter="fromDate"></label>
-          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-v2-personal-filter="toDate"></label>
+          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-personal-record-filter="fromDate"></label>
+          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-personal-record-filter="toDate"></label>
         </div>
       </div>
-      <div class="records-table-wrap"><table class="records-table v2-personal-record-table">
+      <div class="records-table-wrap"><table class="records-table personal-record-table">
         <thead><tr><th>日期</th><th class="personal-schedule-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>異常</th><th>加班</th><th>打卡備註</th><th>加班備註</th><th>訂餐</th></tr></thead>
         <tbody>${(recordsState.personal || []).map((record) => `<tr>
           <td>${escapeHtml(record.date || "")}</td>
@@ -109,7 +109,7 @@ function renderPersonalRecordsSection() {
           <td><span class="meal-record-text">${escapeHtml(record.mealText || "-")}</span>${record.mealClockDeletedWarning ? '<br><span class="auth-error-inline">所依據的上班打卡已被刪除</span>' : ""}</td>
         </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
       </table></div>
-      <div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-v2-personal-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-v2-personal-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>
+      <div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>
     </section>`;
   }
 
@@ -191,7 +191,7 @@ function renderMealReportSection() {
       ${report.error ? `<div class="auth-error">${escapeHtml(report.error)}</div>` : ""}
       <div class="meal-stats-grid"><div><strong>${Number(report.totals?.quantity || 0)}</strong><span>總數量</span></div><div><strong>$${Number(report.totals?.amount || 0).toFixed(0)}</strong><span>總金額</span></div></div>
       ${table}
-      ${view === "detail" ? `<div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-v2-meal-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-v2-meal-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>` : ""}
+      ${view === "detail" ? `<div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-meal-report-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-meal-report-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>` : ""}
     </section>`;
   }
 
@@ -210,9 +210,9 @@ function renderOvertimeReviewPagination(review) {
     const total = Number(review.total || 0);
     const pages = Math.max(1, Math.ceil(total / pageSize));
     return `<div class="records-filter-row records-pagination">
-      <button class="ghost-btn compact-btn" type="button" data-v2-overtime-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
+      <button class="ghost-btn compact-btn" type="button" data-overtime-review-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
       <span>共 ${total} 筆，第 ${page} / ${pages} 頁</span>
-      <button class="ghost-btn compact-btn" type="button" data-v2-overtime-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
+      <button class="ghost-btn compact-btn" type="button" data-overtime-review-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
     </div>`;
   }
 
@@ -236,24 +236,24 @@ function renderOvertimeReviewSection() {
         </div>
         <div class="records-admin-actions overtime-review-actions">
           <button class="ghost-btn compact-btn" type="button" data-open-admin-overtime-create="true">代為申請</button>
-          <button class="primary-btn compact-btn" type="button" data-v2-overtime-batch="approved">批次核准</button>
-          <button class="ghost-btn compact-btn" type="button" data-v2-overtime-batch="returned">批次退回</button>
+          <button class="primary-btn compact-btn" type="button" data-overtime-review-batch="approved">批次核准</button>
+          <button class="ghost-btn compact-btn" type="button" data-overtime-review-batch="returned">批次退回</button>
         </div>
       </div>
       ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
       <div class="records-table-wrap">
-        <table class="records-table v2-overtime-review-table">
-          <thead><tr><th class="v2-overtime-check-col"><input type="checkbox" data-v2-overtime-check-all></th><th class="v2-overtime-date-col">日期</th><th>員工</th><th>班別</th><th>打卡時間</th><th>加班時數</th><th>備註</th><th class="v2-overtime-status-col">狀態</th><th class="v2-overtime-action-col">操作</th></tr></thead>
+        <table class="records-table overtime-review-table">
+          <thead><tr><th class="overtime-review-check-col"><input type="checkbox" data-overtime-review-check-all></th><th class="overtime-review-date-col">日期</th><th>員工</th><th>班別</th><th>打卡時間</th><th>加班時數</th><th>備註</th><th class="overtime-review-status-col">狀態</th><th class="overtime-review-action-col">操作</th></tr></thead>
           <tbody>${rows.map((row) => `<tr>
-            <td class="v2-overtime-check-col"><input type="checkbox" data-v2-overtime-check="${escapeHtml(row.id)}"></td>
-            <td class="v2-overtime-date-col">${escapeHtml(row.work_date || "")}${row.attendance_changed_warning ? '<br><span class="auth-error-inline">打卡時間已異動</span>' : ""}</td>
+            <td class="overtime-review-check-col"><input type="checkbox" data-overtime-review-check="${escapeHtml(row.id)}"></td>
+            <td class="overtime-review-date-col">${escapeHtml(row.work_date || "")}${row.attendance_changed_warning ? '<br><span class="auth-error-inline">打卡時間已異動</span>' : ""}</td>
             <td>${escapeHtml(row.employee?.full_name || "")}</td>
             <td>${escapeHtml(row.shift?.name || "-")}<br><span>${escapeHtml(`${String(row.shift?.start_time || "").slice(0, 5)}-${String(row.shift?.end_time || "").slice(0, 5)}`)}</span></td>
             <td>上班 ${formatPunchTime(row.attendance?.clock_in_at)}<br>下班 ${formatPunchTime(row.attendance?.clock_out_at)}</td>
             <td>${formatHours(row.early_overtime_hours)}＋${formatHours(row.late_overtime_hours)}=${formatHours(row.total_overtime_hours)}</td>
             <td>${escapeHtml(row.employee_note || "")}</td>
-            <td class="v2-overtime-status-col">${escapeHtml(getOvertimeStatusLabel(row.status || ""))}</td>
-            <td class="v2-overtime-action-col"><div class="v2-overtime-action-buttons"><button class="ghost-btn compact-btn" type="button" data-open-overtime-review="${escapeHtml(row.id)}">調整</button><button class="primary-btn compact-btn" type="button" data-approve-overtime="${escapeHtml(row.id)}">核准</button><button class="ghost-btn compact-btn" type="button" data-return-overtime="${escapeHtml(row.id)}">退回</button></div></td>
+            <td class="overtime-review-status-col">${escapeHtml(getOvertimeStatusLabel(row.status || ""))}</td>
+            <td class="overtime-review-action-col"><div class="overtime-review-action-buttons"><button class="ghost-btn compact-btn" type="button" data-open-overtime-review="${escapeHtml(row.id)}">調整</button><button class="primary-btn compact-btn" type="button" data-approve-overtime="${escapeHtml(row.id)}">核准</button><button class="ghost-btn compact-btn" type="button" data-return-overtime="${escapeHtml(row.id)}">退回</button></div></td>
           </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
         </table>
       </div>
@@ -293,9 +293,9 @@ function renderAttendanceAdminSection() {
         </tr>`).join("") || '<tr><td colspan="8">沒有資料</td></tr>'}</tbody>
       </table></div>
       <div class="records-filter-row records-pagination">
-        <button class="ghost-btn compact-btn" type="button" data-v2-attendance-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
+        <button class="ghost-btn compact-btn" type="button" data-attendance-admin-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
         <span>共 ${total} 筆，第 ${page} / ${pages} 頁</span>
-        <button class="ghost-btn compact-btn" type="button" data-v2-attendance-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
+        <button class="ghost-btn compact-btn" type="button" data-attendance-admin-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
       </div>
     </section>`;
   }
