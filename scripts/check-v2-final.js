@@ -29,7 +29,7 @@ const required = [
   "src/renderer/app.js",
   "docs/app.js",
   "scripts/build-js.js",
-  "src/renderer/v2-overtime-employee.js",
+  "src/renderer/renderer-overtime-employee.js",
   "src/renderer/v2-no-overtime-suggestion.js",
   "src/renderer/v2-overtime-admin.js",
   "src/renderer/v2-meal.js",
@@ -202,7 +202,7 @@ assert(sourceRenderer.includes("function getTodayShiftSummary") && sourceRendere
 assert(sourceRenderer.includes("function formatClockButtonStatus") && !sourceRenderer.includes("上班地點</span>"), "打卡地點與方式應顯示在打卡按鈕內");
 const noOvertimeSuggestion = read("src/renderer/v2-no-overtime-suggestion.js");
 assert(noOvertimeSuggestion.includes("return false"), "下班打卡後仍可能自動建議加班");
-const sourceOvertimeUi = read("src/renderer/v2-overtime-employee.js");
+const sourceOvertimeUi = read("src/renderer/renderer-overtime-employee.js");
 assert(sourceRenderer.includes("data-toggle-overtime-panel") && sourceOvertimeUi.includes("data-toggle-overtime-panel"), "加班申請區塊應先顯示勾選框");
 assert(sourceOvertimeUi.includes("overtime-hours-grid"), "提早上班與延後下班時數未固定在同一個雙欄群組");
 

@@ -22,7 +22,7 @@ const requiredFiles = [
   "supabase/functions/meal-report-v2/index.ts",
   "supabase/functions/meal-cancel-v2/index.ts",
   "src/renderer/v2-api.js",
-  "src/renderer/v2-overtime-employee.js",
+  "src/renderer/renderer-overtime-employee.js",
   "src/renderer/v2-overtime-admin.js",
   "src/renderer/v2-meal.js",
   "src/renderer/v2-account.js",
