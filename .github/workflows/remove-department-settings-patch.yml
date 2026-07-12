@@ -1,0 +1,45 @@
+name: Remove Department Settings Patch
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: github.head_ref == 'agent/remove-department-settings-patch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Merge department settings patch
+        run: node scripts/remove-department-settings-patch.js
+
+      - name: Build static web
+        run: npm run web:publish
+
+      - name: Run complete checks
+        run: npm run ci:check
+
+      - name: Commit canonical department settings
+        run: |
+          rm -f scripts/remove-department-settings-patch.js
+          rm -f .github/workflows/remove-department-settings-patch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "整併單位設定補丁至正式模組"
+          git push origin HEAD:agent/remove-department-settings-patch
