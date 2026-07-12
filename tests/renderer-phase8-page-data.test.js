@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
+// 固定打卡、今日訂餐與記錄頁資料控制拆分後的行為與模組順序。
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const attendance = read("src/renderer/renderer-attendance-page.js");
