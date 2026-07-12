@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
+// 固定手機、平板與觸控 Mac 的正式 Session 儲存與閒置期限規則。
 const root = path.resolve(__dirname, "..");
 const webApiPath = path.join(root, "src", "renderer", "web-api.js");
 const webApi = fs.readFileSync(webApiPath, "utf8");
