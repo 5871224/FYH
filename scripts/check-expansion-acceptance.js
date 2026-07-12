@@ -8,7 +8,8 @@ const read = (...parts) => fs.readFileSync(path.join(rootDir, ...parts), "utf8")
 const schema = read("supabase", "001_current_schema.sql");
 const databaseUpdates = read("supabase", "002_current_updates.sql");
 const index = read("src", "renderer", "index.html");
-const renderer = read("src", "renderer", "renderer.js");
+const { readRendererCore } = require("./renderer-core-source.js");
+const renderer = readRendererCore(rootDir);
 const styles = read("src", "renderer", "app.css");
 const webApi = read("src", "renderer", "web-api.js");
 const attendanceClock = read("supabase", "functions", "attendance-clock", "index.ts");
