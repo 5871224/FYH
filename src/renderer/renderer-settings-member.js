@@ -113,7 +113,7 @@ function renderMemberSettingsList() {
             ${filteredMembers.map((member) => {
               const canEditAccount = canEditMemberAccount(member);
               return `
-              <div class="member-table-row">
+              <div class="member-table-row sortable-settings-item" draggable="true" data-sort-category="member" data-sort-item="${escapeHtml(member.id)}" data-member-settings-row="${escapeHtml(member.id)}">
                 <div class="member-table-code">${escapeHtml(member.code)}</div>
                 <div class="member-table-name">${escapeHtml(member.name)}</div>
                 <div class="member-shift-pill-list">${renderMemberScheduleShiftPills(member)}</div>
@@ -122,8 +122,8 @@ function renderMemberSettingsList() {
                 <div>${getSalaryTypeLabel(member)}</div>
                 <div>${getRestWeekdayLabel(member.fixedRestWeekday)}</div>
                 <div class="member-table-actions">
-                  ${canEditAccount ? renderActionIconButton("edit", `data-edit-member="${member.id}"`) : ""}
-                  ${canEditAccount ? renderActionIconButton("delete", `data-delete-member="${member.id}"`) : ""}
+                  ${canEditAccount ? renderActionIconButton("edit", `data-edit-member="${escapeHtml(member.id)}"`) : ""}
+                  ${canEditAccount ? renderActionIconButton("delete", `data-delete-member="${escapeHtml(member.id)}"`) : ""}
                 </div>
               </div>
             `;
@@ -140,8 +140,27 @@ function renderMemberSettingsList() {
 
 function refreshMemberSettingsList() {
   const list = document.getElementById("memberSettingsList");
-  if (list) {
-    list.innerHTML = renderMemberSettingsList();
+  if (!list) return;
+
+  const scroll = list.querySelector(".member-table-scroll");
+  const scrollTop = scroll?.scrollTop || 0;
+  const active = document.activeElement;
+  const field = active?.matches?.("[data-member-settings-filter-field]")
+    ? active.dataset.memberSettingsFilterField
+    : "";
+  const selectionStart = active?.selectionStart;
+  const selectionEnd = active?.selectionEnd;
+
+  list.innerHTML = renderMemberSettingsList();
+
+  const nextScroll = list.querySelector(".member-table-scroll");
+  if (nextScroll) nextScroll.scrollTop = scrollTop;
+  if (field) {
+    const next = list.querySelector(`[data-member-settings-filter-field="${field}"]`);
+    next?.focus();
+    if (typeof next?.setSelectionRange === "function" && Number.isInteger(selectionStart) && Number.isInteger(selectionEnd)) {
+      next.setSelectionRange(selectionStart, selectionEnd);
+    }
   }
 }
 
