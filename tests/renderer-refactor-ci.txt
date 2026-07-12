@@ -1,0 +1,119 @@
+
+> shift-scheduler-desktop@1.0.0 ci:check
+> npm test && npm run web:check && node scripts/check-normalized-storage.js && node scripts/check-expansion-acceptance.js && node scripts/check-settings-lists.js && npm run v2:check
+
+
+> shift-scheduler-desktop@1.0.0 test
+> node --test "tests/**/*.test.js"
+
+TAP version 13
+# Subtest: 官方請假匯出應排除休例假、隱藏單位與無假別資料
+ok 1 - 官方請假匯出應排除休例假、隱藏單位與無假別資料
+  ---
+  duration_ms: 2.083332
+  type: 'test'
+  ...
+# Subtest: 官方加班匯出應正確輸出時間與休息區段
+ok 2 - 官方加班匯出應正確輸出時間與休息區段
+  ---
+  duration_ms: 0.343992
+  type: 'test'
+  ...
+# Subtest: SAP 休例假匯出應套用代碼並排除日薪人員
+ok 3 - SAP 休例假匯出應套用代碼並排除日薪人員
+  ---
+  duration_ms: 1.627941
+  type: 'test'
+  ...
+# Subtest: 舊格式匯出應依到職與離職日期限制資料
+ok 4 - 舊格式匯出應依到職與離職日期限制資料
+  ---
+  duration_ms: 0.432979
+  type: 'test'
+  ...
+# Subtest: SAP CSV 應保留 BOM 並正確跳脫逗號與雙引號
+ok 5 - SAP CSV 應保留 BOM 並正確跳脫逗號與雙引號
+  ---
+  duration_ms: 0.432177
+  type: 'test'
+  ...
+# Subtest: 可從 PR 說明讀取允許與禁止修改範圍
+ok 6 - 可從 PR 說明讀取允許與禁止修改範圍
+  ---
+  duration_ms: 2.844895
+  type: 'test'
+  ...
+# Subtest: 路徑規則支援精確檔案、單層萬用字元與遞迴目錄
+ok 7 - 路徑規則支援精確檔案、單層萬用字元與遞迴目錄
+  ---
+  duration_ms: 0.960594
+  type: 'test'
+  ...
+# Subtest: 超出允許範圍或命中禁止範圍時應失敗
+ok 8 - 超出允許範圍或命中禁止範圍時應失敗
+  ---
+  duration_ms: 0.846942
+  type: 'test'
+  ...
+# Subtest: 禁止使用允許整個儲存庫的過度寬泛規則
+ok 9 - 禁止使用允許整個儲存庫的過度寬泛規則
+  ---
+  duration_ms: 0.789965
+  type: 'test'
+  ...
+# Subtest: renderer foundation 應保留目錄與預設狀態
+ok 10 - renderer foundation 應保留目錄與預設狀態
+  ---
+  duration_ms: 5.677527
+  type: 'test'
+  ...
+# Subtest: 日期與時間工具應正確處理格式及區間
+ok 11 - 日期與時間工具應正確處理格式及區間
+  ---
+  duration_ms: 2.299827
+  type: 'test'
+  ...
+# Subtest: renderer.js 不應再保存已拆出的核心區塊
+ok 12 - renderer.js 不應再保存已拆出的核心區塊
+  ---
+  duration_ms: 6.653733
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 102.677438
+
+> shift-scheduler-desktop@1.0.0 web:check
+> node scripts/check-public-supabase.js
+
+supabase auth config and anonymous access checks ok
+normalized storage checks passed
+expansion acceptance checks passed
+node:internal/assert/utils:77
+    throw err;
+    ^
+
+AssertionError [ERR_ASSERTION]: schedule undo and redo should keep bounded multi-step stacks
+    at Object.<anonymous> (/home/runner/work/FYH/FYH/scripts/check-settings-lists.js:44:1)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+    at Module.load (node:internal/modules/cjs/loader:1505:32)
+    at Function._load (node:internal/modules/cjs/loader:1309:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v22.23.1
