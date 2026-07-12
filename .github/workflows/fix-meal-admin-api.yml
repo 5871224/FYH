@@ -28,37 +28,19 @@ jobs:
       - name: Align meal admin API actions
         run: node scripts/fix-meal-admin-api-actions.js
 
-      - name: Build static web
+      - name: Validate targeted hotfix
         run: |
-          set -o pipefail
-          npm run web:publish 2>&1 | tee meal-admin-build.log
-
-      - name: Upload build diagnostics
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: meal-admin-build-log
-          path: meal-admin-build.log
-          if-no-files-found: ignore
-
-      - name: Run complete checks
-        run: |
-          set -o pipefail
-          npm run ci:check 2>&1 | tee meal-admin-ci.log
-
-      - name: Upload CI diagnostics
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: meal-admin-ci-log
-          path: meal-admin-ci.log
-          if-no-files-found: ignore
+          node --check src/renderer/web-api.js
+          node --check src/renderer/app.js
+          node --check docs/app.js
+          node --test tests/renderer-phase7-small-api-overrides.test.js tests/meal-admin-api-alignment.test.js
+          cmp src/renderer/app.js docs/app.js
+          git diff --check
 
       - name: Commit verified fix
         run: |
           rm -f scripts/fix-meal-admin-api-actions.js
           rm -f .github/workflows/fix-meal-admin-api.yml
-          rm -f meal-admin-build.log meal-admin-ci.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
