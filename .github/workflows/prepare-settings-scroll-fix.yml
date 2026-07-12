@@ -31,6 +31,21 @@ jobs:
       - name: Apply scroll preservation fix
         run: node scripts/apply-settings-scroll-fix.js
 
+      - name: Update existing member ordering test
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const file = 'tests/member-order-and-department-width.test.js';
+          let source = fs.readFileSync(file, 'utf8');
+          const marker = '    openMemberSettings: async () => calls.push("open:member"),\n';
+          if (!source.includes('reopenSettingsModalPreservingScroll:')) {
+            if (!source.includes(marker)) throw new Error('找不到人員設定測試注入點');
+            source = source.replace(marker, marker + '    reopenSettingsModalPreservingScroll: async (value) => { calls.push(`reopen:${value.category}`); await context.openMemberSettings(); },\n');
+          }
+          fs.writeFileSync(file, source, 'utf8');
+          NODE
+          rm -f .github/workflows/prepare-settings-scroll-fix.yml
+
       - name: Build published web files
         run: npm run web:publish
 
@@ -50,7 +65,6 @@ jobs:
       - name: Commit prepared changes
         run: |
           rm -f scripts/apply-settings-scroll-fix.js
-          rm -f .github/workflows/prepare-settings-scroll-fix.yml
           rm -f settings-scroll-ci.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
