@@ -30,6 +30,7 @@ jobs:
           set -o pipefail
           node scripts/fix-v2-api-data-boundary.js
           node scripts/canonicalize-v2-api-data.js 2>&1 | tee v2-api-data-refactor.log
+          node scripts/fix-v2-api-data-test.js
 
       - name: Upload refactor diagnostics
         if: always()
@@ -59,6 +60,7 @@ jobs:
         run: |
           rm -f scripts/canonicalize-v2-api-data.js
           rm -f scripts/fix-v2-api-data-boundary.js
+          rm -f scripts/fix-v2-api-data-test.js
           rm -f .github/workflows/canonicalize-v2-api-data.yml
           rm -f v2-api-data-refactor.log v2-api-data-ci.log
           git config user.name "github-actions[bot]"
