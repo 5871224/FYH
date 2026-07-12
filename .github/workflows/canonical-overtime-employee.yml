@@ -1,0 +1,66 @@
+name: Canonical Overtime Employee
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: github.head_ref == 'agent/canonical-overtime-employee'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Merge overtime employee patches
+        run: |
+          set -o pipefail
+          node scripts/canonicalize-overtime-employee.js 2>&1 | tee overtime-employee-refactor.log
+
+      - name: Upload refactor diagnostics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: overtime-employee-refactor-log
+          path: overtime-employee-refactor.log
+          if-no-files-found: ignore
+
+      - name: Build static web
+        run: npm run web:publish
+
+      - name: Run complete checks
+        run: |
+          set -o pipefail
+          npm run ci:check 2>&1 | tee overtime-employee-ci.log
+
+      - name: Upload CI diagnostics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: overtime-employee-ci-log
+          path: overtime-employee-ci.log
+          if-no-files-found: ignore
+
+      - name: Commit canonical overtime employee module
+        run: |
+          rm -f scripts/canonicalize-overtime-employee.js
+          rm -f .github/workflows/canonical-overtime-employee.yml
+          rm -f overtime-employee-refactor.log overtime-employee-ci.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "整併員工加班與打卡顯示補丁"
+          git push origin HEAD:agent/canonical-overtime-employee
