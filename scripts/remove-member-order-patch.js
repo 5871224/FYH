@@ -8,9 +8,16 @@ const patchPath = path.join(rendererDir, "v2-member-order.js");
 const buildPath = path.join(root, "scripts", "build-js.js");
 const testPath = path.join(root, "tests", "renderer-phase7-member-order.test.js");
 
+function findFunctionStart(source, name, fromIndex = 0) {
+  const pattern = new RegExp(`(?:async\\s+)?function\\s+${name}\\s*\\(`, "g");
+  pattern.lastIndex = fromIndex;
+  const match = pattern.exec(source);
+  return match ? match.index : -1;
+}
+
 function replaceFunction(source, name, nextName, replacement) {
-  const start = source.indexOf(`function ${name}(`);
-  const end = source.indexOf(`function ${nextName}(`, start + 1);
+  const start = findFunctionStart(source, name);
+  const end = findFunctionStart(source, nextName, start + 1);
   if (start < 0 || end <= start) throw new Error(`找不到函式區段：${name} -> ${nextName}`);
   return source.slice(0, start) + replacement.trimEnd() + "\n\n" + source.slice(end);
 }
@@ -105,9 +112,16 @@ const vm = require("node:vm");
 const root = path.resolve(__dirname, "..");
 const memberPath = path.join(root, "src", "renderer", "renderer-settings-member.js");
 
+function findFunctionStart(source, name, fromIndex = 0) {
+  const pattern = new RegExp("(?:async\\\\s+)?function\\\\s+" + name + "\\\\s*\\\\(", "g");
+  pattern.lastIndex = fromIndex;
+  const match = pattern.exec(source);
+  return match ? match.index : -1;
+}
+
 function extract(source, startName, endName) {
-  const start = source.indexOf("function " + startName + "(");
-  const end = source.indexOf("function " + endName + "(", start + 1);
+  const start = findFunctionStart(source, startName);
+  const end = findFunctionStart(source, endName, start + 1);
   return source.slice(start, end);
 }
 
