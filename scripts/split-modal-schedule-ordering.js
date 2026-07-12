@@ -71,7 +71,7 @@ test("返回鍵遇到彈窗時應只關閉彈窗", () => {
       history: { state: { schedulerBackGuard: true }, pushState() {}, replaceState() {} }
     }
   };
-  const api = vm.runInNewContext(modal + "\n;({ handleAppBackNavigation })", context);
+  const api = vm.runInNewContext(modal + String.fromCharCode(10) + ";({ handleAppBackNavigation })", context);
   api.handleAppBackNavigation();
   assert.equal(modalRoot.innerHTML, "");
   assert.equal(hidden, 1);
@@ -79,7 +79,7 @@ test("返回鍵遇到彈窗時應只關閉彈窗", () => {
 });
 
 test("可見清單排序應保留未顯示項目的原位置", () => {
-  const api = vm.runInNewContext(ordering + "\n;({ getReorderedVisibleIds, applyVisibleOrderById })", {});
+  const api = vm.runInNewContext(ordering + String.fromCharCode(10) + ";({ getReorderedVisibleIds, applyVisibleOrderById })", {});
   const reordered = api.getReorderedVisibleIds(["A", "B", "C"], "A", "C", true);
   assert.deepEqual(Array.from(reordered), ["B", "C", "A"]);
   const items = [{ id: "A" }, { id: "X" }, { id: "B" }, { id: "C" }];
