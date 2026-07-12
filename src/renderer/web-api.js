@@ -765,28 +765,59 @@
     });
   }
 
-  async function getTodayAttendanceOvertime() {
+  async function getEmployeeOvertimeDates() {
     ensureSignedIn();
-    return requestFunction("attendance-overtime", {
-      action: "today_status"
-    });
+    return requestFunction("attendance-overtime-employee", { action: "dates" });
+  }
+
+  async function getAttendanceOvertimeForDate(workDate) {
+    ensureSignedIn();
+    return requestFunction("attendance-overtime-employee", { action: "status", workDate });
+  }
+
+  async function getTodayAttendanceOvertime() {
+    return getAttendanceOvertimeForDate(taipeiDateString());
   }
 
   async function submitAttendanceOvertime(payload = {}) {
     ensureSignedIn();
-    return requestFunction("attendance-overtime", {
+    return requestFunction("attendance-overtime-employee", {
       action: "submit",
+      workDate: payload.workDate,
       earlyHours: payload.earlyHours,
       lateHours: payload.lateHours,
       note: payload.note || ""
     });
   }
 
-  async function deleteAttendanceOvertime() {
+  async function deleteAttendanceOvertime(workDate) {
     ensureSignedIn();
-    return requestFunction("attendance-overtime", {
-      action: "delete"
-    });
+    return requestFunction("attendance-overtime-employee", { action: "delete", workDate });
+  }
+
+  async function getOvertimeReviewList(filters = {}) {
+    ensureManager();
+    return requestFunction("attendance-overtime-admin-list", filters);
+  }
+
+  async function reviewOvertimeRequest(payload = {}) {
+    ensureManager();
+    return requestFunction("attendance-overtime-admin-action", { action: "review", ...payload });
+  }
+
+  async function createAdminOvertimeRequest(payload = {}) {
+    ensureManager();
+    return requestFunction("attendance-overtime-admin-action", { action: "create", ...payload });
+  }
+
+  async function getMemberOrder() {
+    ensureSignedIn();
+    return requestFunction("member-order-v2", { action: "list" });
+  }
+
+  async function saveMemberOrder(memberIds = []) {
+    ensureManager();
+    return requestFunction("member-order-v2", { action: "save", memberIds });
   }
 
   async function getTodayMealOrder() {
@@ -1150,6 +1181,16 @@
     return mapMemberDirectoryRows(await getEmployeeAdminDirectoryRows());
   }
 
+  function applyMemberOrder(members, orderedIds) {
+    const list = Array.isArray(members) ? members : [];
+    const ids = Array.isArray(orderedIds) ? orderedIds.map(String).filter(Boolean) : [];
+    if (!ids.length) return list;
+    const byId = new Map(list.map((member) => [String(member.id || ""), member]));
+    const ordered = ids.map((id) => byId.get(id)).filter(Boolean);
+    const orderedSet = new Set(ids);
+    return [...ordered, ...list.filter((member) => !orderedSet.has(String(member.id || "")))];
+  }
+
   async function loadState() {
     const auth = Boolean(currentSession?.access_token);
     try {
@@ -1180,7 +1221,32 @@
         auth
       });
 
-      const members = mapMemberDirectoryRows(profileRows);
+      let departments = mapDepartmentRows(departmentRows);
+      if (currentProfile?.role === "admin") {
+        const result = await requestFunction("department-attendance-v2", {});
+        const byDepartment = new Map((result.settings || []).map((row) => [row.departmentId, row]));
+        departments = departments.map((department) => {
+          const attendance = byDepartment.get(department.id);
+          return attendance ? {
+            ...department,
+            address: attendance.address || "",
+            latitude: attendance.latitude ?? "",
+            longitude: attendance.longitude ?? "",
+            publicIp: attendance.publicIp || "",
+            attendanceEnabled: Boolean(attendance.attendanceEnabled)
+          } : department;
+        });
+      }
+
+      let members = mapMemberDirectoryRows(profileRows);
+      if (currentSession?.access_token) {
+        try {
+          const result = await requestFunction("member-order-v2", { action: "list" });
+          members = applyMemberOrder(members, result.memberIds);
+        } catch {
+          // Keep database sort order until member-order-v2 is available.
+        }
+      }
       const schedule = mapScheduleRows(scheduleEntryRows, members);
 
       return {
@@ -1192,7 +1258,7 @@
         tableDeptScopeFilter: settings.table_dept_scope_filter || "all",
         tableStatsVisible: settings.table_stats_visible !== false,
         scheduleStartDate: settings.schedule_start_date || "",
-        departments: mapDepartmentRows(departmentRows),
+        departments,
         members,
         shifts: mapShiftRows(shiftRows),
         leaves: mapLeaveRows(leaveRows),
@@ -1930,6 +1996,8 @@
     changePassword,
     getTodayAttendance,
     clockAttendance,
+    getEmployeeOvertimeDates,
+    getAttendanceOvertimeForDate,
     getTodayAttendanceOvertime,
     submitAttendanceOvertime,
     deleteAttendanceOvertime,
@@ -1943,6 +2011,8 @@
     getOvertimeReviewList,
     reviewOvertimeRequest,
     createAdminOvertimeRequest,
+    getMemberOrder,
+    saveMemberOrder,
     getMealAdminSettings,
     saveMealAdminSettings,
     deleteMealProduct,

@@ -25,7 +25,7 @@ const required = [
   "supabase/functions/meal-order/index.ts",
   "supabase/functions/meal-report-v2/index.ts",
   "supabase/functions/meal-cancel-v2/index.ts",
-  "src/renderer/v2-api.js",
+  "src/renderer/v2-tablet-session.js",
   "src/renderer/app.js",
   "docs/app.js",
   "scripts/build-js.js",
@@ -182,12 +182,12 @@ const mealReport = read("supabase/functions/meal-report-v2/index.ts");
 assert(mealReport.includes("companySubsidy"), "訂餐報表未讀取公司補助");
 assert(mealReport.includes("row.amount - days * companySubsidy"), "人員報表自付額未使用公司補助");
 
-const sourceApi = read("src/renderer/v2-api.js");
+const sourceApi = read("src/renderer/v2-tablet-session.js");
 const sourceApp = read("src/renderer/app.js");
 const publishedApp = read("docs/app.js");
 assert(sourceApp === publishedApp, "src/renderer/app.js 與 docs/app.js 不同步");
 assert(!sourceApi.includes("safeDepartmentColumns") && !sourceApi.includes("runManagerSafeWrite") && !sourceApi.includes("managerSafeFetch"), "前端仍使用攔截 fetch 的補丁式權限控制");
-assert(sourceApi.includes("installTabletSessionPolicy"), "平板登入 Session 規則未同步修正");
+assert(sourceApi.includes("installTabletSessionCompatibility"), "平板登入 Session 規則未同步修正");
 assert(sourceApi.includes("isAndroidTablet"), "Android 平板 Session 判斷缺失");
 assert(sourceApi.includes("isIPad"), "iPad Session 判斷缺失");
 assert(sourceApi.includes("30 * 60 * 1000"), "平板未使用電腦版 30 分鐘閒置期限");
@@ -290,7 +290,7 @@ const sourceIndex = read("src/renderer/index.html");
 const publishedIndex = read("docs/index.html");
 assert(sourceIndex.includes("app-config.js") && sourceIndex.includes("app.js") && !sourceIndex.includes("v2-api.js"), "來源頁必須只載入 app-config.js 與 app.js");
 assert(publishedIndex.includes("app-config.js") && publishedIndex.includes("app.js") && !publishedIndex.includes("v2-api.js"), "發布頁必須只載入 app-config.js 與 app.js");
-assert(sourceApp.includes("installV2ApiOverrides") && sourceApp.includes("installV2MealUi") && sourceApp.includes("installV2RecordsUi"), "JavaScript bundle 缺少必要 V2 模組");
+assert(sourceApp.includes("installTabletSessionCompatibility") && sourceApp.includes("installV2MealUi") && sourceApp.includes("installV2RecordsUi"), "JavaScript bundle 缺少必要 V2 模組");
 const publishedJsFiles = fs.readdirSync(path.join(root, "docs")).filter((name) => name.endsWith(".js"));
 assert(publishedJsFiles.every((name) => name === "app-config.js" || name === "app.js"), `docs 含有不應發布的 JavaScript 原始模組：${publishedJsFiles.join(", ")}`);
 
