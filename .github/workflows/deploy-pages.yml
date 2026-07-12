@@ -40,5 +40,8 @@ jobs:
       - name: Build static web
         run: npm run web:publish
 
+      - name: Check workflow hygiene
+        run: node --test tests/github-actions-hygiene.test.js
+
       - name: Run complete checks
         run: npm run ci:check
