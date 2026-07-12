@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 // 同時固定欄寬單一來源、班表外層寬度與目錄刪除前後端合約。
+// 正式 CI 以本檔與既有管理資料測試共同防止欄寬及 itemId 合約再次回歸。
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
