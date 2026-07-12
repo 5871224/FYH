@@ -8486,6 +8486,159 @@ async function saveChangedPassword() {
 }
 ;
 
+/* ===== renderer-modal-navigation.js ===== */
+/* 彈窗、返回鍵與設定頁重新開啟控制。
+ * 由 renderer.js 拆分；維持既有全域 bundle 執行方式。
+ */
+
+function closeModal() {
+  modalContext = {};
+  document.getElementById("modalRoot").innerHTML = "";
+  hideLeaveTooltip();
+}
+
+function hasClosableModal() {
+  return Boolean(document.querySelector("#modalRoot .modal-overlay"));
+}
+
+function pushAppBackHistoryGuard() {
+  if (!window.history?.pushState) {
+    return;
+  }
+  if (!window.history.state || window.history.state.schedulerBackGuard !== true) {
+    window.history.replaceState(APP_BACK_HISTORY_STATE, "", window.location.href);
+  }
+  window.history.pushState(APP_BACK_HISTORY_STATE, "", window.location.href);
+}
+
+function handleAppBackNavigation() {
+  if (hasClosableModal()) {
+    closeModal();
+  } else {
+    appView = "home";
+    renderAll();
+  }
+  pushAppBackHistoryGuard();
+}
+
+function reopenModalFromContext(context) {
+  if (!context || typeof context !== "object") {
+    return;
+  }
+  if (context.category === "department-settings") {
+    departmentSettingsView = "department";
+    openDepartmentSettings();
+    restoreSettingsScroll(context);
+    return;
+  }
+  if (context.category === "member-settings") {
+    openMemberSettings();
+    restoreSettingsScroll(context);
+    return;
+  }
+  if (context.category === "list-settings") {
+    openListSettings(context.listCategory);
+    restoreSettingsScroll(context);
+  }
+}
+
+function setModal(content) {
+  document.getElementById("modalRoot").innerHTML = content;
+}
+;
+
+/* ===== renderer-schedule-ordering.js ===== */
+/* 班表單位與人員拖曳排序、捲動位置保存。
+ * 由 renderer.js 拆分；不變更排序或儲存規則。
+ */
+
+function getReorderedVisibleIds(visibleIds, draggedId, targetId, insertAfter) {
+  if (!draggedId || !targetId || draggedId === targetId || !visibleIds.includes(draggedId) || !visibleIds.includes(targetId)) {
+    return visibleIds;
+  }
+  const reorderedIds = visibleIds.filter((id) => id !== draggedId);
+  const targetIndex = reorderedIds.indexOf(targetId);
+  if (targetIndex < 0) {
+    return visibleIds;
+  }
+  reorderedIds.splice(targetIndex + (insertAfter ? 1 : 0), 0, draggedId);
+  return reorderedIds;
+}
+
+function applyVisibleOrderById(items, visibleIds) {
+  const orderedQueue = visibleIds.slice();
+  const orderedById = new Map(items.map((item) => [item.id, item]));
+  const visibleIdSet = new Set(visibleIds);
+  return items.map((item) => {
+    if (!visibleIdSet.has(item.id)) {
+      return item;
+    }
+    const nextId = orderedQueue.shift();
+    return orderedById.get(nextId) || item;
+  });
+}
+
+function captureScheduleViewport() {
+  return { scrollX: window.scrollX || 0, scrollY: window.scrollY || 0 };
+}
+
+function restoreScheduleViewport(viewport) {
+  requestAnimationFrame(() => {
+    window.scrollTo(viewport?.scrollX || 0, viewport?.scrollY || 0);
+    syncStickyHeaderScroll();
+  });
+}
+
+async function finishScheduleTableOrderChange(viewport) {
+  renderAll();
+  restoreScheduleViewport(viewport);
+  await forceSave();
+}
+
+async function reorderScheduleTableDepartment(draggedId, targetId, insertAfter = false) {
+  const visibleIds = getVisibleTableGroups().map(({ department }) => department.id);
+  const nextVisibleIds = getReorderedVisibleIds(visibleIds, draggedId, targetId, insertAfter);
+  if (nextVisibleIds.join("|") === visibleIds.join("|")) {
+    return false;
+  }
+  const viewport = captureScheduleViewport();
+  state.departments = applyVisibleOrderById(state.departments, nextVisibleIds);
+  await finishScheduleTableOrderChange(viewport);
+  return true;
+}
+
+async function reorderScheduleTableMember(draggedMemberId, targetMemberId, insertAfter = false) {
+  const draggedMember = state.members.find((member) => member.id === draggedMemberId);
+  const targetMember = state.members.find((member) => member.id === targetMemberId);
+  if (!draggedMember || !targetMember || draggedMemberId === targetMemberId) {
+    return false;
+  }
+
+  const targetDepartmentId = getMemberHomeDeptId(targetMember);
+  if (!targetDepartmentId) {
+    return false;
+  }
+
+  const remainingMembers = state.members.filter((member) => member.id !== draggedMemberId);
+  const targetIndex = remainingMembers.findIndex((member) => member.id === targetMemberId);
+  if (targetIndex < 0) {
+    return false;
+  }
+
+  const movedMember = {
+    ...draggedMember,
+    deptId: targetDepartmentId
+  };
+  remainingMembers.splice(targetIndex + (insertAfter ? 1 : 0), 0, movedMember);
+  state.members = remainingMembers;
+  currentMember = resolveCurrentMember();
+  clearScheduleRangeSelection();
+  renderAll();
+  await forceSave();
+  return true;
+}
+;
+
 /* ===== renderer-schedule-keyboard.js ===== */
 /* 班表欄列、範圍選取與鍵盤剪貼簿控制。
  * 由 renderer.js 拆分；維持既有全域 bundle 執行方式。
@@ -9294,147 +9447,6 @@ function showScheduleTooltip(memberId, day, category, anchorRect) {
   });
   root.addEventListener("mouseleave", scheduleHideLeaveTooltip);
   document.body.appendChild(root);
-}
-
-function closeModal() {
-  modalContext = {};
-  document.getElementById("modalRoot").innerHTML = "";
-  hideLeaveTooltip();
-}
-
-function hasClosableModal() {
-  return Boolean(document.querySelector("#modalRoot .modal-overlay"));
-}
-
-function pushAppBackHistoryGuard() {
-  if (!window.history?.pushState) {
-    return;
-  }
-  if (!window.history.state || window.history.state.schedulerBackGuard !== true) {
-    window.history.replaceState(APP_BACK_HISTORY_STATE, "", window.location.href);
-  }
-  window.history.pushState(APP_BACK_HISTORY_STATE, "", window.location.href);
-}
-
-function handleAppBackNavigation() {
-  if (hasClosableModal()) {
-    closeModal();
-  } else {
-    appView = "home";
-    renderAll();
-  }
-  pushAppBackHistoryGuard();
-}
-
-function reopenModalFromContext(context) {
-  if (!context || typeof context !== "object") {
-    return;
-  }
-  if (context.category === "department-settings") {
-    departmentSettingsView = "department";
-    openDepartmentSettings();
-    restoreSettingsScroll(context);
-    return;
-  }
-  if (context.category === "member-settings") {
-    openMemberSettings();
-    restoreSettingsScroll(context);
-    return;
-  }
-  if (context.category === "list-settings") {
-    openListSettings(context.listCategory);
-    restoreSettingsScroll(context);
-  }
-}
-
-function setModal(content) {
-  document.getElementById("modalRoot").innerHTML = content;
-}
-
-function getReorderedVisibleIds(visibleIds, draggedId, targetId, insertAfter) {
-  if (!draggedId || !targetId || draggedId === targetId || !visibleIds.includes(draggedId) || !visibleIds.includes(targetId)) {
-    return visibleIds;
-  }
-  const reorderedIds = visibleIds.filter((id) => id !== draggedId);
-  const targetIndex = reorderedIds.indexOf(targetId);
-  if (targetIndex < 0) {
-    return visibleIds;
-  }
-  reorderedIds.splice(targetIndex + (insertAfter ? 1 : 0), 0, draggedId);
-  return reorderedIds;
-}
-
-function applyVisibleOrderById(items, visibleIds) {
-  const orderedQueue = visibleIds.slice();
-  const orderedById = new Map(items.map((item) => [item.id, item]));
-  const visibleIdSet = new Set(visibleIds);
-  return items.map((item) => {
-    if (!visibleIdSet.has(item.id)) {
-      return item;
-    }
-    const nextId = orderedQueue.shift();
-    return orderedById.get(nextId) || item;
-  });
-}
-
-function captureScheduleViewport() {
-  return { scrollX: window.scrollX || 0, scrollY: window.scrollY || 0 };
-}
-
-function restoreScheduleViewport(viewport) {
-  requestAnimationFrame(() => {
-    window.scrollTo(viewport?.scrollX || 0, viewport?.scrollY || 0);
-    syncStickyHeaderScroll();
-  });
-}
-
-async function finishScheduleTableOrderChange(viewport) {
-  renderAll();
-  restoreScheduleViewport(viewport);
-  await forceSave();
-}
-
-async function reorderScheduleTableDepartment(draggedId, targetId, insertAfter = false) {
-  const visibleIds = getVisibleTableGroups().map(({ department }) => department.id);
-  const nextVisibleIds = getReorderedVisibleIds(visibleIds, draggedId, targetId, insertAfter);
-  if (nextVisibleIds.join("|") === visibleIds.join("|")) {
-    return false;
-  }
-  const viewport = captureScheduleViewport();
-  state.departments = applyVisibleOrderById(state.departments, nextVisibleIds);
-  await finishScheduleTableOrderChange(viewport);
-  return true;
-}
-
-async function reorderScheduleTableMember(draggedMemberId, targetMemberId, insertAfter = false) {
-  const draggedMember = state.members.find((member) => member.id === draggedMemberId);
-  const targetMember = state.members.find((member) => member.id === targetMemberId);
-  if (!draggedMember || !targetMember || draggedMemberId === targetMemberId) {
-    return false;
-  }
-
-  const targetDepartmentId = getMemberHomeDeptId(targetMember);
-  if (!targetDepartmentId) {
-    return false;
-  }
-
-  const remainingMembers = state.members.filter((member) => member.id !== draggedMemberId);
-  const targetIndex = remainingMembers.findIndex((member) => member.id === targetMemberId);
-  if (targetIndex < 0) {
-    return false;
-  }
-
-  const movedMember = {
-    ...draggedMember,
-    deptId: targetDepartmentId
-  };
-  remainingMembers.splice(targetIndex + (insertAfter ? 1 : 0), 0, movedMember);
-  state.members = remainingMembers;
-  currentMember = resolveCurrentMember();
-  clearScheduleRangeSelection();
-  renderAll();
-  await forceSave();
-  return true;
 }
 
 function renderHomeDashboard() {
