@@ -77,10 +77,18 @@
     };
   }
 
+  function isTabletDevice() {
+    const userAgent = navigator.userAgent || "";
+    const touchPoints = Number(navigator.maxTouchPoints || 0);
+    const isIPad = /iPad/i.test(userAgent)
+      || (/Macintosh/i.test(userAgent) && touchPoints > 1);
+    const isAndroidTablet = /Android/i.test(userAgent) && !/Mobile|Mobi/i.test(userAgent);
+    return Boolean(isIPad || isAndroidTablet || /Tablet|Silk/i.test(userAgent));
+  }
+
   function isPhoneDevice() {
     const userAgent = navigator.userAgent || "";
-    const isTablet = /iPad|Tablet|Silk/i.test(userAgent)
-      || (/Android/i.test(userAgent) && !/Mobile|Mobi/i.test(userAgent));
+    const isTablet = isTabletDevice();
     const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
     const narrowTouch = !isTablet && coarsePointer && navigator.maxTouchPoints > 0 && Math.min(window.screen?.width || window.innerWidth, window.screen?.height || window.innerHeight) <= 820;
     return Boolean(
@@ -96,6 +104,18 @@
 
   function getSessionMaxIdleMs() {
     return isPhoneDevice() ? mobileSessionMaxIdleMs : desktopSessionMaxIdleMs;
+  }
+
+  function migrateLegacyTabletSession() {
+    if (!isTabletDevice()) {
+      return;
+    }
+    const tabSession = sessionStorage.getItem(sessionStorageKey);
+    const legacySession = localStorage.getItem(sessionStorageKey);
+    if (!tabSession && legacySession) {
+      sessionStorage.setItem(sessionStorageKey, legacySession);
+    }
+    localStorage.removeItem(sessionStorageKey);
   }
 
   function readStoredSession() {
@@ -116,11 +136,14 @@
   function persistSession(session) {
     currentSession = normalizeSession(session);
     if (currentSession) {
-      getSessionStore().setItem(sessionStorageKey, JSON.stringify({
+      const store = getSessionStore();
+      const otherStore = store === localStorage ? sessionStorage : localStorage;
+      store.setItem(sessionStorageKey, JSON.stringify({
         session: currentSession,
         lastActivityAt: Date.now(),
-        device: isPhoneDevice() ? "phone" : "desktop"
+        device: isTabletDevice() ? "tablet" : isPhoneDevice() ? "phone" : "desktop"
       }));
+      otherStore.removeItem(sessionStorageKey);
     } else {
       localStorage.removeItem(sessionStorageKey);
       sessionStorage.removeItem(sessionStorageKey);
@@ -160,10 +183,18 @@
     }
   }
 
-  function touchSession() {
-    if (currentSession) {
-      persistSession(currentSession);
+  let lastActivityWriteAt = 0;
+
+  function touchSession(force = false) {
+    if (!currentSession) {
+      return;
     }
+    const now = Date.now();
+    if (!force && now - lastActivityWriteAt < 15000) {
+      return;
+    }
+    persistSession(currentSession);
+    lastActivityWriteAt = now;
   }
 
   function buildHeaders(options = {}) {
@@ -450,6 +481,7 @@
   }
 
   async function initializeAuth() {
+    migrateLegacyTabletSession();
     persistSession(readStoredSession());
     if (!currentSession?.user) {
       return { session: null, profile: null };
@@ -470,6 +502,14 @@
       .replace(/^-+|-+$/g, "");
     return normalized ? `${normalized}@local.invalid` : "";
   }
+
+  ["pointerdown", "keydown", "touchstart"].forEach((eventName) => {
+    document.addEventListener(eventName, () => touchSession(), {
+      capture: true,
+      passive: eventName === "touchstart"
+    });
+  });
+  window.addEventListener("focus", () => touchSession());
 
   setInterval(() => {
     if (isSessionIdleExpired()) {

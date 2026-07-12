@@ -63,15 +63,13 @@ test("正式 loadState 應載入管理員打卡欄位與人員排序", () => {
   assert.equal(block.includes("members = applyMemberOrder(members, result.memberIds)"), true);
 });
 
-test("資料 API 應由正式 web-api 提供，平板相容層不得改寫資料方法", () => {
+test("資料 API 應由正式 web-api 提供且不再依賴 V2 相容層", () => {
   const source = readWebApi();
   const build = fs.readFileSync(path.join(root, "scripts", "build-js.js"), "utf8");
-  const tablet = fs.readFileSync(path.join(root, "src", "renderer", "v2-tablet-session.js"), "utf8");
   assert.equal(fs.existsSync(path.join(root, "src", "renderer", "v2-api.js")), false);
+  assert.equal(fs.existsSync(path.join(root, "src", "renderer", "v2-tablet-session.js")), false);
   assert.equal(build.includes("v2-api.js"), false);
-  assert.equal(build.includes("v2-tablet-session.js"), true);
-  assert.equal(tablet.includes("api.loadState ="), false);
-  assert.equal(tablet.includes("api.getEmployeeOvertimeDates ="), false);
+  assert.equal(build.includes("v2-tablet-session.js"), false);
   assert.equal(source.includes("async function getEmployeeOvertimeDates"), true);
   assert.equal(source.includes("async function saveMemberOrder"), true);
 });
