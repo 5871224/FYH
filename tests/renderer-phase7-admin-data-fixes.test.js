@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
+// 固定補丁整併前已生效的安全刪除與新增人員上一工號行為。
 const root = path.resolve(__dirname, "..");
 const catalogPath = path.join(root, "src", "renderer", "renderer-settings-catalog.js");
 
