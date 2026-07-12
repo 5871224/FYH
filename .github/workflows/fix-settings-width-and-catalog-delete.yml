@@ -26,18 +26,36 @@ jobs:
           node-version: "22"
 
       - name: Apply width and delete fixes
-        run: node scripts/fix-settings-width-and-catalog-delete.js
+        run: |
+          set -o pipefail
+          node scripts/fix-settings-width-and-catalog-delete.js 2>&1 | tee settings-fix.log
 
       - name: Build static web
-        run: npm run web:publish
+        run: |
+          set -o pipefail
+          npm run web:publish 2>&1 | tee settings-build.log
 
       - name: Run complete checks
-        run: npm run ci:check
+        run: |
+          set -o pipefail
+          npm run ci:check 2>&1 | tee settings-ci.log
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: settings-width-delete-diagnostics
+          path: |
+            settings-fix.log
+            settings-build.log
+            settings-ci.log
+          if-no-files-found: ignore
 
       - name: Commit verified fix
         run: |
           rm -f scripts/fix-settings-width-and-catalog-delete.js
           rm -f .github/workflows/fix-settings-width-and-catalog-delete.yml
+          rm -f settings-fix.log settings-build.log settings-ci.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
