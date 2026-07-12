@@ -20,13 +20,12 @@ function insertModules(source, marker, replacement, label) {
   return source.replace(marker, replacement);
 }
 
-let renderer = fs.readFileSync(rendererPath, "utf8");
-const orderingRange = findRange(renderer, "function getReorderedVisibleIds", "function renderHomeDashboard", "班表排序控制");
-const orderingSource = orderingRange.content;
-renderer = renderer.slice(0, orderingRange.start) + renderer.slice(orderingRange.end);
-const modalRange = findRange(renderer, "function closeModal()", "function getReorderedVisibleIds", "彈窗與返回導覽");
+const originalRenderer = fs.readFileSync(rendererPath, "utf8");
+const modalRange = findRange(originalRenderer, "function closeModal()", "function getReorderedVisibleIds", "彈窗與返回導覽");
+const orderingRange = findRange(originalRenderer, "function getReorderedVisibleIds", "function renderHomeDashboard", "班表排序控制");
 const modalSource = modalRange.content;
-renderer = renderer.slice(0, modalRange.start) + renderer.slice(modalRange.end);
+const orderingSource = orderingRange.content;
+let renderer = originalRenderer.slice(0, modalRange.start) + originalRenderer.slice(orderingRange.end);
 renderer = renderer.replace(/\n{4,}/g, "\n\n\n");
 
 fs.writeFileSync(path.join(rendererDir, "renderer-modal-navigation.js"), `/* 彈窗、返回鍵與設定頁重新開啟控制。\n * 由 renderer.js 拆分；維持既有全域 bundle 執行方式。\n */\n\n${modalSource}\n`);
