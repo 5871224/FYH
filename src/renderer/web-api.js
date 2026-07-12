@@ -748,22 +748,9 @@
 
   async function getTodayAttendance() {
     ensureSignedIn();
-    const serverDate = taipeiDateString();
-    const rows = await restSelect("attendance_records", {
-      select: "*",
-      filters: {
-        user_id: `eq.${currentSession.user.id}`,
-        work_date: `eq.${serverDate}`
-      },
-      limit: "1",
-      auth: true
+    return requestFunction("attendance-clock", {
+      action: "today"
     });
-    return {
-      ok: true,
-      profile: currentProfile,
-      record: rows?.[0] || null,
-      serverDate
-    };
   }
 
   async function clockAttendance(action, position = {}) {
@@ -883,16 +870,25 @@
   async function getMealAdminSettings() {
     ensureSignedIn();
     return requestFunction("meal-order", {
-      action: "admin_settings"
+      action: "admin_get"
     });
   }
 
   async function saveMealAdminSettings(payload = {}) {
     ensureSignedIn();
     return requestFunction("meal-order", {
-      action: "save_admin_settings",
+      action: "admin_save",
       products: Array.isArray(payload.products) ? payload.products : [],
-      dailyCutoffTime: payload.dailyCutoffTime || "10:30"
+      dailyCutoffTime: payload.dailyCutoffTime || "10:30",
+      companySubsidy: Number(payload.companySubsidy)
+    });
+  }
+
+  async function deleteMealProduct(productId) {
+    ensureSignedIn();
+    return requestFunction("meal-order", {
+      action: "delete_admin_product",
+      productId: String(productId || "")
     });
   }
 
@@ -1949,6 +1945,7 @@
     createAdminOvertimeRequest,
     getMealAdminSettings,
     saveMealAdminSettings,
+    deleteMealProduct,
     getMealReport,
     deleteMemberProfile,
     loadState,

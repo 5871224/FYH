@@ -32,7 +32,6 @@ const required = [
   "src/renderer/renderer-overtime-employee.js",
   "src/renderer/v2-overtime-admin.js",
   "src/renderer/v2-meal.js",
-  "src/renderer/v2-meal-api.js",
   "src/renderer/v2-account.js",
   "src/renderer/v2-attendance-admin.js",
   "src/renderer/v2-records.js",
@@ -196,7 +195,7 @@ assert(sourceRenderer.includes("async function ensureManagerDirectoryLoaded()") 
 const attendanceClockSource = read("supabase/functions/attendance-clock/index.ts");
 assert(sourceRenderer.includes("geolocationError") && sourceWebApi.includes("geolocationError"), "手機定位錯誤未送到打卡 API");
 assert(attendanceClockSource.includes("目前位置或網路不符合打卡條件") && !attendanceClockSource.includes("目前 IP ${clientIp}"), "打卡錯誤仍可能暴露距離、精準度或 IP");
-assert(sourceWebApi.includes('restSelect("attendance_records"') && sourceWebApi.includes("function getTodayAttendance"), "今日打卡紀錄應直接讀資料庫");
+assert(sourceWebApi.includes('requestFunction("attendance-clock", {') && sourceWebApi.includes('action: "today"'), "今日打卡紀錄應使用安全 Edge Function 回應");
 assert(sourceRenderer.includes("function getTodayShiftSummary") && sourceRenderer.includes("clock-today-line"), "打卡頁未顯示今日班別與時間");
 assert(sourceRenderer.includes("function formatClockButtonStatus") && !sourceRenderer.includes("上班地點</span>"), "打卡地點與方式應顯示在打卡按鈕內");
 const overtimePromptSource = sourceRenderer.slice(sourceRenderer.indexOf("async function maybePromptOvertimeAfterClockOut"), sourceRenderer.indexOf("async function submitAttendanceClock"));
@@ -222,9 +221,8 @@ const publishedUiSystem = read("docs/app.css");
 assert(sourceUiSystem === publishedUiSystem, "共用介面樣式來源版與發布版不同步");
 assert(sourceUiSystem.includes(".meal-card") && sourceUiSystem.includes("width: min(1100px, 100%)"), "電腦版訂餐頁寬度未與記錄頁一致");
 
-const sourceMealApi = read("src/renderer/v2-meal-api.js");
-assert(sourceMealApi.includes("deleteMealProduct"), "前端 API 缺少刪除品項操作");
-assert(sourceMealApi.includes("companySubsidy"), "前端 API 未傳送公司補助");
+assert(sourceWebApi.includes("async function deleteMealProduct") && sourceWebApi.includes('action: "delete_admin_product"'), "前端 API 缺少刪除品項操作");
+assert(sourceWebApi.includes("companySubsidy: Number(payload.companySubsidy)"), "前端 API 未傳送公司補助");
 
 const sourceExport = read("src/renderer/v2-meal-export.js");
 assert(!sourceExport.includes("首次下訂時間"), "訂餐 Excel 不應顯示首次下訂時間");

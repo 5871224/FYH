@@ -14,8 +14,6 @@ const modules = [
   "rest-compliance.js",
   "web-api.js",
   "v2-api.js",
-  "v2-attendance-status.js",
-  "v2-meal-api.js",
   "renderer-foundation.js",
   "renderer-settings-navigation.js",
   "renderer-schedule-layout.js",
