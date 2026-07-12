@@ -29,15 +29,36 @@ jobs:
         run: node scripts/fix-meal-admin-api-actions.js
 
       - name: Build static web
-        run: npm run web:publish
+        run: |
+          set -o pipefail
+          npm run web:publish 2>&1 | tee meal-admin-build.log
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: meal-admin-build-log
+          path: meal-admin-build.log
+          if-no-files-found: ignore
 
       - name: Run complete checks
-        run: npm run ci:check
+        run: |
+          set -o pipefail
+          npm run ci:check 2>&1 | tee meal-admin-ci.log
+
+      - name: Upload CI diagnostics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: meal-admin-ci-log
+          path: meal-admin-ci.log
+          if-no-files-found: ignore
 
       - name: Commit verified fix
         run: |
           rm -f scripts/fix-meal-admin-api-actions.js
           rm -f .github/workflows/fix-meal-admin-api.yml
+          rm -f meal-admin-build.log meal-admin-ci.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
