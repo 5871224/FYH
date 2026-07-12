@@ -93,6 +93,7 @@ test("renderer 第二階段拆分應維持核心來源與建置順序", () => {
   ];
   for (const marker of movedMarkers) assert.equal(renderer.includes(marker), false, `renderer.js 仍包含：${marker}`);
 
+  assert.equal(RENDERER_CORE_FILES.length, 8);
   const moduleOrder = RENDERER_CORE_FILES.map((name) => build.indexOf(`"${name}"`));
   assert.equal(moduleOrder.every((index) => index >= 0), true);
   assert.equal(moduleOrder.every((index, position) => position === 0 || index > moduleOrder[position - 1]), true);
