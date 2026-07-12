@@ -142,6 +142,10 @@ async function generateAutoSchedulePreviewFromModal() {
 }
 
 async function applyAutoSchedulePreview() {
+  if (isAutoFillSchedulePreview()) {
+    await applyAutoFillSchedulePreview();
+    return;
+  }
   if (!promptManagerAccess("套用自動排班需先登入主管帳號")) {
     return;
   }
@@ -172,6 +176,10 @@ async function applyAutoSchedulePreview() {
 }
 
 function cancelAutoSchedulePreview() {
+  if (isAutoFillSchedulePreview()) {
+    cancelAutoFillSchedulePreview();
+    return;
+  }
   if (!autoSchedulePreview) {
     return;
   }

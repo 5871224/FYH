@@ -2705,6 +2705,7 @@ function bindEvents() {
   };
 
   bindScheduleHistoryControls();
+  bindAutoFillScheduleControls();
 
   bindClick("coreActionsToggle", (event) => {
     event.stopPropagation();
