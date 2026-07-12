@@ -38,14 +38,19 @@ jobs:
         run: npm run scope:check
 
       - name: Apply renderer phase 1 refactor
-        if: github.event_name == 'pull_request' && github.head_ref == 'agent/split-renderer-phase1' && !contains(github.event.pull_request.head.label, '[renderer-refactor-applied]')
+        if: github.event_name == 'pull_request' && github.head_ref == 'agent/split-renderer-phase1'
         run: node scripts/refactor-renderer-phase1.js
 
       - name: Build static web
         run: npm run web:publish
 
       - name: Run complete checks
-        run: npm run ci:check
+        id: complete_checks
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run ci:check 2>&1 | tee tests/renderer-refactor-ci.log
 
       - name: Commit renderer refactor
         if: github.event_name == 'pull_request' && github.head_ref == 'agent/split-renderer-phase1'
@@ -53,6 +58,9 @@ jobs:
           git checkout origin/main -- .github/workflows/deploy-pages.yml
           rm -f scripts/refactor-renderer-phase1.js
           rm -f .github/workflows/refactor-renderer-phase1.yml
+          if [ "${{ steps.complete_checks.outcome }}" = "success" ]; then
+            rm -f tests/renderer-refactor-ci.log
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
@@ -60,6 +68,10 @@ jobs:
             git commit -m "拆分 renderer 核心模組 [renderer-refactor-applied]"
             git push origin HEAD:agent/split-renderer-phase1
           fi
+
+      - name: Fail when complete checks failed
+        if: steps.complete_checks.outcome == 'failure'
+        run: exit 1
 
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
