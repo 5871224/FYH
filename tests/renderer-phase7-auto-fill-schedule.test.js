@@ -94,7 +94,7 @@ test("共用套用與取消按鈕應依預覽類型分流", async () => {
 test("自動補班應由正式模組提供而非覆蓋自動排班函式", () => {
   const autoFill = fs.readFileSync(autoFillPath, "utf8");
   const autoSchedule = fs.readFileSync(autoSchedulePath, "utf8");
-  const renderer = fs.readFileSync(path.join(root, "src", "renderer", "renderer.js"), "utf8");
+  const toolbarEvents = fs.readFileSync(path.join(root, "src", "renderer", "renderer-events-toolbar.js"), "utf8");
   const build = fs.readFileSync(path.join(root, "scripts", "build-js.js"), "utf8");
   const core = fs.readFileSync(path.join(root, "scripts", "renderer-core-source.js"), "utf8");
   assert.equal(fs.existsSync(path.join(root, "src", "renderer", "v2-auto-fill-schedule.js")), false);
@@ -104,5 +104,5 @@ test("自動補班應由正式模組提供而非覆蓋自動排班函式", () =>
   assert.equal(autoFill.includes("applyAutoSchedulePreview ="), false);
   assert.equal(autoFill.includes("cancelAutoSchedulePreview ="), false);
   assert.equal(autoSchedule.includes("if (isAutoFillSchedulePreview())"), true);
-  assert.equal(renderer.includes("bindAutoFillScheduleControls();"), true);
+  assert.equal(toolbarEvents.includes("bindAutoFillScheduleControls();"), true);
 });

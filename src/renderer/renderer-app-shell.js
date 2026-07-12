@@ -1,0 +1,80 @@
+/* 記錄頁、主視圖切換與全畫面渲染協調。
+ * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ */
+
+function renderRecordsPage() {
+  const recordsCard = document.getElementById("recordsCard");
+  if (!recordsCard) {
+    return;
+  }
+  if (!isLoggedIn()) {
+    recordsCard.innerHTML = "";
+    return;
+  }
+  const activeSection = recordsState.activeTab === "overtime"
+      ? renderOvertimeReviewSection()
+      : recordsState.activeTab === "attendance"
+        ? renderAttendanceAdminSection()
+        : renderPersonalRecordsSection();
+  recordsCard.innerHTML = `
+    <div class="clock-page-header">
+      <div>
+        <p class="home-eyebrow">記錄</p>
+        <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
+      </div>
+      ${renderHomeIconButton()}
+    </div>
+    ${renderRecordsTabs()}
+    ${recordsState.error ? `<div class="auth-error clock-error">${escapeHtml(recordsState.error)}</div>` : ""}
+    ${activeSection}
+    ${recordsState.loading ? '<p class="clock-loading">讀取中，請稍候...</p>' : ""}
+  `;
+}
+
+function syncAppView() {
+  const loggedIn = isLoggedIn();
+  const homeCard = document.getElementById("homeCard");
+  const clockCard = document.getElementById("clockCard");
+  const mealCard = document.getElementById("mealCard");
+  const recordsCard = document.getElementById("recordsCard");
+  const scheduleCard = document.getElementById("scheduleCard");
+  const toolbarCard = document.querySelector(".toolbar-card");
+  const showSchedule = loggedIn && appView === "schedule";
+  const showToolbar = showSchedule && isManager();
+  if (homeCard) {
+    homeCard.hidden = !loggedIn || appView !== "home";
+  }
+  if (clockCard) {
+    clockCard.hidden = !loggedIn || appView !== "clock";
+  }
+  if (mealCard) {
+    mealCard.hidden = !loggedIn || appView !== "meal";
+  }
+  if (recordsCard) {
+    recordsCard.hidden = !loggedIn || appView !== "records";
+  }
+  if (scheduleCard) {
+    scheduleCard.hidden = !showSchedule;
+  }
+  if (toolbarCard) {
+    toolbarCard.hidden = !showToolbar;
+  }
+  document.body.classList.toggle("is-authenticated", loggedIn);
+  document.body.classList.toggle("is-home-view", loggedIn && appView === "home");
+  document.body.classList.toggle("is-clock-view", loggedIn && appView === "clock");
+  document.body.classList.toggle("is-meal-view", loggedIn && appView === "meal");
+  document.body.classList.toggle("is-records-view", loggedIn && appView === "records");
+  document.body.classList.toggle("is-schedule-view", showSchedule);
+}
+
+function renderAll() {
+  renderHeader();
+  renderToolbar();
+  renderHomeDashboard();
+  renderClockPage();
+  renderMealPage();
+  renderRecordsPage();
+  renderTable();
+  syncAppView();
+  renderAuthGate();
+}

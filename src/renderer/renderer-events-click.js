@@ -1,0 +1,401 @@
+/* 按鈕、儲存格與雙擊的委派事件。
+ * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
+ */
+
+function bindDelegatedClickEvents() {
+  document.body.addEventListener("click", async (event) => {
+    const target = event.target.closest("button, td");
+    if (!target) {
+      return;
+    }
+    if (target.dataset.openSignIn) {
+      closeCoreActionsMenu();
+      openSignInDialog();
+      return;
+    }
+    if (target.dataset.closeAuthGate) {
+      closeSignInDialog();
+      return;
+    }
+    if (target.dataset.authSignIn) {
+      await handleSignIn();
+      return;
+    }
+    if (target.id === "signOutButton" || target.id === "authGateSignOutButton") {
+      closeCoreActionsMenu();
+      await handleSignOut();
+      return;
+    }
+    if (target.id === "homeSignOutButton") {
+      await handleSignOut();
+      return;
+    }
+    if (target.dataset.homeAction) {
+      closeCoreActionsMenu();
+      if (target.dataset.homeAction === "home") {
+        appView = "home";
+        renderAll();
+        return;
+      }
+      if (target.dataset.homeAction === "clock") {
+        appView = "clock";
+        await loadTodayAttendance();
+        return;
+      }
+      if (target.dataset.homeAction === "schedule") {
+        try {
+          await ensureManagerDirectoryLoaded();
+        } catch (error) {
+          showInfoMessage(`讀取班表管理資料失敗：${error.message || error}`);
+          return;
+        }
+        appView = "schedule";
+        renderAll();
+        return;
+      }
+      if (target.dataset.homeAction === "meal") {
+        appView = "meal";
+        mealPageTab = "order";
+        await loadTodayMealOrder();
+        return;
+      }
+      if (target.dataset.homeAction === "records") {
+        appView = "records";
+        await loadRecordsPage();
+        return;
+      }
+      const comingSoon = {
+      };
+      showInfoMessage(comingSoon[target.dataset.homeAction] || "此功能尚未開放");
+      return;
+    }
+    if (target.dataset.clockAction) {
+      await submitAttendanceClock(target.dataset.clockAction);
+      return;
+    }
+    if (target.dataset.submitTodayOvertime) {
+      await submitTodayOvertimeRequest();
+      return;
+    }
+    if (target.dataset.deleteTodayOvertime) {
+      await deleteTodayOvertimeRequest();
+      return;
+    }
+    if (target.dataset.saveTodayMeal) {
+      await saveTodayMealOrder();
+      return;
+    }
+    if (target.dataset.mealTab) {
+      mealPageTab = ["settings", "stats"].includes(target.dataset.mealTab) ? target.dataset.mealTab : "order";
+      if (mealPageTab === "settings") {
+        await loadMealAdminSettings(false);
+      } else if (mealPageTab === "stats") {
+        await loadMealReport(false);
+      } else {
+        mealOrderState = { ...mealOrderState, status: null, error: "" };
+        await loadTodayMealOrder();
+      }
+      renderAll();
+      return;
+    }
+    if (target.dataset.recordsTab) {
+      recordsState.activeTab = target.dataset.recordsTab;
+      renderAll();
+      return;
+    }
+    if (target.dataset.loadMealReport) {
+      await loadMealReport();
+      return;
+    }
+    if (target.dataset.exportMealReport) {
+      const result = await window.schedulerApi.exportMealReport(recordsState.mealStats);
+      if (result.empty) showInfoMessage("目前沒有可匯出的訂餐資料");
+      return;
+    }
+    if (target.dataset.loadOvertimeReview) {
+      await loadOvertimeReview();
+      return;
+    }
+    if (target.dataset.openOvertimeReview) {
+      openOvertimeReviewModal(target.dataset.openOvertimeReview);
+      return;
+    }
+    if (target.dataset.approveOvertime) {
+      await reviewOvertime(target.dataset.approveOvertime, "approved");
+      return;
+    }
+    if (target.dataset.returnOvertime) {
+      await reviewOvertime(target.dataset.returnOvertime, "returned");
+      return;
+    }
+    if (target.dataset.saveOvertimeReview) {
+      await reviewOvertime(target.dataset.saveOvertimeReview, "pending", true);
+      return;
+    }
+    if (target.dataset.openAdminOvertimeCreate) {
+      openAdminOvertimeCreateModal();
+      return;
+    }
+    if (target.dataset.saveAdminOvertimeCreate) {
+      await saveAdminOvertimeCreate();
+      return;
+    }
+    if (target.dataset.loadAttendanceAdmin) {
+      recordsState.attendanceAdmin.page = 1;
+      await loadAttendanceAdmin();
+      return;
+    }
+    if (target.dataset.editAttendance) {
+      openAttendanceEditModal(target.dataset.editAttendance);
+      return;
+    }
+    if (target.dataset.saveAttendanceEdit) {
+      await saveAttendanceEdit(target.dataset.saveAttendanceEdit);
+      return;
+    }
+    if (target.dataset.viewAttendanceHistory) {
+      await openAttendanceHistoryModal(target.dataset.viewAttendanceHistory);
+      return;
+    }
+    if (target.dataset.addMealProduct) {
+      recordsState.mealAdmin.products = [...recordsState.mealAdmin.products, { id: "", name: "", price: 0, is_active: true }];
+      renderAll();
+      return;
+    }
+    if (target.dataset.saveMealSettings) {
+      await saveMealSettingsFromPage();
+      return;
+    }
+    if (target.id === "coreActionsToggle") {
+      return;
+    }
+    if (target.dataset.closeButton) {
+      const returnTo = modalContext.returnTo || null;
+      closeModal();
+      reopenModalFromContext(returnTo);
+      return;
+    }
+    if (target instanceof HTMLElement && target.dataset.tableMemberId && target.dataset.rowIndex) {
+      selectScheduleRowFromMemberCell(target, event.shiftKey);
+      return;
+    }
+    const cellTarget = target instanceof Element ? target.closest(".cell") : null;
+    if (cellTarget instanceof HTMLElement) {
+      if (scheduleSuppressNextCellClick) {
+        scheduleSuppressNextCellClick = false;
+        return;
+      }
+      if (cellTarget.dataset.readonly) {
+        return;
+      }
+      if (cellTarget.classList.contains("inactive-cell")) {
+        return;
+      }
+      const memberId = cellTarget.dataset.memberId;
+      const dateString = cellTarget.dataset.date || "";
+      if (!state.selected.type) {
+        const slot = getSlot(memberId, dateString);
+        if (canEditSchedule() && slot?.overtime) {
+          openOvertimeAssignmentModal(memberId, dateString);
+          return;
+        }
+      }
+      await applySelectionToCell(memberId, dateString);
+      return;
+    }
+    const managerOnlyAction = Boolean(
+      target.dataset.openDepartmentSettings ||
+      target.dataset.openMemberSettings ||
+      target.dataset.deleteCategory ||
+      target.dataset.editLeaveAssignment ||
+      target.dataset.openAdd ||
+      target.dataset.editItem ||
+      target.dataset.saveShift ||
+      target.dataset.saveNamedItem ||
+      target.id === "autoSchedulePreviewButton" ||
+      target.id === "autoScheduleApplyButton" ||
+      target.id === "autoScheduleCancelButton" ||
+      target.dataset.generateAutoSchedule ||
+      target.dataset.saveOvertimeAssignment ||
+      target.dataset.openAddDepartment ||
+      target.dataset.toggleScheduleShifts ||
+      target.dataset.editDepartment ||
+      target.dataset.saveDepartment ||
+      target.dataset.deleteDepartment ||
+      target.dataset.openAddMember ||
+      target.dataset.exportMembers ||
+      target.dataset.importMembers ||
+      target.dataset.exportSettings ||
+      target.dataset.importSettings ||
+      target.dataset.exportDepartments ||
+      target.dataset.importDepartments ||
+      target.dataset.editMember ||
+      target.dataset.saveMember ||
+      target.dataset.deleteMember ||
+      target.dataset.resetMemberPassword
+    );
+    if (managerOnlyAction && !isManager()) {
+      promptManagerAccess("此功能需先登入主管帳號");
+      return;
+    }
+    if (target.dataset.openDepartmentSettings) {
+      await openDepartmentSettings();
+      return;
+    }
+    if (target.dataset.openMemberSettings) {
+      await openMemberSettings();
+      return;
+    }
+    if (target.dataset.openChangePassword) {
+      closeCoreActionsMenu();
+      openChangePasswordModal();
+      return;
+    }
+    if (target.dataset.resetMemberPassword) {
+      await resetMemberPasswordFromModal(target.dataset.resetMemberPassword);
+      return;
+    }
+    if (target.dataset.chipType !== undefined) {
+      selectChip(target.dataset.chipType, target.dataset.chipId || null);
+      return;
+    }
+    if (target.dataset.openItemColor) {
+      target.parentElement?.querySelector(`[data-item-color-input="${target.dataset.openItemColor}"]`)?.click();
+      return;
+    }
+    if (target.dataset.setAutoItemText !== undefined) {
+      modalTextColorAuto = true;
+      modalTextColor = autoLeaveTextColor(modalColor);
+      syncNamedColorUi();
+      return;
+    }
+    if (target.dataset.color) {
+      modalColor = target.dataset.color;
+      syncNamedColorUi();
+      return;
+    }
+
+    if (target.dataset.deleteCategory) {
+      await deleteListItem(target.dataset.deleteCategory, target.dataset.deleteId);
+      return;
+    }
+    if (target.dataset.editLeaveAssignment) {
+      const [memberId, dateString] = target.dataset.editLeaveAssignment.split(":");
+      const slot = getSlot(memberId, dateString);
+      hideLeaveTooltip();
+      if (slot?.leave) {
+        openLeaveAssignmentModal(memberId, dateString, slot.leave);
+      }
+      return;
+    }
+    if (target.dataset.editOvertimeAssignment) {
+      const [memberId, dateString] = target.dataset.editOvertimeAssignment.split(":");
+      hideLeaveTooltip();
+      openOvertimeAssignmentModal(memberId, dateString);
+      return;
+    }
+    if (target.dataset.generateAutoSchedule) {
+      await generateAutoSchedulePreviewFromModal();
+      return;
+    }
+    if (target.dataset.openAdd === "shift") openShiftFormModal("add");
+    if (target.dataset.openAdd === "leave") openNamedColorFormModal("leave", "add");
+    if (target.dataset.openAdd === "overtime") openNamedColorFormModal("overtime", "add");
+    if (target.dataset.editItem === "shift") openShiftFormModal("edit", target.dataset.editId);
+    if (target.dataset.editItem === "leave") openNamedColorFormModal("leave", "edit", target.dataset.editId);
+    if (target.dataset.editItem === "overtime") openNamedColorFormModal("overtime", "edit", target.dataset.editId);
+    if (target.dataset.saveShift) await saveShiftFromModal(target.dataset.saveShift);
+    if (target.dataset.saveNamedItem) {
+      const [category, mode] = target.dataset.saveNamedItem.split(":");
+      await saveNamedColorItem(category, mode);
+    }
+    if (target.dataset.saveWeekStart) {
+      await saveWeekStartSettingFromModal();
+    }
+    if (target.dataset.saveLeaveAssignment) saveLeaveAssignmentFromModal();
+    if (target.dataset.saveOvertimeAssignment) {
+      await saveOvertimeAssignmentFromModal();
+      return;
+    }
+    if (target.dataset.saveChangePassword) {
+      await saveChangedPassword();
+      return;
+    }
+
+    if (target.dataset.openAddDepartment) openDepartmentForm("add");
+    if (target.dataset.toggleScheduleShifts) {
+      const list = document.getElementById("memberScheduleShiftList");
+      if (list) {
+        list.hidden = !list.hidden;
+      }
+      return;
+    }
+    if (target.dataset.editDepartment) openDepartmentForm("edit", target.dataset.editDepartment);
+    if (target.dataset.saveDepartment) {
+      await saveDepartment(target.dataset.saveDepartment);
+      return;
+    }
+    if (target.dataset.deleteDepartment) {
+      await deleteDepartment(target.dataset.deleteDepartment);
+      return;
+    }
+
+    if (target.dataset.openAddMember) openMemberForm("add");
+    if (target.dataset.exportDepartments) {
+      await exportDepartmentsFromSettings();
+      return;
+    }
+    if (target.dataset.importDepartments) {
+      await importDepartmentsFromSettings();
+      return;
+    }
+    if (target.dataset.exportMembers) {
+      await exportMembersFromSettings();
+      return;
+    }
+    if (target.dataset.importMembers) {
+      await importMembersFromSettings();
+      return;
+    }
+    if (target.dataset.exportSettings) {
+      await exportListSettings(target.dataset.exportSettings);
+      return;
+    }
+    if (target.dataset.importSettings) {
+      await importListSettings(target.dataset.importSettings);
+      return;
+    }
+    if (target.dataset.editMember) openMemberForm("edit", target.dataset.editMember);
+    if (target.dataset.saveMember) {
+      await saveMember(target.dataset.saveMember);
+      return;
+    }
+    if (target.dataset.deleteMember) {
+      await deleteMember(target.dataset.deleteMember);
+    }
+  });
+
+  document.body.addEventListener("dblclick", (event) => {
+    const shiftMember = event.target.closest("[data-shift-schedule-member]");
+    if (shiftMember) {
+      const memberId = shiftMember.dataset.shiftScheduleMember || "";
+      if (memberId && canEditSchedule()) {
+        openMemberForm("edit", memberId);
+      }
+      return;
+    }
+    const target = event.target.closest("[data-table-member-id], [data-table-department-id]");
+    if (!target) return;
+    if (!canEditSchedule()) return;
+    const memberId = target.dataset.tableMemberId;
+    if (memberId) {
+      openMemberForm("edit", memberId);
+      return;
+    }
+    const deptId = target.dataset.tableDepartmentId;
+    if (deptId) {
+      openDepartmentForm("edit", deptId);
+      return;
+    }
+  });
+}

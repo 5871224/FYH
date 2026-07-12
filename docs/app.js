@@ -9494,78 +9494,10 @@ async function loadMealAdminSettings(shouldRender = true) {
 }
 ;
 
-/* ===== renderer.js ===== */
-let state = createEmptyState();
-let modalColor = COLORS[0].hex;
-let modalTextColor = "#ffffff";
-let modalTextColorAuto = true;
-let modalContext = {};
-let saveTimer = null;
-let isSaving = false;
-let latestSaveStatus = "";
-let appInfo = null;
-let dragMemberId = "";
-let dragScheduleShiftId = "";
-let leaveTooltipTimer = null;
-let coreActionsOpen = false;
-let appView = "home";
-const APP_BACK_HISTORY_STATE = { schedulerBackGuard: true };
-let departmentSettingsView = "department";
-let currentSession = null;
-let currentProfile = null;
-let currentMember = null;
-let managerDirectoryLoaded = false;
-let managerDirectoryLoading = null;
-let attendanceState = {
-  loading: false,
-  saving: false,
-  record: null,
-  serverDate: "",
-  error: ""
-};
-let attendanceOvertimeState = {
-  loading: false,
-  expanded: false,
-  status: null,
-  error: ""
-};
-let mealOrderState = {
-  loading: false,
-  status: null,
-  error: ""
-};
-let mealOrderLoadSequence = 0;
-let mealPageTab = "order";
-let recordsState = createRecordsState();
-let memberSettingsFilters = {
-  name: "",
-  department: "all",
-  role: "all",
-  employment: "active",
-  salaryType: "all"
-};
-let authErrorMessage = "";
-let authPromptMessage = "";
-let authModalOpen = false;
-let eventsBound = false;
-let dragSortItemId = "";
-let dragSortCategory = "";
-let dragPreviewElement = null;
-let dragScheduleTableDeptId = "";
-let dragScheduleTableMemberId = "";
-let dragMealProductIndex = "";
-let toolbarCollapsed = false;
-let toolbarCollapseInitialized = false;
-let measureTextContext = null;
-let scheduleRangeSelection = null;
-let scheduleDragSelecting = false;
-let scheduleHeaderDragSelection = null;
-let scheduleSuppressNextCellClick = false;
-let scheduleClipboard = null;
-
-let scheduleUndoStack = [];
-let scheduleRedoStack = [];
-let autoSchedulePreview = null;
+/* ===== renderer-runtime-helpers.js ===== */
+/* 執行狀態、單位、人員、班別與目錄查詢共用工具。
+ * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ */
 
 function setSaveStatus(message, saving = false) {
   latestSaveStatus = message;
@@ -9668,7 +9600,12 @@ function getLeaveLabel(leave) {
   }
   return leave.code ? `${leave.code} ${leave.name}` : leave.name;
 }
+;
 
+/* ===== renderer-records-actions.js ===== */
+/* 打卡管理、加班審核與訂餐設定操作。
+ * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ */
 
 function timeValueFromIso(value) {
   return value ? formatClockTime(value) : "";
@@ -9819,6 +9756,12 @@ async function saveMealSettingsFromPage() {
     setSaveStatus(`訂餐設定儲存失敗：${error.message}`);
   }
 }
+;
+
+/* ===== renderer-app-shell.js ===== */
+/* 記錄頁、主視圖切換與全畫面渲染協調。
+ * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ */
 
 function renderRecordsPage() {
   const recordsCard = document.getElementById("recordsCard");
@@ -9896,6 +9839,12 @@ function renderAll() {
   syncAppView();
   renderAuthGate();
 }
+;
+
+/* ===== renderer-persistence.js ===== */
+/* 班表狀態整理、延遲儲存與強制儲存。
+ * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ */
 
 function ensureScheduleSlot(memberId, day) {
   const key = getScheduleKeyForDateString(memberId, normalizeScheduleDateInput(day));
@@ -9958,6 +9907,29 @@ function queueSave() {
   }
   void forceSave();
 }
+
+async function forceSave() {
+  if (!canEditSchedule()) {
+    return false;
+  }
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  try {
+    await window.schedulerApi.saveState(buildPersistedState());
+    return true;
+  } catch (error) {
+    setSaveStatus(`儲存失敗：${error.message}`);
+    return false;
+  }
+}
+;
+
+/* ===== renderer-schedule-selection-actions.js ===== */
+/* 班表工具列選取與套用到儲存格的操作。
+ * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ */
 
 function clearLegacyLeaveFromSlot(slot) {
   if (!slot) {
@@ -10112,6 +10084,12 @@ function removeAssignmentsByItem(category, id) {
   });
   pruneEmptySchedule();
 }
+;
+
+/* ===== renderer-schedule-assignment-modals.js ===== */
+/* 通用實體視窗、請假與加班指派表單。
+ * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ */
 
 function openEntityListModal(config) {
   const headerButtons = config.headerButtons || "";
@@ -10447,6 +10425,38 @@ async function saveOvertimeAssignmentFromModal() {
   }
 }
 
+function syncScheduleOvertimeFormUi() {
+  const useRest1 = Boolean(document.getElementById("scheduleOvertimeUseRest1")?.checked);
+  const useRest2 = Boolean(document.getElementById("scheduleOvertimeUseRest2")?.checked) && useRest1;
+  const rest1Fields = document.getElementById("scheduleOvertimeRest1Fields");
+  const rest2Fields = document.getElementById("scheduleOvertimeRest2Fields");
+  const rest2Toggle = document.getElementById("scheduleOvertimeUseRest2");
+
+  if (rest1Fields) {
+    rest1Fields.style.display = useRest1 ? "" : "none";
+  }
+  setTimeInputDisabled("scheduleOvertimeRest1StartTime", !useRest1);
+  setTimeInputDisabled("scheduleOvertimeRest1EndTime", !useRest1);
+
+  if (rest2Toggle) {
+    rest2Toggle.disabled = !useRest1;
+    if (!useRest1) {
+      rest2Toggle.checked = false;
+    }
+  }
+  if (rest2Fields) {
+    rest2Fields.style.display = useRest2 ? "" : "none";
+  }
+  setTimeInputDisabled("scheduleOvertimeRest2StartTime", !useRest2);
+  setTimeInputDisabled("scheduleOvertimeRest2EndTime", !useRest2);
+}
+;
+
+/* ===== renderer-schedule-compliance-settings.js ===== */
+/* 班表目錄同步、月週設定與例休檢查畫面。
+ * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ */
+
 async function syncScheduleCatalogs() {
   if (!isManager()) {
     return;
@@ -10691,32 +10701,12 @@ function openRestComplianceModal() {
     hideFooterClose: true
   });
 }
+;
 
-function syncScheduleOvertimeFormUi() {
-  const useRest1 = Boolean(document.getElementById("scheduleOvertimeUseRest1")?.checked);
-  const useRest2 = Boolean(document.getElementById("scheduleOvertimeUseRest2")?.checked) && useRest1;
-  const rest1Fields = document.getElementById("scheduleOvertimeRest1Fields");
-  const rest2Fields = document.getElementById("scheduleOvertimeRest2Fields");
-  const rest2Toggle = document.getElementById("scheduleOvertimeUseRest2");
-
-  if (rest1Fields) {
-    rest1Fields.style.display = useRest1 ? "" : "none";
-  }
-  setTimeInputDisabled("scheduleOvertimeRest1StartTime", !useRest1);
-  setTimeInputDisabled("scheduleOvertimeRest1EndTime", !useRest1);
-
-  if (rest2Toggle) {
-    rest2Toggle.disabled = !useRest1;
-    if (!useRest1) {
-      rest2Toggle.checked = false;
-    }
-  }
-  if (rest2Fields) {
-    rest2Fields.style.display = useRest2 ? "" : "none";
-  }
-  setTimeInputDisabled("scheduleOvertimeRest2StartTime", !useRest2);
-  setTimeInputDisabled("scheduleOvertimeRest2EndTime", !useRest2);
-}
+/* ===== renderer-auth-actions.js ===== */
+/* 登入與登出操作。
+ * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ */
 
 async function handleSignIn() {
   const loginAccount = document.getElementById("loginAccount")?.value.trim() || "";
@@ -10754,6 +10744,12 @@ async function handleSignOut() {
   closeCoreActionsMenu();
   await loadApp();
 }
+;
+
+/* ===== renderer-export-actions.js ===== */
+/* 班表期間切換與 SAP、加班、假別匯出操作。
+ * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ */
 
 async function changeScheduleWindowWeeks(weeks) {
   const startDate = toDateObject(state.scheduleStartDate) ? state.scheduleStartDate : getEightWeekCycleStartForDate(getTodayDateString());
@@ -10832,29 +10828,14 @@ async function exportLeave() {
     setSaveStatus(`匯出失敗：${error.message}`);
   }
 }
+;
 
-async function forceSave() {
-  if (!canEditSchedule()) {
-    return false;
-  }
-  if (saveTimer) {
-    clearTimeout(saveTimer);
-    saveTimer = null;
-  }
-  try {
-    await window.schedulerApi.saveState(buildPersistedState());
-    return true;
-  } catch (error) {
-    setSaveStatus(`儲存失敗：${error.message}`);
-    return false;
-  }
-}
+/* ===== renderer-events-toolbar.js ===== */
+/* 工具列、班表捲動與篩選事件。
+ * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
+ */
 
-function bindEvents() {
-  if (eventsBound) {
-    return;
-  }
-  eventsBound = true;
+function bindStaticToolbarEvents() {
   const bindClick = (id, handler) => {
     const element = document.getElementById(id);
     if (element) {
@@ -10919,7 +10900,9 @@ function bindEvents() {
     closeCoreActionsMenu();
     openRestComplianceModal();
   });
+}
 
+function bindScheduleViewportEvents() {
   const tableWrap = document.getElementById("tableWrap");
   if (tableWrap) {
     tableWrap.addEventListener("scroll", syncStickyHeaderScroll, { passive: true });
@@ -10941,7 +10924,9 @@ function bindEvents() {
     }
     syncToolbarCollapseUi();
   });
+}
 
+function bindScheduleFilterEvents() {
   const deptFilter = document.getElementById("deptFilter");
   if (deptFilter) {
     deptFilter.addEventListener("change", async (event) => {
@@ -10972,7 +10957,15 @@ function bindEvents() {
       await forceSave();
     });
   }
+}
+;
 
+/* ===== renderer-events-session.js ===== */
+/* 班表選取、鍵盤、返回鍵與 Session 逾時事件。
+ * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
+ */
+
+function bindScheduleSessionEvents() {
   document.body.addEventListener("mousedown", beginScheduleHeaderColumnSelection);
   document.body.addEventListener("mouseover", updateScheduleHeaderColumnSelection);
   document.body.addEventListener("mousedown", beginScheduleRangeSelection);
@@ -11000,7 +10993,15 @@ function bindEvents() {
     closeCoreActionsMenu();
     renderAll();
   });
+}
+;
 
+/* ===== renderer-events-click.js ===== */
+/* 按鈕、儲存格與雙擊的委派事件。
+ * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
+ */
+
+function bindDelegatedClickEvents() {
   document.body.addEventListener("click", async (event) => {
     const target = event.target.closest("button, td");
     if (!target) {
@@ -11396,7 +11397,15 @@ function bindEvents() {
       return;
     }
   });
+}
+;
 
+/* ===== renderer-events-form.js ===== */
+/* 輸入欄位與選單異動的委派事件。
+ * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
+ */
+
+function bindDelegatedFormEvents() {
   document.body.addEventListener("input", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
@@ -11523,7 +11532,15 @@ function bindEvents() {
       }
     });
   });
+}
+;
 
+/* ===== renderer-events-tooltip.js ===== */
+/* 班表請假與加班提示框事件。
+ * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
+ */
+
+function bindScheduleTooltipEvents() {
   document.body.addEventListener("mouseover", (event) => {
     const target = event.target.closest("[data-hover-schedule-detail]");
     if (!target) {
@@ -11548,7 +11565,15 @@ function bindEvents() {
     }
     scheduleHideLeaveTooltip();
   });
+}
+;
 
+/* ===== renderer-events-drag.js ===== */
+/* 班表、設定、人員與訂餐品項拖曳事件。
+ * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
+ */
+
+function bindDragAndDropEvents() {
   document.body.addEventListener("dragstart", (event) => {
     const tableDepartment = event.target.closest("[data-table-department-id]");
     const canDragScheduleOrder = canEditSchedule() && state.tableView !== "shift";
@@ -11732,7 +11757,15 @@ function bindEvents() {
     dragScheduleTableMemberId = "";
     dragMealProductIndex = "";
   });
+}
+;
 
+/* ===== renderer-events.js ===== */
+/* 全域事件註冊總控。
+ * 由 renderer.js 最終拆分；只協調各責任模組。
+ */
+
+function bindCoreMenuDismissEvent() {
   document.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof Node)) {
@@ -11749,6 +11782,96 @@ function bindEvents() {
     closeCoreActionsMenu();
   });
 }
+
+function bindEvents() {
+  if (eventsBound) {
+    return;
+  }
+  eventsBound = true;
+  bindStaticToolbarEvents();
+  bindScheduleViewportEvents();
+  bindScheduleFilterEvents();
+  bindScheduleSessionEvents();
+  bindDelegatedClickEvents();
+  bindDelegatedFormEvents();
+  bindScheduleTooltipEvents();
+  bindDragAndDropEvents();
+  bindCoreMenuDismissEvent();
+}
+;
+
+/* ===== renderer.js ===== */
+let state = createEmptyState();
+let modalColor = COLORS[0].hex;
+let modalTextColor = "#ffffff";
+let modalTextColorAuto = true;
+let modalContext = {};
+let saveTimer = null;
+let isSaving = false;
+let latestSaveStatus = "";
+let appInfo = null;
+let dragMemberId = "";
+let dragScheduleShiftId = "";
+let leaveTooltipTimer = null;
+let coreActionsOpen = false;
+let appView = "home";
+const APP_BACK_HISTORY_STATE = { schedulerBackGuard: true };
+let departmentSettingsView = "department";
+let currentSession = null;
+let currentProfile = null;
+let currentMember = null;
+let managerDirectoryLoaded = false;
+let managerDirectoryLoading = null;
+let attendanceState = {
+  loading: false,
+  saving: false,
+  record: null,
+  serverDate: "",
+  error: ""
+};
+let attendanceOvertimeState = {
+  loading: false,
+  expanded: false,
+  status: null,
+  error: ""
+};
+let mealOrderState = {
+  loading: false,
+  status: null,
+  error: ""
+};
+let mealOrderLoadSequence = 0;
+let mealPageTab = "order";
+let recordsState = createRecordsState();
+let memberSettingsFilters = {
+  name: "",
+  department: "all",
+  role: "all",
+  employment: "active",
+  salaryType: "all"
+};
+let authErrorMessage = "";
+let authPromptMessage = "";
+let authModalOpen = false;
+let eventsBound = false;
+let dragSortItemId = "";
+let dragSortCategory = "";
+let dragPreviewElement = null;
+let dragScheduleTableDeptId = "";
+let dragScheduleTableMemberId = "";
+let dragMealProductIndex = "";
+let toolbarCollapsed = false;
+let toolbarCollapseInitialized = false;
+let measureTextContext = null;
+let scheduleRangeSelection = null;
+let scheduleDragSelecting = false;
+let scheduleHeaderDragSelection = null;
+let scheduleSuppressNextCellClick = false;
+let scheduleClipboard = null;
+
+let scheduleUndoStack = [];
+let scheduleRedoStack = [];
+let autoSchedulePreview = null;
 
 async function loadApp() {
   managerDirectoryLoaded = false;
