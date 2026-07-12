@@ -28,6 +28,9 @@
   }
 
   function enhanceSettingsModals() {
+    document.querySelectorAll(".member-settings-modal .member-table-head").forEach(addHeaderColumn);
+    document.querySelectorAll('.member-settings-modal .sortable-settings-item[data-sort-category="member"]').forEach(addRowHandle);
+
     document.querySelectorAll(".catalog-settings-modal .settings-table-head").forEach(addHeaderColumn);
     document.querySelectorAll(".catalog-settings-modal .sortable-settings-item[data-sort-item]").forEach(addRowHandle);
 
@@ -44,7 +47,7 @@
   document.addEventListener("dragstart", (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
-    const row = target.closest(".catalog-settings-modal [data-sort-item], .department-settings-modal [data-sort-item]");
+    const row = target.closest(".member-settings-modal [data-sort-item], .catalog-settings-modal [data-sort-item], .department-settings-modal [data-sort-item]");
     if (!row) return;
     if (target.closest("[data-member-card]")) return;
     if (!target.closest(".settings-order-drag-handle")) event.preventDefault();
