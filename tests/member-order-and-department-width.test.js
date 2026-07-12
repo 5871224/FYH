@@ -14,6 +14,8 @@ test("單位設定電腦版應使用七欄自適應寬度，不固定撐到 920p
   assert.match(css, /\.department-settings-modal \.department-settings-table-wrap \{[\s\S]*?overflow-x: hidden;/);
   assert.match(css, /\.department-settings-modal \.department-settings-table-department \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;/);
   assert.equal(css.includes("grid-column: 7 !important"), true);
+  assert.equal(css.includes(".department-settings-flag:nth-of-type(5)"), true);
+  assert.equal(css.includes(".department-settings-flag:nth-of-type(6)"), true);
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*?overflow-x: auto;/);
 });
 
