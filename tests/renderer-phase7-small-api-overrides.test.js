@@ -5,6 +5,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 // 固定補丁整併前已生效的安全今日打卡與訂餐管理 API 行為。
+// 確認整併後由正式 web-api 唯一提供相同操作。
 const root = path.resolve(__dirname, "..");
 const webApiPath = path.join(root, "src", "renderer", "web-api.js");
 
