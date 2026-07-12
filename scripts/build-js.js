@@ -52,7 +52,6 @@ const modules = [
   "v2-attendance-admin.js",
   "v2-live-report-filters.js",
   "v2-account.js",
-  "v2-schedule-history-controls.js"
 ];
 
 function stripBom(text) {

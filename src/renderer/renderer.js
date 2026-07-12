@@ -265,17 +265,7 @@ async function handleScheduleGridKeydown(event) {
   if ((event.ctrlKey || event.metaKey) && (key === "z" || key === "y")) {
     event.preventDefault();
     const redoRequested = key === "y" || event.shiftKey;
-    const targetStack = redoRequested ? scheduleRedoStack : scheduleUndoStack;
-    const snapshot = targetStack.pop();
-    if (!snapshot) {
-      return;
-    }
-    const oppositeStack = redoRequested ? scheduleUndoStack : scheduleRedoStack;
-    oppositeStack.push(deepClone(state.schedule || {}));
-    if (oppositeStack.length > SCHEDULE_HISTORY_LIMIT) {
-      oppositeStack.shift();
-    }
-    await restoreScheduleSnapshot(snapshot);
+    await (redoRequested ? redoSchedule() : undoSchedule());
     return;
   }
   if (state.tableView !== "member" || !scheduleRangeSelection) {
@@ -2701,6 +2691,8 @@ function bindEvents() {
       element.addEventListener("click", handler);
     }
   };
+
+  bindScheduleHistoryControls();
 
   bindClick("coreActionsToggle", (event) => {
     event.stopPropagation();

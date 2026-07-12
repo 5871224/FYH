@@ -230,6 +230,7 @@ function pushScheduleUndoSnapshot(snapshot = state.schedule || {}) {
     scheduleUndoStack.shift();
   }
   scheduleRedoStack = [];
+  syncScheduleHistoryButtons();
 }
 
 function rememberScheduleUndoSnapshot() {
@@ -238,6 +239,99 @@ function rememberScheduleUndoSnapshot() {
 
 function discardLastScheduleUndoSnapshot() {
   scheduleUndoStack.pop();
+  syncScheduleHistoryButtons();
+}
+
+let scheduleHistoryBusy = false;
+
+function getScheduleUndoButton() {
+  return document.getElementById("scheduleUndoButton");
+}
+
+function getScheduleRedoButton() {
+  return document.getElementById("scheduleRedoButton");
+}
+
+function syncScheduleHistoryButtons() {
+  const editable = typeof canEditSchedule === "function" && canEditSchedule();
+  const undoButton = getScheduleUndoButton();
+  const redoButton = getScheduleRedoButton();
+  if (undoButton) {
+    undoButton.disabled = scheduleHistoryBusy || !editable || scheduleUndoStack.length === 0;
+    undoButton.setAttribute("aria-disabled", String(undoButton.disabled));
+  }
+  if (redoButton) {
+    redoButton.disabled = scheduleHistoryBusy || !editable || scheduleRedoStack.length === 0;
+    redoButton.setAttribute("aria-disabled", String(redoButton.disabled));
+  }
+}
+
+function pushScheduleHistorySnapshot(stack, snapshot) {
+  stack.push(deepClone(snapshot || {}));
+  if (stack.length > SCHEDULE_HISTORY_LIMIT) {
+    stack.shift();
+  }
+}
+
+async function undoSchedule() {
+  if (scheduleHistoryBusy || !canEditSchedule() || !scheduleUndoStack.length) {
+    syncScheduleHistoryButtons();
+    return false;
+  }
+  scheduleHistoryBusy = true;
+  const targetSnapshot = scheduleUndoStack.pop();
+  pushScheduleHistorySnapshot(scheduleRedoStack, state.schedule || {});
+  syncScheduleHistoryButtons();
+  try {
+    await restoreScheduleSnapshot(targetSnapshot);
+    return true;
+  } catch (error) {
+    showInfoMessage(`上一步失敗：${error.message || error}`);
+    return false;
+  } finally {
+    scheduleHistoryBusy = false;
+    syncScheduleHistoryButtons();
+  }
+}
+
+async function redoSchedule() {
+  if (scheduleHistoryBusy || !canEditSchedule() || !scheduleRedoStack.length) {
+    syncScheduleHistoryButtons();
+    return false;
+  }
+  scheduleHistoryBusy = true;
+  const targetSnapshot = scheduleRedoStack.pop();
+  pushScheduleHistorySnapshot(scheduleUndoStack, state.schedule || {});
+  syncScheduleHistoryButtons();
+  try {
+    await restoreScheduleSnapshot(targetSnapshot);
+    return true;
+  } catch (error) {
+    showInfoMessage(`下一步失敗：${error.message || error}`);
+    return false;
+  } finally {
+    scheduleHistoryBusy = false;
+    syncScheduleHistoryButtons();
+  }
+}
+
+function bindScheduleHistoryControls() {
+  getScheduleUndoButton()?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void undoSchedule();
+  });
+  getScheduleRedoButton()?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void redoSchedule();
+  });
+  window.schedulerScheduleHistory = {
+    undo: undoSchedule,
+    redo: redoSchedule,
+    sync: syncScheduleHistoryButtons
+  };
+  syncScheduleHistoryButtons();
 }
 
 function parseScheduleKeyParts(key) {
