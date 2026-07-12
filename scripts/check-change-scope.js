@@ -93,11 +93,11 @@ function assessScope({ allowedPatterns, forbiddenPatterns = [], changedFiles }) 
   };
 }
 
-function getChangedFiles(baseSha, headSha) {
+function getChangedFiles(baseSha, headSha, cwd = process.cwd()) {
   const output = execFileSync(
     "git",
-    ["diff", "--name-only", "--diff-filter=ACMRTUXB", `${baseSha}...${headSha}`],
-    { encoding: "utf8" }
+    ["-c", "core.quotepath=false", "diff", "--name-only", "--diff-filter=ACMRTUXB", `${baseSha}...${headSha}`],
+    { encoding: "utf8", cwd }
   );
   return output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 }
@@ -147,5 +147,6 @@ module.exports = {
   normalizePattern,
   globToRegExp,
   matchesAny,
-  assessScope
+  assessScope,
+  getChangedFiles
 };
