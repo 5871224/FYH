@@ -47,8 +47,10 @@ npm run web:publish
 7. 第一階段仍保留既有全域相依性；調整 `scripts/build-js.js` 的模組順序前，必須確認所有前置依賴並執行完整驗證。
 8. 功能、介面、資料庫、權限或部署流程的修改，預設建立工作分支與 Draft Pull Request，不直接推送至 `main`；只有使用者明確要求直接推送時才可例外。
 9. Pull Request 必須依 `.github/pull_request_template.md` 填寫允許與禁止修改範圍；CI 會執行 `npm run scope:check`，實際變更檔案超出聲明範圍時不得合併。
-10. GitHub Actions 正式流程只保留 `.github/workflows/deploy-pages.yml`；Pull Request 只驗證，`main` 必須在同一 workflow 的 `validate` 成功後才執行 `deploy`。不得新增重複執行 V2 檢查或 Pages 部署的獨立 workflow。
-11. 最終回覆必須說明：
+10. GitHub Actions 儲存庫內只保留 `.github/workflows/deploy-pages.yml`。此 workflow 在 Pull Request 與 `main` 推送時執行建置與完整驗證，不得再建立會自動修改分支、重複執行 V2 整併或重複發布 Pages 的一次性 workflow。
+11. GitHub Pages 由 GitHub 內建的 `pages-build-deployment` 依 `main/docs` 發布；自訂 workflow 不得再使用 `actions/upload-pages-artifact` 或 `actions/deploy-pages`，避免同一版本被發布兩次。
+12. 多檔案修改應先在尚未建立 PR 的工作分支完成，或以單一提交一次推送；不得用每改一個檔案就觸發一次 PR synchronize 的方式製造大量重複 CI。若必須分段提交，也應在完成最後一筆提交後才建立 PR。
+13. 最終回覆必須說明：
     - `docs/` 是否已更新。
     - 使用的分支與 Pull Request 狀態。
     - 是否已推送或合併至 `main`。
@@ -118,5 +120,5 @@ npm run v2:check
 
 - 不得為了讓檢查通過而刪除仍有效的安全、權限、資料一致性或正式規格驗證。
 - 關鍵需求應使用第 9.9 節穩定編號；PR 說明受影響需求、實作模組與驗收案例。
-- GitHub Actions 修改後執行 `npm run ci:check`，並確認部署工作明確依賴驗證工作。
+- GitHub Actions 修改後執行 `npm run ci:check`，並確認驗證 workflow 不包含重複 Pages 發布工作。
 - 發布前除功能正確外，需考慮第 8.7 節效能容量、第 9.6 節備份復原及第 9.7 節回滾。

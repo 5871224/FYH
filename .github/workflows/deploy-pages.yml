@@ -1,4 +1,5 @@
-name: Validate and Deploy Pages
+name: Validate Web App
+run-name: "${{ github.event_name == 'pull_request' && format('PR #{0} 驗證', github.event.pull_request.number) || github.event_name == 'push' && 'main 驗證' || '手動驗證' }}"
 
 on:
   push:
@@ -13,8 +14,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: validate-deploy-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: web-validate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
@@ -39,31 +40,23 @@ jobs:
       - name: Build static web
         run: npm run web:publish
 
-      - name: Run complete checks
-        run: npm run ci:check
+      - name: Check workflow hygiene
+        run: node --test tests/github-actions-hygiene.test.js
 
-      - name: Upload Pages artifact
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: ./docs
+      - name: Run unit tests
+        run: npm test
 
-  deploy:
-    name: Deploy GitHub Pages
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: validate
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+      - name: Check public Supabase settings
+        run: npm run web:check
 
-      - name: Deploy GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+      - name: Check normalized storage
+        run: node scripts/check-normalized-storage.js
+
+      - name: Check expansion acceptance
+        run: node scripts/check-expansion-acceptance.js
+
+      - name: Check settings lists
+        run: node scripts/check-settings-lists.js
+
+      - name: Check V2 bundles
+        run: npm run v2:check
