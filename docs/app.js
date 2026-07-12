@@ -5710,6 +5710,373 @@ function cancelAutoSchedulePreview() {
 }
 ;
 
+/* ===== renderer-schedule-toolbar.js ===== */
+function renderDeptFilter() {
+  const select = document.getElementById("deptFilter");
+  const departments = state.departments.filter((department) => isDepartmentVisibleInScheduleRange(department));
+  if (state.deptFilter !== "all" && !departments.some((department) => department.id === state.deptFilter)) {
+    state.deptFilter = "all";
+  }
+  select.innerHTML = `
+    <option value="all">全部單位</option>
+    ${departments.map((department) => (
+      `<option value="${department.id}" ${state.deptFilter === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`
+    )).join("")}
+  `;
+}
+
+function renderTableDeptScopeFilter() {
+  const select = document.getElementById("tableDeptScopeFilter");
+  if (!select) {
+    return;
+  }
+  const departments = state.departments.filter((department) => isDepartmentVisibleInScheduleRange(department));
+  if (state.tableDeptScopeFilter !== "all" && !departments.some((department) => department.id === state.tableDeptScopeFilter)) {
+    state.tableDeptScopeFilter = "all";
+  }
+  select.innerHTML = `
+    <option value="all">全部顯示</option>
+    ${departments.map((department) => (
+      `<option value="${department.id}" ${state.tableDeptScopeFilter === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`
+    )).join("")}
+  `;
+}
+
+function renderTableViewSelect() {
+  const select = document.getElementById("tableViewSelect");
+  if (!select) {
+    return;
+  }
+  select.value = state.tableView === "shift" ? "shift" : state.tableStatsVisible ? "member-stats" : "member";
+}
+
+function renderChips(containerId, category, items) {
+  const container = document.getElementById(containerId);
+  const chips = items.map((item) => {
+    const active = state.selected.type === category && state.selected.id === item.id;
+    const foreground = getItemTextColor(item, item.color);
+    const style = `color:${foreground};background:${item.color};border-color:${item.color};`;
+    return `<button class="chip ${active ? "active" : ""}" style="${style}" type="button" data-chip-type="${category}" data-chip-id="${item.id}">${escapeHtml(item.name)}</button>`;
+  });
+  const cancelType = `cancel-${category}`;
+  const cancelActive = state.selected.type === cancelType;
+  chips.push(`<button class="chip cancel ${cancelActive ? "active" : ""}" type="button" data-chip-type="${cancelType}" data-chip-id="">取消</button>`);
+  container.innerHTML = chips.join("");
+}
+
+function renderToolbar() {
+  renderDeptFilter();
+  renderTableViewSelect();
+  renderTableDeptScopeFilter();
+  const visibleShifts = state.deptFilter === "all"
+    ? state.shifts
+    : state.shifts.filter((shift) => shiftAllowsDepartment(shift, state.deptFilter));
+  renderChips("shiftChips", "shift", visibleShifts.filter((item) => !item.hiddenFromToolbar));
+  renderChips("leaveChips", "leave", state.leaves.filter((item) => !item.hiddenFromToolbar));
+  renderChips("overtimeChips", "overtime", state.overtime.filter((item) => !item.hiddenFromToolbar));
+  syncRoleUi();
+}
+
+function memberMatchesSelectedShift(member) {
+  if (state.selected.type !== "shift" || !state.selected.id) {
+    return false;
+  }
+  const shift = getItem("shift", state.selected.id);
+  if (!shift) {
+    return false;
+  }
+  return memberCanScheduleShift(member, shift.id);
+}
+
+function memberLabel(member) {
+  const selectedShiftClass = memberMatchesSelectedShift(member) ? "shift-eligible-member-name" : "";
+  const payTypeLabel = member.payByDay ? '<span class="member-pay-type">PT</span>' : "";
+  return `<span class="member-main ${selectedShiftClass}">${escapeHtml(member.name)}${payTypeLabel}</span>`;
+}
+;
+
+/* ===== renderer-schedule-groups.js ===== */
+function getMemberEightWeekStats(member) {
+  return getVisibleDates().reduce((stats, dateString) => {
+    if (!isMemberActiveOnDateString(member, dateString)) {
+      return stats;
+    }
+    const slot = getDisplayedSlot(member.id, dateString);
+    const leave = getItem("leave", slot?.leave);
+    const hasShift = Boolean(slot?.shift);
+    if (leave?.code === "0036") {
+      stats.regular += 1;
+    }
+    if (leave?.code === "0047") {
+      if (hasShift) {
+        stats.restWork += 1;
+      } else {
+        stats.rest += 1;
+      }
+    }
+    if (!slot?.shift && !slot?.leave) {
+      stats.unassigned += 1;
+    }
+    return stats;
+  }, { regular: 0, rest: 0, restWork: 0, unassigned: 0 });
+}
+
+function renderMemberStats(member) {
+  const stats = getMemberEightWeekStats(member);
+  return `
+    <div class="member-stats">
+      <span>休:${stats.rest}</span>
+      <span>灰休:${stats.restWork}</span>
+      <span>例:${stats.regular}</span>
+      <span>未排:${stats.unassigned}</span>
+    </div>
+  `;
+}
+
+function memberHasScheduledShiftInDepartment(member, departmentId) {
+  if (getMemberHomeDeptId(member) === departmentId) {
+    return true;
+  }
+  for (const dateString of getVisibleDates()) {
+    if (!isMemberActiveOnDateString(member, dateString)) {
+      continue;
+    }
+    const slot = getDisplayedSlot(member.id, dateString);
+    const shift = getItem("shift", slot?.shift);
+    if (shift && shiftAllowsDepartment(shift, departmentId)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function getVisibleTableGroups() {
+  return state.departments
+    .filter((department) => isDepartmentVisibleInScheduleRange(department))
+    .map((department) => ({
+      department,
+      members: state.members.filter((member) => {
+        if (getMemberHomeDeptId(member) !== department.id) {
+          return false;
+        }
+        if (!isMemberActiveInVisibleRange(member)) {
+          return false;
+        }
+        if (state.tableDeptScopeFilter === "all") {
+          return true;
+        }
+        return memberHasScheduledShiftInDepartment(member, state.tableDeptScopeFilter);
+      })
+    }))
+    .filter(({ members }) => members.length);
+}
+;
+
+/* ===== renderer-schedule-cells.js ===== */
+function getVisibleShiftRows() {
+  return state.shifts.filter((shift) => (
+    shiftHasVisibleDepartment(shift)
+    && (state.tableDeptScopeFilter === "all" || shiftAllowsDepartment(shift, state.tableDeptScopeFilter))
+  ));
+}
+
+function getShiftViewMembersForDay(shiftId, dateString) {
+  return state.members.filter((member) => {
+    if (!isMemberActiveOnDateString(member, dateString)) {
+      return false;
+    }
+    const slot = getDisplayedSlot(member.id, dateString);
+    return slot?.shift === shiftId;
+  });
+}
+
+function getShiftViewCellState(shift, dateString) {
+  const members = getShiftViewMembersForDay(shift.id, dateString);
+  const isOperating = isShiftOperatingOnDate(shift, dateString);
+  const requiredStaffCount = getShiftDemandForDate(shift, dateString);
+  return {
+    members,
+    isOperating,
+    isShortage: members.length < requiredStaffCount
+  };
+}
+
+function renderShiftViewCell(members) {
+  if (!members.length) {
+    return '<div class="shift-view-members"></div>';
+  }
+  return `
+    <div class="shift-view-members">
+      ${members.map((member) => `<div class="shift-view-member">${escapeHtml(member.name)}</div>`).join("")}
+    </div>
+  `;
+}
+
+function getScheduleSegmentTextLength(text) {
+  return Array.from(String(text || "").trim()).length;
+}
+
+function getScheduleSegmentSizeClass(segment, segmentCount) {
+  const textLength = getScheduleSegmentTextLength(segment.name);
+  if (segmentCount === 1 && textLength > 0 && textLength < 2) {
+    return "seg-label-xlarge";
+  }
+  if (segmentCount < 3 && textLength > 0 && textLength < 3) {
+    return "seg-label-large";
+  }
+  if (segmentCount < 3 && textLength === 3) {
+    return "seg-label-medium";
+  }
+  return "";
+}
+
+function renderCellInner(key, memberId = "", day = 0, slotOverride = null, isPreview = false) {
+  const cellState = slotOverride || state.schedule[key];
+  if (!cellState) {
+    return '<div class="cell-inner"></div>';
+  }
+  const segments = [];
+  if (cellState.shift) {
+    const shift = getItem("shift", cellState.shift);
+    if (shift) {
+      segments.push({
+        category: "shift",
+        name: shift.name,
+        color: shift.color,
+        textColor: getItemTextColor(shift, shift.color)
+      });
+    }
+  }
+  if (cellState.leave) {
+    const leave = getItem("leave", cellState.leave);
+    if (leave) {
+      segments.push({
+        category: "leave",
+        name: cellState.leaveMeta?.displayName || leave.name,
+        color: leave.color,
+        textColor: leave.code === "0047" && cellState.shift ? "rgb(112, 112, 112)" : getItemTextColor(leave, leave.color)
+      });
+    }
+  }
+  if (cellState.overtime) {
+    const overtime = getItem("overtime", cellState.overtime);
+    const color = overtime?.color || "#D85A30";
+    segments.push({
+      category: "overtime",
+      name: overtime?.name || cellState.overtimeMeta?.displayName || "加班",
+      color,
+      textColor: getItemTextColor(overtime, color)
+    });
+  }
+  if (!segments.length) {
+    return '<div class="cell-inner"></div>';
+  }
+  const visibleSegments = segments.slice(0, 3);
+  return `<div class="cell-inner">${visibleSegments.map((segment) => (
+    `<div class="seg" style="background-color:${segment.color};color:${segment.textColor || textColor(segment.color)}" ${
+      segment.category === "leave" && !isPreview && shouldPromptLeaveDetail(segment, cellState.leaveMeta)
+        ? `data-hover-schedule-detail="${memberId}:${day}:leave"`
+        : segment.category === "overtime" && !isPreview && cellState.overtimeMeta
+          ? `data-hover-schedule-detail="${memberId}:${day}:overtime"`
+          : ""
+    }><span class="seg-label ${getScheduleSegmentSizeClass(segment, visibleSegments.length)}">${escapeHtml(segment.name)}</span></div>`
+  )).join("")}</div>`;
+}
+;
+
+/* ===== renderer-schedule-table.js ===== */
+function renderTable() {
+  hideLeaveTooltip();
+  const table = document.getElementById("mainTable");
+  const visibleDates = getVisibleDates();
+  const days = visibleDates.length;
+  const today = getTodayDateString();
+
+  let html = '<colgroup><col class="col-dept"><col class="col-person">';
+  if (state.tableView === "member" && state.tableStatsVisible) {
+    html += '<col class="col-stats">';
+  }
+  visibleDates.forEach(() => {
+    html += '<col class="col-day">';
+  });
+  html += "</colgroup><tbody>";
+
+  if (state.tableView === "shift") {
+    const shifts = getVisibleShiftRows();
+    if (!shifts.length) {
+      html += `<tr><td class="empty-table" colspan="${days + 2}">目前沒有符合範圍的班別</td></tr>`;
+    } else {
+      shifts.forEach((shift) => {
+        html += "<tr>";
+        html += `<td class="dept-col">${escapeHtml(shift.name)}</td>`;
+        html += `<td class="person-col demand-col">${escapeHtml(String(shift.requiredStaffCount ?? 0))}</td>`;
+        visibleDates.forEach((dateString, index) => {
+          const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, index, days);
+          const shiftViewCellState = getShiftViewCellState(shift, dateString);
+          const inactiveClass = shiftViewCellState.isOperating ? "" : "inactive-cell";
+          html += `<td class="cell shift-view-cell ${inactiveClass} ${shiftViewCellState.isShortage ? "shift-view-shortage" : ""} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-shift-id="${shift.id}" data-date="${dateString}">${renderShiftViewCell(shiftViewCellState.members)}</td>`;
+        });
+        html += "</tr>";
+      });
+    }
+  } else {
+    const groups = getVisibleTableGroups();
+    const canEditScheduleOrder = canEditSchedule();
+    const orderDragClass = canEditScheduleOrder ? " schedule-order-drag" : "";
+    const draggableAttr = canEditScheduleOrder ? ' draggable="true"' : "";
+    let rowIndex = 0;
+    if (!groups.length) {
+      html += `<tr><td class="empty-table" colspan="${days + 2 + (state.tableStatsVisible ? 1 : 0)}">${state.tableDeptScopeFilter === "all" ? "目前還沒有人員" : "目前週期沒有排到此單位班別的人員"}</td></tr>`;
+    } else {
+      groups.forEach(({ department, members }) => {
+        members.forEach((member, index) => {
+          html += `<tr class="${member.payByDay ? "pay-daily-row" : ""}">`;
+          if (index === 0) {
+            const departmentEditAttrs = canEditScheduleOrder ? ` data-table-department-id="${escapeHtml(department.id)}"` : "";
+            html += `<td class="dept-col${orderDragClass}"${draggableAttr} rowspan="${members.length}"${departmentEditAttrs}>${escapeHtml(department.name)}</td>`;
+          }
+          const memberEditAttrs = canEditScheduleOrder
+            ? ` data-table-member-id="${escapeHtml(member.id)}" data-table-member-department-id="${escapeHtml(getMemberHomeDeptId(member))}"`
+            : "";
+          const shiftEligibleClass = memberMatchesSelectedShift(member) ? " shift-eligible-person-col" : "";
+          html += `<td class="person-col${orderDragClass}${shiftEligibleClass}"${draggableAttr}${memberEditAttrs} data-row-index="${rowIndex}"><div class="member-label">${memberLabel(member)}</div></td>`;
+          if (state.tableStatsVisible) {
+            html += `<td class="stats-col">${renderMemberStats(member)}</td>`;
+          }
+          visibleDates.forEach((dateString, dateIndex) => {
+            const active = isMemberActiveOnDateString(member, dateString);
+            const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, dateIndex, days);
+            if (!active) {
+              html += `<td class="cell inactive-cell ${weekBoundaryClass}" data-disabled="true" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}"><div class="cell-inner"></div></td>`;
+              return;
+            }
+            const key = getScheduleKeyForDateString(member.id, dateString);
+            const previewSlot = getPreviewSlotByKey(key);
+            const displayedSlot = previewSlot || state.schedule[key] || null;
+            const previewClass = previewSlot ? "auto-schedule-preview" : "";
+            html += `<td class="cell ${previewClass} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}">${renderCellInner(key, member.id, dateString, displayedSlot, Boolean(previewSlot))}</td>`;
+          });
+          html += "</tr>";
+          rowIndex += 1;
+        });
+      });
+    }
+  }
+
+  html += "</tbody>";
+  table.innerHTML = html;
+  syncScheduleColumnWidths();
+  renderStickyTableHeader(visibleDates);
+  syncScheduleRangeSelectionUi();
+}
+
+function renderHeader() {
+  const { startDate, endDate } = getVisibleDateRange();
+  document.getElementById("monthTitle").textContent = `${startDate} ～ ${endDate}`;
+  renderAuthBar();
+}
+;
+
 /* ===== renderer.js ===== */
 let state = createEmptyState();
 let modalColor = COLORS[0].hex;
@@ -7028,164 +7395,6 @@ function setModal(content) {
   document.getElementById("modalRoot").innerHTML = content;
 }
 
-function renderDeptFilter() {
-  const select = document.getElementById("deptFilter");
-  const departments = state.departments.filter((department) => isDepartmentVisibleInScheduleRange(department));
-  if (state.deptFilter !== "all" && !departments.some((department) => department.id === state.deptFilter)) {
-    state.deptFilter = "all";
-  }
-  select.innerHTML = `
-    <option value="all">全部單位</option>
-    ${departments.map((department) => (
-      `<option value="${department.id}" ${state.deptFilter === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`
-    )).join("")}
-  `;
-}
-
-function renderTableDeptScopeFilter() {
-  const select = document.getElementById("tableDeptScopeFilter");
-  if (!select) {
-    return;
-  }
-  const departments = state.departments.filter((department) => isDepartmentVisibleInScheduleRange(department));
-  if (state.tableDeptScopeFilter !== "all" && !departments.some((department) => department.id === state.tableDeptScopeFilter)) {
-    state.tableDeptScopeFilter = "all";
-  }
-  select.innerHTML = `
-    <option value="all">全部顯示</option>
-    ${departments.map((department) => (
-      `<option value="${department.id}" ${state.tableDeptScopeFilter === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`
-    )).join("")}
-  `;
-}
-
-function renderTableViewSelect() {
-  const select = document.getElementById("tableViewSelect");
-  if (!select) {
-    return;
-  }
-  select.value = state.tableView === "shift" ? "shift" : state.tableStatsVisible ? "member-stats" : "member";
-}
-
-function renderChips(containerId, category, items) {
-  const container = document.getElementById(containerId);
-  const chips = items.map((item) => {
-    const active = state.selected.type === category && state.selected.id === item.id;
-    const foreground = getItemTextColor(item, item.color);
-    const style = `color:${foreground};background:${item.color};border-color:${item.color};`;
-    return `<button class="chip ${active ? "active" : ""}" style="${style}" type="button" data-chip-type="${category}" data-chip-id="${item.id}">${escapeHtml(item.name)}</button>`;
-  });
-  const cancelType = `cancel-${category}`;
-  const cancelActive = state.selected.type === cancelType;
-  chips.push(`<button class="chip cancel ${cancelActive ? "active" : ""}" type="button" data-chip-type="${cancelType}" data-chip-id="">取消</button>`);
-  container.innerHTML = chips.join("");
-}
-
-function renderToolbar() {
-  renderDeptFilter();
-  renderTableViewSelect();
-  renderTableDeptScopeFilter();
-  const visibleShifts = state.deptFilter === "all"
-    ? state.shifts
-    : state.shifts.filter((shift) => shiftAllowsDepartment(shift, state.deptFilter));
-  renderChips("shiftChips", "shift", visibleShifts.filter((item) => !item.hiddenFromToolbar));
-  renderChips("leaveChips", "leave", state.leaves.filter((item) => !item.hiddenFromToolbar));
-  renderChips("overtimeChips", "overtime", state.overtime.filter((item) => !item.hiddenFromToolbar));
-  syncRoleUi();
-}
-
-function memberMatchesSelectedShift(member) {
-  if (state.selected.type !== "shift" || !state.selected.id) {
-    return false;
-  }
-  const shift = getItem("shift", state.selected.id);
-  if (!shift) {
-    return false;
-  }
-  return memberCanScheduleShift(member, shift.id);
-}
-
-function memberLabel(member) {
-  const selectedShiftClass = memberMatchesSelectedShift(member) ? "shift-eligible-member-name" : "";
-  const payTypeLabel = member.payByDay ? '<span class="member-pay-type">PT</span>' : "";
-  return `<span class="member-main ${selectedShiftClass}">${escapeHtml(member.name)}${payTypeLabel}</span>`;
-}
-
-function getMemberEightWeekStats(member) {
-  return getVisibleDates().reduce((stats, dateString) => {
-    if (!isMemberActiveOnDateString(member, dateString)) {
-      return stats;
-    }
-    const slot = getDisplayedSlot(member.id, dateString);
-    const leave = getItem("leave", slot?.leave);
-    const hasShift = Boolean(slot?.shift);
-    if (leave?.code === "0036") {
-      stats.regular += 1;
-    }
-    if (leave?.code === "0047") {
-      if (hasShift) {
-        stats.restWork += 1;
-      } else {
-        stats.rest += 1;
-      }
-    }
-    if (!slot?.shift && !slot?.leave) {
-      stats.unassigned += 1;
-    }
-    return stats;
-  }, { regular: 0, rest: 0, restWork: 0, unassigned: 0 });
-}
-
-function renderMemberStats(member) {
-  const stats = getMemberEightWeekStats(member);
-  return `
-    <div class="member-stats">
-      <span>休:${stats.rest}</span>
-      <span>灰休:${stats.restWork}</span>
-      <span>例:${stats.regular}</span>
-      <span>未排:${stats.unassigned}</span>
-    </div>
-  `;
-}
-
-function memberHasScheduledShiftInDepartment(member, departmentId) {
-  if (getMemberHomeDeptId(member) === departmentId) {
-    return true;
-  }
-  for (const dateString of getVisibleDates()) {
-    if (!isMemberActiveOnDateString(member, dateString)) {
-      continue;
-    }
-    const slot = getDisplayedSlot(member.id, dateString);
-    const shift = getItem("shift", slot?.shift);
-    if (shift && shiftAllowsDepartment(shift, departmentId)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function getVisibleTableGroups() {
-  return state.departments
-    .filter((department) => isDepartmentVisibleInScheduleRange(department))
-    .map((department) => ({
-      department,
-      members: state.members.filter((member) => {
-        if (getMemberHomeDeptId(member) !== department.id) {
-          return false;
-        }
-        if (!isMemberActiveInVisibleRange(member)) {
-          return false;
-        }
-        if (state.tableDeptScopeFilter === "all") {
-          return true;
-        }
-        return memberHasScheduledShiftInDepartment(member, state.tableDeptScopeFilter);
-      })
-    }))
-    .filter(({ members }) => members.length);
-}
-
 function getReorderedVisibleIds(visibleIds, draggedId, targetId, insertAfter) {
   if (!draggedId || !targetId || draggedId === targetId || !visibleIds.includes(draggedId) || !visibleIds.includes(targetId)) {
     return visibleIds;
@@ -7258,207 +7467,6 @@ async function reorderScheduleTableMember(draggedId, targetId, insertAfter = fal
   state.members = applyVisibleOrderById(state.members, nextVisibleIds);
   await finishScheduleTableOrderChange(viewport);
   return true;
-}
-
-function getVisibleShiftRows() {
-  return state.shifts.filter((shift) => (
-    shiftHasVisibleDepartment(shift)
-    && (state.tableDeptScopeFilter === "all" || shiftAllowsDepartment(shift, state.tableDeptScopeFilter))
-  ));
-}
-
-function getShiftViewMembersForDay(shiftId, dateString) {
-  return state.members.filter((member) => {
-    if (!isMemberActiveOnDateString(member, dateString)) {
-      return false;
-    }
-    const slot = getDisplayedSlot(member.id, dateString);
-    return slot?.shift === shiftId;
-  });
-}
-
-function getShiftViewCellState(shift, dateString) {
-  const members = getShiftViewMembersForDay(shift.id, dateString);
-  const isOperating = isShiftOperatingOnDate(shift, dateString);
-  const requiredStaffCount = getShiftDemandForDate(shift, dateString);
-  return {
-    members,
-    isOperating,
-    isShortage: members.length < requiredStaffCount
-  };
-}
-
-function renderShiftViewCell(members) {
-  if (!members.length) {
-    return '<div class="shift-view-members"></div>';
-  }
-  return `
-    <div class="shift-view-members">
-      ${members.map((member) => `<div class="shift-view-member">${escapeHtml(member.name)}</div>`).join("")}
-    </div>
-  `;
-}
-
-function getScheduleSegmentTextLength(text) {
-  return Array.from(String(text || "").trim()).length;
-}
-
-function getScheduleSegmentSizeClass(segment, segmentCount) {
-  const textLength = getScheduleSegmentTextLength(segment.name);
-  if (segmentCount === 1 && textLength > 0 && textLength < 2) {
-    return "seg-label-xlarge";
-  }
-  if (segmentCount < 3 && textLength > 0 && textLength < 3) {
-    return "seg-label-large";
-  }
-  if (segmentCount < 3 && textLength === 3) {
-    return "seg-label-medium";
-  }
-  return "";
-}
-
-function renderCellInner(key, memberId = "", day = 0, slotOverride = null, isPreview = false) {
-  const cellState = slotOverride || state.schedule[key];
-  if (!cellState) {
-    return '<div class="cell-inner"></div>';
-  }
-  const segments = [];
-  if (cellState.shift) {
-    const shift = getItem("shift", cellState.shift);
-    if (shift) {
-      segments.push({
-        category: "shift",
-        name: shift.name,
-        color: shift.color,
-        textColor: getItemTextColor(shift, shift.color)
-      });
-    }
-  }
-  if (cellState.leave) {
-    const leave = getItem("leave", cellState.leave);
-    if (leave) {
-      segments.push({
-        category: "leave",
-        name: cellState.leaveMeta?.displayName || leave.name,
-        color: leave.color,
-        textColor: leave.code === "0047" && cellState.shift ? "rgb(112, 112, 112)" : getItemTextColor(leave, leave.color)
-      });
-    }
-  }
-  if (cellState.overtime) {
-    const overtime = getItem("overtime", cellState.overtime);
-    const color = overtime?.color || "#D85A30";
-    segments.push({
-      category: "overtime",
-      name: overtime?.name || cellState.overtimeMeta?.displayName || "加班",
-      color,
-      textColor: getItemTextColor(overtime, color)
-    });
-  }
-  if (!segments.length) {
-    return '<div class="cell-inner"></div>';
-  }
-  const visibleSegments = segments.slice(0, 3);
-  return `<div class="cell-inner">${visibleSegments.map((segment) => (
-    `<div class="seg" style="background-color:${segment.color};color:${segment.textColor || textColor(segment.color)}" ${
-      segment.category === "leave" && !isPreview && shouldPromptLeaveDetail(segment, cellState.leaveMeta)
-        ? `data-hover-schedule-detail="${memberId}:${day}:leave"`
-        : segment.category === "overtime" && !isPreview && cellState.overtimeMeta
-          ? `data-hover-schedule-detail="${memberId}:${day}:overtime"`
-          : ""
-    }><span class="seg-label ${getScheduleSegmentSizeClass(segment, visibleSegments.length)}">${escapeHtml(segment.name)}</span></div>`
-  )).join("")}</div>`;
-}
-
-function renderTable() {
-  hideLeaveTooltip();
-  const table = document.getElementById("mainTable");
-  const visibleDates = getVisibleDates();
-  const days = visibleDates.length;
-  const today = getTodayDateString();
-
-  let html = '<colgroup><col class="col-dept"><col class="col-person">';
-  if (state.tableView === "member" && state.tableStatsVisible) {
-    html += '<col class="col-stats">';
-  }
-  visibleDates.forEach(() => {
-    html += '<col class="col-day">';
-  });
-  html += "</colgroup><tbody>";
-
-  if (state.tableView === "shift") {
-    const shifts = getVisibleShiftRows();
-    if (!shifts.length) {
-      html += `<tr><td class="empty-table" colspan="${days + 2}">目前沒有符合範圍的班別</td></tr>`;
-    } else {
-      shifts.forEach((shift) => {
-        html += "<tr>";
-        html += `<td class="dept-col">${escapeHtml(shift.name)}</td>`;
-        html += `<td class="person-col demand-col">${escapeHtml(String(shift.requiredStaffCount ?? 0))}</td>`;
-        visibleDates.forEach((dateString, index) => {
-          const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, index, days);
-          const shiftViewCellState = getShiftViewCellState(shift, dateString);
-          const inactiveClass = shiftViewCellState.isOperating ? "" : "inactive-cell";
-          html += `<td class="cell shift-view-cell ${inactiveClass} ${shiftViewCellState.isShortage ? "shift-view-shortage" : ""} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-shift-id="${shift.id}" data-date="${dateString}">${renderShiftViewCell(shiftViewCellState.members)}</td>`;
-        });
-        html += "</tr>";
-      });
-    }
-  } else {
-    const groups = getVisibleTableGroups();
-    const canEditScheduleOrder = canEditSchedule();
-    const orderDragClass = canEditScheduleOrder ? " schedule-order-drag" : "";
-    const draggableAttr = canEditScheduleOrder ? ' draggable="true"' : "";
-    let rowIndex = 0;
-    if (!groups.length) {
-      html += `<tr><td class="empty-table" colspan="${days + 2 + (state.tableStatsVisible ? 1 : 0)}">${state.tableDeptScopeFilter === "all" ? "目前還沒有人員" : "目前週期沒有排到此單位班別的人員"}</td></tr>`;
-    } else {
-      groups.forEach(({ department, members }) => {
-        members.forEach((member, index) => {
-          html += `<tr class="${member.payByDay ? "pay-daily-row" : ""}">`;
-          if (index === 0) {
-            const departmentEditAttrs = canEditScheduleOrder ? ` data-table-department-id="${escapeHtml(department.id)}"` : "";
-            html += `<td class="dept-col${orderDragClass}"${draggableAttr} rowspan="${members.length}"${departmentEditAttrs}>${escapeHtml(department.name)}</td>`;
-          }
-          const memberEditAttrs = canEditScheduleOrder
-            ? ` data-table-member-id="${escapeHtml(member.id)}" data-table-member-department-id="${escapeHtml(getMemberHomeDeptId(member))}"`
-            : "";
-          const shiftEligibleClass = memberMatchesSelectedShift(member) ? " shift-eligible-person-col" : "";
-          html += `<td class="person-col${orderDragClass}${shiftEligibleClass}"${draggableAttr}${memberEditAttrs} data-row-index="${rowIndex}"><div class="member-label">${memberLabel(member)}</div></td>`;
-          if (state.tableStatsVisible) {
-            html += `<td class="stats-col">${renderMemberStats(member)}</td>`;
-          }
-          visibleDates.forEach((dateString, dateIndex) => {
-            const active = isMemberActiveOnDateString(member, dateString);
-            const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, dateIndex, days);
-            if (!active) {
-              html += `<td class="cell inactive-cell ${weekBoundaryClass}" data-disabled="true" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}"><div class="cell-inner"></div></td>`;
-              return;
-            }
-            const key = getScheduleKeyForDateString(member.id, dateString);
-            const previewSlot = getPreviewSlotByKey(key);
-            const displayedSlot = previewSlot || state.schedule[key] || null;
-            const previewClass = previewSlot ? "auto-schedule-preview" : "";
-            html += `<td class="cell ${previewClass} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}">${renderCellInner(key, member.id, dateString, displayedSlot, Boolean(previewSlot))}</td>`;
-          });
-          html += "</tr>";
-          rowIndex += 1;
-        });
-      });
-    }
-  }
-
-  html += "</tbody>";
-  table.innerHTML = html;
-  syncScheduleColumnWidths();
-  renderStickyTableHeader(visibleDates);
-  syncScheduleRangeSelectionUi();
-}
-
-function renderHeader() {
-  const { startDate, endDate } = getVisibleDateRange();
-  document.getElementById("monthTitle").textContent = `${startDate} ～ ${endDate}`;
-  renderAuthBar();
 }
 
 function renderHomeDashboard() {

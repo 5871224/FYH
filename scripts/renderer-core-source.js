@@ -14,6 +14,10 @@ const RENDERER_CORE_FILES = [
   "renderer-auto-schedule-demand.js",
   "renderer-auto-schedule-assignment.js",
   "renderer-auto-schedule.js",
+  "renderer-schedule-toolbar.js",
+  "renderer-schedule-groups.js",
+  "renderer-schedule-cells.js",
+  "renderer-schedule-table.js",
   "renderer.js",
 ];
 
