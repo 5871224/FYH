@@ -1,0 +1,58 @@
+name: Prepare Keyboard Export Split
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/split-keyboard-export-helpers'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: agent/split-keyboard-export-helpers
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Split keyboard and export helpers
+        run: node scripts/split-keyboard-export-helpers.js
+
+      - name: Build published web files
+        run: npm run web:publish
+
+      - name: Run complete checks without temporary workflow
+        run: |
+          set -o pipefail
+          cp .github/workflows/prepare-keyboard-export-split.yml /tmp/prepare-keyboard-export-split.yml
+          rm .github/workflows/prepare-keyboard-export-split.yml
+          npm run ci:check 2>&1 | tee keyboard-export-split-ci.log
+          cp /tmp/prepare-keyboard-export-split.yml .github/workflows/prepare-keyboard-export-split.yml
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: keyboard-export-split-ci-log
+          path: keyboard-export-split-ci.log
+          if-no-files-found: ignore
+
+      - name: Commit split modules
+        run: |
+          rm -f scripts/split-keyboard-export-helpers.js
+          rm -f keyboard-export-split-ci.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "拆分班表操作與匯出判斷"
+          git push origin HEAD:agent/split-keyboard-export-helpers
