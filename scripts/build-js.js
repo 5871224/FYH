@@ -35,6 +35,8 @@ const modules = [
   "renderer-settings-ordering.js",
   "renderer-settings-member.js",
   "renderer-overtime-employee.js",
+  "renderer-request-helpers.js",
+  "renderer-auth-context.js",
   "renderer-attendance-page.js",
   "renderer-meal-page.js",
   "renderer-records-page.js",
