@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+// 根層規則必須維持單一來源；媒體查詢中的響應式差異可使用同名選擇器。
 
 function closingBrace(source, openIndex) {
   let depth = 0;
