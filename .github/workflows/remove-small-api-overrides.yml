@@ -1,0 +1,45 @@
+name: Remove Small API Overrides
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: github.head_ref == 'agent/remove-small-api-overrides'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Merge small API overrides
+        run: node scripts/remove-small-api-overrides.js
+
+      - name: Build static web
+        run: npm run web:publish
+
+      - name: Run complete checks
+        run: npm run ci:check
+
+      - name: Commit canonical small APIs
+        run: |
+          rm -f scripts/remove-small-api-overrides.js
+          rm -f .github/workflows/remove-small-api-overrides.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "整併今日打卡與訂餐管理 API 補丁"
+          git push origin HEAD:agent/remove-small-api-overrides
