@@ -116,11 +116,11 @@
   white-space: nowrap;
 }
 
-.department-settings-modal .department-settings-flag:nth-of-type(4) {
+.department-settings-modal .department-settings-flag:nth-of-type(5) {
   grid-column: 5 !important;
 }
 
-.department-settings-modal .department-settings-flag:nth-of-type(5) {
+.department-settings-modal .department-settings-flag:nth-of-type(6) {
   grid-column: 6 !important;
 }
 
