@@ -1,0 +1,58 @@
+name: Prepare Records Views Split
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/split-records-views'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: agent/split-records-views
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Split records views
+        run: node scripts/split-records-views.js
+
+      - name: Build published web files
+        run: npm run web:publish
+
+      - name: Run complete checks without temporary workflow
+        run: |
+          set -o pipefail
+          cp .github/workflows/prepare-records-views-split.yml /tmp/prepare-records-views-split.yml
+          rm .github/workflows/prepare-records-views-split.yml
+          npm run ci:check 2>&1 | tee records-views-split-ci.log
+          cp /tmp/prepare-records-views-split.yml .github/workflows/prepare-records-views-split.yml
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: records-views-split-ci-log
+          path: records-views-split-ci.log
+          if-no-files-found: ignore
+
+      - name: Commit split module
+        run: |
+          rm -f scripts/split-records-views.js
+          rm -f records-views-split-ci.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "拆分記錄頁畫面渲染"
+          git push origin HEAD:agent/split-records-views
