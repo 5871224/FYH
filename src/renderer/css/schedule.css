@@ -1,6 +1,4 @@
-:root {
-  --schedule-nav-control-height: 42px;
-}
+
 
 .calendar-nav {
   position: relative;
@@ -139,36 +137,6 @@
     z-index: 30;
     margin: 0;
   }
-}
-
-/* Keep the schedule frame fixed while synchronized horizontal scrollers move. */
-.table-top-scrollbar {
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.table-sticky-header {
-  border: 1px solid var(--line);
-  border-bottom: 0;
-}
-
-.table-sticky-header::after,
-.table-sticky-header-left::after {
-  content: none;
-  display: none;
-}
-
-.table-wrap {
-  border: 0;
-  border-left: 1px solid var(--line);
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-
-.table-wrap::after {
-  content: none;
-  display: none;
 }
 
 /* Desktop schedule width contract: keep the page within the viewport and

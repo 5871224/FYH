@@ -4,9 +4,6 @@ body:not(.is-authenticated) .toolbar-card {
 }
 
 /* 打卡頁加班申請：固定欄位順序與雙欄時數配置。 */
-.overtime-use-label {
-  font-size: 15px;
-}
 
 .overtime-date-row {
   display: grid;
@@ -37,10 +34,6 @@ body:not(.is-authenticated) .toolbar-card {
   display: grid !important;
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   gap: 8px;
-}
-
-.overtime-hours-grid .form-row-wide {
-  grid-column: 1 / -1;
 }
 
 .overtime-hours-summary > div,

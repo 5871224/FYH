@@ -1,6 +1,4 @@
 const fs = require("node:fs");
-
-const content = `const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -18,11 +16,11 @@ function closingBrace(source, openIndex) {
 }
 
 function rootRuleBodies(source, selector) {
-  const clean = source.replace(/\\/\\*[\\s\\S]*?\\*\\//g, "");
+  const clean = source.replace(/\/\*[\s\S]*?\*\//g, "");
   const bodies = [];
   let cursor = 0;
   while (cursor < clean.length) {
-    while (cursor < clean.length && /\\s/.test(clean[cursor])) cursor += 1;
+    while (cursor < clean.length && /\s/.test(clean[cursor])) cursor += 1;
     const open = clean.indexOf("{", cursor);
     if (open < 0) break;
     const header = clean.slice(cursor, open).trim();
@@ -94,7 +92,3 @@ test("手機打卡與加班欄位規則不再重複", () => {
   assert.equal(allRuleBodies(responsive, ".overtime-hours-grid .form-row-wide").length, 0);
   assert.equal(allRuleBodies(pages, ".overtime-hours-grid .form-row-wide").length, 1);
 });
-`;
-
-fs.writeFileSync("tests/css-consolidation.test.js", content, "utf8");
-console.log("CSS consolidation tests fixed with context awareness.");

@@ -168,3 +168,7 @@ for (const item of duplicateProperties) {
 const reportPath = path.join(root, "css-duplicate-report.md");
 fs.writeFileSync(reportPath, `${lines.join("\n")}\n`, "utf8");
 console.log(`CSS audit completed: ${rules.length} rules, ${exactGroups.length} exact groups, ${overrideGroups.length} override groups.`);
+if (process.argv.includes("--check") && exactGroups.length) {
+  console.error(`Found ${exactGroups.length} exact duplicate CSS rule group(s).`);
+  process.exit(1);
+}
