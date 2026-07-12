@@ -6,6 +6,7 @@ const childProcess = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+// 畫面初始化與 CI 架構檢查都不得建立第二份狀態或留下產生檔。
 
 test("個人記錄畫面使用正式狀態初始化來源", () => {
   const source = read("src/renderer/renderer-records-views.js");
