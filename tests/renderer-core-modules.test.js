@@ -58,7 +58,7 @@ test("renderer.js 不應再保存已拆出的核心區塊", () => {
   const movedMarkers = [
     "const COLORS = [",
     "function createRecordsState() {",
-    "function getSettingsScrollElement(selector = "") {",
+    'function getSettingsScrollElement(selector = "") {',
     "function renderStickyTableHeader(dates) {",
     "function scheduleKey(memberId, year, month, day) {"
   ];
