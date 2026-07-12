@@ -29,7 +29,7 @@ assert(
 assert(renderer.includes("這個單位仍有班別使用"), "department delete should warn when shifts still use the department");
 assert(!renderer.includes("const memberRows = activeMembers.map"), "department member view should be removed");
 assert(!renderer.includes('data-set-department-view="member"') && !renderer.includes("人員檢視"), "department settings should not render the old view switch");
-assert(renderer.includes('data-drop-member="${member.id}"'), "department settings should support dropping onto members for reordering");
+assert(renderer.includes('data-drop-member="${escapeHtml(member.id)}"'), "department settings should support safely escaped member drop targets");
 assert(renderer.includes('<span>${escapeHtml(member.name)}</span>'), "department settings should show member names without employee codes");
 assert(renderer.includes("openListSettings(context.listCategory);"), "saving list items should return to their settings list");
 assert(renderer.includes("openDepartmentSettings();"), "saving departments should return to department settings");

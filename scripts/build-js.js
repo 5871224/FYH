@@ -39,7 +39,6 @@ const modules = [
   "renderer.js",
   "v2-auto-fill-schedule.js",
   "v2-cross-department-member-drag.js",
-  "v2-department-settings-columns.js",
   "v2-drag-scroll-preserve.js",
   "v2-no-overtime-suggestion.js",
   "v2-admin-data-fixes.js",
