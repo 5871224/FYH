@@ -43,5 +43,20 @@ jobs:
       - name: Check workflow hygiene
         run: node --test tests/github-actions-hygiene.test.js
 
-      - name: Run complete checks
-        run: npm run ci:check
+      - name: Run unit tests
+        run: npm test
+
+      - name: Check public Supabase settings
+        run: npm run web:check
+
+      - name: Check normalized storage
+        run: node scripts/check-normalized-storage.js
+
+      - name: Check expansion acceptance
+        run: node scripts/check-expansion-acceptance.js
+
+      - name: Check settings lists
+        run: node scripts/check-settings-lists.js
+
+      - name: Check V2 bundles
+        run: npm run v2:check
