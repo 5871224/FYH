@@ -5,6 +5,7 @@ const root = path.resolve(__dirname, "..");
 const rendererDir = path.join(root, "src", "renderer");
 const rendererPath = path.join(rendererDir, "renderer.js");
 const buildPath = path.join(root, "scripts", "build-js.js");
+const coreSourcePath = path.join(root, "scripts", "renderer-core-source.js");
 const testPath = path.join(root, "tests", "renderer-phase8-page-data.test.js");
 
 const source = fs.readFileSync(rendererPath, "utf8");
@@ -26,12 +27,18 @@ fs.writeFileSync(path.join(rendererDir, "renderer-meal-page.js"), `/* 今日訂�
 fs.writeFileSync(path.join(rendererDir, "renderer-records-page.js"), `/* 記錄頁及主管報表資料讀取控制。\n * 由 renderer.js 拆分；維持既有全域 bundle 執行方式。\n */\n\n${recordsSource}\n`);
 fs.writeFileSync(rendererPath, nextRenderer);
 
+const moduleMarker = `  "renderer-overtime-employee.js",\n  "renderer.js",`;
+const moduleReplacement = `  "renderer-overtime-employee.js",\n  "renderer-attendance-page.js",\n  "renderer-meal-page.js",\n  "renderer-records-page.js",\n  "renderer.js",`;
+
 let build = fs.readFileSync(buildPath, "utf8");
-const marker = `  "renderer-overtime-employee.js",\n  "renderer.js",`;
-const replacement = `  "renderer-overtime-employee.js",\n  "renderer-attendance-page.js",\n  "renderer-meal-page.js",\n  "renderer-records-page.js",\n  "renderer.js",`;
-if (!build.includes(marker)) throw new Error("找不到 JavaScript 建置順序插入點");
-build = build.replace(marker, replacement);
+if (!build.includes(moduleMarker)) throw new Error("找不到 JavaScript 建置順序插入點");
+build = build.replace(moduleMarker, moduleReplacement);
 fs.writeFileSync(buildPath, build);
+
+let coreSource = fs.readFileSync(coreSourcePath, "utf8");
+if (!coreSource.includes(moduleMarker)) throw new Error("找不到 renderer 核心模組清單插入點");
+coreSource = coreSource.replace(moduleMarker, moduleReplacement);
+fs.writeFileSync(coreSourcePath, coreSource);
 
 const testSource = `const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -46,6 +53,7 @@ const meal = read("src/renderer/renderer-meal-page.js");
 const records = read("src/renderer/renderer-records-page.js");
 const renderer = read("src/renderer/renderer.js");
 const build = read("scripts/build-js.js");
+const coreSource = read("scripts/renderer-core-source.js");
 
 test("電腦版打卡定位控制不應呼叫 GPS", async () => {
   const start = attendance.indexOf("function getBrowserPosition");
@@ -103,11 +111,13 @@ test("第八階段應移出頁面資料控制並維持建置順序", () => {
     "renderer-records-page.js",
     "renderer.js"
   ];
-  let previous = -1;
-  ordered.forEach((file) => {
-    const index = build.indexOf(\`"\${file}"\`);
-    assert.ok(index > previous, \`建置順序錯誤：\${file}\`);
-    previous = index;
+  [build, coreSource].forEach((manifest) => {
+    let previous = -1;
+    ordered.forEach((file) => {
+      const index = manifest.indexOf(\`"\${file}"\`);
+      assert.ok(index > previous, \`模組順序錯誤：\${file}\`);
+      previous = index;
+    });
   });
   ["formatClockTime", "loadTodayMealOrder", "loadRecordsPage", "loadMealAdminSettings"].forEach((name) => {
     assert.equal(renderer.includes(\`function \${name}\`), false, \`renderer.js 仍保留 \${name}\`);
