@@ -26,6 +26,8 @@ const RENDERER_CORE_FILES = [
   "renderer-overtime-employee.js",
   "renderer-request-helpers.js",
   "renderer-auth-context.js",
+  "renderer-schedule-tooltip.js",
+  "renderer-main-pages.js",
   "renderer-modal-navigation.js",
   "renderer-schedule-ordering.js",
   "renderer-schedule-keyboard.js",
