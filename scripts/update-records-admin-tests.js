@@ -19,40 +19,25 @@ const oldExtractor = `function extractFunctions(source, startName, endName) {
   const end = source.indexOf(\`async function \${endName}\`, start + 1);
   if (start < 0 || end <= start) throw new Error(\`找不到測試函式區段：\${startName} -> \${endName}\`);
   return source.slice(start, end);
-}`;
-const newExtractor = `function extractFunction(source, name) {
-  const start = source.indexOf(\`async function \${name}\`);
-  if (start < 0) throw new Error(\`找不到測試函式：\${name}\`);
-  const braceStart = source.indexOf("{", start);
-  let depth = 0;
-  let mode = "code";
-  let escaped = false;
-  for (let index = braceStart; index < source.length; index += 1) {
-    const char = source[index];
-    const next = source[index + 1];
-    if (mode === "line") { if (char === "\\n") mode = "code"; continue; }
-    if (mode === "block") { if (char === "*" && next === "/") { mode = "code"; index += 1; } continue; }
-    if (["single", "double", "template"].includes(mode)) {
-      if (escaped) { escaped = false; continue; }
-      if (char === "\\\\") { escaped = true; continue; }
-      if ((mode === "single" && char === "'") || (mode === "double" && char === '"') || (mode === "template" && char === "\`")) mode = "code";
-      continue;
-    }
-    if (char === "/" && next === "/") { mode = "line"; index += 1; continue; }
-    if (char === "/" && next === "*") { mode = "block"; index += 1; continue; }
-    if (char === "'") { mode = "single"; continue; }
-    if (char === '"') { mode = "double"; continue; }
-    if (char === "\`") { mode = "template"; continue; }
-    if (char === "{") depth += 1;
-    if (char === "}" && --depth === 0) return source.slice(start, index + 1);
-  }
-  throw new Error(\`測試函式未完整結束：\${name}\`);
-}`;
+}\n\n`;
 if (!apiTest.includes(oldExtractor)) throw new Error("找不到舊 API 測試擷取工具");
-apiTest = apiTest.replace(oldExtractor, newExtractor);
-const oldCall = `  const functionSource = extractFunctions(source, "getEmployeeOvertimeDates", "getTodayMealOrder");`;
-const newCall = `  const functionSource = ["getEmployeeOvertimeDates", "getAttendanceOvertimeForDate", "getTodayAttendanceOvertime", "submitAttendanceOvertime", "deleteAttendanceOvertime", "getMemberOrder", "saveMemberOrder"].map((name) => extractFunction(source, name)).join("\\n");`;
-if (!apiTest.includes(oldCall)) throw new Error("找不到舊 API 測試區段");
-fs.writeFileSync(apiPath, apiTest.replace(oldCall, newCall), "utf8");
+apiTest = apiTest.replace(oldExtractor, "");
+const testStart = apiTest.indexOf('test("員工加班 API 應保留日期、狀態、送出與刪除操作"');
+const nextTest = apiTest.indexOf('\ntest("正式 loadState', testStart);
+if (testStart < 0 || nextTest < 0) throw new Error("找不到舊員工加班 API 測試");
+const replacement = `test("員工加班 API 應保留日期、狀態、送出、刪除與人員排序操作", () => {
+  const source = readWebApi();
+  [
+    'requestFunction("attendance-overtime-employee", { action: "dates" })',
+    'requestFunction("attendance-overtime-employee", { action: "status", workDate })',
+    'action: "submit"',
+    'action: "delete"',
+    'requestFunction("member-order-v2", { action: "list" })',
+    'requestFunction("member-order-v2", { action: "save", memberIds })'
+  ].forEach((marker) => assert.equal(source.includes(marker), true, "缺少 API 契約：" + marker));
+});
+`;
+apiTest = `${apiTest.slice(0, testStart)}${replacement}${apiTest.slice(nextTest + 1)}`;
+fs.writeFileSync(apiPath, apiTest, "utf8");
 
 console.log("Legacy record tests updated.");
