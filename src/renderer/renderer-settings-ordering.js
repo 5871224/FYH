@@ -11,22 +11,59 @@ function applyOrderedIds(list, orderedIds) {
   return [...ordered, ...missing];
 }
 
+function getSortableSettingsList(category) {
+  if (category === "department") return state.departments;
+  if (category === "member") return state.members;
+  if (["shift", "leave", "overtime"].includes(category)) return getItemList(category);
+  return null;
+}
+
+function captureSortableSettingsReturnContext(category) {
+  if (category === "department") {
+    return captureSettingsReturnContext({
+      category: "department-settings",
+      view: departmentSettingsView
+    });
+  }
+  if (category === "member") {
+    return captureSettingsReturnContext({ category: "member-settings" });
+  }
+  return captureSettingsReturnContext({
+    category: "list-settings",
+    listCategory: category
+  });
+}
+
+function reopenSortedSettings(category, returnTo) {
+  if (category === "department") {
+    openDepartmentSettings();
+    restoreSettingsScroll(returnTo);
+    return;
+  }
+  if (category === "member") {
+    void openMemberSettings().then(() => restoreSettingsScroll(returnTo));
+    return;
+  }
+  openListSettings(category);
+  restoreSettingsScroll(returnTo);
+}
+
 function commitSortedListFromDom(category) {
+  const currentList = getSortableSettingsList(category);
+  if (!currentList) {
+    return false;
+  }
   const orderedIds = getOrderedIdsFromDom(`[data-sort-category="${cssEscapeValue(category)}"][data-sort-item]`, "sortItem");
-  const currentList = category === "department"
-    ? state.departments
-    : getItemList(category);
   if (!orderedIds.length || orderedIds.join("|") === currentList.map((item) => item.id).join("|")) {
     return false;
   }
-  const returnTo = captureSettingsReturnContext({
-    category: category === "department" ? "department-settings" : "list-settings",
-    listCategory: category,
-    view: departmentSettingsView
-  });
+  const returnTo = captureSortableSettingsReturnContext(category);
   const nextList = applyOrderedIds(currentList, orderedIds);
   if (category === "department") {
     state.departments = nextList;
+  }
+  if (category === "member") {
+    state.members = nextList;
   }
   if (category === "shift") {
     state.shifts = nextList;
@@ -38,12 +75,7 @@ function commitSortedListFromDom(category) {
     state.overtime = nextList;
   }
   renderAll();
-  if (category === "department") {
-    openDepartmentSettings();
-  } else {
-    openListSettings(category);
-  }
-  restoreSettingsScroll(returnTo);
+  reopenSortedSettings(category, returnTo);
   queueSave();
   return true;
 }

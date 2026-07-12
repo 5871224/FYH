@@ -5458,26 +5458,37 @@ body:not(.is-authenticated) .toolbar-card {
   margin: 0;
 }
 
-/* ===== 單位設定欄位配置（原 v2-department-settings-columns.css） ===== */
-/* 單位設定表格：拖曳、單位、所屬人員、日期、不顯示、可否打卡、操作。 */
+/* ===== 單位設定欄位配置 ===== */
+/* 電腦版固定為七欄：拖曳、單位、所屬人員、日期、不顯示、可否打卡、操作。
+ * 表格配合彈窗寬度分配欄位，不再用固定 920px 撐出水平捲軸。 */
 .department-settings-modal .department-settings-table-wrap {
   width: 100%;
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .department-settings-modal .department-settings-table-department {
   width: 100%;
-  min-width: 920px;
+  min-width: 0;
 }
 
 .department-settings-modal .department-settings-table-department .department-settings-row {
   display: grid !important;
-  grid-template-columns: 32px 110px minmax(280px, 1fr) 124px 72px 82px 80px !important;
+  grid-template-columns:
+    var(--settings-drag-column-width)
+    minmax(72px, .62fr)
+    minmax(150px, 1.8fr)
+    104px
+    62px
+    68px
+    var(--settings-action-column-width) !important;
   align-items: center;
-  column-gap: 10px;
+  column-gap: 8px;
   box-sizing: border-box;
   width: 100%;
+  min-width: 0;
+  padding-right: 10px;
+  padding-left: 10px;
 }
 
 .department-settings-modal .department-settings-table-department .department-settings-row > * {
@@ -5486,12 +5497,18 @@ body:not(.is-authenticated) .toolbar-card {
   grid-row: 1 !important;
 }
 
+.department-settings-modal .department-settings-table-department .settings-order-drag-col {
+  grid-column: 1 !important;
+}
+
 .department-settings-modal .department-settings-title {
+  grid-column: 2 !important;
   white-space: normal;
   overflow-wrap: anywhere;
 }
 
 .department-settings-modal .member-inline-list {
+  grid-column: 3 !important;
   min-width: 0;
   display: flex;
   flex-wrap: wrap;
@@ -5500,12 +5517,21 @@ body:not(.is-authenticated) .toolbar-card {
 }
 
 .department-settings-modal .department-settings-date-stack {
+  grid-column: 4 !important;
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 3px;
   line-height: 1.35;
   white-space: nowrap;
+}
+
+.department-settings-modal .department-settings-flag:nth-of-type(5) {
+  grid-column: 5 !important;
+}
+
+.department-settings-modal .department-settings-flag:nth-of-type(6) {
+  grid-column: 6 !important;
 }
 
 .department-settings-modal .department-settings-flag,
@@ -5536,9 +5562,14 @@ body:not(.is-authenticated) .toolbar-card {
   align-items: center;
 }
 
-@media (max-width: 960px) {
+/* 手機無法合理容納七欄，僅在手機保留表格內部水平捲動。 */
+@media (max-width: 640px) {
+  .department-settings-modal .department-settings-table-wrap {
+    overflow-x: auto;
+  }
+
   .department-settings-modal .department-settings-table-department {
-    width: 920px;
-    min-width: 920px;
+    width: 700px;
+    min-width: 700px;
   }
 }
