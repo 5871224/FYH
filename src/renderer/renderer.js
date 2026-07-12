@@ -19,24 +19,9 @@ let currentProfile = null;
 let currentMember = null;
 let managerDirectoryLoaded = false;
 let managerDirectoryLoading = null;
-let attendanceState = {
-  loading: false,
-  saving: false,
-  record: null,
-  serverDate: "",
-  error: ""
-};
-let attendanceOvertimeState = {
-  loading: false,
-  expanded: false,
-  status: null,
-  error: ""
-};
-let mealOrderState = {
-  loading: false,
-  status: null,
-  error: ""
-};
+let attendanceState = createAttendanceState();
+let attendanceOvertimeState = createAttendanceOvertimeState();
+let mealOrderState = createMealOrderState();
 let mealOrderLoadSequence = 0;
 let mealPageTab = "order";
 let recordsState = createRecordsState();
@@ -82,12 +67,7 @@ async function loadApp() {
     currentProfile = authContext.profile;
     if (!currentSession?.user) {
       state = createEmptyState();
-      currentMember = null;
-      attendanceState = { loading: false, saving: false, record: null, serverDate: "", error: "" };
-      attendanceOvertimeState = { loading: false, expanded: false, status: null, error: "" };
-      mealOrderState = { loading: false, status: null, error: "" };
-      recordsState = createRecordsState();
-      appInfo = null;
+      resetLoadedUserRuntimeState();
       appView = "home";
       authModalOpen = true;
       renderAll();
@@ -107,12 +87,7 @@ async function loadApp() {
     state = createEmptyState();
     currentSession = null;
     currentProfile = null;
-    currentMember = null;
-    attendanceState = { loading: false, saving: false, record: null, serverDate: "", error: "" };
-    attendanceOvertimeState = { loading: false, expanded: false, status: null, error: "" };
-    mealOrderState = { loading: false, status: null, error: "" };
-    recordsState = createRecordsState();
-    appInfo = null;
+    resetLoadedUserRuntimeState();
     renderAll();
     syncCoreActionsMenu();
     return;

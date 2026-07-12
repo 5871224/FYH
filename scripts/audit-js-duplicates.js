@@ -221,3 +221,20 @@ report.push("");
 
 fs.writeFileSync(path.join(root, "js-duplicate-report.md"), `${report.join("\n")}\n`, "utf8");
 console.log(`JavaScript audit completed: ${functions.length} functions, ${duplicateNames.length} duplicate names, ${exactBodies.length} exact bodies.`);
+
+const forbiddenUiMarkers = [];
+for (const file of files) {
+  sources.get(file).split("\n").forEach((line, index) => {
+    if (/data-v2-|(?:^|[.\s"'])v2-[a-z]/i.test(line)) forbiddenUiMarkers.push({ file, line: index + 1, text: line.trim() });
+  });
+}
+if (process.argv.includes("--check")) {
+  if (assignmentOverrides.length) {
+    console.error(`Found ${assignmentOverrides.length} function override assignment(s).`);
+    process.exitCode = 1;
+  }
+  if (forbiddenUiMarkers.length) {
+    console.error(`Found ${forbiddenUiMarkers.length} deprecated v2 UI marker(s).`);
+    process.exitCode = 1;
+  }
+}

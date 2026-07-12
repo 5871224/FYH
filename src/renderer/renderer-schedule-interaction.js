@@ -398,6 +398,24 @@ async function persistScheduleCells(cells) {
   }
 }
 
+async function applySchedulePreviewSlots(previewSlots) {
+  const changedCells = Object.keys(previewSlots || {}).map(parseScheduleKeyParts).filter(Boolean);
+  if (!changedCells.length) {
+    autoSchedulePreview = null;
+    renderAll();
+    return 0;
+  }
+  rememberScheduleUndoSnapshot();
+  Object.entries(previewSlots).forEach(([key, slot]) => {
+    state.schedule[key] = deepClone(slot);
+  });
+  autoSchedulePreview = null;
+  pruneEmptySchedule();
+  renderAll();
+  await persistScheduleCells(changedCells);
+  return changedCells.length;
+}
+
 async function finishScheduleCellMutation(memberId, dateString) {
   pruneEmptySchedule();
   renderScheduleCell(memberId, dateString);

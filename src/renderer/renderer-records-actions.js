@@ -112,7 +112,7 @@ function openAdminOvertimeCreateModal() {
         <div class="form-row"><label>延後下班</label><input id="adminOvertimeLate" type="number" min="0" step="0.5" value="0"></div>
         <div class="form-row form-row-wide"><label>備註</label><textarea id="adminOvertimeNote" rows="3"></textarea></div>
       </div>`,
-      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="ghost-btn" type="button" data-v2-admin-overtime-create="pending">建立待審</button><button class="btn-primary" type="button" data-v2-admin-overtime-create="approved">建立並核准</button>`
+      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="ghost-btn" type="button" data-admin-overtime-create="pending">建立待審</button><button class="btn-primary" type="button" data-admin-overtime-create="approved">建立並核准</button>`
     });
   }
 
@@ -136,7 +136,7 @@ async function createAdminOvertimeForEmployee(status) {
   }
 
 async function batchReviewOvertime(status) {
-    const ids = Array.from(document.querySelectorAll("[data-v2-overtime-check]:checked")).map((item) => item.dataset.v2OvertimeCheck).filter(Boolean);
+    const ids = Array.from(document.querySelectorAll("[data-overtime-review-check]:checked")).map((item) => item.dataset.overtimeReviewCheck).filter(Boolean);
     if (!ids.length) {
       showInfoMessage("請先勾選加班申請");
       return;

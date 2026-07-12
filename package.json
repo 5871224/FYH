@@ -13,7 +13,8 @@
     "scope:check": "node scripts/check-change-scope.js",
     "test": "node --test \"tests/**/*.test.js\"",
     "v2:check": "node scripts/build-css.js --check && node scripts/build-js.js --check && node --check src/renderer/app.js && node scripts/check-v2-alignment.js && node scripts/check-v2-final.js",
-    "ci:check": "npm test && npm run web:check && node scripts/check-normalized-storage.js && node scripts/check-expansion-acceptance.js && node scripts/check-settings-lists.js && npm run v2:check && npm run css:architecture",
-    "css:architecture": "node scripts/audit-css-duplicates.js --check"
+    "ci:check": "npm test && npm run web:check && node scripts/check-normalized-storage.js && node scripts/check-expansion-acceptance.js && node scripts/check-settings-lists.js && npm run v2:check && npm run css:architecture && npm run js:architecture",
+    "css:architecture": "node scripts/audit-css-duplicates.js --check",
+    "js:architecture": "node scripts/audit-js-duplicates.js --check"
   }
 }

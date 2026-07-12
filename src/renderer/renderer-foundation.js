@@ -138,6 +138,27 @@ const REST_WEEKDAY_OPTIONS = [
 
 const SCHEDULE_HISTORY_LIMIT = 20;
 
+function createAttendanceState() {
+  return { loading: false, saving: false, record: null, serverDate: "", error: "" };
+}
+
+function createAttendanceOvertimeState() {
+  return { loading: false, expanded: false, status: null, error: "" };
+}
+
+function createMealOrderState() {
+  return { loading: false, status: null, error: "" };
+}
+
+function resetLoadedUserRuntimeState() {
+  currentMember = null;
+  attendanceState = createAttendanceState();
+  attendanceOvertimeState = createAttendanceOvertimeState();
+  mealOrderState = createMealOrderState();
+  recordsState = createRecordsState();
+  appInfo = null;
+}
+
 function createRecordsState() {
   const today = getTodayDateString();
   return {

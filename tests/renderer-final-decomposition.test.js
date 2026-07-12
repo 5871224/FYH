@@ -12,6 +12,7 @@ const eventRoot = read("src/renderer/renderer-events.js");
 const clickEvents = read("src/renderer/renderer-events-click.js");
 const dragEvents = read("src/renderer/renderer-events-drag.js");
 const formEvents = read("src/renderer/renderer-events-form.js");
+const recordsEvents = read("src/renderer/renderer-records-events.js");
 
 const modules = [
   "renderer-runtime-helpers.js",
@@ -145,8 +146,11 @@ test("委派事件應保留主要操作入口", () => {
     "dataset.deleteCategory", "dataset.saveLeaveAssignment", "dataset.saveOvertimeAssignment",
     "dataset.saveDepartment", "dataset.deleteDepartment", "dataset.saveMember", "dataset.deleteMember"
   ].forEach((marker) => assert.equal(clickEvents.includes(marker), true, "缺少點擊入口：" + marker));
-  ["memberSettingsFilterField", "mealReportFilter", "toggleOvertimePanel", "leaveAssignmentAllDay"].forEach((marker) => {
+  ["memberSettingsFilterField", "toggleOvertimePanel", "leaveAssignmentAllDay"].forEach((marker) => {
     assert.equal(formEvents.includes(marker), true, "缺少表單入口：" + marker);
+  });
+  ["mealReportFilter", "overtimeReviewFilter", "attendanceFilter"].forEach((marker) => {
+    assert.equal(recordsEvents.includes(marker), true, "缺少記錄篩選入口：" + marker);
   });
   ["data-table-department-id", "data-table-member-id", "data-schedule-shift-option", "data-member-card", "data-meal-product-row", "data-sort-item"].forEach((marker) => {
     assert.equal(dragEvents.includes(marker), true, "缺少拖曳入口：" + marker);
