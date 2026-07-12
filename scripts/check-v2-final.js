@@ -42,12 +42,26 @@ required.forEach((file) => assert(exists(file), `缺少 V2 檔案：${file}`));
 
 const actionsWorkflow = read(".github/workflows/deploy-pages.yml");
 const projectPackage = JSON.parse(read("package.json"));
-assert(actionsWorkflow.includes("name: Validate and Deploy Pages"), "GitHub Actions 尚未使用單一驗證後部署流程");
+const workflowFiles = fs.readdirSync(path.join(root, ".github", "workflows"))
+  .filter((name) => /\.ya?ml$/i.test(name))
+  .sort();
+const workflowCommands = [
+  "npm run web:publish",
+  "npm test",
+  "npm run web:check",
+  "node scripts/check-normalized-storage.js",
+  "node scripts/check-expansion-acceptance.js",
+  "node scripts/check-settings-lists.js",
+  "npm run v2:check"
+];
+assert(actionsWorkflow.includes("name: Validate Web App"), "GitHub Actions 尚未使用單一網站驗證流程");
 assert(actionsWorkflow.includes("pull_request:") && actionsWorkflow.includes("push:"), "單一 workflow 缺少 Pull Request 或 main push 觸發");
-assert(actionsWorkflow.includes("needs: validate"), "Pages 部署未明確依賴完整驗證");
-assert(actionsWorkflow.includes("npm run ci:check"), "單一 workflow 未使用共用完整檢查指令");
-assert(actionsWorkflow.includes("actions/upload-pages-artifact@v5") && actionsWorkflow.includes("actions/deploy-pages@v5"), "Pages artifact 或部署工作缺失");
-assert(!exists(".github/workflows/v2-alignment.yml") && !exists(".github/workflows/v2-final-check.yml"), "仍保留重複的獨立 V2 workflow");
+assert(actionsWorkflow.includes("cancel-in-progress: true"), "單一 workflow 未取消同一分支的舊驗證");
+workflowCommands.forEach((command) => assert(actionsWorkflow.includes(command), `單一 workflow 缺少驗證指令：${command}`));
+assert(!actionsWorkflow.includes("actions/upload-pages-artifact") && !actionsWorkflow.includes("actions/deploy-pages") && !actionsWorkflow.includes("actions/configure-pages"), "自訂 workflow 仍重複部署 GitHub Pages");
+assert(!actionsWorkflow.includes("contents: write") && !/\bgit\s+(?:commit|push)\b/.test(actionsWorkflow), "正式 workflow 不得自動修改或推送 PR 分支");
+assert(workflowFiles.length === 1 && workflowFiles[0] === "deploy-pages.yml", `仍保留重複的 GitHub Actions workflow：${workflowFiles.join(", ")}`);
+assert(!exists(".github/workflows/canonicalize-v2-api-data.yml") && !exists(".github/workflows/v2-alignment.yml") && !exists(".github/workflows/v2-final-check.yml"), "仍保留重複的 V2 一次性 workflow");
 assert(String(projectPackage.scripts?.["ci:check"] || "").includes("npm run v2:check"), "ci:check 未包含完整 V2 驗證");
 
 const reportRecords = read("supabase/functions/report-records/index.ts");
