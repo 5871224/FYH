@@ -92,9 +92,10 @@ npm run v2:check
 
 6. 發布腳本會依固定順序產生單一 `app.css` 與 `app.js`，清理舊的 `docs/` 後完整重建發布內容。
 7. `docs/` 只發布 `app-config.js` 與 `app.js`，不發布個別 JavaScript 原始模組。
-8. GitHub Actions 正式流程只使用 `.github/workflows/deploy-pages.yml`。
-9. Pull Request 先執行修改範圍、建置、單元測試與完整驗證，不部署正式網站。
-10. 推送至 `main` 或由 `main` 手動執行時，先完成同一流程的 `validate` 工作；全部成功後，`deploy` 工作才上傳並發布 GitHub Pages。不得另建重複執行 V2 檢查或 Pages 部署的獨立 workflow。
+8. 儲存庫內只保留 `.github/workflows/deploy-pages.yml`，負責 Pull Request 與 `main` 的建置、測試及完整驗證。
+9. Pull Request 只執行修改範圍、建置、單元測試與完整驗證，不部署正式網站。
+10. 推送至 `main` 後，GitHub 內建的 `pages-build-deployment` 會依 `main/docs` 發布正式網站；自訂 workflow 不再另外上傳或部署 Pages，避免同一版本重複發布。
+11. 多檔案修改應先在工作分支整理完成後再建立 PR，避免每個中間提交都產生一筆重複驗證紀錄。
 
 ## Supabase 資料庫建置
 
