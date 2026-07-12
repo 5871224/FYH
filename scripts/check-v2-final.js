@@ -222,6 +222,8 @@ assert(sourceUiSystem === publishedUiSystem, "共用介面樣式來源版與發�
 assert(sourceUiSystem.includes(".meal-card") && sourceUiSystem.includes("width: min(1100px, 100%)"), "電腦版訂餐頁寬度未與記錄頁一致");
 
 assert(sourceWebApi.includes("async function deleteMealProduct") && sourceWebApi.includes('action: "delete_admin_product"'), "前端 API 缺少刪除品項操作");
+assert(sourceWebApi.includes('action: "admin_settings"') && sourceWebApi.includes('action: "save_admin_settings"'), "訂餐管理 API 操作名稱與後端不一致");
+assert(!sourceWebApi.includes('action: "admin_get"') && !sourceWebApi.includes('action: "admin_save"'), "訂餐管理仍使用後端不支援的操作名稱");
 assert(sourceWebApi.includes("companySubsidy: Number(payload.companySubsidy)"), "前端 API 未傳送公司補助");
 
 const sourceExport = read("src/renderer/v2-meal-export.js");

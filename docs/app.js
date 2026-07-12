@@ -2090,14 +2090,14 @@
   async function getMealAdminSettings() {
     ensureSignedIn();
     return requestFunction("meal-order", {
-      action: "admin_get"
+      action: "admin_settings"
     });
   }
 
   async function saveMealAdminSettings(payload = {}) {
     ensureSignedIn();
     return requestFunction("meal-order", {
-      action: "admin_save",
+      action: "save_admin_settings",
       products: Array.isArray(payload.products) ? payload.products : [],
       dailyCutoffTime: payload.dailyCutoffTime || "10:30",
       companySubsidy: Number(payload.companySubsidy)
