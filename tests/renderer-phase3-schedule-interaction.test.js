@@ -61,8 +61,10 @@ test("第三階段應維持核心來源與建置順序", () => {
   ];
   for (const marker of movedMarkers) assert.equal(renderer.includes(marker), false, `renderer.js 仍包含：${marker}`);
 
+  const interactionIndex = RENDERER_CORE_FILES.indexOf("renderer-schedule-interaction.js");
+  const rendererIndex = RENDERER_CORE_FILES.indexOf("renderer.js");
   const moduleOrder = RENDERER_CORE_FILES.map((name) => build.indexOf(`"${name}"`));
-  assert.equal(RENDERER_CORE_FILES.includes("renderer-schedule-interaction.js"), true);
+  assert.equal(interactionIndex >= 0 && interactionIndex < rendererIndex, true);
   assert.equal(moduleOrder.every((index) => index >= 0), true);
   assert.equal(moduleOrder.every((index, position) => position === 0 || index > moduleOrder[position - 1]), true);
   assert.equal(renderer.split(/\r?\n/).length < 6350, true);
