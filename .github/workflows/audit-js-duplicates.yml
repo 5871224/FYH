@@ -30,6 +30,9 @@ jobs:
           set -o pipefail
           node scripts/consolidate-js-helpers.js 2>&1 | tee js-deduplication-migration.log
 
+      - name: Update event ownership tests
+        run: node scripts/update-js-deduplication-tests.js
+
       - name: Build published web files
         run: npm run web:publish
 
@@ -60,7 +63,7 @@ jobs:
 
       - name: Commit verified consolidation
         run: |
-          rm -f scripts/consolidate-js-helpers.js js-duplicate-report.md js-deduplication-migration.log js-deduplication-ci.log
+          rm -f scripts/consolidate-js-helpers.js scripts/update-js-deduplication-tests.js js-duplicate-report.md js-deduplication-migration.log js-deduplication-ci.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
