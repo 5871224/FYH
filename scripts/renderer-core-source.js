@@ -10,7 +10,11 @@ const RENDERER_CORE_FILES = [
   "renderer-visibility.js",
   "renderer-state-normalization.js",
   "renderer-schedule-interaction.js",
-  "renderer.js"
+  "renderer-auto-schedule-compliance.js",
+  "renderer-auto-schedule-demand.js",
+  "renderer-auto-schedule-assignment.js",
+  "renderer-auto-schedule.js",
+  "renderer.js",
 ];
 
 function readRendererCore(rootDir) {

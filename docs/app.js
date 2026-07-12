@@ -5161,174 +5161,7 @@ function isTypingTarget(target) {
 }
 ;
 
-/* ===== renderer.js ===== */
-let state = createEmptyState();
-let modalColor = COLORS[0].hex;
-let modalTextColor = "#ffffff";
-let modalTextColorAuto = true;
-let modalContext = {};
-let saveTimer = null;
-let isSaving = false;
-let latestSaveStatus = "";
-let appInfo = null;
-let dragMemberId = "";
-let dragScheduleShiftId = "";
-let leaveTooltipTimer = null;
-let coreActionsOpen = false;
-let appView = "home";
-const APP_BACK_HISTORY_STATE = { schedulerBackGuard: true };
-let departmentSettingsView = "department";
-let currentSession = null;
-let currentProfile = null;
-let currentMember = null;
-let managerDirectoryLoaded = false;
-let managerDirectoryLoading = null;
-let attendanceState = {
-  loading: false,
-  saving: false,
-  record: null,
-  serverDate: "",
-  error: ""
-};
-let attendanceOvertimeState = {
-  loading: false,
-  expanded: false,
-  status: null,
-  error: ""
-};
-let mealOrderState = {
-  loading: false,
-  status: null,
-  error: ""
-};
-let mealOrderLoadSequence = 0;
-let mealPageTab = "order";
-let recordsState = createRecordsState();
-let memberSettingsFilters = {
-  name: "",
-  department: "all",
-  role: "all",
-  employment: "active",
-  salaryType: "all"
-};
-let authErrorMessage = "";
-let authPromptMessage = "";
-let authModalOpen = false;
-let eventsBound = false;
-let dragSortItemId = "";
-let dragSortCategory = "";
-let dragPreviewElement = null;
-let dragScheduleTableDeptId = "";
-let dragScheduleTableMemberId = "";
-let dragMealProductIndex = "";
-let toolbarCollapsed = false;
-let toolbarCollapseInitialized = false;
-let measureTextContext = null;
-let scheduleRangeSelection = null;
-let scheduleDragSelecting = false;
-let scheduleHeaderDragSelection = null;
-let scheduleSuppressNextCellClick = false;
-let scheduleClipboard = null;
-
-let scheduleUndoStack = [];
-let scheduleRedoStack = [];
-let autoSchedulePreview = null;
-
-function setSaveStatus(message, saving = false) {
-  latestSaveStatus = message;
-  isSaving = saving;
-}
-
-function getDepartmentName(deptId) {
-  return state.departments.find((department) => department.id === deptId)?.name || "未指定單位";
-}
-
-function getPositionName(positionId) {
-  return state.positions.find((position) => position.id === positionId)?.name || "未指定職位";
-}
-
-function getSalaryTypeLabel(member) {
-  return member?.payByDay ? "日薪" : "月薪";
-}
-
-function normalizeRestWeekday(value) {
-  const numericValue = Number(value);
-  return Number.isInteger(numericValue) && numericValue >= 0 && numericValue <= 6 ? numericValue : 0;
-}
-
-function getRestWeekdayLabel(value) {
-  return REST_WEEKDAY_OPTIONS.find((option) => option.value === normalizeRestWeekday(value))?.label || "週日";
-}
-
-function getDepartmentSummary(deptId) {
-  return getDepartmentName(deptId);
-}
-
-function getMemberScheduleShiftIds(member) {
-  const validShiftIds = new Set(state.shifts.filter((shift) => !shift.hiddenFromToolbar).map((shift) => shift.id));
-  return (Array.isArray(member?.scheduleShiftIds) ? member.scheduleShiftIds : [])
-    .map((shiftId) => String(shiftId || ""))
-    .filter((shiftId, index, list) => validShiftIds.has(shiftId) && list.indexOf(shiftId) === index);
-}
-
-function getMemberHomeDeptId(member) {
-  return member?.deptId || "";
-}
-
-function getMemberScheduleShiftNames(member) {
-  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, shift.name]));
-  const names = getMemberScheduleShiftIds(member).map((shiftId) => shiftMap.get(shiftId)).filter(Boolean);
-  return names.length ? names.join("、") : "未指定";
-}
-
-function renderMemberScheduleShiftPills(member) {
-  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, shift.name]));
-  const names = getMemberScheduleShiftIds(member).map((shiftId) => shiftMap.get(shiftId)).filter(Boolean);
-  if (!names.length) {
-    return "-";
-  }
-  return names.map((name) => `<span class="member-shift-pill">${escapeHtml(name)}</span>`).join("");
-}
-
-function getMemberShiftPriority(member, shiftId) {
-  const index = getMemberScheduleShiftIds(member).indexOf(shiftId);
-  return index === -1 ? Infinity : index;
-}
-
-function memberCanScheduleShift(member, shiftId) {
-  return Number.isFinite(getMemberShiftPriority(member, shiftId));
-}
-
-function getMembersForScheduleShift(shiftId) {
-  return state.members
-    .filter((member) => isMemberCurrentlyActive(member) && memberCanScheduleShift(member, shiftId))
-    .sort((a, b) => getMemberShiftPriority(a, shiftId) - getMemberShiftPriority(b, shiftId) || a.name.localeCompare(b.name));
-}
-
-function shiftAllowsDepartment(shift, deptId) {
-  return Boolean(shift?.applicableDeptId && shift.applicableDeptId === deptId);
-}
-
-function getItemList(category) {
-  if (category === "shift") return state.shifts;
-  if (category === "leave") return state.leaves;
-  return state.overtime;
-}
-
-function getItem(category, id) {
-  return getItemList(category).find((item) => item.id === id);
-}
-
-function getItemTextColor(item, fallback = "#000000") {
-  if (!item) {
-    return autoLeaveTextColor(fallback);
-  }
-  if (item.textColor) {
-    return item.textColor;
-  }
-  return autoLeaveTextColor(item.color || fallback);
-}
-
+/* ===== renderer-auto-schedule-compliance.js ===== */
 function getLeaveByCode(code) {
   return state.leaves.find((leave) => leave.code === code) || null;
 }
@@ -5345,6 +5178,77 @@ function getWeekBucketIndex(dateString, rangeStartDate) {
   return Math.floor(diffDays(rangeStartDate, dateString) / 7);
 }
 
+function getMemberAutoRestTarget(member, scheduleMap, dates) {
+  const activeDays = countMemberActiveDays(member, dates);
+  if (!activeDays) {
+    return { activeDays: 0, fixedRegularCount: 0, totalHolidayTarget: 0, restTarget: 0 };
+  }
+  const fixedRegularCount = countMemberLeaveByPredicate(scheduleMap, member.id, dates, isRegularRestLeaveId);
+  const totalHolidayTarget = Math.round((activeDays / 56) * 16);
+  return {
+    activeDays,
+    fixedRegularCount,
+    totalHolidayTarget,
+    restTarget: Math.max(0, totalHolidayTarget - fixedRegularCount)
+  };
+}
+
+function countMemberActiveDays(member, dates) {
+  return dates.filter((dateString) => isMemberActiveOnDateString(member, dateString)).length;
+}
+
+function countMemberLeaveByPredicate(scheduleMap, memberId, dates, predicate) {
+  return dates.filter((dateString) => predicate(getWorkScheduleSlot(scheduleMap, memberId, dateString)?.leave)).length;
+}
+
+function memberHasRestInWeek(scheduleMap, memberId, dates, weekIndex, rangeStartDate) {
+  return dates.some((dateString) => (
+    getWeekBucketIndex(dateString, rangeStartDate) === weekIndex
+    && isRestLeaveId(getWorkScheduleSlot(scheduleMap, memberId, dateString)?.leave)
+  ));
+}
+
+function countMemberRestInWeek(scheduleMap, memberId, dates, weekIndex, rangeStartDate) {
+  return dates.filter((dateString) => (
+    getWeekBucketIndex(dateString, rangeStartDate) === weekIndex
+    && isRestLeaveId(getWorkScheduleSlot(scheduleMap, memberId, dateString)?.leave)
+  )).length;
+}
+
+function canAutoPlaceDailyRest(scheduleMap, member, dateString, dates, rangeStartDate) {
+  if (!isMemberActiveOnDateString(member, dateString)) {
+    return false;
+  }
+  const slot = getWorkScheduleSlot(scheduleMap, member.id, dateString);
+  if (slot?.shift || slot?.leave) {
+    return false;
+  }
+  const target = getMemberAutoRestTarget(member, scheduleMap, dates).restTarget;
+  if (countMemberLeaveByPredicate(scheduleMap, member.id, dates, isRestLeaveId) >= target) {
+    return false;
+  }
+  const weekIndex = getWeekBucketIndex(dateString, rangeStartDate);
+  return countMemberRestInWeek(scheduleMap, member.id, dates, weekIndex, rangeStartDate) === 0;
+}
+
+function placeDailySurplusRestDays(scheduleMap, dateString, dates, rangeStartDate, restLeave, preview) {
+  const candidates = getActiveMembersForDate(dateString)
+    .filter((member) => canAutoPlaceDailyRest(scheduleMap, member, dateString, dates, rangeStartDate))
+    .sort((a, b) => {
+      if (a.payByDay !== b.payByDay) {
+        return a.payByDay ? -1 : 1;
+      }
+      const restDiff = countMemberLeaveByPredicate(scheduleMap, a.id, dates, isRestLeaveId)
+        - countMemberLeaveByPredicate(scheduleMap, b.id, dates, isRestLeaveId);
+      return restDiff || a.name.localeCompare(b.name);
+    });
+  candidates.forEach((member) => {
+    markAutoLeave(scheduleMap, member, dateString, restLeave, preview, "多餘人力預排休息日");
+  });
+}
+;
+
+/* ===== renderer-auto-schedule-demand.js ===== */
 function getWorkScheduleSlot(scheduleMap, memberId, dateString) {
   const key = getScheduleKeyForDateString(memberId, dateString);
   return key ? scheduleMap[key] || null : null;
@@ -5389,45 +5293,8 @@ function getVisibleAutoScheduleShifts(dateString = "") {
   ));
 }
 
-function getMemberAutoRestTarget(member, scheduleMap, dates) {
-  const activeDays = countMemberActiveDays(member, dates);
-  if (!activeDays) {
-    return { activeDays: 0, fixedRegularCount: 0, totalHolidayTarget: 0, restTarget: 0 };
-  }
-  const fixedRegularCount = countMemberLeaveByPredicate(scheduleMap, member.id, dates, isRegularRestLeaveId);
-  const totalHolidayTarget = Math.round((activeDays / 56) * 16);
-  return {
-    activeDays,
-    fixedRegularCount,
-    totalHolidayTarget,
-    restTarget: Math.max(0, totalHolidayTarget - fixedRegularCount)
-  };
-}
-
 function getActiveMembersForDate(dateString) {
   return state.members.filter((member) => isMemberActiveOnDateString(member, dateString));
-}
-
-function countMemberActiveDays(member, dates) {
-  return dates.filter((dateString) => isMemberActiveOnDateString(member, dateString)).length;
-}
-
-function countMemberLeaveByPredicate(scheduleMap, memberId, dates, predicate) {
-  return dates.filter((dateString) => predicate(getWorkScheduleSlot(scheduleMap, memberId, dateString)?.leave)).length;
-}
-
-function memberHasRestInWeek(scheduleMap, memberId, dates, weekIndex, rangeStartDate) {
-  return dates.some((dateString) => (
-    getWeekBucketIndex(dateString, rangeStartDate) === weekIndex
-    && isRestLeaveId(getWorkScheduleSlot(scheduleMap, memberId, dateString)?.leave)
-  ));
-}
-
-function countMemberRestInWeek(scheduleMap, memberId, dates, weekIndex, rangeStartDate) {
-  return dates.filter((dateString) => (
-    getWeekBucketIndex(dateString, rangeStartDate) === weekIndex
-    && isRestLeaveId(getWorkScheduleSlot(scheduleMap, memberId, dateString)?.leave)
-  )).length;
 }
 
 function markAutoLeave(scheduleMap, member, dateString, leave, preview, reason) {
@@ -5503,6 +5370,24 @@ function shiftHasVisibleDepartment(shift) {
   ));
 }
 
+function getRemainingDailyShiftDemand(scheduleMap, dateString) {
+  return getRemainingDailyShiftDemandDetails(scheduleMap, dateString)
+    .reduce((sum, item) => sum + item.missing, 0);
+}
+
+function getRemainingDailyShiftDemandDetails(scheduleMap, dateString) {
+  return getVisibleAutoScheduleShifts(dateString)
+    .map((shift) => {
+      return {
+        shift,
+        missing: Math.max(0, getShiftDemandForDate(shift, dateString) - countAssignedShiftMembers(scheduleMap, shift.id, dateString))
+      };
+    })
+    .filter((item) => item.missing > 0);
+}
+;
+
+/* ===== renderer-auto-schedule-assignment.js ===== */
 function getDailyAssignmentCost(scheduleMap, option, member, dateString, dates) {
   const weekIndex = getWeekBucketIndex(dateString, dates[0] || dateString);
   const restTarget = getMemberAutoRestTarget(member, scheduleMap, dates).restTarget;
@@ -5639,55 +5524,9 @@ function findBestDailyShiftAssignments(scheduleMap, dateString, preview) {
   }
   return assignments;
 }
+;
 
-function getRemainingDailyShiftDemand(scheduleMap, dateString) {
-  return getRemainingDailyShiftDemandDetails(scheduleMap, dateString)
-    .reduce((sum, item) => sum + item.missing, 0);
-}
-
-function getRemainingDailyShiftDemandDetails(scheduleMap, dateString) {
-  return getVisibleAutoScheduleShifts(dateString)
-    .map((shift) => {
-      return {
-        shift,
-        missing: Math.max(0, getShiftDemandForDate(shift, dateString) - countAssignedShiftMembers(scheduleMap, shift.id, dateString))
-      };
-    })
-    .filter((item) => item.missing > 0);
-}
-
-function canAutoPlaceDailyRest(scheduleMap, member, dateString, dates, rangeStartDate) {
-  if (!isMemberActiveOnDateString(member, dateString)) {
-    return false;
-  }
-  const slot = getWorkScheduleSlot(scheduleMap, member.id, dateString);
-  if (slot?.shift || slot?.leave) {
-    return false;
-  }
-  const target = getMemberAutoRestTarget(member, scheduleMap, dates).restTarget;
-  if (countMemberLeaveByPredicate(scheduleMap, member.id, dates, isRestLeaveId) >= target) {
-    return false;
-  }
-  const weekIndex = getWeekBucketIndex(dateString, rangeStartDate);
-  return countMemberRestInWeek(scheduleMap, member.id, dates, weekIndex, rangeStartDate) === 0;
-}
-
-function placeDailySurplusRestDays(scheduleMap, dateString, dates, rangeStartDate, restLeave, preview) {
-  const candidates = getActiveMembersForDate(dateString)
-    .filter((member) => canAutoPlaceDailyRest(scheduleMap, member, dateString, dates, rangeStartDate))
-    .sort((a, b) => {
-      if (a.payByDay !== b.payByDay) {
-        return a.payByDay ? -1 : 1;
-      }
-      const restDiff = countMemberLeaveByPredicate(scheduleMap, a.id, dates, isRestLeaveId)
-        - countMemberLeaveByPredicate(scheduleMap, b.id, dates, isRestLeaveId);
-      return restDiff || a.name.localeCompare(b.name);
-    });
-  candidates.forEach((member) => {
-    markAutoLeave(scheduleMap, member, dateString, restLeave, preview, "多餘人力預排休息日");
-  });
-}
-
+/* ===== renderer-auto-schedule.js ===== */
 function buildAutoSchedulePreview(dates = getVisibleDates()) {
   const startDate = dates[0] || getTodayDateString();
   const regularLeave = getLeaveByCode("0036");
@@ -5868,6 +5707,175 @@ function cancelAutoSchedulePreview() {
   autoSchedulePreview = null;
   renderAll();
   showInfoMessage("已取消自動排班預覽");
+}
+;
+
+/* ===== renderer.js ===== */
+let state = createEmptyState();
+let modalColor = COLORS[0].hex;
+let modalTextColor = "#ffffff";
+let modalTextColorAuto = true;
+let modalContext = {};
+let saveTimer = null;
+let isSaving = false;
+let latestSaveStatus = "";
+let appInfo = null;
+let dragMemberId = "";
+let dragScheduleShiftId = "";
+let leaveTooltipTimer = null;
+let coreActionsOpen = false;
+let appView = "home";
+const APP_BACK_HISTORY_STATE = { schedulerBackGuard: true };
+let departmentSettingsView = "department";
+let currentSession = null;
+let currentProfile = null;
+let currentMember = null;
+let managerDirectoryLoaded = false;
+let managerDirectoryLoading = null;
+let attendanceState = {
+  loading: false,
+  saving: false,
+  record: null,
+  serverDate: "",
+  error: ""
+};
+let attendanceOvertimeState = {
+  loading: false,
+  expanded: false,
+  status: null,
+  error: ""
+};
+let mealOrderState = {
+  loading: false,
+  status: null,
+  error: ""
+};
+let mealOrderLoadSequence = 0;
+let mealPageTab = "order";
+let recordsState = createRecordsState();
+let memberSettingsFilters = {
+  name: "",
+  department: "all",
+  role: "all",
+  employment: "active",
+  salaryType: "all"
+};
+let authErrorMessage = "";
+let authPromptMessage = "";
+let authModalOpen = false;
+let eventsBound = false;
+let dragSortItemId = "";
+let dragSortCategory = "";
+let dragPreviewElement = null;
+let dragScheduleTableDeptId = "";
+let dragScheduleTableMemberId = "";
+let dragMealProductIndex = "";
+let toolbarCollapsed = false;
+let toolbarCollapseInitialized = false;
+let measureTextContext = null;
+let scheduleRangeSelection = null;
+let scheduleDragSelecting = false;
+let scheduleHeaderDragSelection = null;
+let scheduleSuppressNextCellClick = false;
+let scheduleClipboard = null;
+
+let scheduleUndoStack = [];
+let scheduleRedoStack = [];
+let autoSchedulePreview = null;
+
+function setSaveStatus(message, saving = false) {
+  latestSaveStatus = message;
+  isSaving = saving;
+}
+
+function getDepartmentName(deptId) {
+  return state.departments.find((department) => department.id === deptId)?.name || "未指定單位";
+}
+
+function getPositionName(positionId) {
+  return state.positions.find((position) => position.id === positionId)?.name || "未指定職位";
+}
+
+function getSalaryTypeLabel(member) {
+  return member?.payByDay ? "日薪" : "月薪";
+}
+
+function normalizeRestWeekday(value) {
+  const numericValue = Number(value);
+  return Number.isInteger(numericValue) && numericValue >= 0 && numericValue <= 6 ? numericValue : 0;
+}
+
+function getRestWeekdayLabel(value) {
+  return REST_WEEKDAY_OPTIONS.find((option) => option.value === normalizeRestWeekday(value))?.label || "週日";
+}
+
+function getDepartmentSummary(deptId) {
+  return getDepartmentName(deptId);
+}
+
+function getMemberScheduleShiftIds(member) {
+  const validShiftIds = new Set(state.shifts.filter((shift) => !shift.hiddenFromToolbar).map((shift) => shift.id));
+  return (Array.isArray(member?.scheduleShiftIds) ? member.scheduleShiftIds : [])
+    .map((shiftId) => String(shiftId || ""))
+    .filter((shiftId, index, list) => validShiftIds.has(shiftId) && list.indexOf(shiftId) === index);
+}
+
+function getMemberHomeDeptId(member) {
+  return member?.deptId || "";
+}
+
+function getMemberScheduleShiftNames(member) {
+  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, shift.name]));
+  const names = getMemberScheduleShiftIds(member).map((shiftId) => shiftMap.get(shiftId)).filter(Boolean);
+  return names.length ? names.join("、") : "未指定";
+}
+
+function renderMemberScheduleShiftPills(member) {
+  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, shift.name]));
+  const names = getMemberScheduleShiftIds(member).map((shiftId) => shiftMap.get(shiftId)).filter(Boolean);
+  if (!names.length) {
+    return "-";
+  }
+  return names.map((name) => `<span class="member-shift-pill">${escapeHtml(name)}</span>`).join("");
+}
+
+function getMemberShiftPriority(member, shiftId) {
+  const index = getMemberScheduleShiftIds(member).indexOf(shiftId);
+  return index === -1 ? Infinity : index;
+}
+
+function memberCanScheduleShift(member, shiftId) {
+  return Number.isFinite(getMemberShiftPriority(member, shiftId));
+}
+
+function getMembersForScheduleShift(shiftId) {
+  return state.members
+    .filter((member) => isMemberCurrentlyActive(member) && memberCanScheduleShift(member, shiftId))
+    .sort((a, b) => getMemberShiftPriority(a, shiftId) - getMemberShiftPriority(b, shiftId) || a.name.localeCompare(b.name));
+}
+
+function shiftAllowsDepartment(shift, deptId) {
+  return Boolean(shift?.applicableDeptId && shift.applicableDeptId === deptId);
+}
+
+function getItemList(category) {
+  if (category === "shift") return state.shifts;
+  if (category === "leave") return state.leaves;
+  return state.overtime;
+}
+
+function getItem(category, id) {
+  return getItemList(category).find((item) => item.id === id);
+}
+
+function getItemTextColor(item, fallback = "#000000") {
+  if (!item) {
+    return autoLeaveTextColor(fallback);
+  }
+  if (item.textColor) {
+    return item.textColor;
+  }
+  return autoLeaveTextColor(item.color || fallback);
 }
 
 function beginScheduleHeaderColumnSelection(event) {
