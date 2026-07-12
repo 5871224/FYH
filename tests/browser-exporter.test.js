@@ -164,10 +164,10 @@ test("舊格式匯出應依到職與離職日期限制資料", () => {
       }],
       leaves: [{ id: "rest", name: "休息日", code: "0047" }],
       schedule: {
-        member-1_2026_4_1: { leave: "rest" },
-        member-1_2026_4_2: { leave: "rest" },
-        member-1_2026_4_3: { leave: "rest" },
-        member-1_2026_4_4: { leave: "rest" }
+        "member-1_2026_4_1": { leave: "rest" },
+        "member-1_2026_4_2": { leave: "rest" },
+        "member-1_2026_4_3": { leave: "rest" },
+        "member-1_2026_4_4": { leave: "rest" }
       }
     }
   });
@@ -193,7 +193,7 @@ test("SAP CSV 應保留 BOM 並正確跳脫逗號與雙引號", () => {
       }],
       leaves: [{ id: "rest", name: "休息日", code: "0047" }],
       schedule: {
-        member-1_2026_4_2: { leave: "rest" }
+        "member-1_2026_4_2": { leave: "rest" }
       }
     }
   });
