@@ -321,10 +321,6 @@ input[type="time"] {
   border-top-right-radius: calc(var(--ui-table-radius) - 1px);
 }
 
-.meal-order-table {
-  table-layout: fixed;
-}
-
 .meal-order-table td:first-child,
 .meal-order-table td:last-child {
   border-right: 0;
@@ -384,37 +380,10 @@ input[type="time"] {
   }
 }
 
-/* Consolidated styles formerly injected by v2 JavaScript modules. */
-.meal-card {
-  width: min(1100px, 100%);
-}
-
-.meal-settings-table {
-  width: 100%;
-  table-layout: fixed;
-}
-
-.meal-settings-table th,
-.meal-settings-table td {
-  min-width: 0;
-}
-
-.meal-settings-drag-col {
-  width: 42px;
-  text-align: center;
-}
+/* Formal meal, record and settings component styles. */
 
 .meal-settings-name-col {
   width: auto;
-}
-
-.meal-settings-price-col {
-  width: 104px;
-}
-
-.meal-settings-active-col {
-  width: 70px;
-  text-align: center;
 }
 
 .meal-settings-operation-col {
@@ -432,18 +401,6 @@ input[type="time"] {
 .meal-settings-operation-col .ghost-btn {
   padding-left: 12px !important;
   padding-right: 12px !important;
-}
-
-.meal-drag-handle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--ui-icon-radius);
-  cursor: grab;
-  user-select: none;
-  touch-action: none;
 }
 
 .meal-drag-handle:active {
@@ -1601,11 +1558,6 @@ input[type="time"] {
   min-height: var(--ui-control-height);
 }
 
-.meal-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 @media (max-width: 900px) {
   .meal-report-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1633,4 +1585,3 @@ input[type="time"] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-

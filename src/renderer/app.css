@@ -280,7 +280,7 @@ body.is-home-view .app-shell {
 }
 
 .meal-card {
-  width: min(820px, 100%);
+  width: min(1100px, 100%);
   margin: 0 auto;
   padding: clamp(18px, 4vw, 34px);
   border-radius: 28px;
@@ -614,6 +614,7 @@ body.is-records-view .app-shell {
 
 .meal-settings-table th,
 .meal-settings-table td {
+  min-width: 0;
   padding: 8px;
   border-bottom: 1px solid var(--line);
   text-align: left;
@@ -642,28 +643,30 @@ body.is-records-view .app-shell {
 }
 
 .meal-settings-drag-col {
-  width: 34px;
+  width: 42px;
   text-align: center;
 }
 
 .meal-settings-price-col {
-  width: 120px;
+  width: 104px;
 }
 
 .meal-settings-active-col {
-  width: 72px;
+  width: 70px;
+  text-align: center;
 }
 
 .meal-drag-handle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--ui-icon-radius);
   color: var(--muted);
   cursor: grab;
   user-select: none;
+  touch-action: none;
 }
 
 .meal-settings-table tr[draggable="true"] {
@@ -672,7 +675,7 @@ body.is-records-view .app-shell {
 
 .meal-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -1137,9 +1140,9 @@ body.is-records-view .app-shell {
   overflow-x: auto;
   overflow-y: hidden;
   background: var(--schedule-header-bg);
-  border: 1px solid var(--line);
-  border-bottom: none;
-  border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   scrollbar-color: #cdbb9f #fbf8f1;
   scrollbar-width: thin;
 }
@@ -1158,28 +1161,12 @@ body.is-records-view .app-shell {
   align-items: stretch;
   width: 100%;
   min-width: 0;
-  border: 1px solid transparent;
-  border-bottom: none;
+  border: 1px solid var(--line);
+  border-bottom: 0;
   border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;
   background: var(--schedule-header-bg);
   overflow: hidden;
   box-shadow: 0 8px 18px rgba(72, 52, 31, 0.08);
-}
-
-.table-sticky-header::after,
-.table-wrap::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  pointer-events: none;
-}
-
-.table-sticky-header::after {
-  border: 1px solid var(--line);
-  border-right: none;
-  border-bottom: none;
-  border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;
 }
 
 .table-sticky-header-left {
@@ -1191,18 +1178,6 @@ body.is-records-view .app-shell {
   flex-shrink: 0;
   background: var(--schedule-header-bg);
   border-top-left-radius: var(--schedule-radius);
-}
-
-.table-sticky-header-left::after {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 100%;
-  z-index: 9;
-  border-top: 1px solid var(--line);
-  border-left: 1px solid var(--line);
-  border-top-left-radius: var(--schedule-radius);
-  pointer-events: none;
 }
 
 .table-sticky-header-scroll {
@@ -1395,9 +1370,11 @@ body.is-records-view .app-shell {
   overflow-y: visible;
   width: 100%;
   min-width: 0;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-left: 1px solid var(--line);
   border-radius: 0 0 var(--schedule-radius) var(--schedule-radius);
-  border: 1px solid transparent;
-  border-top: none;
   background: #fff;
   scrollbar-width: none;
 }
@@ -1405,13 +1382,6 @@ body.is-records-view .app-shell {
 .table-wrap::-webkit-scrollbar {
   width: 0;
   height: 0;
-}
-
-.table-wrap::after {
-  border: 1px solid var(--line);
-  border-right: none;
-  border-top: none;
-  border-radius: 0 0 var(--schedule-radius) var(--schedule-radius);
 }
 
 table {
@@ -3019,11 +2989,12 @@ thead th.today,
   }
 
   .clock-action-btn {
-    min-height: 132px;
-    padding: 22px;
+    min-height: 120px;
+    padding: 18px 20px;
   }
 
   .clock-action-btn span {
+    margin-bottom: 10px;
     font-size: 26px;
   }
 
@@ -3355,9 +3326,7 @@ thead th.today,
 }
 
 /* ===== Schedule-specific layout: schedule.css ===== */
-:root {
-  --schedule-nav-control-height: 42px;
-}
+
 
 .calendar-nav {
   position: relative;
@@ -3496,36 +3465,6 @@ thead th.today,
     z-index: 30;
     margin: 0;
   }
-}
-
-/* Keep the schedule frame fixed while synchronized horizontal scrollers move. */
-.table-top-scrollbar {
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.table-sticky-header {
-  border: 1px solid var(--line);
-  border-bottom: 0;
-}
-
-.table-sticky-header::after,
-.table-sticky-header-left::after {
-  content: none;
-  display: none;
-}
-
-.table-wrap {
-  border: 0;
-  border-left: 1px solid var(--line);
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-
-.table-wrap::after {
-  content: none;
-  display: none;
 }
 
 /* Desktop schedule width contract: keep the page within the viewport and
@@ -3873,10 +3812,6 @@ input[type="time"] {
   border-top-right-radius: calc(var(--ui-table-radius) - 1px);
 }
 
-.meal-order-table {
-  table-layout: fixed;
-}
-
 .meal-order-table td:first-child,
 .meal-order-table td:last-child {
   border-right: 0;
@@ -3936,37 +3871,10 @@ input[type="time"] {
   }
 }
 
-/* Consolidated styles formerly injected by v2 JavaScript modules. */
-.meal-card {
-  width: min(1100px, 100%);
-}
-
-.meal-settings-table {
-  width: 100%;
-  table-layout: fixed;
-}
-
-.meal-settings-table th,
-.meal-settings-table td {
-  min-width: 0;
-}
-
-.meal-settings-drag-col {
-  width: 42px;
-  text-align: center;
-}
+/* Formal meal, record and settings component styles. */
 
 .meal-settings-name-col {
   width: auto;
-}
-
-.meal-settings-price-col {
-  width: 104px;
-}
-
-.meal-settings-active-col {
-  width: 70px;
-  text-align: center;
 }
 
 .meal-settings-operation-col {
@@ -3984,18 +3892,6 @@ input[type="time"] {
 .meal-settings-operation-col .ghost-btn {
   padding-left: 12px !important;
   padding-right: 12px !important;
-}
-
-.meal-drag-handle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--ui-icon-radius);
-  cursor: grab;
-  user-select: none;
-  touch-action: none;
 }
 
 .meal-drag-handle:active {
@@ -5153,11 +5049,6 @@ input[type="time"] {
   min-height: var(--ui-control-height);
 }
 
-.meal-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 @media (max-width: 900px) {
   .meal-report-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5193,9 +5084,6 @@ body:not(.is-authenticated) .toolbar-card {
 }
 
 /* 打卡頁加班申請：固定欄位順序與雙欄時數配置。 */
-.overtime-use-label {
-  font-size: 15px;
-}
 
 .overtime-date-row {
   display: grid;
@@ -5226,10 +5114,6 @@ body:not(.is-authenticated) .toolbar-card {
   display: grid !important;
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   gap: 8px;
-}
-
-.overtime-hours-grid .form-row-wide {
-  grid-column: 1 / -1;
 }
 
 .overtime-hours-summary > div,
@@ -5431,17 +5315,6 @@ body:not(.is-authenticated) .toolbar-card {
 .overtime-hours-grid input[type="text"] {
   width: 100%;
   min-width: 0;
-}
-
-@media (max-width: 960px) {
-  .clock-action-btn {
-    min-height: 120px;
-    padding: 18px 20px;
-  }
-
-  .clock-action-btn span {
-    margin-bottom: 10px;
-  }
 }
 
 /* 登入頁 */

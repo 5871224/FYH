@@ -274,7 +274,7 @@ body.is-home-view .app-shell {
 }
 
 .meal-card {
-  width: min(820px, 100%);
+  width: min(1100px, 100%);
   margin: 0 auto;
   padding: clamp(18px, 4vw, 34px);
   border-radius: 28px;
@@ -608,6 +608,7 @@ body.is-records-view .app-shell {
 
 .meal-settings-table th,
 .meal-settings-table td {
+  min-width: 0;
   padding: 8px;
   border-bottom: 1px solid var(--line);
   text-align: left;
@@ -636,28 +637,30 @@ body.is-records-view .app-shell {
 }
 
 .meal-settings-drag-col {
-  width: 34px;
+  width: 42px;
   text-align: center;
 }
 
 .meal-settings-price-col {
-  width: 120px;
+  width: 104px;
 }
 
 .meal-settings-active-col {
-  width: 72px;
+  width: 70px;
+  text-align: center;
 }
 
 .meal-drag-handle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--ui-icon-radius);
   color: var(--muted);
   cursor: grab;
   user-select: none;
+  touch-action: none;
 }
 
 .meal-settings-table tr[draggable="true"] {
@@ -666,7 +669,7 @@ body.is-records-view .app-shell {
 
 .meal-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -1131,9 +1134,9 @@ body.is-records-view .app-shell {
   overflow-x: auto;
   overflow-y: hidden;
   background: var(--schedule-header-bg);
-  border: 1px solid var(--line);
-  border-bottom: none;
-  border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   scrollbar-color: #cdbb9f #fbf8f1;
   scrollbar-width: thin;
 }
@@ -1152,28 +1155,12 @@ body.is-records-view .app-shell {
   align-items: stretch;
   width: 100%;
   min-width: 0;
-  border: 1px solid transparent;
-  border-bottom: none;
+  border: 1px solid var(--line);
+  border-bottom: 0;
   border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;
   background: var(--schedule-header-bg);
   overflow: hidden;
   box-shadow: 0 8px 18px rgba(72, 52, 31, 0.08);
-}
-
-.table-sticky-header::after,
-.table-wrap::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  pointer-events: none;
-}
-
-.table-sticky-header::after {
-  border: 1px solid var(--line);
-  border-right: none;
-  border-bottom: none;
-  border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;
 }
 
 .table-sticky-header-left {
@@ -1185,18 +1172,6 @@ body.is-records-view .app-shell {
   flex-shrink: 0;
   background: var(--schedule-header-bg);
   border-top-left-radius: var(--schedule-radius);
-}
-
-.table-sticky-header-left::after {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 100%;
-  z-index: 9;
-  border-top: 1px solid var(--line);
-  border-left: 1px solid var(--line);
-  border-top-left-radius: var(--schedule-radius);
-  pointer-events: none;
 }
 
 .table-sticky-header-scroll {
@@ -1389,9 +1364,11 @@ body.is-records-view .app-shell {
   overflow-y: visible;
   width: 100%;
   min-width: 0;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-left: 1px solid var(--line);
   border-radius: 0 0 var(--schedule-radius) var(--schedule-radius);
-  border: 1px solid transparent;
-  border-top: none;
   background: #fff;
   scrollbar-width: none;
 }
@@ -1399,13 +1376,6 @@ body.is-records-view .app-shell {
 .table-wrap::-webkit-scrollbar {
   width: 0;
   height: 0;
-}
-
-.table-wrap::after {
-  border: 1px solid var(--line);
-  border-right: none;
-  border-top: none;
-  border-radius: 0 0 var(--schedule-radius) var(--schedule-radius);
 }
 
 table {
@@ -3013,11 +2983,12 @@ thead th.today,
   }
 
   .clock-action-btn {
-    min-height: 132px;
-    padding: 22px;
+    min-height: 120px;
+    padding: 18px 20px;
   }
 
   .clock-action-btn span {
+    margin-bottom: 10px;
     font-size: 26px;
   }
 
