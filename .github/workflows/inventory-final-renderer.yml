@@ -1,0 +1,28 @@
+name: Inventory Final Renderer
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    if: github.head_ref == 'agent/final-renderer-decomposition'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Inventory renderer functions
+        run: node scripts/inventory-renderer-functions.js
+      - name: Upload inventory
+        uses: actions/upload-artifact@v5
+        with:
+          name: renderer-function-inventory
+          path: renderer-function-inventory.json
