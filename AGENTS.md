@@ -11,6 +11,7 @@
 5. README 只保留專案入口與操作方式，不複製詳細功能規格或 AI 工作規則。
 6. 新增或修改關鍵功能時，檢查 `規格書.md` 第八章的共通狀態與非功能性要求，以及第九章的 API、資料生命週期、維運與測試追蹤。
 7. 不另建 API 規格、測試計畫、Wireframe 規格或維運規格文件；穩定規則直接更新 `規格書.md`，一次性截圖與討論留在 PR。
+8. 開始修改前先列出本次「允許修改範圍」、「禁止修改範圍」與驗收案例；不得因順手整理而修改未列入範圍的檔案或功能。
 
 主要目錄：
 
@@ -22,6 +23,7 @@
 - GitHub Pages 發布檔案：`docs/`
 - Supabase 現行資料庫結構與 RPC：`supabase/`
 - 工具、檢查與部署腳本：`scripts/`
+- 可執行單元測試：`tests/`
 
 ## 編碼與語言
 
@@ -43,11 +45,13 @@ npm run web:publish
 5. JavaScript 不得直接修改 `app.js`；修改現有模組後由 `npm run js:build` 產生 bundle。
 6. 不得新增動態補載本機 JavaScript、重複載入同一模組，或新增 `fix`、`refinement`、`v3` 等靠載入順序覆寫既有函式的補丁檔。
 7. 第一階段仍保留既有全域相依性；調整 `scripts/build-js.js` 的模組順序前，必須確認所有前置依賴並執行完整驗證。
-8. 若前端程式有修改，且使用者未明確要求不要提交，應提交並推送至 `main`。
-9. GitHub Actions 正式流程只保留 `.github/workflows/deploy-pages.yml`；Pull Request 只驗證，`main` 必須在同一 workflow 的 `validate` 成功後才執行 `deploy`。不得新增重複執行 V2 檢查或 Pages 部署的獨立 workflow。
-10. 最終回覆必須說明：
-   - `docs/` 是否已更新。
-   - 是否已推送至 `main`。
+8. 功能、介面、資料庫、權限或部署流程的修改，預設建立工作分支與 Draft Pull Request，不直接推送至 `main`；只有使用者明確要求直接推送時才可例外。
+9. Pull Request 必須依 `.github/pull_request_template.md` 填寫允許與禁止修改範圍；CI 會執行 `npm run scope:check`，實際變更檔案超出聲明範圍時不得合併。
+10. GitHub Actions 正式流程只保留 `.github/workflows/deploy-pages.yml`；Pull Request 只驗證，`main` 必須在同一 workflow 的 `validate` 成功後才執行 `deploy`。不得新增重複執行 V2 檢查或 Pages 部署的獨立 workflow。
+11. 最終回覆必須說明：
+    - `docs/` 是否已更新。
+    - 使用的分支與 Pull Request 狀態。
+    - 是否已推送或合併至 `main`。
 
 ## Supabase 維護規則
 
@@ -100,6 +104,8 @@ npm run web:publish
 ## 驗證原則
 
 - 依修改範圍執行既有檢查，不得只確認檔案可儲存。
+- 修改可獨立計算的日期、金額、匯出、資格、權限或狀態規則時，應新增或更新 `tests/` 中的可執行單元測試；不得只增加搜尋原始碼文字的 `includes()` 檢查。
+- `npm test` 必須測試實際輸入與預期輸出；文字存在檢查只作為結構與防止舊程式回歸的補充。
 - 前端修改後執行 `npm run web:publish`，確認 `app.css`、`app.js` 與 `docs/` 一致；入口只載入單一 `app.css`，本機 JavaScript 只載入 `app-config.js` 與單一 `app.js`。
 - JavaScript 修改後至少執行 `npm run js:check`；功能模組仍需保留在 `scripts/build-js.js` 的固定順序清單中。
 - 資料庫或班表儲存修改後，至少考慮執行：
