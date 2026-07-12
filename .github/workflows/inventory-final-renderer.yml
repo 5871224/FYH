@@ -24,7 +24,9 @@ jobs:
         with:
           node-version: "22"
       - name: Finalize renderer decomposition
-        run: node scripts/finalize-renderer-decomposition.js
+        run: |
+          node scripts/finalize-renderer-decomposition.js
+          node scripts/update-final-decomposition-tests.js
       - name: Build published web files
         run: npm run web:publish
       - name: Run complete checks without temporary workflow
@@ -45,6 +47,7 @@ jobs:
         run: |
           rm -f scripts/inventory-renderer-functions.js
           rm -f scripts/finalize-renderer-decomposition.js
+          rm -f scripts/update-final-decomposition-tests.js
           rm -f renderer-function-inventory.json
           rm -f final-renderer-decomposition-ci.log
           git config user.name "github-actions[bot]"
