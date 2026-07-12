@@ -21,7 +21,8 @@ function openListSettings(category) {
           <div class="settings-table-scroll">
             <div class="settings-table">
               <div class="settings-table-row settings-table-head settings-table-row-${category}">
-                <div>預覽</div>
+                 ${renderSettingsOrderDragColumn(true)}
+                 <div>預覽</div>
                 ${category === "leave" ? "<div>假別代碼</div>" : ""}
                 ${category === "shift" ? "" : `<div>${category === "leave" ? "假別" : "加班"}</div>`}
                 <div>${category === "shift" ? "適用單位" : category === "leave" ? "需填時間" : "時段"}</div>
@@ -34,8 +35,9 @@ function openListSettings(category) {
                 <div class="settings-table-actions-head">操作</div>
               </div>
               ${list.map((item) => `
-                <div class="settings-table-row settings-table-row-${category} sortable-settings-item" draggable="true" data-sort-category="${category}" data-sort-item="${item.id}">
-                  <div class="settings-table-color">
+                <div class="settings-table-row settings-table-row-${category} sortable-settings-item" data-sort-category="${category}" data-sort-item="${item.id}">
+                   ${renderSettingsOrderDragColumn()}
+                   <div class="settings-table-color">
                     <div class="settings-table-preview" style="background:${escapeHtml(item.color)};color:${escapeHtml(getItemTextColor(item, item.color))}">${escapeHtml(item.name || item.code || "名稱")}</div>
                   </div>
                   ${category === "leave" ? `<div class="settings-table-code">${escapeHtml(item.code || "")}</div>` : ""}

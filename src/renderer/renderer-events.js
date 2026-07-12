@@ -34,5 +34,6 @@ function bindEvents() {
   bindRecordsEvents();
   bindScheduleTooltipEvents();
   bindDragAndDropEvents();
+  bindDragScrollPreservation();
   bindCoreMenuDismissEvent();
 }

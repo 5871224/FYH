@@ -29,8 +29,6 @@ const required = [
   "docs/app.js",
   "scripts/build-js.js",
   "src/renderer/renderer-overtime-employee.js",
-  "src/renderer/v2-account.js",
-  "src/renderer/v2-meal-export.js",
 ];
 
 required.forEach((file) => assert(exists(file), `缺少 V2 檔案：${file}`));
@@ -245,7 +243,7 @@ assert(sourceWebApi.includes('action: "admin_settings"') && sourceWebApi.include
 assert(!sourceWebApi.includes('action: "admin_get"') && !sourceWebApi.includes('action: "admin_save"'), "訂餐管理仍使用後端不支援的操作名稱");
 assert(sourceWebApi.includes("companySubsidy: Number(payload.companySubsidy)"), "前端 API 未傳送公司補助");
 
-const sourceExport = read("src/renderer/v2-meal-export.js");
+const sourceExport = read("src/renderer/web-api.js");
 assert(!sourceExport.includes("首次下訂時間"), "訂餐 Excel 不應顯示首次下訂時間");
 assert(!sourceExport.includes("最後修改時間"), "訂餐 Excel 不應顯示最後修改時間");
 assert(!sourceExport.includes("員工工號"), "訂餐 Excel 不應顯示員工工號");
@@ -296,6 +294,7 @@ const publishedIndex = read("docs/index.html");
 assert(sourceIndex.includes("app-config.js") && sourceIndex.includes("app.js") && !sourceIndex.includes("v2-api.js"), "來源頁必須只載入 app-config.js 與 app.js");
 assert(publishedIndex.includes("app-config.js") && publishedIndex.includes("app.js") && !publishedIndex.includes("v2-api.js"), "發布頁必須只載入 app-config.js 與 app.js");
 ["v2-records.js", "v2-personal-record-layout.js", "v2-overtime-admin.js", "v2-attendance-admin.js", "v2-live-report-filters.js"].forEach((file) => assert(!exists(`src/renderer/${file}`), `記錄管理仍依賴後載入補丁：${file}`));
+["v2-account.js", "v2-meal-export.js", "v2-settings-drag-handles.js", "v2-drag-scroll-preserve.js"].forEach((file) => assert(!exists(`src/renderer/${file}`), `仍存在後載入補丁：${file}`));
 assert(sourceApp.includes("function isTabletDevice") && sourceApp.includes("function renderMealPage") && sourceApp.includes("function validateMealOrderItems") && sourceApp.includes("function loadRecordsPage") && sourceApp.includes("function renderPersonalRecordsSection") && sourceApp.includes("function bindRecordsEvents") && sourceApp.includes("function installPeriodExports") && !sourceApp.includes("installV2MealUi") && !sourceApp.includes("installV2RecordsUi") && !sourceApp.includes("installV2PersonalRecordLayout") && !sourceApp.includes("installV2OvertimeAdmin") && !sourceApp.includes("installV2AttendanceAdmin"), "JavaScript bundle 缺少必要正式模組");
 const publishedJsFiles = fs.readdirSync(path.join(root, "docs")).filter((name) => name.endsWith(".js"));
 assert(publishedJsFiles.every((name) => name === "app-config.js" || name === "app.js"), `docs 含有不應發布的 JavaScript 原始模組：${publishedJsFiles.join(", ")}`);

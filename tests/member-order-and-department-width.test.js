@@ -19,15 +19,18 @@ test("單位設定電腦版應使用七欄自適應寬度，不固定撐到 920p
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*?overflow-x: auto;/);
 });
 
-test("人員設定應由第一欄拖曳把手啟動排序", () => {
-  const source = read("src/renderer/v2-settings-drag-handles.js");
-  assert.equal(source.includes(".member-settings-modal .member-table-head"), true);
-  assert.equal(source.includes('data-sort-category="member"'), true);
-  assert.equal(source.includes(".member-settings-modal [data-sort-item]"), true);
-  assert.equal(source.includes("row.removeAttribute(\"draggable\")"), true);
-  assert.equal(source.includes("settings-order-drag-handle"), true);
+test("人員設定應直接由正式模組輸出第一欄拖曳把手", () => {
+  const ordering = read("src/renderer/renderer-settings-ordering.js");
+  const member = read("src/renderer/renderer-settings-member.js");
+  const dragEvents = read("src/renderer/renderer-events-drag.js");
+  assert.equal(fs.existsSync(path.join(root, "src/renderer/v2-settings-drag-handles.js")), false);
+  assert.equal(ordering.includes("function renderSettingsOrderDragColumn"), true);
+  assert.equal(member.includes("renderSettingsOrderDragColumn(true)"), true);
+  assert.equal(member.includes("renderSettingsOrderDragColumn()"), true);
+  assert.equal(member.includes('data-sort-category="member"'), true);
+  assert.equal(member.includes('sortable-settings-item" draggable="true"'), false);
+  assert.equal(dragEvents.includes('!event.target.closest(".settings-order-drag-handle")'), true);
 });
-
 test("拖曳人員只調整人員順序並重新開啟人員設定", async () => {
   const source = read("src/renderer/renderer-settings-ordering.js");
 

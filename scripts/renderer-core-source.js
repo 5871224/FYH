@@ -53,6 +53,7 @@ const RENDERER_CORE_FILES = [
   "renderer-events-form.js",
   "renderer-events-tooltip.js",
   "renderer-events-drag.js",
+  "renderer-drag-scroll-preserve.js",
   "renderer-events.js",
   "renderer.js",
 ];
