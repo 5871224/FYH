@@ -25,6 +25,9 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Fix consolidator parser
+        run: node scripts/fix-records-consolidator-parser.js
+
       - name: Consolidate record and admin patches
         run: node scripts/consolidate-records-admin.js
 
@@ -69,6 +72,7 @@ jobs:
         run: |
           rm -f scripts/consolidate-records-admin.js
           rm -f scripts/update-records-admin-tests.js
+          rm -f scripts/fix-records-consolidator-parser.js
           rm -f records-admin-consolidation-ci.log syntax-error.log syntax-context.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
