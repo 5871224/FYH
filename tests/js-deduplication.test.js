@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+// 正式 UI 命名、狀態重設及班表預覽寫入流程都必須維持單一來源。
 
 function rendererSource() {
   const js = fs.readdirSync(path.join(root, "src/renderer"))
