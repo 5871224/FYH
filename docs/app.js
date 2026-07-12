@@ -9230,22 +9230,34 @@ async function reorderScheduleTableDepartment(draggedId, targetId, insertAfter =
   return true;
 }
 
-async function reorderScheduleTableMember(draggedId, targetId, insertAfter = false) {
-  const draggedMember = state.members.find((member) => member.id === draggedId);
-  const targetMember = state.members.find((member) => member.id === targetId);
-  const departmentId = getMemberHomeDeptId(draggedMember);
-  if (!draggedMember || !targetMember || !departmentId || departmentId !== getMemberHomeDeptId(targetMember)) {
+async function reorderScheduleTableMember(draggedMemberId, targetMemberId, insertAfter = false) {
+  const draggedMember = state.members.find((member) => member.id === draggedMemberId);
+  const targetMember = state.members.find((member) => member.id === targetMemberId);
+  if (!draggedMember || !targetMember || draggedMemberId === targetMemberId) {
     return false;
   }
-  const group = getVisibleTableGroups().find(({ department }) => department.id === departmentId);
-  const visibleIds = (group?.members || []).map((member) => member.id);
-  const nextVisibleIds = getReorderedVisibleIds(visibleIds, draggedId, targetId, insertAfter);
-  if (nextVisibleIds.join("|") === visibleIds.join("|")) {
+
+  const targetDepartmentId = getMemberHomeDeptId(targetMember);
+  if (!targetDepartmentId) {
     return false;
   }
-  const viewport = captureScheduleViewport();
-  state.members = applyVisibleOrderById(state.members, nextVisibleIds);
-  await finishScheduleTableOrderChange(viewport);
+
+  const remainingMembers = state.members.filter((member) => member.id !== draggedMemberId);
+  const targetIndex = remainingMembers.findIndex((member) => member.id === targetMemberId);
+  if (targetIndex < 0) {
+    return false;
+  }
+
+  const movedMember = {
+    ...draggedMember,
+    deptId: targetDepartmentId
+  };
+  remainingMembers.splice(targetIndex + (insertAfter ? 1 : 0), 0, movedMember);
+  state.members = remainingMembers;
+  currentMember = resolveCurrentMember();
+  clearScheduleRangeSelection();
+  renderAll();
+  await forceSave();
   return true;
 }
 
@@ -11387,14 +11399,11 @@ function bindEvents() {
       return;
     }
     const tableMember = event.target.closest("[data-table-member-id]");
-    if (tableMember && dragScheduleTableMemberId && canDragScheduleOrder) {
-      const draggedMember = state.members.find((member) => member.id === dragScheduleTableMemberId);
-      if (draggedMember && tableMember.dataset.tableMemberDepartmentId === getMemberHomeDeptId(draggedMember)) {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "move";
-        markScheduleTableOrderTarget(tableMember, event.clientY);
-        return;
-      }
+    if (tableMember && dragScheduleTableMemberId && canDragScheduleOrder && tableMember.dataset.tableMemberId !== dragScheduleTableMemberId) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      markScheduleTableOrderTarget(tableMember, event.clientY);
+      return;
     }
     const scheduleShiftOption = event.target.closest("[data-schedule-shift-option]");
     if (scheduleShiftOption && dragScheduleShiftId) {
@@ -11818,60 +11827,6 @@ loadApp();
     event.preventDefault();
     await generateAutoFillSchedulePreviewFromModal(button);
   });
-})();
-;
-
-/* ===== v2-cross-department-member-drag.js ===== */
-(() => {
-  const originalReorderScheduleTableMember = reorderScheduleTableMember;
-
-  reorderScheduleTableMember = async function reorderScheduleTableMemberAcrossDepartments(draggedMemberId, targetMemberId, insertAfter = false) {
-    const draggedMember = state.members.find((member) => member.id === draggedMemberId);
-    const targetMember = state.members.find((member) => member.id === targetMemberId);
-    if (!draggedMember || !targetMember || draggedMemberId === targetMemberId) {
-      return false;
-    }
-
-    const targetDepartmentId = getMemberHomeDeptId(targetMember);
-    if (!targetDepartmentId) {
-      return originalReorderScheduleTableMember(draggedMemberId, targetMemberId, insertAfter);
-    }
-
-    const remainingMembers = state.members.filter((member) => member.id !== draggedMemberId);
-    const targetIndex = remainingMembers.findIndex((member) => member.id === targetMemberId);
-    if (targetIndex < 0) {
-      return false;
-    }
-
-    const movedMember = {
-      ...draggedMember,
-      deptId: targetDepartmentId
-    };
-    remainingMembers.splice(targetIndex + (insertAfter ? 1 : 0), 0, movedMember);
-    state.members = remainingMembers;
-    currentMember = resolveCurrentMember();
-    clearScheduleRangeSelection();
-    renderAll();
-    await forceSave();
-    return true;
-  };
-
-  document.body.addEventListener("dragover", (event) => {
-    if (!dragScheduleTableMemberId || !canEditSchedule() || state.tableView === "shift") {
-      return;
-    }
-    const targetMember = event.target instanceof Element
-      ? event.target.closest("[data-table-member-id]")
-      : null;
-    if (!(targetMember instanceof HTMLElement) || targetMember.dataset.tableMemberId === dragScheduleTableMemberId) {
-      return;
-    }
-    event.preventDefault();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = "move";
-    }
-    markScheduleTableOrderTarget(targetMember, event.clientY);
-  }, true);
 })();
 ;
 
