@@ -34,18 +34,8 @@ function captureSortableSettingsReturnContext(category) {
   });
 }
 
-function reopenSortedSettings(category, returnTo) {
-  if (category === "department") {
-    openDepartmentSettings();
-    restoreSettingsScroll(returnTo);
-    return;
-  }
-  if (category === "member") {
-    void openMemberSettings().then(() => restoreSettingsScroll(returnTo));
-    return;
-  }
-  openListSettings(category);
-  restoreSettingsScroll(returnTo);
+function reopenSortedSettings(_category, returnTo) {
+  void reopenSettingsModalPreservingScroll(returnTo);
 }
 
 function commitSortedListFromDom(category) {
@@ -117,9 +107,8 @@ function commitDepartmentMemberOrderFromDom() {
   }
   const returnTo = captureSettingsReturnContext({ category: "department-settings", view: departmentSettingsView });
   state.members = nextMembers;
-  openDepartmentSettings();
-  restoreSettingsScroll(returnTo);
   renderAll();
+  void reopenSettingsModalPreservingScroll(returnTo);
   queueSave();
   return true;
 }

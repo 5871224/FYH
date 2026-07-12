@@ -228,7 +228,7 @@ async function saveDepartment(mode) {
   }
   closeModal();
   renderAll();
-  reopenModalFromContext(returnTo || { category: "department-settings", view: departmentSettingsView });
+  await reopenSettingsModalPreservingScroll(returnTo || { category: "department-settings", view: departmentSettingsView, scrollTop: 0 });
 }
 
 function removeScheduleByMember(memberId) {
@@ -250,6 +250,7 @@ async function deleteDepartment(departmentId) {
     showInfoMessage(`這個單位仍有班別使用，請先修改有使用的班別：${usedShifts.map((shift) => shift.name).join("、")}`);
     return;
   }
+  const returnTo = captureSettingsReturnContext({ category: "department-settings", view: departmentSettingsView });
   const confirmed = await confirmAction("確定要刪除這個單位嗎？");
   if (!confirmed) {
     return;
@@ -269,7 +270,7 @@ async function deleteDepartment(departmentId) {
     state.tableDeptScopeFilter = "all";
   }
   renderAll();
-  openDepartmentSettings();
+  await reopenSettingsModalPreservingScroll(returnTo);
   queueSave();
 }
 
@@ -302,9 +303,8 @@ async function moveMemberToDepartment(memberId, departmentId, targetMemberId = "
     targetList.push(movedMember);
   }
   state.members = state.departments.flatMap((department) => grouped.get(department.id) || []);
-  openDepartmentSettings();
-  restoreSettingsScroll(returnTo);
   renderAll();
+  await reopenSettingsModalPreservingScroll(returnTo);
   queueSave();
 }
 

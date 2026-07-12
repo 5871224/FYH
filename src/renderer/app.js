@@ -3624,6 +3624,24 @@ function restoreSettingsScroll(context) {
     });
   });
 }
+
+
+async function reopenSettingsModalPreservingScroll(context) {
+  if (!context?.category) {
+    return false;
+  }
+  if (context.category === "department-settings") {
+    await openDepartmentSettings();
+  } else if (context.category === "member-settings") {
+    await openMemberSettings();
+  } else if (context.category === "list-settings" && context.listCategory) {
+    openListSettings(context.listCategory);
+  } else {
+    return false;
+  }
+  restoreSettingsScroll(context);
+  return true;
+}
 ;
 
 /* ===== renderer-schedule-layout.js ===== */
@@ -6612,7 +6630,7 @@ async function saveShiftFromModal(mode) {
   }
   closeModal();
   renderAll();
-  reopenModalFromContext(returnTo || { category: "list-settings", listCategory: "shift" });
+  await reopenSettingsModalPreservingScroll(returnTo || { category: "list-settings", listCategory: "shift", scrollTop: 0 });
 }
 
 function openNamedColorFormModal(category, mode, targetId = "") {
@@ -6839,7 +6857,7 @@ async function saveNamedColorItem(category, mode) {
   if (category === "overtime") state.overtime = nextList;
   closeModal();
   renderAll();
-  reopenModalFromContext(returnTo || { category: "list-settings", listCategory: category });
+  await reopenSettingsModalPreservingScroll(returnTo || { category: "list-settings", listCategory: category, scrollTop: 0 });
 }
 
 async function deleteListItem(category, id) {
@@ -6848,6 +6866,10 @@ async function deleteListItem(category, id) {
     leave: "假別",
     overtime: "加班"
   };
+  const returnTo = captureSettingsReturnContext({
+    category: "list-settings",
+    listCategory: category
+  });
   const confirmed = await confirmAction(`確定要刪除這個${labelMap[category] || "項目"}嗎？`);
   if (!confirmed) {
     return;
@@ -6871,7 +6893,7 @@ async function deleteListItem(category, id) {
   if (category === "overtime") state.overtime = state.overtime.filter((item) => item.id !== id);
   removeAssignmentsByItem(category, id);
   renderAll();
-  openListSettings(category);
+  await reopenSettingsModalPreservingScroll(returnTo);
 }
 ;
 
@@ -7106,7 +7128,7 @@ async function saveDepartment(mode) {
   }
   closeModal();
   renderAll();
-  reopenModalFromContext(returnTo || { category: "department-settings", view: departmentSettingsView });
+  await reopenSettingsModalPreservingScroll(returnTo || { category: "department-settings", view: departmentSettingsView, scrollTop: 0 });
 }
 
 function removeScheduleByMember(memberId) {
@@ -7128,6 +7150,7 @@ async function deleteDepartment(departmentId) {
     showInfoMessage(`這個單位仍有班別使用，請先修改有使用的班別：${usedShifts.map((shift) => shift.name).join("、")}`);
     return;
   }
+  const returnTo = captureSettingsReturnContext({ category: "department-settings", view: departmentSettingsView });
   const confirmed = await confirmAction("確定要刪除這個單位嗎？");
   if (!confirmed) {
     return;
@@ -7147,7 +7170,7 @@ async function deleteDepartment(departmentId) {
     state.tableDeptScopeFilter = "all";
   }
   renderAll();
-  openDepartmentSettings();
+  await reopenSettingsModalPreservingScroll(returnTo);
   queueSave();
 }
 
@@ -7180,9 +7203,8 @@ async function moveMemberToDepartment(memberId, departmentId, targetMemberId = "
     targetList.push(movedMember);
   }
   state.members = state.departments.flatMap((department) => grouped.get(department.id) || []);
-  openDepartmentSettings();
-  restoreSettingsScroll(returnTo);
   renderAll();
+  await reopenSettingsModalPreservingScroll(returnTo);
   queueSave();
 }
 
@@ -7331,18 +7353,8 @@ function captureSortableSettingsReturnContext(category) {
   });
 }
 
-function reopenSortedSettings(category, returnTo) {
-  if (category === "department") {
-    openDepartmentSettings();
-    restoreSettingsScroll(returnTo);
-    return;
-  }
-  if (category === "member") {
-    void openMemberSettings().then(() => restoreSettingsScroll(returnTo));
-    return;
-  }
-  openListSettings(category);
-  restoreSettingsScroll(returnTo);
+function reopenSortedSettings(_category, returnTo) {
+  void reopenSettingsModalPreservingScroll(returnTo);
 }
 
 function commitSortedListFromDom(category) {
@@ -7414,9 +7426,8 @@ function commitDepartmentMemberOrderFromDom() {
   }
   const returnTo = captureSettingsReturnContext({ category: "department-settings", view: departmentSettingsView });
   state.members = nextMembers;
-  openDepartmentSettings();
-  restoreSettingsScroll(returnTo);
   renderAll();
+  void reopenSettingsModalPreservingScroll(returnTo);
   queueSave();
   return true;
 }
@@ -7820,7 +7831,7 @@ async function saveMember(mode) {
   currentMember = resolveCurrentMember();
   closeModal();
   renderAll();
-  reopenModalFromContext(returnTo);
+  await reopenSettingsModalPreservingScroll(returnTo || { category: "member-settings", scrollTop: 0 });
 }
 
 async function exportMembersFromSettings() {
@@ -7836,6 +7847,7 @@ async function exportMembersFromSettings() {
 }
 
 async function importMembersFromSettings() {
+  const returnTo = captureSettingsReturnContext({ category: "member-settings" });
   try {
     const result = await window.schedulerApi.importMembers();
     if (result.canceled) {
@@ -7908,7 +7920,7 @@ async function importMembersFromSettings() {
 
     currentMember = resolveCurrentMember();
     renderAll();
-    openMemberSettings();
+    await reopenSettingsModalPreservingScroll(returnTo);
     queueSave();
     const summary = `匯入完成：新增 ${imported} 筆，更新 ${updated} 筆，略過 ${skipped} 筆，同步失敗 ${syncFailed} 筆`;
     if (syncFailed > 0) {
@@ -7928,6 +7940,7 @@ async function deleteMember(memberId) {
     showInfoMessage("只有管理員可以刪除管理員帳號");
     return;
   }
+  const returnTo = captureSettingsReturnContext({ category: "member-settings" });
   const confirmed = await confirmAction("確定要刪除這位人員嗎？");
   if (!confirmed) {
     return;
@@ -7949,7 +7962,7 @@ async function deleteMember(memberId) {
     proxyMemberId: member.proxyMemberId === memberId ? "" : member.proxyMemberId
   }));
   renderAll();
-  openMemberSettings();
+  await reopenSettingsModalPreservingScroll(returnTo);
 }
 
 async function resetMemberPasswordFromModal(employeeCode) {
