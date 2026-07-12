@@ -24,9 +24,6 @@
     return next;
   }
 
-  function daysInMonth(year, month) {
-    return new Date(year, month + 1, 0).getDate();
-  }
 
   function dateAtMonthStartDay(year, month, startDay) {
     return new Date(year, month, Math.min(startDay, daysInMonth(year, month)));

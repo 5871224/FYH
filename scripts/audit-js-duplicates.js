@@ -219,7 +219,10 @@ if (!legacyMarkers.length) report.push("無。", "");
 for (const item of legacyMarkers) report.push(`- ${location(item)}：\`${item.text.replace(/`/g, "\\`")}\``);
 report.push("");
 
-fs.writeFileSync(path.join(root, "js-duplicate-report.md"), `${report.join("\n")}\n`, "utf8");
+const checkOnly = process.argv.includes("--check");
+if (!checkOnly) {
+  fs.writeFileSync(path.join(root, "js-duplicate-report.md"), `${report.join("\n")}\n`, "utf8");
+}
 console.log(`JavaScript audit completed: ${functions.length} functions, ${duplicateNames.length} duplicate names, ${exactBodies.length} exact bodies.`);
 
 const forbiddenUiMarkers = [];
@@ -228,7 +231,7 @@ for (const file of files) {
     if (/data-v2-|(?:^|[.\s"'])v2-[a-z]/i.test(line)) forbiddenUiMarkers.push({ file, line: index + 1, text: line.trim() });
   });
 }
-if (process.argv.includes("--check")) {
+if (checkOnly) {
   if (assignmentOverrides.length) {
     console.error(`Found ${assignmentOverrides.length} function override assignment(s).`);
     process.exitCode = 1;
