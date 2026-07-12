@@ -35,12 +35,23 @@ jobs:
         run: npm run web:publish
 
       - name: Run complete checks
-        run: npm run ci:check
+        run: |
+          set -o pipefail
+          npm run ci:check 2>&1 | tee settings-scroll-ci.log
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: settings-scroll-ci-log
+          path: settings-scroll-ci.log
+          if-no-files-found: ignore
 
       - name: Commit prepared changes
         run: |
           rm -f scripts/apply-settings-scroll-fix.js
           rm -f .github/workflows/prepare-settings-scroll-fix.yml
+          rm -f settings-scroll-ci.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
