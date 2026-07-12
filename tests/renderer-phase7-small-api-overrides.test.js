@@ -42,8 +42,8 @@ test("訂餐管理應保留補助並提供安全刪除品項操作", async () =>
   await api.saveMealAdminSettings({ products: [{ id: "P1" }], dailyCutoffTime: "11:00", companySubsidy: 55 });
   await api.deleteMealProduct("P1");
   assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
-    ["meal-order", { action: "admin_get" }],
-    ["meal-order", { action: "admin_save", products: [{ id: "P1" }], dailyCutoffTime: "11:00", companySubsidy: 55 }],
+    ["meal-order", { action: "admin_settings" }],
+    ["meal-order", { action: "save_admin_settings", products: [{ id: "P1" }], dailyCutoffTime: "11:00", companySubsidy: 55 }],
     ["meal-order", { action: "delete_admin_product", productId: "P1" }]
   ]);
 });
@@ -55,8 +55,8 @@ test("小型 API 應由正式 web-api 提供而非後載入覆蓋", () => {
   assert.equal(fs.existsSync(path.join(root, "src", "renderer", "v2-meal-api.js")), false);
   assert.equal(build.includes("v2-attendance-status.js") || build.includes("v2-meal-api.js"), false);
   assert.equal(source.includes('action: "today"'), true);
-  assert.equal(source.includes('action: "admin_get"'), true);
-  assert.equal(source.includes('action: "admin_save"'), true);
+  assert.equal(source.includes('action: "admin_settings"'), true);
+  assert.equal(source.includes('action: "save_admin_settings"'), true);
   assert.equal(source.includes('action: "delete_admin_product"'), true);
   assert.equal(source.includes("    deleteMealProduct,"), true);
 });
