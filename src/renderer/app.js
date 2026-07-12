@@ -8337,27 +8337,8 @@ async function loadTodayAttendance() {
   renderAll();
 }
 
-async function maybePromptOvertimeAfterClockOut(status) {
-  const eligibility = status?.eligibility || null;
-  const earlyHours = Number(eligibility?.earlyHours || 0);
-  const lateHours = Number(eligibility?.lateHours || 0);
-  if (!eligibility?.eligible || (earlyHours < 0.5 && lateHours < 0.5)) {
-    return false;
-  }
-  const confirmed = await confirmAction(`偵測到可申請加班：\n提早上班 ${earlyHours} 小時\n延後下班 ${lateHours} 小時\n是否申請加班？`);
-  if (!confirmed) {
-    return true;
-  }
-  attendanceOvertimeState = {
-    ...attendanceOvertimeState,
-    expanded: true,
-    loading: false,
-    status,
-    selectedWorkDate: getTodayDateString(),
-    error: ""
-  };
-  renderAll();
-  return true;
+async function maybePromptOvertimeAfterClockOut() {
+  return false;
 }
 
 async function submitAttendanceClock(action) {
@@ -11893,16 +11874,6 @@ loadApp();
   if (modalRoot) {
     new MutationObserver(() => restoreScroll()).observe(modalRoot, { childList: true, subtree: true });
   }
-})();
-;
-
-/* ===== v2-no-overtime-suggestion.js ===== */
-(() => {
-  // 打卡完成後不再依提早上班或延後下班時間自動建議加班。
-  // 員工仍可從打卡頁手動展開並送出加班申請。
-  maybePromptOvertimeAfterClockOut = async function neverPromptOvertimeAfterClockOut() {
-    return false;
-  };
 })();
 ;
 
