@@ -41,18 +41,27 @@ jobs:
       - name: Consolidate meal patch
         run: node scripts/optimize-meal-patch.js
 
-      - name: Update V2 alignment source list
+      - name: Update V2 checks for formal meal modules
         run: |
           python - <<'PY'
           from pathlib import Path
-          p = Path('scripts/check-v2-alignment.js')
-          text = p.read_text(encoding='utf-8')
+
+          alignment = Path('scripts/check-v2-alignment.js')
+          text = alignment.read_text(encoding='utf-8')
           text = text.replace('  "src/renderer/v2-meal.js",\n', '')
           anchor = 'requiredFiles.forEach((file) => assert(exists(file), `Missing V2 file: ${file}`));'
           replacement = anchor + '\nassert(!exists("src/renderer/v2-meal.js"), "Meal UI still depends on a late-loaded patch module");'
           if anchor not in text:
               raise SystemExit('找不到 V2 alignment 檢查位置')
-          p.write_text(text.replace(anchor, replacement, 1), encoding='utf-8')
+          alignment.write_text(text.replace(anchor, replacement, 1), encoding='utf-8')
+
+          final = Path('scripts/check-v2-final.js')
+          text = final.read_text(encoding='utf-8')
+          old = 'assert(sourceApp.includes("function isTabletDevice") && sourceApp.includes("installV2MealUi") && sourceApp.includes("installV2RecordsUi"), "JavaScript bundle 缺少必要正式模組");'
+          new = 'assert(sourceApp.includes("function isTabletDevice") && sourceApp.includes("function renderMealPage") && sourceApp.includes("function validateMealOrderItems") && sourceApp.includes("installV2RecordsUi") && !sourceApp.includes("installV2MealUi"), "JavaScript bundle 缺少必要正式模組");'
+          if old not in text:
+              raise SystemExit('找不到 V2 final 訂餐模組檢查位置')
+          final.write_text(text.replace(old, new, 1), encoding='utf-8')
           PY
 
       - name: Build published web files
