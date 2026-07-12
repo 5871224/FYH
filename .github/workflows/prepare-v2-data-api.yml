@@ -1,16 +1,16 @@
 name: Prepare V2 Data API
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/split-v2-api-responsibilities
+      - main
 
 permissions:
   contents: write
 
 jobs:
   prepare:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/split-v2-api-responsibilities'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
