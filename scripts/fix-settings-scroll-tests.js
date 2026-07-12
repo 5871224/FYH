@@ -23,6 +23,18 @@ patch(
   "captureSettingsReturnContext:"
 );
 
+{
+  const file = "scripts/check-settings-lists.js";
+  let source = fs.readFileSync(file, "utf8");
+  const oldCheck = 'assert(renderer.includes("restoreSettingsScroll(returnTo);"), "drag reorder should restore modal scroll position after rerender");';
+  const newCheck = 'assert(renderer.includes("function reopenSettingsModalPreservingScroll") && renderer.includes("reopenSettingsModalPreservingScroll(returnTo)"), "settings rerender should restore modal scroll position through the shared helper");';
+  if (!source.includes(newCheck)) {
+    if (!source.includes(oldCheck)) throw new Error("找不到舊設定清單捲動檢查");
+    source = source.replace(oldCheck, newCheck);
+    fs.writeFileSync(file, source, "utf8");
+  }
+}
+
 const testContent = String.raw`const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
