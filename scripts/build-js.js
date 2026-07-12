@@ -40,7 +40,6 @@ const modules = [
   "renderer.js",
   "v2-auto-fill-schedule.js",
   "v2-drag-scroll-preserve.js",
-  "v2-admin-data-fixes.js",
   "v2-member-order.js",
   "v2-settings-drag-handles.js",
   "v2-meal.js",
