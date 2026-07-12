@@ -41,6 +41,20 @@ jobs:
       - name: Consolidate meal patch
         run: node scripts/optimize-meal-patch.js
 
+      - name: Update V2 alignment source list
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/check-v2-alignment.js')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace('  "src/renderer/v2-meal.js",\n', '')
+          anchor = 'requiredFiles.forEach((file) => assert(exists(file), `Missing V2 file: ${file}`));'
+          replacement = anchor + '\nassert(!exists("src/renderer/v2-meal.js"), "Meal UI still depends on a late-loaded patch module");'
+          if anchor not in text:
+              raise SystemExit('找不到 V2 alignment 檢查位置')
+          p.write_text(text.replace(anchor, replacement, 1), encoding='utf-8')
+          PY
+
       - name: Build published web files
         run: npm run web:publish
 
