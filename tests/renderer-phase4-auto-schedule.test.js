@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
+// 這些測試固定拆分前的休假目標、需求缺額與班別順位行為。
 const root = path.resolve(__dirname, "..");
 const { RENDERER_CORE_FILES, readRendererCore } = require("../scripts/renderer-core-source.js");
 const moduleNames = ["renderer-auto-schedule-compliance.js", "renderer-auto-schedule-demand.js", "renderer-auto-schedule-assignment.js", "renderer-auto-schedule.js"];
