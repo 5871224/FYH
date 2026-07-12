@@ -60,6 +60,7 @@ test("第五階段應移出班表渲染並維持建置順序", () => {
   const order = RENDERER_CORE_FILES.map((name) => build.indexOf("\"" + name + "\""));
   assert.equal(order.every((index) => index >= 0), true);
   assert.equal(order.every((index, position) => position === 0 || index > order[position - 1]), true);
+  // 拆分後實際為 5,394 行；5,450 行門檻可防止班表渲染再次回流主檔。
   assert.equal(renderer.split(/\r?\n/).length < 5450, true);
   assert.equal(readRendererCore(root).includes("function renderTable()"), true);
 });
