@@ -1,72 +1,4 @@
-const fs = require("node:fs");
-const path = require("node:path");
-
-const root = path.resolve(__dirname, "..");
-const rendererDir = path.join(root, "src", "renderer");
-const rendererPath = path.join(rendererDir, "renderer.js");
-const buildPath = path.join(root, "scripts", "build-js.js");
-const coreSourcePath = path.join(root, "scripts", "renderer-core-source.js");
-const testPath = path.join(root, "tests", "renderer-phase10-keyboard-export.test.js");
-
-function findRange(source, startMarker, endMarker, label) {
-  const start = source.indexOf(startMarker);
-  const end = source.indexOf(endMarker, start + startMarker.length);
-  if (start < 0 || end <= start) {
-    throw new Error(`找不到${label}的安全拆分邊界`);
-  }
-  return { start, end, content: source.slice(start, end).trim() };
-}
-
-function insertModules(source, marker, replacement, label) {
-  if (!source.includes(marker)) {
-    throw new Error(`找不到${label}的模組插入點`);
-  }
-  return source.replace(marker, replacement);
-}
-
-let renderer = fs.readFileSync(rendererPath, "utf8");
-
-const exportRange = findRange(
-  renderer,
-  "function hasSapLeaveRows()",
-  "function shouldPromptLeaveDetail",
-  "匯出資料存在性判斷"
-);
-const exportSource = exportRange.content;
-renderer = renderer.slice(0, exportRange.start) + renderer.slice(exportRange.end);
-
-const keyboardRange = findRange(
-  renderer,
-  "function beginScheduleHeaderColumnSelection",
-  "function getLeaveLabel",
-  "班表鍵盤與範圍選取"
-);
-const keyboardSource = keyboardRange.content;
-renderer = renderer.slice(0, keyboardRange.start) + renderer.slice(keyboardRange.end);
-renderer = renderer.replace(/\n{4,}/g, "\n\n\n");
-
-fs.writeFileSync(
-  path.join(rendererDir, "renderer-schedule-keyboard.js"),
-  `/* 班表欄列、範圍選取與鍵盤剪貼簿控制。\n * 由 renderer.js 拆分；維持既有全域 bundle 執行方式。\n */\n\n${keyboardSource}\n`
-);
-fs.writeFileSync(
-  path.join(rendererDir, "renderer-export-availability.js"),
-  `/* 班表匯出按鈕所需的資料存在性判斷。\n * 由 renderer.js 拆分；不變更匯出格式或資料內容。\n */\n\n${exportSource}\n`
-);
-fs.writeFileSync(rendererPath, renderer);
-
-const moduleMarker = `  "renderer-auth-context.js",\n  "renderer-attendance-page.js",`;
-const moduleReplacement = `  "renderer-auth-context.js",\n  "renderer-schedule-keyboard.js",\n  "renderer-export-availability.js",\n  "renderer-attendance-page.js",`;
-
-let build = fs.readFileSync(buildPath, "utf8");
-build = insertModules(build, moduleMarker, moduleReplacement, "JavaScript 建置清單");
-fs.writeFileSync(buildPath, build);
-
-let coreSource = fs.readFileSync(coreSourcePath, "utf8");
-coreSource = insertModules(coreSource, moduleMarker, moduleReplacement, "renderer 測試來源清單");
-fs.writeFileSync(coreSourcePath, coreSource);
-
-const testSource = `const test = require("node:test");
+const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -100,7 +32,7 @@ test("Ctrl+C 應複製目前班表選取範圍", async () => {
     renderTable: () => {},
     clearScheduleRangeSelection: () => {}
   };
-  const api = vm.runInNewContext(keyboard + "\\n;({ handleScheduleGridKeydown })", context);
+  const api = vm.runInNewContext(keyboard + "\n;({ handleScheduleGridKeydown })", context);
   await api.handleScheduleGridKeydown({
     key: "c",
     ctrlKey: true,
@@ -128,7 +60,7 @@ test("匯出資料存在性判斷應保留假別分類與加班規則", () => {
     scheduleKey: (memberId, year, month, day) => [memberId, year, month, day].join("-"),
     getItem: () => ({ code: leaveCode })
   };
-  const api = vm.runInNewContext(availability + "\\n;({ hasSapLeaveRows, hasOvertimeRows, hasLeaveRows })", context);
+  const api = vm.runInNewContext(availability + "\n;({ hasSapLeaveRows, hasOvertimeRows, hasLeaveRows })", context);
   assert.equal(api.hasSapLeaveRows(), true);
   assert.equal(api.hasLeaveRows(), false);
   assert.equal(api.hasOvertimeRows(), true);
@@ -162,13 +94,5 @@ test("第十階段應移出操作與匯出判斷並維持模組順序", () => {
   ["beginScheduleHeaderColumnSelection", "handleScheduleGridKeydown", "hasSapLeaveRows", "hasOvertimeRows", "hasLeaveRows"].forEach((name) => {
     assert.equal(renderer.includes("function " + name), false, "renderer.js 仍保留 " + name);
   });
-  assert.ok(renderer.split("\\n").length < 2950, "renderer.js 未明顯縮小");
+  assert.ok(renderer.split("\n").length < 2950, "renderer.js 未明顯縮小");
 });
-`;
-fs.writeFileSync(testPath, testSource);
-
-console.log(JSON.stringify({
-  keyboardLines: keyboardSource.split("\n").length,
-  exportAvailabilityLines: exportSource.split("\n").length,
-  rendererLines: renderer.split("\n").length
-}));
