@@ -59,6 +59,7 @@ test("第六階段應移出設定管理並維持建置順序", () => {
   const order = RENDERER_CORE_FILES.map((name) => build.indexOf("\"" + name + "\""));
   assert.equal(order.every((index) => index >= 0), true);
   assert.equal(order.every((index, position) => position === 0 || index > order[position - 1]), true);
+  // 拆分後實際為 3,814 行；3,900 行門檻可防止設定管理再次回流主檔。
   assert.equal(renderer.split(/\r?\n/).length < 3900, true);
   assert.equal(readRendererCore(root).includes("async function saveMember"), true);
 });
