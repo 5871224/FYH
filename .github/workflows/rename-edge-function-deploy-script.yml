@@ -75,9 +75,6 @@ jobs:
           test -f scripts/deploy-edge-functions.ps1
           test ! -e scripts/deploy-v2-final.ps1
 
-      - name: Install dependencies
-        run: npm ci
-
       - name: Run complete validation
         run: npm run ci:check
 
