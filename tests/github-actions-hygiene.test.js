@@ -36,7 +36,9 @@ test("正式 workflow 只驗證，不重複部署 GitHub Pages", () => {
     "node scripts/check-normalized-storage.js",
     "node scripts/check-expansion-acceptance.js",
     "node scripts/check-settings-lists.js",
-    "npm run renderer:check"
+    "npm run renderer:check",
+    "npm run css:architecture",
+    "npm run js:architecture"
   ];
   requiredCommands.forEach((command) => assert.equal(workflow.includes(command), true));
 
