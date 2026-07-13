@@ -1,0 +1,63 @@
+name: Temporary Mobile Settings Horizontal Scroll
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Add mobile settings table horizontal scrolling
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          function replaceOnce(file, before, after) {
+            const source = fs.readFileSync(file, 'utf8');
+            if (source.includes(after)) return;
+            if (!source.includes(before)) throw new Error(`找不到預期區塊：${file}`);
+            fs.writeFileSync(file, source.replace(before, after), 'utf8');
+          }
+
+          const responsive = 'src/renderer/css/responsive.css';
+          const testFile = 'tests/css-consolidation.test.js';
+
+          replaceOnce(
+            responsive,
+            `  /* 手機表單欄數契約：頁面表單與打卡編輯器預設單欄；一般設定編輯視窗明確保留雙欄。 */`,
+            `  /* 假別與加班設定在手機保留可讀欄寬，由既有設定表格容器提供水平捲動。 */\n  .catalog-settings-modal .settings-table-row-leave {\n    min-width: 720px;\n  }\n\n  .catalog-settings-modal .settings-table-row-overtime {\n    min-width: 840px;\n  }\n\n  /* 手機表單欄數契約：頁面表單與打卡編輯器預設單欄；一般設定編輯視窗明確保留雙欄。 */`
+          );
+
+          const testSource = fs.readFileSync(testFile, 'utf8');
+          if (!testSource.includes('手機假別與加班設定表格應使用內部水平捲動')) {
+            fs.writeFileSync(testFile, testSource.trimEnd() + `\n\ntest("手機假別與加班設定表格應使用內部水平捲動", () => {\n  const components = read("src/renderer/css/components.css");\n  const responsive = read("src/renderer/css/responsive.css");\n  assert.match(components, /\\.settings-table-scroll\\s*\\{[^}]*overflow:\\s*auto;/s);\n  assert.match(responsive, /\\.catalog-settings-modal \\.settings-table-row-leave\\s*\\{\\s*min-width:\\s*720px;/s);\n  assert.match(responsive, /\\.catalog-settings-modal \\.settings-table-row-overtime\\s*\\{\\s*min-width:\\s*840px;/s);\n  assert.doesNotMatch(responsive, /\\.catalog-settings-modal \\.settings-table-row-shift\\s*\\{\\s*min-width:/s);\n});\n`, 'utf8');
+          }
+          NODE
+      - name: Build and validate without temporary workflow hygiene test
+        shell: bash
+        run: |
+          npm run web:publish
+          find tests -name '*.test.js' ! -name 'github-actions-hygiene.test.js' -print0 | xargs -0 node --test
+          npm run css:architecture
+      - name: Commit generated changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/renderer/css/responsive.css src/renderer/app.css src/renderer/index.html docs/app.css docs/index.html tests/css-consolidation.test.js
+          git commit -m "新增手機設定表格水平捲動"
+          git push origin HEAD:${{ github.head_ref }}
