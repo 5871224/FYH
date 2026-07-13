@@ -38,3 +38,16 @@ test("JavaScript 架構檢查阻擋共享模組重複函式", () => {
   assert.match(audit, /duplicate shared function body group/);
   childProcess.execFileSync(process.execPath, ["scripts/audit-js-duplicates.js", "--check"], { cwd: root, stdio: "pipe" });
 });
+
+
+test("正式目錄不得保留一次性遷移腳本與修補命名", () => {
+  const obsolete = [
+    "scripts/canonicalize-v2-api-data.js",
+    "scripts/fix-v2-api-data-test.js",
+    "scripts/fix-v2-tablet-check.js"
+  ].filter((file) => fs.existsSync(path.join(root, file)));
+  assert.deepEqual(obsolete, []);
+  const invalidTests = fs.readdirSync(path.join(root, "tests"))
+    .filter((name) => /phase\d+|(?:^|-)v2(?:-|\.)|patch|overrides|data-fixes/i.test(name));
+  assert.deepEqual(invalidTests, []);
+});
