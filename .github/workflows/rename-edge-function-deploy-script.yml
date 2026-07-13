@@ -1,0 +1,87 @@
+name: 部署腳本正式化
+
+on:
+  push:
+    branches:
+      - agent/rename-edge-function-deploy-script
+
+permissions:
+  contents: write
+
+jobs:
+  rename-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rename script and update references
+        shell: python
+        run: |
+          from pathlib import Path
+
+          old_path = Path("scripts/deploy-v2-final.ps1")
+          new_path = Path("scripts/deploy-edge-functions.ps1")
+          if not old_path.exists():
+              raise SystemExit(f"Missing expected file: {old_path}")
+          if new_path.exists():
+              raise SystemExit(f"Target file already exists: {new_path}")
+          old_path.rename(new_path)
+
+          replacements = {
+              "deploy-v2-final.ps1": "deploy-edge-functions.ps1",
+              "FYH V2 Edge Functions deployment": "FYH Edge Functions deployment",
+              "All V2 Edge Functions deployed successfully.": "All Edge Functions deployed successfully.",
+          }
+          text_suffixes = {
+              ".md", ".ps1", ".js", ".json", ".yml", ".yaml", ".ts",
+              ".html", ".css", ".sql", ".txt", ".mjs", ".cjs"
+          }
+          changed = []
+          for path in Path(".").rglob("*"):
+              if not path.is_file() or ".git" in path.parts or "node_modules" in path.parts:
+                  continue
+              if path.suffix.lower() not in text_suffixes:
+                  continue
+              try:
+                  content = path.read_text(encoding="utf-8")
+              except UnicodeDecodeError:
+                  continue
+              updated = content
+              for old, new in replacements.items():
+                  updated = updated.replace(old, new)
+              if updated != content:
+                  path.write_text(updated, encoding="utf-8", newline="\n")
+                  changed.append(str(path))
+
+          print("Updated files:")
+          for path in changed:
+              print(f"- {path}")
+
+      - name: Verify obsolete deployment naming is gone
+        shell: bash
+        run: |
+          if git grep -n -E 'deploy-v2-final\.ps1|FYH V2 Edge Functions deployment|All V2 Edge Functions deployed successfully\.' -- ':!*.lock'; then
+            echo "Obsolete deployment naming remains." >&2
+            exit 1
+          fi
+          test -f scripts/deploy-edge-functions.ps1
+          test ! -e scripts/deploy-v2-final.ps1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run complete validation
+        run: npm run ci:check
+
+      - name: Commit validated changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/rename-edge-function-deploy-script.yml
+          git add -A
+          git commit -m "正式化 Edge Function 部署腳本名稱"
+          git push origin HEAD
