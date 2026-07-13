@@ -1,9 +1,13 @@
 name: 部署腳本正式化
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/rename-edge-function-deploy-script
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
@@ -12,9 +16,10 @@ jobs:
   rename-and-validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout source branch
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
 
       - name: Rename script and update references
@@ -84,4 +89,4 @@ jobs:
           git rm .github/workflows/rename-edge-function-deploy-script.yml
           git add -A
           git commit -m "正式化 Edge Function 部署腳本名稱"
-          git push origin HEAD
+          git push origin HEAD:${{ github.head_ref }}
