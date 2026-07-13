@@ -359,11 +359,6 @@ input[type="time"] {
     --ui-control-height: 42px;
   }
 
-  .form-grid,
-  .two-col,
-  .attendance-edit-modal .form-grid {
-    grid-template-columns: 1fr;
-  }
 
   .attendance-edit-modal {
     width: 100%;
@@ -990,39 +985,10 @@ input[type="time"] {
     overflow-x: hidden;
   }
 
-  .app-shell {
-    padding-top: var(--ui-mobile-page-gutter);
-    padding-right: var(--ui-mobile-page-gutter);
-    padding-left: var(--ui-mobile-page-gutter);
-    gap: var(--ui-mobile-gap);
-  }
 
-  body.is-home-view .app-shell,
-  body.is-clock-view .app-shell,
-  body.is-meal-view .app-shell,
-  body.is-records-view .app-shell {
-    padding: var(--ui-mobile-page-gutter);
-  }
 
-  .home-card,
-  .clock-card,
-  .meal-card,
-  .records-card,
-  .calendar-card {
-    padding: var(--ui-mobile-card-padding);
-  }
 
-  .home-card,
-  .clock-card,
-  .meal-card,
-  .records-card {
-    min-height: calc(100dvh - 8px);
-  }
 
-  .calendar-card {
-    padding-right: var(--ui-mobile-page-gutter);
-    padding-left: var(--ui-mobile-page-gutter);
-  }
 
   .modal-overlay,
   .auth-overlay {
