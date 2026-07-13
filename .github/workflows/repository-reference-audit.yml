@@ -11,79 +11,39 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
-      - name: Generate reference report
+      - name: Find exact endpoint references
         shell: python
         run: |
-          import json
           import re
-          import subprocess
           from pathlib import Path
 
-          root = Path('.')
-          text_exts = {'.js','.ts','.md','.txt','.json','.yml','.yaml','.ps1','.py','.html','.css','.sql','.bat'}
-          text_files = []
-          for p in root.rglob('*'):
-              if not p.is_file() or '.git' in p.parts or 'node_modules' in p.parts or p.suffix.lower() not in text_exts:
-                  continue
-              try:
-                  text_files.append((p, p.read_text(encoding='utf-8')))
-              except UnicodeDecodeError:
-                  pass
-
-          candidates = [
-            'check-auto-schedule-department-dates.js','check-auto-schedule-rules.js','check-auto-schedule-settings.js',
-            'check-color-previews.js','check-empty-state.js','check-export-empty-guards.js','check-rest-compliance.js',
-            'check-schedule-table-rounded-corners.js','check-selected-shift-highlight.js','check-shift-range-selection.js',
-            'check-unused-supabase-tables.js','deploy-v2.ps1','fix-v2-api-data-boundary.js',
-            'one-shot-update-pages-spec.py','renderer-core-source.js'
-          ]
-
-          lines = ['# Script references and execution']
-          for name in candidates:
-              path = Path('scripts') / name
-              refs = []
-              for other, text in text_files:
-                  if other == path:
+          exts = {'.js','.ts','.md','.txt','.json','.yml','.yaml','.ps1','.py','.html','.css','.sql','.bat'}
+          rows = []
+          patterns = {
+            'attendance-overtime': re.compile(r'(["\'])attendance-overtime\1'),
+            'member-auth-admin-v2': re.compile(r'(["\'])member-auth-admin-v2\1'),
+          }
+          for name, pattern in patterns.items():
+              rows.append(f'## {name}')
+              matches = []
+              for path in Path('.').rglob('*'):
+                  if not path.is_file() or '.git' in path.parts or 'node_modules' in path.parts or path.suffix.lower() not in exts:
                       continue
-                  if name in text or path.as_posix() in text or ('../scripts/' + name) in text:
-                      refs.append(other.as_posix())
-              lines += ['', f'## {path.as_posix()}', f'References: {", ".join(sorted(refs)) if refs else "NONE"}']
-              if name.startswith('check-') and path.exists():
-                  result = subprocess.run(['node', path.as_posix()], text=True, capture_output=True)
-                  output = ((result.stdout or '') + (result.stderr or '')).strip().replace('\n',' | ')
-                  lines.append(f'Execution: exit={result.returncode}; {output[:1000]}')
-              else:
-                  lines.append('Execution: skipped (not a read-only check script)')
-
-          lines += ['', '# Edge Function references']
-          for name in ['attendance-overtime','member-auth-admin-v2']:
-              refs = []
-              for other, text in text_files:
-                  if str(other).startswith(f'supabase/functions/{name}/'):
+                  if str(path).startswith(f'supabase/functions/{name}/') or path.as_posix() == '.github/workflows/repository-reference-audit.yml':
                       continue
-                  if name in text:
-                      refs.append(other.as_posix())
-              lines += ['', f'## {name}', f'References: {", ".join(sorted(set(refs))) if refs else "NONE"}']
-
-          lines += ['', '# Package and document metadata']
-          package = json.loads(Path('package.json').read_text(encoding='utf-8'))
-          lines.append(f'package.name={package.get("name")}')
-          spec = Path('規格書.md').read_text(encoding='utf-8')
-          for label in ['文件版本','最後全面檢查']:
-              m = re.search(rf'\*\*{label}：\*\*\s*([^\n]+)', spec)
-              lines.append(f'{label}={m.group(1).strip() if m else "NOT FOUND"}')
-
-          source = Path('src/renderer/index.html').read_text(encoding='utf-8')
-          published = Path('docs/index.html').read_text(encoding='utf-8')
-          normalize = lambda s: re.sub(r'(\./[^"\']+\.(?:css|js))\?v=[^"\']+', r'\1?v=VERSION', s)
-          lines += ['', '# Published index comparison', f'Normalized equal: {normalize(source) == normalize(published)}']
-
-          Path('reference-audit.txt').write_text('\n'.join(lines), encoding='utf-8')
+                  try:
+                      text = path.read_text(encoding='utf-8')
+                  except UnicodeDecodeError:
+                      continue
+                  for number, line in enumerate(text.splitlines(), 1):
+                      if pattern.search(line):
+                          matches.append(f'{path.as_posix()}:{number}: {line.strip()}')
+              rows.extend(matches or ['NONE'])
+              rows.append('')
+          Path('exact-endpoint-references.txt').write_text('\n'.join(rows), encoding='utf-8')
       - uses: actions/upload-artifact@v4
         with:
-          name: repository-reference-audit
-          path: reference-audit.txt
-          if-no-files-found: error
+          name: exact-endpoint-references
+          path: exact-endpoint-references.txt
