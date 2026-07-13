@@ -40,11 +40,27 @@ test("JavaScript 架構檢查阻擋共享模組重複函式", () => {
   childProcess.execFileSync(process.execPath, ["scripts/audit-js-duplicates.js", "--check"], { cwd: root, stdio: "pipe" });
 });
 
-test("正式目錄不得保留一次性遷移腳本與修補命名", () => {
+test("正式目錄不得保留一次性遷移腳本、失效檢查與未部署端點", () => {
   const obsolete = [
     "scripts/canonicalize-v2-api-data.js",
     "scripts/fix-v2-api-data-test.js",
-    "scripts/fix-v2-tablet-check.js"
+    "scripts/fix-v2-tablet-check.js",
+    "scripts/deploy-v2.ps1",
+    "scripts/fix-v2-api-data-boundary.js",
+    "scripts/one-shot-update-pages-spec.py",
+    "scripts/check-auto-schedule-department-dates.js",
+    "scripts/check-auto-schedule-rules.js",
+    "scripts/check-auto-schedule-settings.js",
+    "scripts/check-color-previews.js",
+    "scripts/check-empty-state.js",
+    "scripts/check-export-empty-guards.js",
+    "scripts/check-schedule-table-rounded-corners.js",
+    "scripts/check-selected-shift-highlight.js",
+    "scripts/check-shift-range-selection.js",
+    "scripts/check-rest-compliance.js",
+    "scripts/check-unused-supabase-tables.js",
+    "supabase/functions/attendance-overtime/index.ts",
+    "supabase/functions/member-auth-admin-v2/index.ts"
   ].filter((file) => fs.existsSync(path.join(root, file)));
   assert.deepEqual(obsolete, []);
   const invalidTests = fs.readdirSync(path.join(root, "tests"))

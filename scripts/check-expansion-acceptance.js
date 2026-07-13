@@ -13,7 +13,9 @@ const renderer = readRendererCore(rootDir);
 const styles = read("src", "renderer", "app.css");
 const webApi = read("src", "renderer", "web-api.js");
 const attendanceClock = read("supabase", "functions", "attendance-clock", "index.ts");
-const attendanceOvertime = read("supabase", "functions", "attendance-overtime", "index.ts");
+const attendanceOvertimeEmployee = read("supabase", "functions", "attendance-overtime-employee", "index.ts");
+const attendanceOvertimeAdminList = read("supabase", "functions", "attendance-overtime-admin-list", "index.ts");
+const attendanceOvertimeAdminAction = read("supabase", "functions", "attendance-overtime-admin-action", "index.ts");
 const mealOrder = read("supabase", "functions", "meal-order", "index.ts");
 const reportRecords = read("supabase", "functions", "report-records", "index.ts");
 
@@ -43,16 +45,18 @@ assert(styles.includes("grid-template-columns: minmax(0, 1.66fr) minmax(0, 0.78f
 
 assert(index.includes('id="clockCard"') && renderer.includes("function renderClockPage"), "clock page should be present");
 assert(attendanceClock.includes("MAX_GPS_DISTANCE_METERS = 300"), "clocking should enforce GPS distance");
-assert(attendanceClock.includes("deviceType") && webApi.includes("deviceType: isPhoneDevice() ? \"phone\" : \"desktop\""), "clocking should distinguish phone GPS from desktop IP");
+assert(attendanceClock.includes("deviceType") && webApi.includes('deviceType: isPhoneDevice() ? "phone" : "desktop"'), "clocking should distinguish phone GPS from desktop IP");
 assert(renderer.includes("timeout: 15000") && renderer.includes("maximumAge: 0"), "phone GPS clocking should wait for a fresh high-accuracy location");
 assert(schema.includes("create or replace function public.save_attendance_clock"), "clocking should use an atomic database RPC");
 assert(attendanceClock.includes('rpc("save_attendance_clock"') && attendanceClock.includes('body?.action === "clock_in"') && attendanceClock.includes('body?.action === "clock_out"'), "clocking should call the atomic clock RPC for clock in and out");
 
 assert(renderer.includes("function renderTodayOvertimePanel"), "overtime request panel should be present");
-assert(attendanceOvertime.includes("function buildEligibility"), "overtime should calculate eligibility");
-assert(attendanceOvertime.includes('status: "pending"'), "overtime requests should start pending");
-assert(!attendanceOvertime.includes("full_name,department_id"), "overtime admin list should not query retired set_employee.department_id");
-assert(attendanceOvertime.includes("members: (members || []).filter"), "admin overtime create should receive effective member options");
+assert(attendanceOvertimeEmployee.includes("function eligibility"), "employee overtime should calculate eligibility");
+assert(attendanceOvertimeEmployee.includes('status: "pending"'), "employee overtime requests should start pending");
+assert(!attendanceOvertimeAdminList.includes("full_name,department_id"), "overtime admin list should not query retired set_employee.department_id");
+assert(attendanceOvertimeAdminList.includes("members: (memberResult.data || []).filter"), "admin overtime list should receive effective member options");
+assert(attendanceOvertimeAdminAction.includes('rpc("admin_review_overtime_requests_v2"'), "overtime review should use the protected transaction RPC");
+assert(attendanceOvertimeAdminAction.includes('created_by_type: "admin"'), "admin overtime creation should preserve its actor type");
 
 assert(index.includes('id="mealCard"') && renderer.includes("function renderMealPage"), "meal order page should be present");
 assert(renderer.includes('data-meal-tab="stats"') && renderer.includes("renderMealReportSection()"), "meal stats should live on the meal page");
