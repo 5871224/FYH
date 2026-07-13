@@ -93,3 +93,20 @@ test("手機打卡與加班欄位規則不再重複", () => {
   assert.equal(allRuleBodies(responsive, ".overtime-hours-grid .form-row-wide").length, 0);
   assert.equal(allRuleBodies(pages, ".overtime-hours-grid .form-row-wide").length, 1);
 });
+
+test("班表共用樣式不再依賴後載入覆蓋", () => {
+  const foundation = read("src/renderer/css/foundation.css");
+  const schedule = read("src/renderer/css/schedule.css");
+  const nav = rootRuleBodies(foundation, ".calendar-nav")[0] || "";
+  const select = rootRuleBodies(foundation, ".calendar-nav-left select")[0] || "";
+  const collapsed = rootRuleBodies(foundation, ".toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row")[0] || "";
+  const title = rootRuleBodies(foundation, ".toolbar-title-row")[0] || "";
+  assert.equal(nav.includes("position: relative;"), true);
+  assert.equal(select.includes("padding: 0 30px 0 12px;"), true);
+  assert.equal(collapsed.includes("display: flex;") && collapsed.includes("margin: 0;"), true);
+  assert.equal(title.includes("justify-content: flex-start;"), true);
+  assert.equal(rootRuleBodies(schedule, ".calendar-nav").length, 0);
+  assert.equal(rootRuleBodies(schedule, ".calendar-nav-left select").length, 0);
+  assert.equal(rootRuleBodies(schedule, ".toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row").length, 0);
+  assert.equal(rootRuleBodies(foundation, ".toolbar-title-row").length, 1);
+});
