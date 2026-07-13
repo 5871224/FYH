@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: web-validate-${{ github.event.pull_request.number || github.ref }}
@@ -26,7 +26,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -40,18 +39,6 @@ jobs:
 
       - name: Build static web
         run: npm run web:publish
-
-      - name: Synchronize generated static files
-        if: github.event_name == 'pull_request' && github.head_ref == 'agent/formalize-project-metadata'
-        shell: bash
-        run: |
-          if ! git diff --quiet -- docs; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add docs
-            git commit -m "同步可重現的靜態發布檔"
-            git push origin HEAD:${{ github.head_ref }}
-          fi
 
       - name: Check reproducible static publish
         run: git diff --exit-code -- docs
