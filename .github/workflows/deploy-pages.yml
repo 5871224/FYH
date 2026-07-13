@@ -40,6 +40,9 @@ jobs:
       - name: Build static web
         run: npm run web:publish
 
+      - name: Check reproducible static publish
+        run: git diff --exit-code -- docs
+
       - name: Check workflow hygiene
         run: node --test tests/github-actions-hygiene.test.js
 
