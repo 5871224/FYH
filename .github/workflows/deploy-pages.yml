@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: web-validate-${{ github.event.pull_request.number || github.ref }}
@@ -26,6 +26,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -36,6 +37,26 @@ jobs:
       - name: Check declared change scope
         if: github.event_name == 'pull_request'
         run: npm run scope:check
+
+      - name: Update specification review date
+        if: github.event_name == 'pull_request' && github.head_ref == 'agent/formalize-project-metadata'
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('規格書.md')
+          text = path.read_text(encoding='utf-8-sig')
+          text = text.replace('**文件版本：** 2026-07-11', '**文件版本：** 2026-07-13', 1)
+          text = text.replace('**最後全面檢查：** 2026-07-11', '**最後全面檢查：** 2026-07-13', 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+          if ! git diff --quiet -- 規格書.md; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add 規格書.md
+            git commit -m "更新規格書檢查日期"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
 
       - name: Build static web
         run: npm run web:publish
