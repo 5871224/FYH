@@ -44,10 +44,10 @@ npm run web:publish
 4. 共用按鈕、表單、頁籤、卡片、彈窗與一般表格以 `css/components.css` 為唯一正式規則；頁面檔只保留無法共用的差異。
 5. JavaScript 不得直接修改 `app.js`；修改現有模組後由 `npm run js:build` 產生 bundle。
 6. 不得新增動態補載本機 JavaScript、重複載入同一模組，或新增 `fix`、`refinement`、`v3` 等靠載入順序覆寫既有函式的補丁檔。
-7. 第一階段仍保留既有全域相依性；調整 `scripts/build-js.js` 的模組順序前，必須確認所有前置依賴並執行完整驗證。
+7. JavaScript bundle 依宣告順序載入共享與獨立模組；調整 `scripts/build-js.js` 的模組順序前，必須確認所有前置依賴並執行完整驗證。
 8. 功能、介面、資料庫、權限或部署流程的修改，預設建立工作分支與 Draft Pull Request，不直接推送至 `main`；只有使用者明確要求直接推送時才可例外。
 9. Pull Request 必須依 `.github/pull_request_template.md` 填寫允許與禁止修改範圍；CI 會執行 `npm run scope:check`，實際變更檔案超出聲明範圍時不得合併。
-10. GitHub Actions 儲存庫內只保留 `.github/workflows/deploy-pages.yml`。此 workflow 在 Pull Request 與 `main` 推送時執行建置與完整驗證，不得再建立會自動修改分支、重複執行 V2 整併或重複發布 Pages 的一次性 workflow。
+10. GitHub Actions 儲存庫內只保留 `.github/workflows/deploy-pages.yml`。此 workflow 在 Pull Request 與 `main` 推送時執行建置與完整驗證，不得再建立會自動修改分支、重複執行一次性整併或重複發布 Pages 的一次性 workflow。
 11. GitHub Pages 由 GitHub 內建的 `pages-build-deployment` 依 `main/docs` 發布；自訂 workflow 不得再使用 `actions/upload-pages-artifact` 或 `actions/deploy-pages`，避免同一版本被發布兩次。
 12. 多檔案修改應先在尚未建立 PR 的工作分支完成，或以單一提交一次推送；不得用每改一個檔案就觸發一次 PR synchronize 的方式製造大量重複 CI。若必須分段提交，也應在完成最後一筆提交後才建立 PR。
 13. 最終回覆必須說明：
@@ -91,7 +91,7 @@ npm run web:publish
 - `supabase/001_current_schema.sql`
 - `supabase/002_current_updates.sql`
 - `src/renderer/web-api.js`
-- `src/renderer/v2-api.js`
+- `src/renderer/renderer-auth-actions.js`
 - 各頁使用的 Edge Function 權限檢查
 - `規格書.md` 第 5.4.1 節權限矩陣
 
@@ -116,6 +116,8 @@ npm run web:publish
 node scripts/check-normalized-storage.js
 node scripts/check-expansion-acceptance.js
 npm run renderer:check
+npm run css:architecture
+npm run js:architecture
 ```
 
 - 不得為了讓檢查通過而刪除仍有效的安全、權限、資料一致性或正式規格驗證。

@@ -31,7 +31,7 @@ Supabase PostgreSQL
 
 - `src/renderer/`：HTML、部署設定、前端 JavaScript 模組，以及自動產生的 `app.css`、`app.js`。
 - `src/renderer/css/`：模組化 CSS 唯一原始來源；分為基礎、班表、共用元件、響應式與頁面專屬樣式。
-- `scripts/build-js.js`：依固定順序把現行 JavaScript 模組合併成單一 `app.js`；第一階段保留既有全域行為。
+- `scripts/build-js.js`：依固定順序把現行 JavaScript 模組合併成單一 `app.js`，並驗證來源清單與模組載入順序完整性。
 - `tests/`：可執行單元測試，驗證日期、匯出、金額、資格與其他可獨立計算的規則。
 - `docs/`：`npm run web:publish` 產生的 GitHub Pages 正式發布內容，不直接手動修改。
 - `supabase/001_current_schema.sql`：全新資料庫的基準結構。
@@ -55,6 +55,8 @@ npm run web:publish
 npm run scope:check
 npm test
 npm run renderer:check
+npm run css:architecture
+npm run js:architecture
 npm run ci:check
 ```
 
@@ -67,8 +69,10 @@ npm run ci:check
 - `npm run web:publish`：建立兩種 bundle、清理並重建 `docs/`，再更新靜態資源版本參數。
 - `npm run scope:check`：在 Pull Request 中比對 PR 說明聲明的允許／禁止修改範圍與實際變更檔案。
 - `npm test`：執行 `tests/` 中的 Node.js 單元測試。
-- `npm run renderer:check`：檢查 CSS、JavaScript bundle、V2 結構與發布內容對齊。
-- `npm run ci:check`：先執行單元測試，再執行 GitHub Actions 與本機共用的完整公開設定、資料結構、設定清單及 V2 驗證。
+- `npm run renderer:check`：檢查 CSS、JavaScript bundle、renderer 結構與發布內容對齊。
+- `npm run css:architecture`：檢查完全相同的 CSS 重複規則。
+- `npm run js:architecture`：檢查共享模組同名函式、相同函式內容、覆蓋式指定與過時 UI 標記。
+- `npm run ci:check`：先執行單元測試，再執行公開設定、資料結構、設定清單、renderer 與 JavaScript／CSS 架構驗證。
 
 ## Pull Request 修改範圍
 
@@ -88,6 +92,8 @@ npm run ci:check
 ```bash
 npm run web:publish
 npm run renderer:check
+npm run css:architecture
+npm run js:architecture
 ```
 
 6. 發布腳本會依固定順序產生單一 `app.css` 與 `app.js`，清理舊的 `docs/` 後完整重建發布內容。
@@ -129,11 +135,13 @@ npm run css:check
 npm run js:check
 node --check src/renderer/renderer.js
 node --check src/renderer/web-api.js
-node --check src/renderer/v2-auto-fill-schedule.js
+node --check src/renderer/renderer-auto-fill-schedule.js
 node scripts/check-normalized-storage.js
 node scripts/check-expansion-acceptance.js
 node scripts/check-settings-lists.js
 npm run renderer:check
+npm run css:architecture
+npm run js:architecture
 ```
 
 Pull Request 另外由 GitHub Actions 執行 `npm run scope:check`。前端有修改時，最後仍須執行 `npm run web:publish` 並確認 `docs/` 已更新。
