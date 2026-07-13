@@ -1206,8 +1206,8 @@ body.is-records-view .app-shell {
   padding: 6px 2px;
   border-right: 1px solid var(--schedule-grid-line);
   box-shadow: inset 0 -1px 0 var(--schedule-grid-line);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
   text-align: center;
 }
 
@@ -1312,8 +1312,8 @@ body.is-records-view .app-shell {
 
 .table-sticky-cell-day span {
   color: var(--muted);
-  font-size: 10px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .table-week-jump {
@@ -5233,32 +5233,14 @@ body:not(.is-authenticated) .toolbar-card {
   body.is-schedule-view .table-sticky-cell {
     height: 38px;
     min-height: 38px;
-    font-size: 13px !important;
-    font-weight: 800;
   }
 
   body.is-schedule-view .table-sticky-cell-day {
     gap: 1px;
   }
 
-  body.is-schedule-view .table-sticky-cell-day span {
-    font-size: 11px !important;
-    font-weight: 700;
-  }
 
-  /* 今天日期使用高對比深橘底、白字與內框，避免與一般日期或週交錯底色混淆。 */
-  body.is-schedule-view .table-sticky-cell-day.today {
-    background: linear-gradient(180deg, #c76618 0%, #99420d 100%) !important;
-    color: #fff !important;
-    box-shadow: inset 0 0 0 2px #6f2d08, 0 2px 5px rgba(111, 45, 8, 0.3) !important;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
-    font-weight: 900;
-  }
-
-  body.is-schedule-view .table-sticky-cell-day.today span {
-    color: #fff !important;
-    font-weight: 800;
-  }
+  /* 今天日期沿用全裝置共用的微亮藍色提示，避免手機版另行覆蓋。 */
 
   /* 設定編輯彈窗沿用電腦版雙欄表單。實際編輯視窗是一般 modal，不能只依設定列表 modal 類別判斷。 */
   .modal:not(.attendance-edit-modal) :is(.form-grid, .two-col),

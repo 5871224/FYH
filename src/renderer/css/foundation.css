@@ -1200,8 +1200,8 @@ body.is-records-view .app-shell {
   padding: 6px 2px;
   border-right: 1px solid var(--schedule-grid-line);
   box-shadow: inset 0 -1px 0 var(--schedule-grid-line);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
   text-align: center;
 }
 
@@ -1306,8 +1306,8 @@ body.is-records-view .app-shell {
 
 .table-sticky-cell-day span {
   color: var(--muted);
-  font-size: 10px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .table-week-jump {
