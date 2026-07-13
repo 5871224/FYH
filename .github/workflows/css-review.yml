@@ -1,0 +1,25 @@
+name: Temporary CSS Review
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Generate CSS audit report
+        run: node scripts/audit-css-duplicates.js
+      - name: Upload CSS audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: css-audit-report
+          path: css-duplicate-report.md
