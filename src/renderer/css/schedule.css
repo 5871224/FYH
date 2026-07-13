@@ -4,6 +4,11 @@
   position: relative;
 }
 
+/* Today's date header must stay more prominent than the alternating week stripe. */
+.table-sticky-cell-day.today.week-alt {
+  background: #e7c58c;
+}
+
 /* Expanded toolbar: keep the control row outside normal flow, preserving the original height. */
 .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-top-row {
   position: absolute;
