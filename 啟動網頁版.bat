@@ -17,7 +17,7 @@ for /f "tokens=5" %%a in ('netstat -ano ^| findstr /r /c:":3010 .*LISTENING"') d
   goto open_browser
 )
 
-start "shift-scheduler-web" cmd /k "cd /d %~dp0 && npm run web"
+start "FYH-Web" cmd /k "cd /d %~dp0 && npm run web"
 timeout /t 2 /nobreak >nul
 
 :open_browser
