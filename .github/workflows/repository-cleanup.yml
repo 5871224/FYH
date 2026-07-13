@@ -1,0 +1,191 @@
+name: Repository Cleanup
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.head_ref == 'agent/remove-obsolete-files'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Consolidate checks and remove obsolete files
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path('.')
+
+          # Move the still-valid rest compliance self-check into the formal node:test suite.
+          rest_path = root / 'scripts/check-rest-compliance.js'
+          rest_source = rest_path.read_text(encoding='utf-8')
+          assert_line = 'const assert = require("node:assert/strict");'
+          if assert_line not in rest_source:
+              raise SystemExit('rest compliance assert import not found')
+          rest_source = rest_source.replace(
+              assert_line,
+              'const test = require("node:test");\n' + assert_line,
+              1,
+          )
+          marker = 'const sundayWeeks ='
+          marker_index = rest_source.find(marker)
+          if marker_index < 0:
+              raise SystemExit('rest compliance test boundary not found')
+          rest_source = (
+              rest_source[:marker_index]
+              + 'test("例休與連續工作規則", () => {\n'
+              + rest_source[marker_index:].rstrip()
+              + '\n});\n'
+          )
+          (root / 'tests/rest-compliance.test.js').write_text(rest_source, encoding='utf-8')
+
+          # Merge the unused-table guard into the formal normalized-storage check.
+          normalized_path = root / 'scripts/check-normalized-storage.js'
+          normalized = normalized_path.read_text(encoding='utf-8')
+          normalized_marker = 'console.log("normalized storage checks passed");'
+          if normalized_marker not in normalized:
+              raise SystemExit('normalized storage completion marker not found')
+          retired_guard = r'''
+          const retiredTableNames = ["manager_departments", "schedule_documents", "schedule_months"];
+          const retiredReferenceRoots = [
+            path.join(rootDir, "src"),
+            path.join(rootDir, "docs"),
+            path.join(rootDir, "supabase", "functions")
+          ];
+          const retiredReferenceExtensions = new Set([".js", ".ts", ".html"]);
+          const retiredTableReferences = [];
+
+          function scanRetiredTableReferences(targetPath) {
+            const stats = fs.statSync(targetPath);
+            if (stats.isDirectory()) {
+              for (const entry of fs.readdirSync(targetPath)) {
+                scanRetiredTableReferences(path.join(targetPath, entry));
+              }
+              return;
+            }
+            if (!retiredReferenceExtensions.has(path.extname(targetPath))) return;
+            const content = fs.readFileSync(targetPath, "utf8");
+            for (const tableName of retiredTableNames) {
+              if (content.includes(tableName)) {
+                retiredTableReferences.push(`${path.relative(rootDir, targetPath)} -> ${tableName}`);
+              }
+            }
+          }
+
+          for (const targetPath of retiredReferenceRoots) scanRetiredTableReferences(targetPath);
+          assert.equal(
+            retiredTableReferences.length,
+            0,
+            `Retired Supabase tables are still referenced:\n${retiredTableReferences.join("\n")}`
+          );
+          '''.strip()
+          normalized = normalized.replace(normalized_marker, retired_guard + '\n\n' + normalized_marker, 1)
+          normalized_path.write_text(normalized, encoding='utf-8')
+
+          # Point expansion acceptance at the three currently deployed overtime endpoints.
+          acceptance_path = root / 'scripts/check-expansion-acceptance.js'
+          acceptance = acceptance_path.read_text(encoding='utf-8')
+          old_import = 'const attendanceOvertime = read("supabase", "functions", "attendance-overtime", "index.ts");'
+          new_import = '\n'.join([
+              'const attendanceOvertimeEmployee = read("supabase", "functions", "attendance-overtime-employee", "index.ts");',
+              'const attendanceOvertimeAdminList = read("supabase", "functions", "attendance-overtime-admin-list", "index.ts");',
+              'const attendanceOvertimeAdminAction = read("supabase", "functions", "attendance-overtime-admin-action", "index.ts");',
+          ])
+          if old_import not in acceptance:
+              raise SystemExit('legacy overtime acceptance import not found')
+          acceptance = acceptance.replace(old_import, new_import, 1)
+          old_assertions = '''assert(attendanceOvertime.includes("function buildEligibility"), "overtime should calculate eligibility");
+          assert(attendanceOvertime.includes('status: "pending"'), "overtime requests should start pending");
+          assert(!attendanceOvertime.includes("full_name,department_id"), "overtime admin list should not query retired set_employee.department_id");
+          assert(attendanceOvertime.includes("members: (members || []).filter"), "admin overtime create should receive effective member options");'''
+          new_assertions = '''assert(attendanceOvertimeEmployee.includes("function eligibility"), "employee overtime should calculate eligibility");
+          assert(attendanceOvertimeEmployee.includes('status: "pending"'), "employee overtime requests should start pending");
+          assert(!attendanceOvertimeAdminList.includes("full_name,department_id"), "overtime admin list should not query retired set_employee.department_id");
+          assert(attendanceOvertimeAdminList.includes("members: (memberResult.data || []).filter"), "admin overtime list should receive effective member options");
+          assert(attendanceOvertimeAdminAction.includes('rpc("admin_review_overtime_requests_v2"'), "overtime review should use the protected transaction RPC");
+          assert(attendanceOvertimeAdminAction.includes('created_by_type: "admin"'), "admin overtime creation should preserve its actor type");'''
+          if old_assertions not in acceptance:
+              raise SystemExit('legacy overtime acceptance assertions not found')
+          acceptance = acceptance.replace(old_assertions, new_assertions, 1)
+          acceptance_path.write_text(acceptance, encoding='utf-8')
+
+          # Expand the permanent architecture guard so these files cannot return unnoticed.
+          guard_path = root / 'tests/codebase-architecture-finalization.test.js'
+          guard = guard_path.read_text(encoding='utf-8')
+          old_guard = '''  const obsolete = [
+              "scripts/canonicalize-v2-api-data.js",
+              "scripts/fix-v2-api-data-test.js",
+              "scripts/fix-v2-tablet-check.js"
+            ].filter((file) => fs.existsSync(path.join(root, file)));'''
+          new_guard = '''  const obsolete = [
+              "scripts/canonicalize-v2-api-data.js",
+              "scripts/fix-v2-api-data-test.js",
+              "scripts/fix-v2-tablet-check.js",
+              "scripts/deploy-v2.ps1",
+              "scripts/fix-v2-api-data-boundary.js",
+              "scripts/one-shot-update-pages-spec.py",
+              "scripts/check-auto-schedule-department-dates.js",
+              "scripts/check-auto-schedule-rules.js",
+              "scripts/check-auto-schedule-settings.js",
+              "scripts/check-color-previews.js",
+              "scripts/check-empty-state.js",
+              "scripts/check-export-empty-guards.js",
+              "scripts/check-schedule-table-rounded-corners.js",
+              "scripts/check-selected-shift-highlight.js",
+              "scripts/check-shift-range-selection.js",
+              "scripts/check-rest-compliance.js",
+              "scripts/check-unused-supabase-tables.js",
+              "supabase/functions/attendance-overtime/index.ts",
+              "supabase/functions/member-auth-admin-v2/index.ts"
+            ].filter((file) => fs.existsSync(path.join(root, file)));'''
+          if old_guard not in guard:
+              raise SystemExit('architecture obsolete-file guard not found')
+          guard = guard.replace(old_guard, new_guard, 1)
+          guard_path.write_text(guard, encoding='utf-8')
+
+          obsolete_files = [
+              'scripts/deploy-v2.ps1',
+              'scripts/fix-v2-api-data-boundary.js',
+              'scripts/one-shot-update-pages-spec.py',
+              'scripts/check-auto-schedule-department-dates.js',
+              'scripts/check-auto-schedule-rules.js',
+              'scripts/check-auto-schedule-settings.js',
+              'scripts/check-color-previews.js',
+              'scripts/check-empty-state.js',
+              'scripts/check-export-empty-guards.js',
+              'scripts/check-schedule-table-rounded-corners.js',
+              'scripts/check-selected-shift-highlight.js',
+              'scripts/check-shift-range-selection.js',
+              'scripts/check-rest-compliance.js',
+              'scripts/check-unused-supabase-tables.js',
+              'supabase/functions/attendance-overtime/index.ts',
+              'supabase/functions/member-auth-admin-v2/index.ts',
+              '.github/workflows/repository-cleanup.yml',
+          ]
+          for file_name in obsolete_files:
+              path = root / file_name
+              if path.exists():
+                  path.unlink()
+          PY
+
+      - name: Run complete validation
+        run: npm run ci:check
+
+      - name: Commit validated cleanup
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "清理失效腳本與未部署端點"
+          git push origin HEAD:${{ github.head_ref }}
