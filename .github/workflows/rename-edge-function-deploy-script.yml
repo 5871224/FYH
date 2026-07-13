@@ -75,6 +75,9 @@ jobs:
           test -f scripts/deploy-edge-functions.ps1
           test ! -e scripts/deploy-v2-final.ps1
 
+      - name: Remove temporary workflow before validation
+        run: rm .github/workflows/rename-edge-function-deploy-script.yml
+
       - name: Run complete validation
         run: npm run ci:check
 
@@ -83,7 +86,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/rename-edge-function-deploy-script.yml
           git add -A
           git commit -m "正式化 Edge Function 部署腳本名稱"
           git push origin HEAD:${{ github.head_ref }}
