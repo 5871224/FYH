@@ -1,8 +1,4 @@
 node_modules/
-release/
-dist/
-tmp_asar/
-release-wpf/
 *.log
 tmp_web_stdout.log
 tmp_web_stderr.log
