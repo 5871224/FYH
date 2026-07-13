@@ -103,9 +103,8 @@ body:not(.is-authenticated) .toolbar-card {
   body.is-schedule-view .app-shell {
     justify-content: flex-start !important;
     align-items: stretch;
-    padding-top: 8px;
-    padding-left: 8px;
-    padding-right: 8px;
+    padding: 8px 8px 4px;
+    gap: var(--ui-mobile-gap);
   }
 
   .home-card,
@@ -174,6 +173,12 @@ body:not(.is-authenticated) .toolbar-card {
 
 
   /* 今天日期沿用全裝置共用的微亮藍色提示，避免手機版另行覆蓋。 */
+
+  /* 手機表單欄數契約：頁面表單與打卡編輯器預設單欄；一般設定編輯視窗明確保留雙欄。 */
+  .form-grid,
+  .two-col {
+    grid-template-columns: 1fr;
+  }
 
   /* 設定編輯彈窗沿用電腦版雙欄表單。實際編輯視窗是一般 modal，不能只依設定列表 modal 類別判斷。 */
   .modal:not(.attendance-edit-modal) :is(.form-grid, .two-col),

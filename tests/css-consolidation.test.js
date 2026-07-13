@@ -110,3 +110,14 @@ test("班表共用樣式不再依賴後載入覆蓋", () => {
   assert.equal(rootRuleBodies(schedule, ".toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row").length, 0);
   assert.equal(rootRuleBodies(foundation, ".toolbar-title-row").length, 1);
 });
+
+test("手機主要頁面與表單響應式規格集中於 responsive", () => {
+  const components = read("src/renderer/css/components.css");
+  const responsive = read("src/renderer/css/responsive.css");
+  assert.doesNotMatch(components, /body\.is-home-view \.app-shell[\s\S]*padding: var\(--ui-mobile-page-gutter\);/);
+  assert.doesNotMatch(components, /\.home-card,[\s\S]*\.calendar-card \{\s*padding: var\(--ui-mobile-card-padding\);/);
+  assert.doesNotMatch(components, /\.form-grid,\s*\.two-col,[\s\S]*grid-template-columns: 1fr;/);
+  assert.match(responsive, /body\.is-home-view \.app-shell,[\s\S]*body\.is-schedule-view \.app-shell \{[^}]*padding: 8px 8px 4px;[^}]*gap: var\(--ui-mobile-gap\);/s);
+  assert.match(responsive, /\.form-grid,\s*\.two-col \{\s*grid-template-columns: 1fr;/s);
+  assert.match(responsive, /\.modal:not\(\.attendance-edit-modal\) :is\(\.form-grid, \.two-col\)[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) !important;/s);
+});
