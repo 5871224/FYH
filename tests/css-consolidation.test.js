@@ -121,3 +121,12 @@ test("手機主要頁面與表單響應式規格集中於 responsive", () => {
   assert.match(responsive, /\.form-grid,\s*\.two-col \{\s*grid-template-columns: 1fr;/s);
   assert.match(responsive, /\.modal:not\(\.attendance-edit-modal\) :is\(\.form-grid, \.two-col\)[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) !important;/s);
 });
+
+test("手機假別與加班設定表格應使用內部水平捲動", () => {
+  const foundation = read("src/renderer/css/foundation.css");
+  const responsive = read("src/renderer/css/responsive.css");
+  assert.match(foundation, /\.member-table-scroll,\s*\.settings-table-scroll\s*\{[^}]*overflow:\s*auto;/s);
+  assert.match(responsive, /\.catalog-settings-modal \.settings-table-row-leave\s*\{\s*min-width:\s*720px;/s);
+  assert.match(responsive, /\.catalog-settings-modal \.settings-table-row-overtime\s*\{\s*min-width:\s*840px;/s);
+  assert.doesNotMatch(responsive, /\.catalog-settings-modal \.settings-table-row-shift\s*\{\s*min-width:/s);
+});
