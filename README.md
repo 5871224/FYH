@@ -25,7 +25,7 @@ Supabase PostgreSQL
 - Supabase Auth 負責登入身分。
 - PostgreSQL、RLS 與 RPC 負責正式資料、權限與交易一致性。
 - 人員資料查詢依用途分為 `get_my_profile_v2()`、`get_schedule_directory_v2()` 與 `get_employee_admin_directory_v2()`；不得再以單一名錄同時服務登入、班表及管理頁面。管理名錄只在進入管理功能時延遲載入。
-- `supabase/functions/` 保存 Edge Function 原始碼；正式部署清單以 `scripts/deploy-v2-final.ps1` 為準，不以資料夾是否存在判定。
+- `supabase/functions/` 保存 Edge Function 原始碼；正式部署清單以 `scripts/deploy-edge-functions.ps1` 為準，不以資料夾是否存在判定。
 
 ## 專案結構
 
@@ -119,7 +119,7 @@ SQL 執行期間只要出現錯誤就應立即停止，不可略過錯誤繼續�
 完成兩份 SQL 後，在 Windows PowerShell 由儲存庫根目錄執行：
 
 ```powershell
-.\scripts\deploy-v2-final.ps1
+.\scripts\deploy-edge-functions.ps1
 ```
 
 腳本透過 `npx supabase@latest functions deploy` 逐一部署目前正式使用的 Edge Functions。部署名單以該腳本內的 `$functions` 陣列為唯一準據；不要直接把 `supabase/functions/` 下所有資料夾都視為正式端點。

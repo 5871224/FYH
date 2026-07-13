@@ -20,7 +20,7 @@ $functions = @(
   "meal-cancel-v2"
 )
 
-Write-Host "FYH V2 Edge Functions deployment" -ForegroundColor Cyan
+Write-Host "FYH Edge Functions deployment" -ForegroundColor Cyan
 Write-Host "This script does not run SQL migrations." -ForegroundColor Yellow
 Write-Host "Complete supabase/001_current_schema.sql and supabase/002_current_updates.sql before deployment." -ForegroundColor Yellow
 
@@ -34,4 +34,4 @@ foreach ($functionName in $functions) {
 }
 
 Write-Host ""
-Write-Host "All V2 Edge Functions deployed successfully." -ForegroundColor Green
+Write-Host "All Edge Functions deployed successfully." -ForegroundColor Green
