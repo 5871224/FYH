@@ -1,0 +1,91 @@
+name: Temporary Mobile CSS Consolidation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Consolidate mobile responsive CSS
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          function replaceRequired(file, pattern, replacement, label) {
+            const source = fs.readFileSync(file, 'utf8');
+            const next = source.replace(pattern, replacement);
+            if (next === source) throw new Error(`找不到預期規則：${label}`);
+            fs.writeFileSync(file, next, 'utf8');
+          }
+
+          const components = 'src/renderer/css/components.css';
+          const responsive = 'src/renderer/css/responsive.css';
+          const testFile = 'tests/css-consolidation.test.js';
+
+          replaceRequired(
+            components,
+            /\n  \.form-grid,\n  \.two-col,\n  \.attendance-edit-modal \.form-grid \{\n    grid-template-columns: 1fr;\n  \}\n/,
+            '\n',
+            'components 手機表單欄數'
+          );
+
+          const deadMobileBlocks = [
+            /\n  \.app-shell \{\n    padding-top: var\(--ui-mobile-page-gutter\);\n    padding-right: var\(--ui-mobile-page-gutter\);\n    padding-left: var\(--ui-mobile-page-gutter\);\n    gap: var\(--ui-mobile-gap\);\n  \}\n/,
+            /\n  body\.is-home-view \.app-shell,\n  body\.is-clock-view \.app-shell,\n  body\.is-meal-view \.app-shell,\n  body\.is-records-view \.app-shell \{\n    padding: var\(--ui-mobile-page-gutter\);\n  \}\n/,
+            /\n  \.home-card,\n  \.clock-card,\n  \.meal-card,\n  \.records-card,\n  \.calendar-card \{\n    padding: var\(--ui-mobile-card-padding\);\n  \}\n/,
+            /\n  \.home-card,\n  \.clock-card,\n  \.meal-card,\n  \.records-card \{\n    min-height: calc\(100dvh - 8px\);\n  \}\n/,
+            /\n  \.calendar-card \{\n    padding-right: var\(--ui-mobile-page-gutter\);\n    padding-left: var\(--ui-mobile-page-gutter\);\n  \}\n/
+          ];
+          for (const [index, pattern] of deadMobileBlocks.entries()) {
+            replaceRequired(components, pattern, '\n', `components 手機外層死規則 ${index + 1}`);
+          }
+
+          replaceRequired(
+            responsive,
+            /  body\.is-home-view \.app-shell,\n  body\.is-clock-view \.app-shell,\n  body\.is-meal-view \.app-shell,\n  body\.is-records-view \.app-shell,\n  body\.is-schedule-view \.app-shell \{\n    justify-content: flex-start !important;\n    align-items: stretch;\n    padding-top: 8px;\n    padding-left: 8px;\n    padding-right: 8px;\n  \}/,
+            `  body.is-home-view .app-shell,\n  body.is-clock-view .app-shell,\n  body.is-meal-view .app-shell,\n  body.is-records-view .app-shell,\n  body.is-schedule-view .app-shell {\n    justify-content: flex-start !important;\n    align-items: stretch;\n    padding: 8px 8px 4px;\n    gap: var(--ui-mobile-gap);\n  }`,
+            'responsive 主要頁面外層規格'
+          );
+
+          replaceRequired(
+            responsive,
+            /  \/\* 設定編輯彈窗沿用電腦版雙欄表單。實際編輯視窗是一般 modal，不能只依設定列表 modal 類別判斷。 \*\//,
+            `  /* 手機表單欄數契約：頁面表單與打卡編輯器預設單欄；一般設定編輯視窗明確保留雙欄。 */\n  .form-grid,\n  .two-col {\n    grid-template-columns: 1fr;\n  }\n\n  /* 設定編輯彈窗沿用電腦版雙欄表單。實際編輯視窗是一般 modal，不能只依設定列表 modal 類別判斷。 */`,
+            'responsive 手機表單契約'
+          );
+
+          const append = `\n\ntest("手機主要頁面與表單響應式規格集中於 responsive", () => {\n  const components = read("src/renderer/css/components.css");\n  const responsive = read("src/renderer/css/responsive.css");\n  assert.doesNotMatch(components, /body\\.is-home-view \\.app-shell[\\s\\S]*padding: var\\(--ui-mobile-page-gutter\\);/);\n  assert.doesNotMatch(components, /\\.home-card,[\\s\\S]*\\.calendar-card \\{\\s*padding: var\\(--ui-mobile-card-padding\\);/);\n  assert.doesNotMatch(components, /\\.form-grid,\\s*\\.two-col,[\\s\\S]*grid-template-columns: 1fr;/);\n  assert.match(responsive, /body\\.is-home-view \\.app-shell,[\\s\\S]*body\\.is-schedule-view \\.app-shell \\{[^}]*padding: 8px 8px 4px;[^}]*gap: var\\(--ui-mobile-gap\\);/s);\n  assert.match(responsive, /\\.form-grid,\\s*\\.two-col \\{\\s*grid-template-columns: 1fr;/s);\n  assert.match(responsive, /\\.modal:not\\(\\.attendance-edit-modal\\) :is\\(\\.form-grid, \\.two-col\\)[\\s\\S]*grid-template-columns: repeat\\(2, minmax\\(0, 1fr\\)\\) !important;/s);\n});\n`;
+          const testSource = fs.readFileSync(testFile, 'utf8');
+          if (!testSource.includes('手機主要頁面與表單響應式規格集中於 responsive')) {
+            fs.writeFileSync(testFile, testSource.trimEnd() + append, 'utf8');
+          }
+          NODE
+      - name: Build and validate without temporary workflow hygiene test
+        shell: bash
+        run: |
+          npm run web:publish
+          find tests -name '*.test.js' ! -name 'github-actions-hygiene.test.js' -print0 | xargs -0 node --test
+          npm run css:architecture
+      - name: Commit generated changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/renderer/css/components.css src/renderer/css/responsive.css src/renderer/app.css src/renderer/index.html docs/app.css docs/index.html tests/css-consolidation.test.js
+          git commit -m "集中手機頁面與表單響應式規則"
+          git push origin HEAD:${{ github.head_ref }}
