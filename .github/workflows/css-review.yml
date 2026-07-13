@@ -6,11 +6,10 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply:
-    if: github.actor != 'github-actions[bot]'
+  diagnose:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -20,7 +19,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
-      - name: Apply blue today highlight and consolidate CSS
+      - name: Apply proposed changes in workspace
         shell: bash
         run: |
           node <<'NODE'
@@ -32,8 +31,7 @@ jobs:
               if (source.includes(after)) return;
               throw new Error(`找不到預期區塊：${file}`);
             }
-            source = source.replace(before, after);
-            fs.writeFileSync(file, source, 'utf8');
+            fs.writeFileSync(file, source.replace(before, after), 'utf8');
           }
 
           const foundation = 'src/renderer/css/foundation.css';
@@ -41,103 +39,52 @@ jobs:
           const weekTest = 'tests/renderer-week-stripe-boundary.test.js';
           const cssTest = 'tests/css-consolidation.test.js';
 
-          replaceOnce(
-            foundation,
-            '  --today: #f8ead1;\n  --week-alt: #ede1cc;',
-            '  --today: #eaf5ff;\n  --today-header: #cfe8ff;\n  --today-text: #204f73;\n  --today-border: #62a7d8;\n  --week-alt: #ede1cc;'
-          );
-
-          replaceOnce(
-            foundation,
-            `.toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row {\n  position: static;\n  margin-bottom: 0;\n  gap: 0;\n}`,
-            `.toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row {\n  position: static;\n  display: flex;\n  align-items: center;\n  width: auto;\n  min-height: 0;\n  margin: 0;\n  gap: 0;\n}`
-          );
-
-          replaceOnce(
-            foundation,
-            `.toolbar-title-row,\n.ops-title-row {\n  justify-content: space-between;\n}\n\n.toolbar-title-row {\n  justify-content: flex-start;\n}`,
-            `.ops-title-row {\n  justify-content: space-between;\n}`
-          );
-
-          replaceOnce(
-            foundation,
-            `.toolbar-title-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 10px;\n}`,
-            `.toolbar-title-row {\n  display: flex;\n  align-items: center;\n  justify-content: flex-start;\n  gap: 8px;\n  margin-bottom: 10px;\n}`
-          );
-
-          replaceOnce(
-            foundation,
-            `.calendar-nav {\n  width: 100%;`,
-            `.calendar-nav {\n  position: relative;\n  width: 100%;`
-          );
-
-          replaceOnce(
-            foundation,
-            `  padding: 8px 30px 8px 12px;\n  background: #fff;`,
-            `  padding: 0 30px 0 12px;\n  background: #fff;`
-          );
-
-          replaceOnce(
-            foundation,
-            `.table-sticky-cell-day.today {\n  background: #e7c58c;\n  color: #5d3a12;\n  box-shadow: inset 0 0 0 2px #9c6b2f;\n  font-weight: 800;\n}`,
-            `.table-sticky-cell-day.today {\n  background: var(--today-header);\n  color: var(--today-text);\n  box-shadow: inset 0 0 0 2px var(--today-border);\n  font-weight: 800;\n}`
-          );
-
-          replaceOnce(
-            foundation,
-            `.table-sticky-cell-day.today span {\n  color: #5d3a12;\n  font-weight: 700;\n}`,
-            `.table-sticky-cell-day.today span {\n  color: var(--today-text);\n  font-weight: 700;\n}`
-          );
-
-          replaceOnce(
-            foundation,
-            `.table-sticky-cell-day.week-alt {\n  background: var(--week-alt);\n}`,
-            `.table-sticky-cell-day.week-alt:not(.today) {\n  background: var(--week-alt);\n}`
-          );
+          replaceOnce(foundation, '  --today: #f8ead1;\n  --week-alt: #ede1cc;', '  --today: #eaf5ff;\n  --today-header: #cfe8ff;\n  --today-text: #204f73;\n  --today-border: #62a7d8;\n  --week-alt: #ede1cc;');
+          replaceOnce(foundation, `.toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row {\n  position: static;\n  margin-bottom: 0;\n  gap: 0;\n}`, `.toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row {\n  position: static;\n  display: flex;\n  align-items: center;\n  width: auto;\n  min-height: 0;\n  margin: 0;\n  gap: 0;\n}`);
+          replaceOnce(foundation, `.toolbar-title-row,\n.ops-title-row {\n  justify-content: space-between;\n}\n\n.toolbar-title-row {\n  justify-content: flex-start;\n}`, `.ops-title-row {\n  justify-content: space-between;\n}`);
+          replaceOnce(foundation, `.toolbar-title-row {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 10px;\n}`, `.toolbar-title-row {\n  display: flex;\n  align-items: center;\n  justify-content: flex-start;\n  gap: 8px;\n  margin-bottom: 10px;\n}`);
+          replaceOnce(foundation, `.calendar-nav {\n  width: 100%;`, `.calendar-nav {\n  position: relative;\n  width: 100%;`);
+          replaceOnce(foundation, `  padding: 8px 30px 8px 12px;\n  background: #fff;`, `  padding: 0 30px 0 12px;\n  background: #fff;`);
+          replaceOnce(foundation, `.table-sticky-cell-day.today {\n  background: #e7c58c;\n  color: #5d3a12;\n  box-shadow: inset 0 0 0 2px #9c6b2f;\n  font-weight: 800;\n}`, `.table-sticky-cell-day.today {\n  background: var(--today-header);\n  color: var(--today-text);\n  box-shadow: inset 0 0 0 2px var(--today-border);\n  font-weight: 800;\n}`);
+          replaceOnce(foundation, `.table-sticky-cell-day.today span {\n  color: #5d3a12;\n  font-weight: 700;\n}`, `.table-sticky-cell-day.today span {\n  color: var(--today-text);\n  font-weight: 700;\n}`);
+          replaceOnce(foundation, `.table-sticky-cell-day.week-alt {\n  background: var(--week-alt);\n}`, `.table-sticky-cell-day.week-alt:not(.today) {\n  background: var(--week-alt);\n}`);
 
           replaceOnce(schedule, `\n.calendar-nav {\n  position: relative;\n}\n`, '\n');
-          replaceOnce(
-            schedule,
-            `\n/* Today's date header must stay more prominent than the alternating week stripe. */\n.table-sticky-cell-day.today.week-alt {\n  background: #e7c58c;\n}\n`,
-            '\n'
-          );
-          replaceOnce(
-            schedule,
-            `\n/* Collapsed toolbar: return to the original shrink-to-button card. */\n.toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row {\n  position: static;\n  display: flex;\n  align-items: center;\n  width: auto;\n  min-height: 0;\n  margin: 0;\n  gap: 0;\n}\n`,
-            '\n/* Collapsed toolbar: return to the original shrink-to-button card. */\n'
-          );
-          replaceOnce(
-            schedule,
-            `\n.calendar-nav-left select {\n  padding-top: 0;\n  padding-bottom: 0;\n}\n`,
-            '\n'
-          );
+          replaceOnce(schedule, `\n/* Today's date header must stay more prominent than the alternating week stripe. */\n.table-sticky-cell-day.today.week-alt {\n  background: #e7c58c;\n}\n`, '\n');
+          replaceOnce(schedule, `\n/* Collapsed toolbar: return to the original shrink-to-button card. */\n.toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row {\n  position: static;\n  display: flex;\n  align-items: center;\n  width: auto;\n  min-height: 0;\n  margin: 0;\n  gap: 0;\n}\n`, '\n/* Collapsed toolbar: return to the original shrink-to-button card. */\n');
+          replaceOnce(schedule, `\n.calendar-nav-left select {\n  padding-top: 0;\n  padding-bottom: 0;\n}\n`, '\n');
 
-          replaceOnce(
-            weekTest,
-            `test("今天日期標題即使位於斑馬紋週也必須保持醒目", () => {\n  assert.match(layout, /\\$\\{weekStripeClass\\}[^\\n]+\\$\\{dateString === today \\? "today" : ""\\}/);\n  assert.match(scheduleCss, /\\.table-sticky-cell-day\\.today\\.week-alt\\s*\\{\\s*background:\\s*#e7c58c;/s);\n});`,
-            `test("今天日期標題即使位於斑馬紋週也必須保持微亮藍色", () => {\n  assert.match(layout, /\\$\\{weekStripeClass\\}[^\\n]+\\$\\{dateString === today \\? "today" : ""\\}/);\n  assert.match(css, /--today:\\s*#eaf5ff;/);\n  assert.match(css, /--today-header:\\s*#cfe8ff;/);\n  assert.match(css, /--today-text:\\s*#204f73;/);\n  assert.match(css, /--today-border:\\s*#62a7d8;/);\n  assert.match(css, /\\.table-sticky-cell-day\\.today\\s*\\{[^}]*background:\\s*var\\(--today-header\\);[^}]*color:\\s*var\\(--today-text\\);[^}]*box-shadow:\\s*inset 0 0 0 2px var\\(--today-border\\);/s);\n  assert.match(css, /\\.table-sticky-cell-day\\.week-alt:not\\(\\.today\\)\\s*\\{/);\n  assert.doesNotMatch(scheduleCss, /\\.table-sticky-cell-day\\.today\\.week-alt/);\n});`
-          );
+          replaceOnce(weekTest, `test("今天日期標題即使位於斑馬紋週也必須保持醒目", () => {\n  assert.match(layout, /\\$\\{weekStripeClass\\}[^\\n]+\\$\\{dateString === today \\? "today" : ""\\}/);\n  assert.match(scheduleCss, /\\.table-sticky-cell-day\\.today\\.week-alt\\s*\\{\\s*background:\\s*#e7c58c;/s);\n});`, `test("今天日期標題即使位於斑馬紋週也必須保持微亮藍色", () => {\n  assert.match(layout, /\\$\\{weekStripeClass\\}[^\\n]+\\$\\{dateString === today \\? "today" : ""\\}/);\n  assert.match(css, /--today:\\s*#eaf5ff;/);\n  assert.match(css, /--today-header:\\s*#cfe8ff;/);\n  assert.match(css, /--today-text:\\s*#204f73;/);\n  assert.match(css, /--today-border:\\s*#62a7d8;/);\n  assert.match(css, /\\.table-sticky-cell-day\\.today\\s*\\{[^}]*background:\\s*var\\(--today-header\\);[^}]*color:\\s*var\\(--today-text\\);[^}]*box-shadow:\\s*inset 0 0 0 2px var\\(--today-border\\);/s);\n  assert.match(css, /\\.table-sticky-cell-day\\.week-alt:not\\(\\.today\\)\\s*\\{/);\n  assert.doesNotMatch(scheduleCss, /\\.table-sticky-cell-day\\.today\\.week-alt/);\n});`);
 
-          const cssTestAppend = `\n\ntest("班表共用樣式不再依賴後載入覆蓋", () => {\n  const foundation = read("src/renderer/css/foundation.css");\n  const schedule = read("src/renderer/css/schedule.css");\n  const nav = rootRuleBodies(foundation, ".calendar-nav")[0] || "";\n  const select = rootRuleBodies(foundation, ".calendar-nav-left select")[0] || "";\n  const collapsed = rootRuleBodies(foundation, ".toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row")[0] || "";\n  const title = rootRuleBodies(foundation, ".toolbar-title-row")[0] || "";\n\n  assert.equal(nav.includes("position: relative;"), true);\n  assert.equal(select.includes("padding: 0 30px 0 12px;"), true);\n  assert.equal(collapsed.includes("display: flex;") && collapsed.includes("margin: 0;"), true);\n  assert.equal(title.includes("justify-content: flex-start;"), true);\n  assert.equal(rootRuleBodies(schedule, ".calendar-nav").length, 0);\n  assert.equal(rootRuleBodies(schedule, ".calendar-nav-left select").length, 0);\n  assert.equal(rootRuleBodies(schedule, ".toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row").length, 0);\n  assert.equal(rootRuleBodies(foundation, ".toolbar-title-row").length, 1);\n});\n`;
-          let cssTestSource = fs.readFileSync(cssTest, 'utf8');
-          if (!cssTestSource.includes('班表共用樣式不再依賴後載入覆蓋')) {
-            fs.writeFileSync(cssTest, cssTestSource.trimEnd() + cssTestAppend, 'utf8');
-          }
+          const append = `\n\ntest("班表共用樣式不再依賴後載入覆蓋", () => {\n  const foundation = read("src/renderer/css/foundation.css");\n  const schedule = read("src/renderer/css/schedule.css");\n  const nav = rootRuleBodies(foundation, ".calendar-nav")[0] || "";\n  const select = rootRuleBodies(foundation, ".calendar-nav-left select")[0] || "";\n  const collapsed = rootRuleBodies(foundation, ".toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row")[0] || "";\n  const title = rootRuleBodies(foundation, ".toolbar-title-row")[0] || "";\n  assert.equal(nav.includes("position: relative;"), true);\n  assert.equal(select.includes("padding: 0 30px 0 12px;"), true);\n  assert.equal(collapsed.includes("display: flex;") && collapsed.includes("margin: 0;"), true);\n  assert.equal(title.includes("justify-content: flex-start;"), true);\n  assert.equal(rootRuleBodies(schedule, ".calendar-nav").length, 0);\n  assert.equal(rootRuleBodies(schedule, ".calendar-nav-left select").length, 0);\n  assert.equal(rootRuleBodies(schedule, ".toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row").length, 0);\n  assert.equal(rootRuleBodies(foundation, ".toolbar-title-row").length, 1);\n});\n`;
+          const current = fs.readFileSync(cssTest, 'utf8');
+          if (!current.includes('班表共用樣式不再依賴後載入覆蓋')) fs.writeFileSync(cssTest, current.trimEnd() + append, 'utf8');
           NODE
-      - name: Build and validate
-        run: |
-          npm run web:publish
-          npm test
-          npm run css:architecture
-      - name: Commit generated changes
+      - name: Run diagnostics
         shell: bash
         run: |
-          if git diff --quiet; then
-            echo "No changes to commit."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/renderer/css/foundation.css src/renderer/css/schedule.css src/renderer/app.css src/renderer/index.html docs/app.css docs/index.html tests/renderer-week-stripe-boundary.test.js tests/css-consolidation.test.js
-          git commit -m "調整今天日期藍色提示並整理班表 CSS"
-          git push origin HEAD:${{ github.head_ref }}
+          set +e
+          npm run web:publish > build.log 2>&1
+          echo $? > build.exit
+          npm test > test.log 2>&1
+          echo $? > test.exit
+          npm run css:architecture > css.log 2>&1
+          echo $? > css.exit
+          git diff > proposed.diff
+          exit 0
+      - name: Upload diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: css-change-diagnostics
+          path: |
+            build.log
+            build.exit
+            test.log
+            test.exit
+            css.log
+            css.exit
+            proposed.diff
+            src/renderer/css/foundation.css
+            src/renderer/css/schedule.css
+            tests/renderer-week-stripe-boundary.test.js
+            tests/css-consolidation.test.js
