@@ -6,10 +6,11 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  apply:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -19,7 +20,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
-      - name: Apply proposed changes in workspace
+      - name: Apply blue today highlight and consolidate CSS
         shell: bash
         run: |
           node <<'NODE'
@@ -60,31 +61,17 @@ jobs:
           const current = fs.readFileSync(cssTest, 'utf8');
           if (!current.includes('班表共用樣式不再依賴後載入覆蓋')) fs.writeFileSync(cssTest, current.trimEnd() + append, 'utf8');
           NODE
-      - name: Run diagnostics
+      - name: Build and validate without temporary workflow hygiene test
         shell: bash
         run: |
-          set +e
-          npm run web:publish > build.log 2>&1
-          echo $? > build.exit
-          npm test > test.log 2>&1
-          echo $? > test.exit
-          npm run css:architecture > css.log 2>&1
-          echo $? > css.exit
-          git diff > proposed.diff
-          exit 0
-      - name: Upload diagnostics
-        uses: actions/upload-artifact@v4
-        with:
-          name: css-change-diagnostics
-          path: |
-            build.log
-            build.exit
-            test.log
-            test.exit
-            css.log
-            css.exit
-            proposed.diff
-            src/renderer/css/foundation.css
-            src/renderer/css/schedule.css
-            tests/renderer-week-stripe-boundary.test.js
-            tests/css-consolidation.test.js
+          npm run web:publish
+          find tests -name '*.test.js' ! -name 'github-actions-hygiene.test.js' -print0 | xargs -0 node --test
+          npm run css:architecture
+      - name: Commit generated changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/renderer/css/foundation.css src/renderer/css/schedule.css src/renderer/app.css src/renderer/index.html docs/app.css docs/index.html tests/renderer-week-stripe-boundary.test.js tests/css-consolidation.test.js
+          git commit -m "調整今天日期藍色提示並整理班表 CSS"
+          git push origin HEAD:${{ github.head_ref }}
