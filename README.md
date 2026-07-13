@@ -54,7 +54,7 @@ npm run web:check
 npm run web:publish
 npm run scope:check
 npm test
-npm run v2:check
+npm run renderer:check
 npm run ci:check
 ```
 
@@ -67,7 +67,7 @@ npm run ci:check
 - `npm run web:publish`：建立兩種 bundle、清理並重建 `docs/`，再更新靜態資源版本參數。
 - `npm run scope:check`：在 Pull Request 中比對 PR 說明聲明的允許／禁止修改範圍與實際變更檔案。
 - `npm test`：執行 `tests/` 中的 Node.js 單元測試。
-- `npm run v2:check`：檢查 CSS、JavaScript bundle、V2 結構與發布內容對齊。
+- `npm run renderer:check`：檢查 CSS、JavaScript bundle、V2 結構與發布內容對齊。
 - `npm run ci:check`：先執行單元測試，再執行 GitHub Actions 與本機共用的完整公開設定、資料結構、設定清單及 V2 驗證。
 
 ## Pull Request 修改範圍
@@ -87,7 +87,7 @@ npm run ci:check
 
 ```bash
 npm run web:publish
-npm run v2:check
+npm run renderer:check
 ```
 
 6. 發布腳本會依固定順序產生單一 `app.css` 與 `app.js`，清理舊的 `docs/` 後完整重建發布內容。
@@ -133,7 +133,7 @@ node --check src/renderer/v2-auto-fill-schedule.js
 node scripts/check-normalized-storage.js
 node scripts/check-expansion-acceptance.js
 node scripts/check-settings-lists.js
-npm run v2:check
+npm run renderer:check
 ```
 
 Pull Request 另外由 GitHub Actions 執行 `npm run scope:check`。前端有修改時，最後仍須執行 `npm run web:publish` 並確認 `docs/` 已更新。

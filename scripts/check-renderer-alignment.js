@@ -24,7 +24,7 @@ const requiredFiles = [
   "src/renderer/renderer-overtime-employee.js",
 ];
 
-requiredFiles.forEach((file) => assert(exists(file), `Missing V2 file: ${file}`));
+requiredFiles.forEach((file) => assert(exists(file), `Missing renderer file: ${file}`));
 ["v2-records.js", "v2-personal-record-layout.js", "v2-overtime-admin.js", "v2-attendance-admin.js", "v2-live-report-filters.js"].forEach((file) => assert(!exists(`src/renderer/${file}`), `Record UI still depends on late-loaded patch: ${file}`));
 assert(!exists("src/renderer/v2-meal.js"), "Meal UI still depends on a late-loaded patch module");
 ["v2-account.js", "v2-meal-export.js", "v2-settings-drag-handles.js", "v2-drag-scroll-preserve.js"].forEach((file) => assert(!exists(`src/renderer/${file}`), `Legacy renderer patch remains: ${file}`));
@@ -90,4 +90,4 @@ assert(!sourceJs.includes("document.write"), "JavaScript bundle may overwrite th
 const publishedJsFiles = fs.readdirSync(path.join(root, "docs")).filter((name) => name.endsWith(".js"));
 assert(publishedJsFiles.every((name) => name === "app-config.js" || name === "app.js"), `Unexpected JavaScript source modules in docs: ${publishedJsFiles.join(", ")}`);
 
-console.log(`V2 alignment checks passed (${requiredFiles.length} required files).`);
+console.log(`renderer alignment checks passed (${requiredFiles.length} required files).`);

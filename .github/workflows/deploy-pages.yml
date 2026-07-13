@@ -58,5 +58,5 @@ jobs:
       - name: Check settings lists
         run: node scripts/check-settings-lists.js
 
-      - name: Check V2 bundles
-        run: npm run v2:check
+      - name: Check renderer bundles
+        run: npm run renderer:check

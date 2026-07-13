@@ -115,7 +115,7 @@ npm run web:publish
 ```bash
 node scripts/check-normalized-storage.js
 node scripts/check-expansion-acceptance.js
-npm run v2:check
+npm run renderer:check
 ```
 
 - 不得為了讓檢查通過而刪除仍有效的安全、權限、資料一致性或正式規格驗證。
