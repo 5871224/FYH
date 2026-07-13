@@ -8,6 +8,7 @@ const root = path.resolve(__dirname, "..");
 const dateUtils = fs.readFileSync(path.join(root, "src/renderer/renderer-date-utils.js"), "utf8");
 const layout = fs.readFileSync(path.join(root, "src/renderer/renderer-schedule-layout.js"), "utf8");
 const css = fs.readFileSync(path.join(root, "src/renderer/css/foundation.css"), "utf8");
+const scheduleCss = fs.readFileSync(path.join(root, "src/renderer/css/schedule.css"), "utf8");
 
 function makeDateContext(weekStart) {
   const context = { state: { rules: { weekStart } } };
@@ -34,6 +35,11 @@ test("斑馬紋與週界線應使用同一個每週起算日", () => {
   assert.equal(monday.getWeekStripeClassForDate("2026-07-13"), "week-alt");
   assert.match(layout, /getWeekStripeClassForDate\(dateString\)/);
   assert.match(layout, /getWeekBoundaryClassForDate\(dateString, index, dates\.length\)/);
+});
+
+test("今天日期標題即使位於斑馬紋週也必須保持醒目", () => {
+  assert.match(layout, /\$\{weekStripeClass\}[^\n]+\$\{dateString === today \? "today" : ""\}/);
+  assert.match(scheduleCss, /\.table-sticky-cell-day\.today\.week-alt\s*\{\s*background:\s*#e7c58c;/s);
 });
 
 test("日期標題與表格內容週界線應只繪製單一同粗線條", () => {
