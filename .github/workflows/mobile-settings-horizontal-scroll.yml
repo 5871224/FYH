@@ -44,7 +44,7 @@ jobs:
 
           const testSource = fs.readFileSync(testFile, 'utf8');
           if (!testSource.includes('手機假別與加班設定表格應使用內部水平捲動')) {
-            fs.writeFileSync(testFile, testSource.trimEnd() + `\n\ntest("手機假別與加班設定表格應使用內部水平捲動", () => {\n  const components = read("src/renderer/css/components.css");\n  const responsive = read("src/renderer/css/responsive.css");\n  assert.match(components, /\\.settings-table-scroll\\s*\\{[^}]*overflow:\\s*auto;/s);\n  assert.match(responsive, /\\.catalog-settings-modal \\.settings-table-row-leave\\s*\\{\\s*min-width:\\s*720px;/s);\n  assert.match(responsive, /\\.catalog-settings-modal \\.settings-table-row-overtime\\s*\\{\\s*min-width:\\s*840px;/s);\n  assert.doesNotMatch(responsive, /\\.catalog-settings-modal \\.settings-table-row-shift\\s*\\{\\s*min-width:/s);\n});\n`, 'utf8');
+            fs.writeFileSync(testFile, testSource.trimEnd() + `\n\ntest("手機假別與加班設定表格應使用內部水平捲動", () => {\n  const components = read("src/renderer/css/components.css");\n  const responsive = read("src/renderer/css/responsive.css");\n  assert.match(components, /\\.member-table-scroll,\\s*\\.settings-table-scroll\\s*\\{[^}]*overflow:\\s*auto;/s);\n  assert.match(responsive, /\\.catalog-settings-modal \\.settings-table-row-leave\\s*\\{\\s*min-width:\\s*720px;/s);\n  assert.match(responsive, /\\.catalog-settings-modal \\.settings-table-row-overtime\\s*\\{\\s*min-width:\\s*840px;/s);\n  assert.doesNotMatch(responsive, /\\.catalog-settings-modal \\.settings-table-row-shift\\s*\\{\\s*min-width:/s);\n});\n`, 'utf8');
           }
           NODE
       - name: Build and validate without temporary workflow hygiene test
