@@ -6,6 +6,7 @@ const childProcess = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+// 正式程式庫不得重新引入歷史階段命名、一次性遷移腳本或共享函式覆蓋。
 
 test("正式檢查與 workflow 不再使用 V2 階段命名", () => {
   const packageJson = JSON.parse(read("package.json"));
@@ -38,7 +39,6 @@ test("JavaScript 架構檢查阻擋共享模組重複函式", () => {
   assert.match(audit, /duplicate shared function body group/);
   childProcess.execFileSync(process.execPath, ["scripts/audit-js-duplicates.js", "--check"], { cwd: root, stdio: "pipe" });
 });
-
 
 test("正式目錄不得保留一次性遷移腳本與修補命名", () => {
   const obsolete = [
