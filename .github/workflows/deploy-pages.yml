@@ -60,3 +60,9 @@ jobs:
 
       - name: Check renderer bundles
         run: npm run renderer:check
+
+      - name: Check CSS architecture
+        run: npm run css:architecture
+
+      - name: Check JavaScript architecture
+        run: npm run js:architecture
