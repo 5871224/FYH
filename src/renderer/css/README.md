@@ -17,4 +17,4 @@
 - 不直接修改產生檔 `src/renderer/app.css` 或 `docs/app.css`。
 - 不新增 `fix.css`、`refinement.css`、`final.css` 等補丁檔；規則應回到正確模組。
 - 共用尺寸、圓角、配色優先使用 `components.css` 中的 CSS 變數。
-- 修改後執行 `npm run web:publish`，並確認 `npm run css:check` 與 `npm run v2:check` 通過。
+- 修改後執行 `npm run web:publish`，並確認 `npm run css:check` 與 `npm run renderer:check` 通過。

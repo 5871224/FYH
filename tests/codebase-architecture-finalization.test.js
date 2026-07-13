@@ -1,0 +1,40 @@
+const fs = require("node:fs");
+const path = require("node:path");
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const childProcess = require("node:child_process");
+
+const root = path.resolve(__dirname, "..");
+const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+
+test("正式檢查與 workflow 不再使用 V2 階段命名", () => {
+  const packageJson = JSON.parse(read("package.json"));
+  const workflow = read(".github/workflows/deploy-pages.yml");
+  assert.equal(typeof packageJson.scripts["renderer:check"], "string");
+  assert.equal(packageJson.scripts["v2:check"], undefined);
+  assert.match(packageJson.scripts["renderer:check"], /check-renderer-alignment\.js/);
+  assert.match(packageJson.scripts["renderer:check"], /check-renderer-contracts\.js/);
+  assert.doesNotMatch(workflow, /V2|v2:check/);
+  assert.equal(fs.existsSync(path.join(root, "scripts/check-v2-alignment.js")), false);
+  assert.equal(fs.existsSync(path.join(root, "scripts/check-v2-final.js")), false);
+});
+
+test("測試檔名不再保留 phase 或 v2 階段名稱", () => {
+  const invalid = fs.readdirSync(path.join(root, "tests"))
+    .filter((name) => /phase\d+|(?:^|-)v2(?:-|\.)/i.test(name));
+  assert.deepEqual(invalid, []);
+});
+
+test("bundle 說明不再標示過渡或 legacy 執行模式", () => {
+  const build = read("scripts/build-js.js");
+  assert.doesNotMatch(build, /第一階段|transitional bundle|legacy global|data-v2-module/);
+  assert.match(build, /declared module execution order/);
+});
+
+test("JavaScript 架構檢查阻擋共享模組重複函式", () => {
+  const audit = read("scripts/audit-js-duplicates.js");
+  assert.match(audit, /isolatedModules/);
+  assert.match(audit, /duplicate shared function name group/);
+  assert.match(audit, /duplicate shared function body group/);
+  childProcess.execFileSync(process.execPath, ["scripts/audit-js-duplicates.js", "--check"], { cwd: root, stdio: "pipe" });
+});

@@ -6,9 +6,9 @@ const rendererDir = path.join(root, "src", "renderer");
 const webApiPath = path.join(rendererDir, "web-api.js");
 const oldApiPath = path.join(rendererDir, "v2-api.js");
 const buildPath = path.join(root, "scripts", "build-js.js");
-const finalCheckPath = path.join(root, "scripts", "check-v2-final.js");
-const alignmentPath = path.join(root, "scripts", "check-v2-alignment.js");
-const testPath = path.join(root, "tests", "renderer-phase7-v2-api-data.test.js");
+const finalCheckPath = path.join(root, "scripts", "check-renderer-contracts.js");
+const alignmentPath = path.join(root, "scripts", "check-renderer-alignment.js");
+const testPath = path.join(root, "tests", "renderer-api-data.test.js");
 
 function replaceFunctionBlock(source, startName, endName, replacement) {
   const start = source.indexOf(`  async function ${startName}(`);

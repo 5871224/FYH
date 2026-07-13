@@ -1,7 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const testPath = path.resolve(__dirname, "..", "tests", "renderer-phase7-v2-api-data.test.js");
+const testPath = path.resolve(__dirname, "..", "tests", "renderer-api-data.test.js");
 const testSource = `const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");

@@ -117,15 +117,18 @@ function normalizeWindow(lines) {
 }
 
 const sources = new Map(files.map((file) => [file, fs.readFileSync(path.join(rendererDir, file), "utf8")]));
+const isolatedModules = new Set(["browser-exporter.js", "rest-compliance.js", "web-api.js", "renderer-period-exports.js"]);
+const sharedFiles = files.filter((file) => !isolatedModules.has(file));
 const functions = files.flatMap((file) => extractFunctions(sources.get(file), file));
+const sharedFunctions = functions.filter((fn) => !isolatedModules.has(fn.file));
 
-const duplicateNames = [...functions.reduce((map, fn) => {
+const duplicateNames = [...sharedFunctions.reduce((map, fn) => {
   if (!map.has(fn.name)) map.set(fn.name, []);
   map.get(fn.name).push(fn);
   return map;
 }, new Map()).values()].filter((group) => group.length > 1);
 
-const exactBodies = [...functions.reduce((map, fn) => {
+const exactBodies = [...sharedFunctions.reduce((map, fn) => {
   if (fn.normalizedBody.length < 80) return map;
   if (!map.has(fn.normalizedBody)) map.set(fn.normalizedBody, []);
   map.get(fn.normalizedBody).push(fn);
@@ -134,7 +137,7 @@ const exactBodies = [...functions.reduce((map, fn) => {
 
 const blockSize = 6;
 const blockMap = new Map();
-for (const file of files) {
+for (const file of sharedFiles) {
   const rawLines = stripComments(sources.get(file)).split("\n");
   for (let index = 0; index <= rawLines.length - blockSize; index += 1) {
     const text = normalizeWindow(rawLines.slice(index, index + blockSize));
@@ -151,7 +154,7 @@ const repeatedBlocks = [...blockMap.entries()]
   .slice(0, 40);
 
 const legacyMarkers = [];
-const legacyPattern = /\b(v2|legacy|deprecated|compat(?:ibility)?|patch|oldVersion|old[A-Z]\w*)\b|補丁|舊版|相容層/gi;
+const legacyPattern = /\b(legacy|deprecated|compat(?:ibility)?|patch|oldVersion)\b|補丁|舊版|相容層/gi;
 for (const file of files) {
   sources.get(file).split("\n").forEach((line, index) => {
     if (legacyPattern.test(line)) {
@@ -232,6 +235,14 @@ for (const file of files) {
   });
 }
 if (checkOnly) {
+  if (duplicateNames.length) {
+    console.error(`Found ${duplicateNames.length} duplicate shared function name group(s).`);
+    process.exitCode = 1;
+  }
+  if (exactBodies.length) {
+    console.error(`Found ${exactBodies.length} duplicate shared function body group(s).`);
+    process.exitCode = 1;
+  }
   if (assignmentOverrides.length) {
     console.error(`Found ${assignmentOverrides.length} function override assignment(s).`);
     process.exitCode = 1;

@@ -1,7 +1,7 @@
 /* GENERATED FILE - DO NOT EDIT DIRECTLY.
  * Source order: scripts/build-js.js
  * Build: npm run js:build
- * This transitional bundle preserves the legacy global execution order.
+ * This generated bundle preserves the declared module execution order.
  */
 
 /* ===== browser-exporter.js ===== */
@@ -1768,7 +1768,7 @@
           contentType: false
         });
       } catch {
-        // ponytail: logout 失敗時仍直接清本機 session，避免使用者卡住；若要更嚴謹可再補重試。
+        // logout 失敗時仍直接清本機 session，避免使用者卡住；若要更嚴謹可再補重試。
       }
     }
     clearSession();
@@ -1814,7 +1814,7 @@
       return [];
     }
     const body = text.startsWith("{") && text.endsWith("}") ? text.slice(1, -1) : text;
-    // ponytail: scheduler ids do not contain commas; use a full Postgres array parser if that changes.
+    // scheduler ids do not contain commas; use a full Postgres array parser if that changes.
     return body
       .split(",")
       .map((item) => item.trim().replace(/^"|"$/g, "").replace(/\\"/g, "\""))
@@ -1905,7 +1905,7 @@
     const anchorDate = toDateObject(settings.eight_week_start_date) ? settings.eight_week_start_date : today;
     const periods = Math.floor(diffDays(anchorDate, today) / 56);
     const visibleStart = addDaysToDateString(anchorDate, periods * 56) || today;
-    // ponytail: 7-day buffer covers the current 6-day consecutive-work rule; widen this if rules look farther.
+    // 7-day buffer covers the current 6-day consecutive-work rule; widen this if rules look farther.
     return {
       startDate: addDaysToDateString(visibleStart, -7),
       endDate: addDaysToDateString(visibleStart, 62)
@@ -3853,8 +3853,8 @@ function syncScheduleColumnWidths() {
 ;
 
 /* ===== renderer-date-utils.js ===== */
-/* 班表日期、週期、時間與區間工具
- * 由 renderer.js 第一階段拆分；維持既有全域 bundle 執行方式。
+/* 班表日期、週期、時間與區間工具。
+ * 由正式 bundle 依宣告順序載入。
  */
 
 function scheduleKey(memberId, year, month, day) {
@@ -4008,7 +4008,7 @@ function getVisibleDateRange() {
 
 function getBufferedVisibleDateRange() {
   const range = getVisibleDateRange();
-  // ponytail: 7-day buffer matches the current 6-day consecutive-work ceiling; widen if compliance rules look farther.
+  // 7-day buffer matches the current 6-day consecutive-work ceiling; widen if compliance rules look farther.
   return {
     startDate: addDaysToDateString(range.startDate, -7),
     endDate: addDaysToDateString(range.endDate, 7)

@@ -548,7 +548,7 @@
           contentType: false
         });
       } catch {
-        // ponytail: logout 失敗時仍直接清本機 session，避免使用者卡住；若要更嚴謹可再補重試。
+        // logout 失敗時仍直接清本機 session，避免使用者卡住；若要更嚴謹可再補重試。
       }
     }
     clearSession();
@@ -594,7 +594,7 @@
       return [];
     }
     const body = text.startsWith("{") && text.endsWith("}") ? text.slice(1, -1) : text;
-    // ponytail: scheduler ids do not contain commas; use a full Postgres array parser if that changes.
+    // scheduler ids do not contain commas; use a full Postgres array parser if that changes.
     return body
       .split(",")
       .map((item) => item.trim().replace(/^"|"$/g, "").replace(/\\"/g, "\""))
@@ -685,7 +685,7 @@
     const anchorDate = toDateObject(settings.eight_week_start_date) ? settings.eight_week_start_date : today;
     const periods = Math.floor(diffDays(anchorDate, today) / 56);
     const visibleStart = addDaysToDateString(anchorDate, periods * 56) || today;
-    // ponytail: 7-day buffer covers the current 6-day consecutive-work rule; widen this if rules look farther.
+    // 7-day buffer covers the current 6-day consecutive-work rule; widen this if rules look farther.
     return {
       startDate: addDaysToDateString(visibleStart, -7),
       endDate: addDaysToDateString(visibleStart, 62)

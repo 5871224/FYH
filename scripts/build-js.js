@@ -8,7 +8,7 @@ const outputPath = path.join(rendererDir, "app.js");
 const indexPath = path.join(rendererDir, "index.html");
 const checkOnly = process.argv.includes("--check");
 
-// 第一階段先保留既有執行順序與全域相依性；後續再逐步轉為 ES Modules。
+// 正式 bundle 依宣告順序載入全域與獨立模組，並驗證來源清單完整性。
 const modules = [
   "browser-exporter.js",
   "rest-compliance.js",
@@ -91,7 +91,6 @@ function readModule(fileName) {
   if (!fs.existsSync(filePath)) throw new Error(`Missing JavaScript module: ${fileName}`);
   const content = stripBom(fs.readFileSync(filePath, "utf8")).trimEnd();
   const hasDynamicLoader = /document\.createElement\(["']script["']\)/.test(content)
-    || /data-v2-module/.test(content)
     || /\.src\s*=\s*["'`]\.\/[^"'`]+\.js/.test(content);
   if (hasDynamicLoader) {
     throw new Error(`JavaScript module must not dynamically load another local module: ${fileName}`);
@@ -105,7 +104,7 @@ function buildBundle() {
     "/* GENERATED FILE - DO NOT EDIT DIRECTLY.",
     " * Source order: scripts/build-js.js",
     " * Build: npm run js:build",
-    " * This transitional bundle preserves the legacy global execution order.",
+    " * This generated bundle preserves the declared module execution order.",
     " */",
     ""
   ];

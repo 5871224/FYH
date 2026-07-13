@@ -31,7 +31,7 @@ const required = [
   "src/renderer/renderer-overtime-employee.js",
 ];
 
-required.forEach((file) => assert(exists(file), `缺少 V2 檔案：${file}`));
+required.forEach((file) => assert(exists(file), `缺少 renderer 檔案：${file}`));
 
 const actionsWorkflow = read(".github/workflows/deploy-pages.yml");
 const projectPackage = JSON.parse(read("package.json"));
@@ -45,7 +45,7 @@ const workflowCommands = [
   "node scripts/check-normalized-storage.js",
   "node scripts/check-expansion-acceptance.js",
   "node scripts/check-settings-lists.js",
-  "npm run v2:check"
+  "npm run renderer:check"
 ];
 assert(actionsWorkflow.includes("name: Validate Web App"), "GitHub Actions 尚未使用單一網站驗證流程");
 assert(actionsWorkflow.includes("pull_request:") && actionsWorkflow.includes("push:"), "單一 workflow 缺少 Pull Request 或 main push 觸發");
@@ -54,8 +54,8 @@ workflowCommands.forEach((command) => assert(actionsWorkflow.includes(command), 
 assert(!actionsWorkflow.includes("actions/upload-pages-artifact") && !actionsWorkflow.includes("actions/deploy-pages") && !actionsWorkflow.includes("actions/configure-pages"), "自訂 workflow 仍重複部署 GitHub Pages");
 assert(!actionsWorkflow.includes("contents: write") && !/\bgit\s+(?:commit|push)\b/.test(actionsWorkflow), "正式 workflow 不得自動修改或推送 PR 分支");
 assert(workflowFiles.length === 1 && workflowFiles[0] === "deploy-pages.yml", `仍保留重複的 GitHub Actions workflow：${workflowFiles.join(", ")}`);
-assert(!exists(".github/workflows/canonicalize-v2-api-data.yml") && !exists(".github/workflows/v2-alignment.yml") && !exists(".github/workflows/v2-final-check.yml"), "仍保留重複的 V2 一次性 workflow");
-assert(String(projectPackage.scripts?.["ci:check"] || "").includes("npm run v2:check"), "ci:check 未包含完整 V2 驗證");
+assert(!exists(".github/workflows/canonicalize-v2-api-data.yml") && !exists(".github/workflows/v2-alignment.yml") && !exists(".github/workflows/v2-final-check.yml"), "仍保留重複的 renderer 一次性 workflow");
+assert(String(projectPackage.scripts?.["ci:check"] || "").includes("npm run renderer:check"), "ci:check 未包含完整 renderer 驗證");
 
 const reportRecords = read("supabase/functions/report-records/index.ts");
 assert(!reportRecords.includes("full_name, department_id"), "仍查詢不存在的 set_employee.department_id");
@@ -295,8 +295,8 @@ assert(sourceIndex.includes("app-config.js") && sourceIndex.includes("app.js") &
 assert(publishedIndex.includes("app-config.js") && publishedIndex.includes("app.js") && !publishedIndex.includes("v2-api.js"), "發布頁必須只載入 app-config.js 與 app.js");
 ["v2-records.js", "v2-personal-record-layout.js", "v2-overtime-admin.js", "v2-attendance-admin.js", "v2-live-report-filters.js"].forEach((file) => assert(!exists(`src/renderer/${file}`), `記錄管理仍依賴後載入補丁：${file}`));
 ["v2-account.js", "v2-meal-export.js", "v2-settings-drag-handles.js", "v2-drag-scroll-preserve.js"].forEach((file) => assert(!exists(`src/renderer/${file}`), `仍存在後載入補丁：${file}`));
-assert(sourceApp.includes("function isTabletDevice") && sourceApp.includes("function renderMealPage") && sourceApp.includes("function validateMealOrderItems") && sourceApp.includes("function loadRecordsPage") && sourceApp.includes("function renderPersonalRecordsSection") && sourceApp.includes("function bindRecordsEvents") && sourceApp.includes("function installPeriodExports") && !sourceApp.includes("installV2MealUi") && !sourceApp.includes("installV2RecordsUi") && !sourceApp.includes("installV2PersonalRecordLayout") && !sourceApp.includes("installV2OvertimeAdmin") && !sourceApp.includes("installV2AttendanceAdmin"), "JavaScript bundle 缺少必要正式模組");
+assert(sourceApp.includes("function isTabletDevice") && sourceApp.includes("function renderMealPage") && sourceApp.includes("function validateMealOrderItems") && sourceApp.includes("function loadRecordsPage") && sourceApp.includes("function renderPersonalRecordsSection") && sourceApp.includes("function bindRecordsEvents") && sourceApp.includes("function installPeriodExports") && !sourceApp.includes("installrendererMealUi") && !sourceApp.includes("installrendererRecordsUi") && !sourceApp.includes("installrendererPersonalRecordLayout") && !sourceApp.includes("installrendererOvertimeAdmin") && !sourceApp.includes("installrendererAttendanceAdmin"), "JavaScript bundle 缺少必要正式模組");
 const publishedJsFiles = fs.readdirSync(path.join(root, "docs")).filter((name) => name.endsWith(".js"));
 assert(publishedJsFiles.every((name) => name === "app-config.js" || name === "app.js"), `docs 含有不應發布的 JavaScript 原始模組：${publishedJsFiles.join(", ")}`);
 
-console.log(`V2 final checks passed (${required.length} required files).`);
+console.log(`renderer contracts checks passed (${required.length} required files).`);

@@ -1,5 +1,5 @@
-/* 班表日期、週期、時間與區間工具
- * 由 renderer.js 第一階段拆分；維持既有全域 bundle 執行方式。
+/* 班表日期、週期、時間與區間工具。
+ * 由正式 bundle 依宣告順序載入。
  */
 
 function scheduleKey(memberId, year, month, day) {
@@ -153,7 +153,7 @@ function getVisibleDateRange() {
 
 function getBufferedVisibleDateRange() {
   const range = getVisibleDateRange();
-  // ponytail: 7-day buffer matches the current 6-day consecutive-work ceiling; widen if compliance rules look farther.
+  // 7-day buffer matches the current 6-day consecutive-work ceiling; widen if compliance rules look farther.
   return {
     startDate: addDaysToDateString(range.startDate, -7),
     endDate: addDaysToDateString(range.endDate, 7)

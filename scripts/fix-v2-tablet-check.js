@@ -1,8 +1,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const finalCheckPath = path.resolve(__dirname, "check-v2-final.js");
-const alignmentCheckPath = path.resolve(__dirname, "check-v2-alignment.js");
+const finalCheckPath = path.resolve(__dirname, "check-renderer-contracts.js");
+const alignmentCheckPath = path.resolve(__dirname, "check-renderer-alignment.js");
 
 let finalCheck = fs.readFileSync(finalCheckPath, "utf8");
 finalCheck = finalCheck.replaceAll(
