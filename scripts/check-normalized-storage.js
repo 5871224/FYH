@@ -70,7 +70,7 @@ assert(
 assert(!webApi.includes("getOvertimeTypeByReference") && !webApi.includes("listOvertimeRequests"), "web api should not expose legacy request wrappers");
 assert(!webApi.includes("requestLeaveCatalog"), "deleted leave settings should not be preserved by the removed request catalog");
 assert(webApi.includes("function isLegacyRequestCatalogRow(row)") && webApi.includes("!isLegacyRequestCatalogRow(row)"), "legacy catalog leave rows should not load as active leave settings");
-assert(webApi.includes("!String(id).startsWith(\"catalog:\")"), "legacy catalog leave ids should not be preserved during save");
+assert(webApi.includes('!String(id).startsWith("catalog:")'), "legacy catalog leave ids should not be preserved during save");
 assert(
   !exporter.includes("請假申請預覽") &&
     !exporter.includes("加班申請預覽") &&
@@ -128,5 +128,38 @@ assert(databaseUpdates.includes("create or replace function public.save_schedule
 assert(databaseUpdates.includes("on conflict (member_id, work_date)"), "schedule entry RPC should upsert by member and work date");
 assert(databaseUpdates.includes("grant execute on function public.save_schedule_entries_bulk(jsonb) to authenticated"), "schedule entry RPC should be executable by authenticated users");
 assert(!schema.includes("schedule_documents"), "current schema should not recreate legacy JSON storage");
+
+const retiredTableNames = ["manager_departments", "schedule_documents", "schedule_months"];
+const retiredReferenceRoots = [
+  path.join(rootDir, "src"),
+  path.join(rootDir, "docs"),
+  path.join(rootDir, "supabase", "functions")
+];
+const retiredReferenceExtensions = new Set([".js", ".ts", ".html"]);
+const retiredTableReferences = [];
+
+function scanRetiredTableReferences(targetPath) {
+  const stats = fs.statSync(targetPath);
+  if (stats.isDirectory()) {
+    for (const entry of fs.readdirSync(targetPath)) {
+      scanRetiredTableReferences(path.join(targetPath, entry));
+    }
+    return;
+  }
+  if (!retiredReferenceExtensions.has(path.extname(targetPath))) return;
+  const content = fs.readFileSync(targetPath, "utf8");
+  for (const tableName of retiredTableNames) {
+    if (content.includes(tableName)) {
+      retiredTableReferences.push(`${path.relative(rootDir, targetPath)} -> ${tableName}`);
+    }
+  }
+}
+
+for (const targetPath of retiredReferenceRoots) scanRetiredTableReferences(targetPath);
+assert.equal(
+  retiredTableReferences.length,
+  0,
+  `Retired Supabase tables are still referenced:\n${retiredTableReferences.join("\n")}`
+);
 
 console.log("normalized storage checks passed");
