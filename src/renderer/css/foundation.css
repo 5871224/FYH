@@ -10,7 +10,10 @@
   --accent-strong: #7f5422;
   --accent-soft: #efe2c8;
   --danger: #ae3c33;
-  --today: #f8ead1;
+  --today: #eaf5ff;
+  --today-header: #cfe8ff;
+  --today-text: #204f73;
+  --today-border: #62a7d8;
   --week-alt: #ede1cc;
   --shadow: 0 16px 34px rgba(72, 52, 31, 0.08);
   --dept-col-width: 72px;
@@ -712,7 +715,11 @@ body.is-records-view .app-shell {
 
 .toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row {
   position: static;
-  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  width: auto;
+  min-height: 0;
+  margin: 0;
   gap: 0;
 }
 
@@ -760,13 +767,8 @@ body.is-records-view .app-shell {
   align-items: center;
 }
 
-.toolbar-title-row,
 .ops-title-row {
   justify-content: space-between;
-}
-
-.toolbar-title-row {
-  justify-content: flex-start;
 }
 
 .toolbar-action-group {
@@ -848,6 +850,7 @@ body.is-records-view .app-shell {
 .toolbar-title-row {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   margin-bottom: 10px;
 }
@@ -1073,6 +1076,7 @@ body.is-records-view .app-shell {
 }
 
 .calendar-nav {
+  position: relative;
   width: 100%;
   max-width: 100%;
   flex-wrap: nowrap;
@@ -1119,7 +1123,7 @@ body.is-records-view .app-shell {
   flex: 0 0 124px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 8px 30px 8px 12px;
+  padding: 0 30px 0 12px;
   background: #fff;
 }
 
@@ -1273,18 +1277,18 @@ body.is-records-view .app-shell {
 }
 
 .table-sticky-cell-day.today {
-  background: #e7c58c;
-  color: #5d3a12;
-  box-shadow: inset 0 0 0 2px #9c6b2f;
+  background: var(--today-header);
+  color: var(--today-text);
+  box-shadow: inset 0 0 0 2px var(--today-border);
   font-weight: 800;
 }
 
 .table-sticky-cell-day.today span {
-  color: #5d3a12;
+  color: var(--today-text);
   font-weight: 700;
 }
 
-.table-sticky-cell-day.week-alt {
+.table-sticky-cell-day.week-alt:not(.today) {
   background: var(--week-alt);
 }
 

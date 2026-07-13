@@ -37,9 +37,15 @@ test("斑馬紋與週界線應使用同一個每週起算日", () => {
   assert.match(layout, /getWeekBoundaryClassForDate\(dateString, index, dates\.length\)/);
 });
 
-test("今天日期標題即使位於斑馬紋週也必須保持醒目", () => {
+test("今天日期標題即使位於斑馬紋週也必須保持微亮藍色", () => {
   assert.match(layout, /\$\{weekStripeClass\}[^\n]+\$\{dateString === today \? "today" : ""\}/);
-  assert.match(scheduleCss, /\.table-sticky-cell-day\.today\.week-alt\s*\{\s*background:\s*#e7c58c;/s);
+  assert.match(css, /--today:\s*#eaf5ff;/);
+  assert.match(css, /--today-header:\s*#cfe8ff;/);
+  assert.match(css, /--today-text:\s*#204f73;/);
+  assert.match(css, /--today-border:\s*#62a7d8;/);
+  assert.match(css, /\.table-sticky-cell-day\.today\s*\{[^}]*background:\s*var\(--today-header\);[^}]*color:\s*var\(--today-text\);[^}]*box-shadow:\s*inset 0 0 0 2px var\(--today-border\);/s);
+  assert.match(css, /\.table-sticky-cell-day\.week-alt:not\(\.today\)\s*\{/);
+  assert.doesNotMatch(scheduleCss, /\.table-sticky-cell-day\.today\.week-alt/);
 });
 
 test("日期標題與表格內容週界線應只繪製單一同粗線條", () => {
