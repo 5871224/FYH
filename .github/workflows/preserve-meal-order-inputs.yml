@@ -1,7 +1,7 @@
 name: Temporary Preserve Meal Order Inputs
 
 on:
-  pull_request:
+  push:
     branches:
       - main
 
@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.head_ref }}
+          ref: main
           fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
@@ -97,4 +97,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/renderer/renderer-main-pages.js src/renderer/renderer-meal-page.js src/renderer/app.js src/renderer/index.html docs/app.js docs/index.html tests/renderer-meal-consolidation.test.js '福圓號排班系統擴充規格書.txt'
           git commit -m "修正訂餐儲存時欄位回跳"
-          git push origin HEAD:${{ github.head_ref }}
+          git push origin HEAD:main
