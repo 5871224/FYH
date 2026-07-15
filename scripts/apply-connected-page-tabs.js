@@ -16,7 +16,7 @@ if (!/\.meal-tabs\s*\{[^}]*margin:\s*10px 0 0;/s.test(foundation)) {
   replacePattern(
     foundationPath,
     /(\.meal-tabs\s*\{[^}]*?margin:\s*)10px 0 16px;/s,
-    "$110px 0 0;",
+    "$1" + "10px 0 0;",
     "訂餐頁籤下方間距"
   );
 }
@@ -25,7 +25,7 @@ if (!/\.record-tabs\s*\{[^}]*margin:\s*12px 0 0;/s.test(foundation)) {
   replacePattern(
     foundationPath,
     /(\.record-tabs\s*\{[^}]*?margin:\s*)12px 0;/s,
-    "$112px 0 0;",
+    "$1" + "12px 0 0;",
     "記錄頁籤下方間距"
   );
 }
@@ -67,7 +67,7 @@ const specPath = "規格書.md";
 let spec = read(specPath);
 const specRule = "8. 頁籤列與下方內容區必須緊密相接，不保留垂直空白；內容區移除上邊框及左上、右上圓角，只保留下方圓角，由頁籤本身呈現上方圓角。";
 if (!spec.includes(specRule)) {
-  const marker = '7. 頁籤容器使用 `role="tablist"`，各籤頁使用 `role="tab"` 與正確的 `aria-selected` 狀態。';
+  const marker = '7. 籤頁容器使用 `role="tablist"`，各籤頁使用 `role="tab"` 與正確的 `aria-selected` 狀態。';
   if (!spec.includes(marker)) throw new Error(`找不到頁籤規格標記：${specPath}`);
   spec = spec.replace(marker, `${marker}\n${specRule}`);
   write(specPath, spec);
