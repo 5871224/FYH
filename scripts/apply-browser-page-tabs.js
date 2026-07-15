@@ -216,4 +216,12 @@ replaceOnce(
 7. 籤頁容器使用 \`role="tablist"\`，各籤頁使用 \`role="tab"\` 與正確的 \`aria-selected\` 狀態。`
 );
 
+for (const temporaryPath of [
+  ".github/workflows/apply-browser-page-tabs.yml",
+  ".github/browser-page-tabs-trigger",
+  "scripts/apply-browser-page-tabs.js"
+]) {
+  if (fs.existsSync(temporaryPath)) fs.rmSync(temporaryPath);
+}
+
 console.log("Browser-style page tabs prepared.");
