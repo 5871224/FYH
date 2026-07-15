@@ -11,7 +11,7 @@ function replaceOnce(file, before, after) {
 const mainPagesPath = "src/renderer/renderer-main-pages.js";
 const mealPagePath = "src/renderer/renderer-meal-page.js";
 const testPath = "tests/renderer-meal-consolidation.test.js";
-const specPath = "福圓號排班系統擴充規格書.txt";
+const specPath = "規格書.md";
 
 replaceOnce(
   mainPagesPath,
