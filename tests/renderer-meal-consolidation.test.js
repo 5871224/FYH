@@ -48,3 +48,11 @@ test("儲存訂餐重新渲染時應保留剛輸入的數量與備註", () => {
   assert.match(mealPage, /pendingItems:\s*items/);
   assert.match(mealPage, /pendingItems:\s*null/);
 });
+
+test("今日訂餐完成讀取後才顯示空商品提示，且不顯示處理中文字", () => {
+  const mainPages = read("src/renderer/renderer-main-pages.js");
+  assert.match(mainPages, /const showEmptyProducts = Boolean\(status\) && !mealOrderState\.loading && products\.length === 0;/);
+  assert.match(mainPages, /<section class="records-section meal-order-section">/);
+  assert.match(mainPages, /showEmptyProducts \? '<div class="empty-state">目前沒有可訂購的商品<\/div>' : ""/);
+  assert.doesNotMatch(mainPages, /處理中，請稍候/);
+});

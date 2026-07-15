@@ -150,3 +150,18 @@ test("訂餐與記錄頁使用 Chrome 式共用籤頁", () => {
   assert.match(recordsView, /class="record-tabs" role="tablist" aria-label="記錄頁分頁"/);
   assert.match(recordsView, /role="tab" aria-selected=/);
 });
+
+test("電腦版主要頁面靠上且訂餐統計總計維持單行", () => {
+  const foundation = read("src/renderer/css/foundation.css");
+  const recordsView = read("src/renderer/renderer-records-views.js");
+  assert.match(foundation, /\.app-shell \{[^}]*justify-content:\s*flex-start;/s);
+  for (const view of ["home", "clock", "meal", "records"]) {
+    assert.match(foundation, new RegExp("body\\.is-" + view + "-view \\.app-shell \\{[^}]*justify-content:\\s*flex-start;", "s"));
+  }
+  assert.doesNotMatch(foundation, /body\.is-(?:home|clock|meal|records)-view \.app-shell \{[^}]*justify-content:\s*center;/s);
+  assert.match(foundation, /\.meal-stats-grid \{[^}]*margin-bottom:\s*16px;/s);
+  assert.match(foundation, /\.meal-stats-grid > div \{[^}]*display:\s*flex;[^}]*white-space:\s*nowrap;/s);
+  assert.match(foundation, /\.meal-stats-grid strong,[\s\S]*\.meal-stats-grid span \{[^}]*display:\s*inline;/s);
+  assert.match(recordsView, /<span>總數量<\/span><strong>\$\{Number\(report\.totals\?\.quantity/);
+  assert.match(recordsView, /<span>總金額<\/span><strong>\$ \$\{Number\(report\.totals\?\.amount/);
+});

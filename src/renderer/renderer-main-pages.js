@@ -74,7 +74,7 @@ function renderClockPage() {
       </button>
     </div>
     ${renderTodayOvertimePanel()}
-    ${attendanceState.saving ? '<p class="clock-loading">處理中，請稍候...</p>' : attendanceState.loading ? '<p class="clock-loading">讀取資料中...</p>' : ""}
+    ${attendanceState.loading && !attendanceState.saving ? '<p class="clock-loading">讀取資料中...</p>' : ""}
   `;
 }
 
@@ -96,6 +96,7 @@ function renderMealPage() {
   }
   const status = mealOrderState.status;
   const products = status?.products || [];
+  const showEmptyProducts = Boolean(status) && !mealOrderState.loading && products.length === 0;
   const orders = status?.orders || [];
   const pendingItems = Array.isArray(mealOrderState.pendingItems) ? mealOrderState.pendingItems : null;
   const orderQuantityMap = pendingItems
@@ -129,7 +130,9 @@ function renderMealPage() {
       </div>
     ` : ""}
     ${isManager() && mealPageTab === "settings" ? renderMealSettingsSection() : isManager() && mealPageTab === "stats" ? renderMealReportSection() : `
-    ${mealOrderState.error ? `<div class="auth-error clock-error">${escapeHtml(mealOrderState.error)}</div>` : ""}
+    <section class="records-section meal-order-section">
+      <h2>今日訂餐</h2>
+      ${mealOrderState.error ? `<div class="auth-error clock-error">${escapeHtml(mealOrderState.error)}</div>` : ""}
     ${unavailableReason ? `<div class="auth-error clock-error">${escapeHtml(unavailableReason)}</div>` : ""}
     ${products.length ? `
       <div class="records-table-wrap meal-order-table-wrap">
@@ -151,8 +154,8 @@ function renderMealPage() {
         <span data-meal-live-summary>目前合計 ${Number(status?.summary?.totalQuantity || 0)} 份，$${Number(status?.summary?.totalAmount || 0).toFixed(0)}</span>
         <button class="btn-primary" type="button" data-save-today-meal="true" ${disabled ? "disabled" : ""}>儲存訂餐</button>
       </div>
-    ` : '<div class="empty-state">目前沒有可訂購的商品</div>'}
-    ${mealOrderState.loading ? '<p class="clock-loading">處理中，請稍候...</p>' : ""}
+    ` : showEmptyProducts ? '<div class="empty-state">目前沒有可訂購的商品</div>' : ""}
+    </section>
     `}
   `;
   applyMealInputLimits();

@@ -63,6 +63,7 @@ button {
 .app-shell {
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
   min-height: 100vh;
   padding: 20px;
   padding-bottom: 320px;
@@ -262,7 +263,7 @@ button {
 }
 
 body.is-home-view .app-shell {
-  justify-content: center;
+  justify-content: flex-start;
   padding-bottom: 20px;
 }
 
@@ -435,17 +436,17 @@ body.is-home-view .app-shell {
 }
 
 body.is-clock-view .app-shell {
-  justify-content: center;
+  justify-content: flex-start;
   padding-bottom: 20px;
 }
 
 body.is-meal-view .app-shell {
-  justify-content: center;
+  justify-content: flex-start;
   padding-bottom: 20px;
 }
 
 body.is-records-view .app-shell {
-  justify-content: center;
+  justify-content: flex-start;
   padding-bottom: 20px;
 }
 
@@ -678,22 +679,28 @@ body.is-records-view .app-shell {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  margin-bottom: 16px;
 }
 
 .meal-stats-grid > div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
   padding: 14px;
   border-radius: 18px;
   background: #fff;
   border: 1px solid rgba(166, 143, 111, 0.18);
+  white-space: nowrap;
 }
 
 .meal-stats-grid strong,
 .meal-stats-grid span {
-  display: block;
+  display: inline;
 }
 
 .meal-stats-grid span {
-  margin-top: 6px;
+  margin: 0;
   color: var(--muted);
 }
 
