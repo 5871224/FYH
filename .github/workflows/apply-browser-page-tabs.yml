@@ -32,7 +32,25 @@ jobs:
         run: npm run web:publish
 
       - name: Run unit tests
-        run: npm test
+        id: unit_tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          npm test > browser-page-tabs-test-output.txt 2>&1
+          status=$?
+          cat browser-page-tabs-test-output.txt
+          exit $status
+
+      - name: Upload failed test output
+        if: steps.unit_tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-page-tabs-test-output
+          path: browser-page-tabs-test-output.txt
+
+      - name: Stop after failed tests
+        if: steps.unit_tests.outcome == 'failure'
+        run: exit 1
 
       - name: Check public Supabase settings
         run: npm run web:check
