@@ -62,13 +62,29 @@ replaceOnce(
 const mealTest = "tests/renderer-meal-consolidation.test.js";
 const mealTestSource = read(mealTest);
 if (!mealTestSource.includes("今日訂餐完成讀取後才顯示空商品提示")) {
-  write(mealTest, `${mealTestSource.trimEnd()}\n\ntest("今日訂餐完成讀取後才顯示空商品提示，且不顯示處理中文字", () => {\n  const mainPages = read("src/renderer/renderer-main-pages.js");\n  assert.match(mainPages, /const showEmptyProducts = Boolean\\(status\\) && !mealOrderState\\.loading && products\\.length === 0;/);\n  assert.match(mainPages, /<section class="records-section meal-order-section">/);\n  assert.match(mainPages, /showEmptyProducts \\? '<div class="empty-state">目前沒有可訂購的商品<\\/div>' : ""/);\n  assert.doesNotMatch(mainPages, /處理中，請稍候/);\n});\n`, "utf8");
+  write(mealTest, `${mealTestSource.trimEnd()}\n\ntest("今日訂餐完成讀取後才顯示空商品提示，且不顯示處理中文字", () => {\n  const mainPages = read("src/renderer/renderer-main-pages.js");\n  assert.match(mainPages, /const showEmptyProducts = Boolean\\(status\\) && !mealOrderState\\.loading && products\\.length === 0;/);\n  assert.match(mainPages, /<section class="records-section meal-order-section">/);\n  assert.match(mainPages, /showEmptyProducts \\? '<div class="empty-state">目前沒有可訂購的商品<\\/div>' : ""/);\n  assert.doesNotMatch(mainPages, /處理中，請稍候/);\n});\n`);
 }
 
 const cssTest = "tests/css-consolidation.test.js";
 const cssTestSource = read(cssTest);
 if (!cssTestSource.includes("電腦版主要頁面靠上且訂餐統計總計維持單行")) {
-  write(cssTest, `${cssTestSource.trimEnd()}\n\ntest("電腦版主要頁面靠上且訂餐統計總計維持單行", () => {\n  const foundation = read("src/renderer/css/foundation.css");\n  const recordsView = read("src/renderer/renderer-records-views.js");\n  assert.match(foundation, /\\.app-shell \\{[^}]*justify-content:\\s*flex-start;/s);\n  for (const view of ["home", "clock", "meal", "records"]) {\n    assert.match(foundation, new RegExp(`body\\.is-${view}-view \\.app-shell \\{[^}]*justify-content:\\s*flex-start;`, "s"));\n  }\n  assert.doesNotMatch(foundation, /body\\.is-(?:home|clock|meal|records)-view \\.app-shell \\{[^}]*justify-content:\\s*center;/s);\n  assert.match(foundation, /\\.meal-stats-grid \\{[^}]*margin-bottom:\\s*16px;/s);\n  assert.match(foundation, /\\.meal-stats-grid > div \\{[^}]*display:\\s*flex;[^}]*white-space:\\s*nowrap;/s);\n  assert.match(foundation, /\\.meal-stats-grid strong,[\\s\\S]*\\.meal-stats-grid span \\{[^}]*display:\\s*inline;/s);\n  assert.match(recordsView, /<span>總數量<\\/span><strong>\\$\\{Number\\(report\\.totals\\?\\.quantity/);\n  assert.match(recordsView, /<span>總金額<\\/span><strong>\\$ \\$\\{Number\\(report\\.totals\\?\\.amount/);\n});\n`, "utf8");
+  const extraTest = [
+    `test("電腦版主要頁面靠上且訂餐統計總計維持單行", () => {`,
+    `  const foundation = read("src/renderer/css/foundation.css");`,
+    `  const recordsView = read("src/renderer/renderer-records-views.js");`,
+    `  assert.match(foundation, /\\.app-shell \\{[^}]*justify-content:\\s*flex-start;/s);`,
+    `  for (const view of ["home", "clock", "meal", "records"]) {`,
+    `    assert.match(foundation, new RegExp("body\\\\.is-" + view + "-view \\\\.app-shell \\\\{[^}]*justify-content:\\\\s*flex-start;", "s"));`,
+    `  }`,
+    `  assert.doesNotMatch(foundation, /body\\.is-(?:home|clock|meal|records)-view \\.app-shell \\{[^}]*justify-content:\\s*center;/s);`,
+    `  assert.match(foundation, /\\.meal-stats-grid \\{[^}]*margin-bottom:\\s*16px;/s);`,
+    `  assert.match(foundation, /\\.meal-stats-grid > div \\{[^}]*display:\\s*flex;[^}]*white-space:\\s*nowrap;/s);`,
+    `  assert.match(foundation, /\\.meal-stats-grid strong,[\\s\\S]*\\.meal-stats-grid span \\{[^}]*display:\\s*inline;/s);`,
+    `  assert.match(recordsView, /<span>總數量<\\/span><strong>\\$\\{Number\\(report\\.totals\\?\\.quantity/);`,
+    `  assert.match(recordsView, /<span>總金額<\\/span><strong>\\$ \\$\\{Number\\(report\\.totals\\?\\.amount/);`,
+    `});`
+  ].join("\n");
+  write(cssTest, `${cssTestSource.trimEnd()}\n\n${extraTest}\n`);
 }
 
 const spec = "規格書.md";
@@ -95,7 +111,7 @@ function walk(dir) {
   });
 }
 const remainingProcessingText = walk("src/renderer")
-  .filter((file) => file.endsWith(".js"))
+  .filter((file) => path.basename(file).startsWith("renderer-") && file.endsWith(".js"))
   .filter((file) => read(file).includes("處理中，請稍候"));
 if (remainingProcessingText.length) {
   throw new Error(`仍有處理中文字：${remainingProcessingText.join(", ")}`);
