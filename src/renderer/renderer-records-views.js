@@ -181,7 +181,7 @@ function renderMealReportSection() {
         </div>
       </div>
       ${report.error ? `<div class="auth-error">${escapeHtml(report.error)}</div>` : ""}
-      <div class="meal-stats-grid"><div><strong>${Number(report.totals?.quantity || 0)}</strong><span>總數量</span></div><div><strong>$${Number(report.totals?.amount || 0).toFixed(0)}</strong><span>總金額</span></div></div>
+      <div class="meal-stats-grid"><div><span>總數量</span><strong>${Number(report.totals?.quantity || 0)}</strong></div><div><span>總金額</span><strong>$ ${Number(report.totals?.amount || 0).toFixed(0)}</strong></div></div>
       ${table}
       ${view === "detail" ? `<div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-meal-report-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-meal-report-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>` : ""}
     </section>`;
