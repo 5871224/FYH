@@ -1,3 +1,4 @@
+# Trigger after workflow is available on main.
 name: Temporary Preserve Meal Order Inputs
 
 on:
