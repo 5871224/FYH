@@ -142,6 +142,9 @@ test("訂餐與記錄頁使用 Chrome 式共用籤頁", () => {
   assert.match(components, /\.meal-tabs \.page-tab-btn,[\s\S]*border-radius:\s*14px 14px 0 0 !important;/);
   assert.match(components, /\.meal-tabs \.page-tab-btn\.active,[\s\S]*border-bottom-color:\s*var\(--ui-surface\);[\s\S]*color:\s*var\(--ui-accent-strong\);/);
   assert.match(responsive, /\.meal-tabs,[\s\S]*\.record-tabs \{[^}]*scroll-snap-type:\s*x proximity;/s);
+  assert.match(foundation, /\.meal-tabs \{[^}]*margin:\s*10px 0 0;/s);
+  assert.match(foundation, /\.record-tabs \{[^}]*margin:\s*12px 0 0;/s);
+  assert.match(components, /body\.is-records-view \.record-tabs ~ \.records-section,[\s\S]*body\.is-meal-view \.meal-tabs ~ \.records-section \{[^}]*margin-top:\s*0;[^}]*border-top:\s*0;[^}]*border-top-left-radius:\s*0;[^}]*border-top-right-radius:\s*0;/s);
   assert.match(mealPage, /class="meal-tabs" role="tablist" aria-label="訂餐頁分頁"/);
   assert.match(mealPage, /class="ghost-btn page-tab-btn/);
   assert.match(recordsView, /class="record-tabs" role="tablist" aria-label="記錄頁分頁"/);
