@@ -38,3 +38,13 @@ test("訂餐驗證、刪除與拖曳把手均由正式模組提供", () => {
   assert.match(mealSources, /async function deleteMealProduct/);
   assert.match(mealSources, /closest\("\.meal-drag-handle"\)/);
 });
+
+test("儲存訂餐重新渲染時應保留剛輸入的數量與備註", () => {
+  const mainPages = read("src/renderer/renderer-main-pages.js");
+  const mealPage = read("src/renderer/renderer-meal-page.js");
+  assert.match(mainPages, /Array\.isArray\(mealOrderState\.pendingItems\)/);
+  assert.match(mainPages, /pendingItems\.map\(\(item\) => \[item\.productId, Number\(item\.quantity \|\| 0\)\]\)/);
+  assert.match(mainPages, /pendingItems\.map\(\(item\) => \[item\.productId, item\.note \|\| ""\]\)/);
+  assert.match(mealPage, /pendingItems:\s*items/);
+  assert.match(mealPage, /pendingItems:\s*null/);
+});

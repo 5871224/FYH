@@ -8757,8 +8757,13 @@ function renderMealPage() {
   const status = mealOrderState.status;
   const products = status?.products || [];
   const orders = status?.orders || [];
-  const orderQuantityMap = new Map(orders.map((item) => [item.product_id, Number(item.quantity || 0)]));
-  const orderNoteMap = new Map(orders.map((item) => [item.product_id, item.note || ""]));
+  const pendingItems = Array.isArray(mealOrderState.pendingItems) ? mealOrderState.pendingItems : null;
+  const orderQuantityMap = pendingItems
+    ? new Map(pendingItems.map((item) => [item.productId, Number(item.quantity || 0)]))
+    : new Map(orders.map((item) => [item.product_id, Number(item.quantity || 0)]));
+  const orderNoteMap = pendingItems
+    ? new Map(pendingItems.map((item) => [item.productId, item.note || ""]))
+    : new Map(orders.map((item) => [item.product_id, item.note || ""]));
   const disabled = mealOrderState.loading || !status?.orderingOpen || !status?.attendance?.clock_in_at;
   const unavailableReason = !status
     ? ""
@@ -9766,11 +9771,12 @@ async function saveTodayMealOrder() {
       if (!confirmed) return;
     }
 
-    mealOrderState = { ...mealOrderState, loading: true, error: "" };
+    // 儲存期間重新渲染時沿用本次輸入，避免成功提示出現前欄位跳回舊值。
+    mealOrderState = { ...mealOrderState, loading: true, error: "", pendingItems: items };
     renderAll();
     try {
       const status = await window.schedulerApi.saveTodayMealOrder({ items });
-      mealOrderState = { loading: false, status, error: "" };
+      mealOrderState = { loading: false, status, error: "", pendingItems: null };
       showInfoMessage(cancelling ? "今日訂餐已取消" : "訂餐已儲存");
     } catch (error) {
       mealOrderState = { ...mealOrderState, loading: false, error: error.message || "儲存訂餐失敗" };
