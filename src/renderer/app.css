@@ -3343,8 +3343,6 @@ thead th.today,
 /* ===== Schedule-specific layout: schedule.css ===== */
 
 
-
-
 /* Expanded toolbar: keep the control row outside normal flow, preserving the original height. */
 .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-top-row {
   position: absolute;
@@ -4516,10 +4514,6 @@ body.is-meal-view .meal-tabs ~ .records-section {
   body {
     overflow-x: hidden;
   }
-
-
-
-
 
 
   .modal-overlay,
