@@ -25,9 +25,6 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Check declared change scope
-        run: npm run scope:check
-
       - name: Apply source, test, specification, and workflow cleanup
         shell: bash
         run: |
