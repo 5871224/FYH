@@ -26,9 +26,28 @@ jobs:
           node-version: "22"
 
       - name: Connect tabs and content panels
+        id: apply_changes
+        continue-on-error: true
+        shell: bash
         run: |
-          node scripts/apply-connected-page-tabs.js
-          rm scripts/apply-connected-page-tabs.js
+          node scripts/apply-connected-page-tabs.js > connected-page-tabs-output.txt 2>&1
+          status=$?
+          cat connected-page-tabs-output.txt
+          if [ $status -eq 0 ]; then
+            rm scripts/apply-connected-page-tabs.js
+          fi
+          exit $status
+
+      - name: Upload failed apply output
+        if: steps.apply_changes.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: connected-page-tabs-output
+          path: connected-page-tabs-output.txt
+
+      - name: Stop after failed apply
+        if: steps.apply_changes.outcome == 'failure'
+        run: exit 1
 
       - name: Build static web
         run: npm run web:publish
