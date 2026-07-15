@@ -125,6 +125,7 @@ async function saveTodayMealOrder() {
       if (!confirmed) return;
     }
 
+    // 儲存期間重新渲染時沿用本次輸入，避免成功提示出現前欄位跳回舊值。
     mealOrderState = { ...mealOrderState, loading: true, error: "", pendingItems: items };
     renderAll();
     try {
