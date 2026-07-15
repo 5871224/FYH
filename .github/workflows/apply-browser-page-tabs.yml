@@ -26,7 +26,10 @@ jobs:
           node-version: "22"
 
       - name: Apply browser-style tabs and remove temporary files
-        run: node scripts/apply-browser-page-tabs.js
+        shell: bash
+        run: |
+          git show origin/main:scripts/apply-browser-page-tabs.js > /tmp/apply-browser-page-tabs.js
+          node /tmp/apply-browser-page-tabs.js
 
       - name: Build static web
         run: npm run web:publish
@@ -60,25 +63,7 @@ jobs:
         run: node scripts/check-renderer-alignment.js
 
       - name: Check renderer contracts
-        id: renderer_contracts
-        continue-on-error: true
-        shell: bash
-        run: |
-          node scripts/check-renderer-contracts.js > browser-page-tabs-contract-output.txt 2>&1
-          status=$?
-          cat browser-page-tabs-contract-output.txt
-          exit $status
-
-      - name: Upload failed renderer contract output
-        if: steps.renderer_contracts.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: browser-page-tabs-contract-output
-          path: browser-page-tabs-contract-output.txt
-
-      - name: Stop after failed renderer contracts
-        if: steps.renderer_contracts.outcome == 'failure'
-        run: exit 1
+        run: node scripts/check-renderer-contracts.js
 
       - name: Check CSS architecture
         run: npm run css:architecture
