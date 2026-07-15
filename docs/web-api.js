@@ -148,6 +148,19 @@
     return isMissingSchemaError(error, /schedule_month_id/i);
   }
 
+  function isMissingLoginRpcError(error) {
+    return isMissingSchemaError(error, /login_email_by_employee_code/i);
+  }
+
+  function buildLoginEmail(employeeCode) {
+    const normalized = String(employeeCode || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return normalized ? `${normalized}@local.invalid` : "";
+  }
+
   async function requestFunction(functionName, payload) {
     const response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
       method: "POST",
@@ -356,13 +369,20 @@
   }
 
   async function getLoginEmailByEmployeeCode(employeeCode) {
-    const email = await requestJson("/rest/v1/rpc/login_email_by_employee_code", {
-      method: "POST",
-      body: JSON.stringify({
-        p_employee_code: String(employeeCode || "").trim()
-      })
-    });
-    return typeof email === "string" ? email.trim() : "";
+    try {
+      const email = await requestJson("/rest/v1/rpc/login_email_by_employee_code", {
+        method: "POST",
+        body: JSON.stringify({
+          p_employee_code: String(employeeCode || "").trim()
+        })
+      });
+      return typeof email === "string" ? email.trim() : "";
+    } catch (error) {
+      if (isMissingLoginRpcError(error)) {
+        return buildLoginEmail(employeeCode);
+      }
+      throw error;
+    }
   }
 
   async function signIn(loginAccount, password) {

@@ -1,5 +1,6 @@
 const fs = require("fs/promises");
 const path = require("path");
+const { resolveConfig, writeAppConfig } = require("./generate-app-config");
 
 const rootDir = path.resolve(__dirname, "..");
 const sourceDir = path.join(rootDir, "src", "renderer");
@@ -86,9 +87,18 @@ async function copyUserGuide() {
   await copyUserGuideTo(path.join(rootDir, "src", "renderer"));
 }
 
+async function syncAppConfig() {
+  const config = resolveConfig();
+  writeAppConfig(path.join(sourceDir, "app-config.js"), config);
+  writeAppConfig(path.join(outputDir, "app-config.js"), config);
+}
+
 async function main() {
   await recreateDir(outputDir);
-  await Promise.all(files.map(copyFile));
+  await syncAppConfig();
+  await Promise.all(
+    files.filter((name) => name !== "app-config.js").map(copyFile)
+  );
   await rewriteIndexCacheBusters();
   await copyUserGuide();
   await writeNoJekyll();

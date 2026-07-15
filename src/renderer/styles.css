@@ -417,6 +417,24 @@ button {
   line-height: 1.4;
 }
 
+.ops-divider {
+  height: 1px;
+  margin: 4px 2px;
+  background: rgba(156, 107, 47, 0.16);
+}
+
+.auto-schedule-status-bar {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid rgba(104, 168, 79, 0.35);
+  border-radius: 12px;
+  background: #eef8e8;
+  color: #3f6b2f;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
 .toolbar-settings-btn {
   width: 28px;
   height: 28px;
@@ -535,19 +553,34 @@ button {
   flex-direction: column;
   min-height: 0;
   min-width: calc(100vw - 40px);
-  width: max-content;
+  width: 100%;
+  max-width: 100%;
   padding-left: 12px;
   padding-right: 12px;
+  --schedule-nav-offset: 0px;
+}
+
+.schedule-table-scroller {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
 }
 
 .calendar-nav {
-  width: max-content;
-  max-width: none;
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 26;
+  width: 100%;
+  max-width: 100%;
   flex-wrap: nowrap;
   justify-content: flex-start;
-  align-self: flex-start;
+  align-self: stretch;
   gap: 12px;
   margin-bottom: 14px;
+  padding-bottom: 2px;
+  background: var(--panel);
 }
 
 .calendar-nav-left {
@@ -594,18 +627,19 @@ button {
 .table-sticky-header {
   position: -webkit-sticky;
   position: sticky;
-  top: 0;
+  top: var(--schedule-nav-offset, 0px);
   z-index: 24;
   isolation: isolate;
   display: flex;
   align-items: stretch;
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   border: 1px solid transparent;
   border-bottom: none;
   border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;
   background: var(--schedule-header-bg);
-  overflow: visible;
+  overflow: hidden;
   box-shadow: 0 8px 18px rgba(72, 52, 31, 0.08);
 }
 
@@ -625,10 +659,6 @@ button {
 }
 
 .table-sticky-header-left {
-  position: -webkit-sticky;
-  position: sticky;
-  left: 0;
-  z-index: 8;
   display: flex;
   flex-shrink: 0;
   background: var(--schedule-header-bg);
@@ -650,7 +680,7 @@ button {
 .table-sticky-header-scroll {
   flex: 1;
   min-width: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .table-sticky-header-days {
@@ -694,30 +724,18 @@ button {
 }
 
 .table-sticky-cell-dept {
-  position: -webkit-sticky;
-  position: sticky;
-  left: 0;
-  z-index: 3;
   width: var(--dept-col-width);
   min-width: var(--dept-col-width);
   background: var(--schedule-header-bg);
 }
 
 .table-sticky-cell-person {
-  position: -webkit-sticky;
-  position: sticky;
-  left: var(--dept-col-width);
-  z-index: 3;
   width: var(--person-col-width);
   min-width: var(--person-col-width);
   background: var(--schedule-header-bg);
 }
 
 .table-sticky-cell-stats {
-  position: -webkit-sticky;
-  position: sticky;
-  left: calc(var(--dept-col-width) + var(--person-col-width));
-  z-index: 3;
   width: var(--stats-col-width);
   min-width: var(--stats-col-width);
   background: var(--schedule-header-bg);
@@ -2775,7 +2793,7 @@ body.auth-gate-open {
   }
 
   .table-sticky-header {
-    top: 8px;
+    top: calc(var(--schedule-nav-offset, 0px) + 8px);
   }
 
   .calendar-card {

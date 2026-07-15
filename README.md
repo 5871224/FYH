@@ -17,7 +17,7 @@
 - 單位、人員、班別、假別、加班、假日、班表排班與系統設定，都已拆到各自的 Supabase 資料表。
 - 排班演算法名稱：`八週預覽式日別最小費用最大流排班法`。
 - 演算法代號：`8W-Daily-MCMF Preview Scheduler`。
-- 自動排班採用「先預覽、再套用」，預排結果不會直接覆蓋正式班表。
+- 自動排班採用「先預覽、再存檔」，預排結果不會直接覆蓋正式班表。
 - 主管權限負責維護單位、人員、班別、假別、加班與班表排班資料。
 
 ## 啟動與發佈
@@ -26,17 +26,32 @@
 
 ```bash
 npm run web
+npm run web:config
 npm run web:check
 npm run web:publish
+npm run infra:migrate
 ```
 
 說明：
 
 - `npm run web`：啟動本機網頁版
+- `npm run web:config`：依 `.env` 產生 `src/renderer/app-config.js`
 - `npm run web:check`：檢查公開版 Supabase 設定
-- `npm run web:publish`：把 `src/renderer/` 產生到 `docs/`，供 GitHub Pages 使用
+- `npm run web:publish`：把 `src/renderer/` 產生到 `docs/`，供 GitHub Pages 使用（會同步 `app-config.js`）
+- `npm run infra:migrate`：對內網 Postgres 依序套用 `supabase/*.sql`（需設定 `DATABASE_URL`）
 
 只要有改到網頁畫面、互動、樣式或前端資料流程，就要重新執行 `npm run web:publish`，否則 GitHub Pages 不會更新。
+
+## 公開網域 + 內網資料庫
+
+若要把前端部署到公開網域，同時讓 Postgres 只留在公司內網，請看 [infra/README.md](infra/README.md)。
+
+重點：
+
+- 前端：GitHub Pages 或 Cloudflare Pages（`docs/`）
+- API：內網自架 Supabase + Cloudflare Tunnel 或 Nginx（`api.*` 子網域）
+- 設定：repo 根目錄 `.env`（見 `.env.example`）
+- 安全：套用 `supabase/018_tighten_anon_read_policies.sql`，移除匿名讀取班表
 
 ## 目前資料結構重點
 
@@ -64,13 +79,13 @@ npm run web:publish
 
 ## 自動排班邏輯與作法
 
-目前自動排班採用「先預覽、再套用」：按預覽後會直接顯示在班表格子中，預排格子以綠色底色標示；確認套用後才寫入班表，綠色底色會消失。
+目前自動排班採用「先預覽、再存檔」：按「自動排班」選定期間並開始排班後，預排結果會以綠色底色顯示在班表格子中；確認「確定存檔」後才寫入班表，綠色底色會消失。存檔後可使用「重新排班」以相同期間再次產生預覽。
 
 演算法名稱：`八週預覽式日別最小費用最大流排班法`。
 
 這個名稱的意思是：
 
-- `八週預覽式`：以目前畫面選定的 8 週日期範圍建立預排結果，先顯示預覽，再由主管決定是否套用。
+- `八週預覽式`：以目前畫面選定的 8 週日期範圍建立預排結果，先顯示預覽，再由主管決定是否存檔。
 - `日別`：每天分開求解，不做 8 週全域最佳化。
 - `最小費用最大流`：每日班別派工用 min-cost max-flow，在盡量補滿需求人數的前提下，依成本排序挑選較適合的人員。
 - `排班法`：最小費用最大流只負責派班，固定例假與休息日補足另由規則流程處理。
@@ -91,7 +106,7 @@ npm run web:publish
 1. 建立預覽用班表
 
 - 先複製目前班表資料，所有計算都先寫在預覽資料裡。
-- 預覽只記錄和原班表不同的格子，避免套用時覆蓋不相關資料。
+- 預覽只記錄和原班表不同的格子，避免存檔時覆蓋不相關資料。
 
 2. 先安排固定例假
 
@@ -126,11 +141,12 @@ npm run web:publish
 - 若該日已經有班別，保留班別並加上休息日，視為「休息日加班」。
 - 若找不到可補日期，會留下提醒訊息。
 
-7. 套用預覽
+7. 確定存檔
 
-- 套用前會再次確認。
-- 套用時會把預覽格子寫入正式班表。
-- 套用完成後會重新整理主管設定的請假/加班資料、清掉空白班表格，再存檔。
+- 存檔前會再次確認。
+- 存檔時會把預覽格子寫入正式班表。
+- 存檔完成後會重新整理主管設定的請假/加班資料、清掉空白班表格，再存檔。
+- 存檔後可使用「重新排班」以相同期間再次產生預覽。
 
 ### 已知限制
 
@@ -145,7 +161,7 @@ npm run web:publish
 - `buildAutoSchedulePreview()`：建立自動排班預覽。
 - `findMinimumCostFlowAssignments()`：每日最小費用最大流排班。
 - `placeDailySurplusRestDays()`：每日排完班後，把多餘人力補為休息日。
-- `applyAutoSchedulePreview()`：套用預覽並寫入正式班表。
+- `applyAutoSchedulePreview()`：確定存檔並寫入正式班表。
 
 ## 例休檢查
 

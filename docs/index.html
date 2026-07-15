@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>班表</title>
-  <link rel="stylesheet" href="./styles.css?v=20260701201107">
+  <link rel="stylesheet" href="./styles.css?v=20260706135359">
 </head>
 <body>
   <div class="app-shell">
@@ -12,7 +12,7 @@
       <div class="toolbar-top-row">
         <button class="ghost-btn toolbar-collapse-toggle" id="toolbarCollapseToggle" type="button" aria-expanded="true" aria-label="收合工具列" title="收合工具列">
           <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M6 15l6-6 6 6"></path>
+            <path d="M6 9l6 6 6-6"></path>
           </svg>
         </button>
         <h2 class="toolbar-main-title">班表</h2>
@@ -22,9 +22,11 @@
           <button class="ghost-btn core-actions-toggle" id="coreActionsToggle" type="button">功能</button>
           <div class="core-actions-menu" id="coreActionsMenu" aria-hidden="true">
             <button class="ghost-btn ops-btn" id="weekStartSettingsButton" type="button">週期設定</button>
-            <button class="ghost-btn ops-btn" id="autoSchedulePreviewButton" type="button">自動排班預覽</button>
-            <button class="primary-btn ops-btn" id="autoScheduleApplyButton" type="button">套用預覽</button>
-            <button class="ghost-btn ops-btn" id="autoScheduleCancelButton" type="button">取消預覽</button>
+            <button class="ghost-btn ops-btn" id="autoSchedulePreviewButton" type="button">自動排班</button>
+            <button class="ghost-btn ops-btn" id="autoScheduleRescheduleButton" type="button" hidden>重新排班</button>
+            <button class="primary-btn ops-btn" id="autoScheduleApplyButton" type="button" hidden>確定存檔</button>
+            <button class="ghost-btn ops-btn" id="autoScheduleCancelButton" type="button" hidden>取消</button>
+            <div class="ops-divider" id="autoScheduleOpsDivider" aria-hidden="true"></div>
             <button class="primary-btn ops-btn" id="exportSapButton" type="button">匯出休例假</button>
             <button class="primary-btn ops-btn" id="exportLeaveButton" type="button">匯出請假</button>
             <button class="primary-btn ops-btn" id="exportOvertimeButton" type="button">匯出加班</button>
@@ -80,6 +82,10 @@
     </section>
 
     <section class="calendar-card">
+      <div class="auto-schedule-status-bar" id="autoScheduleStatusBar" hidden>
+        預覽中：綠色格子為預排結果，請選擇「確定存檔」或「取消」
+      </div>
+
       <div class="calendar-nav">
         <div class="calendar-nav-left">
           <select id="tableViewSelect" aria-label="班表檢視">
@@ -111,8 +117,10 @@
         </div>
       </div>
 
-      <div class="table-wrap" id="tableWrap">
-        <table id="mainTable"></table>
+      <div class="schedule-table-scroller" id="scheduleTableScroller">
+        <div class="table-wrap" id="tableWrap">
+          <table id="mainTable"></table>
+        </div>
       </div>
     </section>
   </div>
@@ -121,10 +129,10 @@
   <div id="authRoot"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-  <script src="./app-config.js?v=20260701201107"></script>
-  <script src="./browser-exporter.js?v=20260701201107"></script>
-  <script src="./rest-compliance.js?v=20260701201107"></script>
-  <script src="./web-api.js?v=20260701201107"></script>
-  <script src="./renderer.js?v=20260701201107"></script>
+  <script src="./app-config.js?v=20260706135359"></script>
+  <script src="./browser-exporter.js?v=20260706135359"></script>
+  <script src="./rest-compliance.js?v=20260706135359"></script>
+  <script src="./web-api.js?v=20260706135359"></script>
+  <script src="./renderer.js?v=20260706135359"></script>
 </body>
 </html>

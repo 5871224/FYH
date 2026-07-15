@@ -19,6 +19,17 @@
 
 新環境依序執行 SQL。既有環境請至少套用到最新的 migration。
 
+若登入時出現 `relation "public.profiles" does not exist`，代表登入與人員主檔的基礎 schema 不完整。請到 Supabase **SQL Editor** 先執行 [`020_repair_profiles_schema.sql`](/supabase/020_repair_profiles_schema.sql)，再視需要重跑 [`017_normalized_scheduler_storage.sql`](/supabase/017_normalized_scheduler_storage.sql) 與 [`019_repair_schedule_months.sql`](/supabase/019_repair_schedule_months.sql)。
+
+若登入時出現 `Could not find the function public.login_email_by_employee_code` 或 `profiles` 不存在，代表登入基礎 schema 未建立。請在 `.env` 設定 `DATABASE_URL`（Supabase Dashboard → Database → Connection string）後執行：
+
+```bash
+npm run web:repair-db
+npm run web:schema
+```
+
+也可改到 Supabase **SQL Editor** 手動執行 [`020_repair_profiles_schema.sql`](/supabase/020_repair_profiles_schema.sql) 與 [`019_repair_schedule_months.sql`](/supabase/019_repair_schedule_months.sql)。
+
 ## 表的白話用途
 
 ### `departments`
@@ -89,9 +100,16 @@
 
 目前 RLS：
 
-- 未登入可讀班表顯示需要的資料
 - 登入者可讀主要資料
 - 主管可管理設定、人員、班表、請假與加班資料
+- 公開網域部署請套用 `018_tighten_anon_read_policies.sql`，移除匿名讀取班表（登入仍保留 `login_email_by_employee_code`）
+
+## 部署
+
+- 內網自架 Supabase：`infra/self-host/README.md`
+- API 公開通道：`infra/tunnel/README.md`
+- 前端靜態站：`infra/deploy/README.md`
+- 雲端遷移：`infra/migrate/README.md`
 
 ## 這份 SQL 的定位
 

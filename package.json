@@ -1,13 +1,18 @@
 {
   "name": "shift-scheduler-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "Codex",
   "scripts": {
     "web": "node src/web-server.js",
+    "web:config": "node scripts/generate-app-config.js",
     "web:check": "node scripts/check-public-supabase.js",
-    "web:publish": "node scripts/publish-static-web.js"
+    "web:schema": "node scripts/check-supabase-schema.js",
+    "web:repair-db": "node scripts/apply-supabase-repair.js",
+    "web:publish": "node scripts/publish-static-web.js",
+    "infra:migrate": "node scripts/run-infra-migrate.js"
   },
   "dependencies": {
-    "@supabase/server": "^1.2.0"
+    "@supabase/server": "^1.2.0",
+    "pg": "^8.16.3"
   }
 }

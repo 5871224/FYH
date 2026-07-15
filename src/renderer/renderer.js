@@ -187,6 +187,7 @@ const DEFAULT_STATE = {
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 const MONTH_LABELS = ["1 月", "2 月", "3 月", "4 月", "5 月", "6 月", "7 月", "8 月", "9 月", "10 月", "11 月", "12 月"];
 const DEFAULT_REQUEST_STYLES = createDefaultRequestStyles();
+const AUTO_SCHEDULE_SOURCE = "auto-schedule";
 const WEEK_START_OPTIONS = [
   { value: 0, label: "星期日" },
   { value: 1, label: "星期一" },
@@ -254,6 +255,43 @@ let scheduleClipboard = null;
 let scheduleUndoSnapshot = null;
 let scheduleRedoSnapshot = null;
 let autoSchedulePreview = null;
+let lastAutoSchedulePeriod = null;
+
+function syncAutoScheduleButtons() {
+  const hasPreview = Boolean(autoSchedulePreview);
+  const canReschedule = Boolean(lastAutoSchedulePeriod) && !hasPreview;
+  const previewButton = document.getElementById("autoSchedulePreviewButton");
+  const rescheduleButton = document.getElementById("autoScheduleRescheduleButton");
+  const applyButton = document.getElementById("autoScheduleApplyButton");
+  const cancelButton = document.getElementById("autoScheduleCancelButton");
+  const statusBar = document.getElementById("autoScheduleStatusBar");
+  const divider = document.getElementById("autoScheduleOpsDivider");
+  if (previewButton) {
+    previewButton.hidden = hasPreview;
+  }
+  if (rescheduleButton) {
+    rescheduleButton.hidden = !canReschedule;
+  }
+  if (applyButton) {
+    applyButton.hidden = !hasPreview;
+  }
+  if (cancelButton) {
+    cancelButton.hidden = !hasPreview;
+  }
+  if (statusBar) {
+    statusBar.hidden = !hasPreview;
+    if (hasPreview) {
+      const startDate = autoSchedulePreview.startDate || autoSchedulePreview.dates?.[0] || "";
+      const endDate = autoSchedulePreview.endDate || autoSchedulePreview.dates?.[autoSchedulePreview.dates.length - 1] || "";
+      const changeCount = Object.keys(autoSchedulePreview.slots || {}).length;
+      const warningCount = autoSchedulePreview.warnings?.length || 0;
+      statusBar.textContent = `預覽中：${startDate} ～ ${endDate}，${changeCount} 格預排${warningCount ? `，${warningCount} 則提醒` : ""}。請選擇「確定存檔」或「取消」。`;
+    }
+  }
+  if (divider) {
+    divider.hidden = !hasPreview && !canReschedule;
+  }
+}
 
 function getSettingsScrollElement(selector = "") {
   if (selector) {
@@ -335,9 +373,36 @@ function renderStickyTableHeader(dates) {
   });
   container.innerHTML = cells.join("");
   requestAnimationFrame(() => {
+    syncScheduleNavOffset();
     syncStickyHeaderLayout();
     syncStickyHeaderScroll();
   });
+}
+
+function syncScheduleNavOffset() {
+  const calendarCard = document.querySelector(".calendar-card");
+  const calendarNav = document.querySelector(".calendar-nav");
+  if (!calendarCard || !calendarNav) {
+    return;
+  }
+  const navStyle = getComputedStyle(calendarNav);
+  const marginBottom = parseFloat(navStyle.marginBottom) || 0;
+  const offset = Math.ceil(calendarNav.offsetHeight + marginBottom);
+  calendarCard.style.setProperty("--schedule-nav-offset", `${offset}px`);
+}
+
+let scheduleNavResizeObserver = null;
+
+function initializeScheduleNavOffset() {
+  syncScheduleNavOffset();
+  const calendarNav = document.querySelector(".calendar-nav");
+  if (!calendarNav || scheduleNavResizeObserver || typeof ResizeObserver === "undefined") {
+    return;
+  }
+  scheduleNavResizeObserver = new ResizeObserver(() => {
+    syncScheduleNavOffset();
+  });
+  scheduleNavResizeObserver.observe(calendarNav);
 }
 
 function renderStickyHeaderTitleCells() {
@@ -406,12 +471,12 @@ function syncStickyHeaderLayout() {
 }
 
 function syncStickyHeaderScroll() {
-  const tableWrap = document.getElementById("tableWrap");
+  const scroller = document.getElementById("scheduleTableScroller");
   const container = document.getElementById("tableStickyHeaderDays");
-  if (!tableWrap || !container) {
+  if (!scroller || !container) {
     return;
   }
-  container.style.transform = `translateX(${-tableWrap.scrollLeft}px)`;
+  container.style.transform = `translateX(${-scroller.scrollLeft}px)`;
 }
 
 function deepClone(value) {
@@ -482,6 +547,7 @@ function syncScheduleColumnWidths() {
   const root = document.documentElement;
   const deptSample = document.querySelector(".dept-col");
   const personSample = document.querySelector(".person-col .member-main") || document.querySelector(".person-col");
+  const scroller = document.getElementById("scheduleTableScroller");
   const tableWrap = document.getElementById("tableWrap");
   if (!root || !deptSample || !personSample) {
     return;
@@ -517,8 +583,9 @@ function syncScheduleColumnWidths() {
     personWidth = Math.max(Math.ceil(Math.max(personContentWidth, personHeaderWidth) + 18), 64);
   }
   const days = getVisibleDates().length;
-  const availableDayWidth = tableWrap
-    ? Math.floor((tableWrap.clientWidth - deptWidth - personWidth - statsWidth - 2) / Math.max(days, 1))
+  const scrollWidth = scroller?.clientWidth || tableWrap?.clientWidth || 0;
+  const availableDayWidth = scrollWidth
+    ? Math.floor((scrollWidth - deptWidth - personWidth - statsWidth - 2) / Math.max(days, 1))
     : 0;
   const dayWidth = clamp(availableDayWidth || 44, 44, 56);
   root.style.setProperty("--dept-col-width", `${deptWidth}px`);
@@ -677,6 +744,75 @@ function getScheduleKeyForDateString(memberId, dateString) {
     return "";
   }
   return scheduleKey(memberId, date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function getAutoScheduleMeta(slot) {
+  return slot?.autoSchedule && typeof slot.autoSchedule === "object" ? slot.autoSchedule : null;
+}
+
+function isAutoSchedulePart(slot, category) {
+  const meta = getAutoScheduleMeta(slot);
+  return Boolean(meta && meta.source === AUTO_SCHEDULE_SOURCE && meta[category]);
+}
+
+function markAutoSchedulePart(slot, category) {
+  if (!slot) {
+    return;
+  }
+  slot.autoSchedule = {
+    ...getAutoScheduleMeta(slot),
+    source: AUTO_SCHEDULE_SOURCE,
+    [category]: true
+  };
+}
+
+function clearAutoSchedulePart(slot, category) {
+  const meta = getAutoScheduleMeta(slot);
+  if (!meta) {
+    return;
+  }
+  delete meta[category];
+  if (!meta.shift && !meta.leave && !meta.overtime) {
+    delete slot.autoSchedule;
+    return;
+  }
+  slot.autoSchedule = meta;
+}
+
+function isEmptyScheduleSlot(slot) {
+  return !slot || (!slot.shift && !slot.leave && !slot.overtime);
+}
+
+function clearAutoSchedulePartsInRange(scheduleMap, dates) {
+  let clearedCount = 0;
+  state.members.forEach((member) => {
+    dates.forEach((dateString) => {
+      const key = getScheduleKeyForDateString(member.id, dateString);
+      const slot = key ? scheduleMap[key] : null;
+      if (!slot) {
+        return;
+      }
+      let changed = false;
+      if (isAutoSchedulePart(slot, "shift")) {
+        slot.shift = null;
+        clearAutoSchedulePart(slot, "shift");
+        changed = true;
+      }
+      if (isAutoSchedulePart(slot, "leave") && !slot.leaveRequestId) {
+        slot.leave = null;
+        slot.leaveMeta = null;
+        clearAutoSchedulePart(slot, "leave");
+        changed = true;
+      }
+      if (changed) {
+        clearedCount += 1;
+        if (isEmptyScheduleSlot(slot)) {
+          scheduleMap[key] = { shift: null, leave: null, overtime: null };
+        }
+      }
+    });
+  });
+  return clearedCount;
 }
 
 function normalizeScheduleDateInput(value) {
@@ -1175,6 +1311,17 @@ function cleanupScheduleEntries(schedule, merged) {
         }
         : null
     };
+    if (slot?.autoSchedule && typeof slot.autoSchedule === "object") {
+      nextSlot.autoSchedule = {
+        source: slot.autoSchedule.source === AUTO_SCHEDULE_SOURCE ? AUTO_SCHEDULE_SOURCE : "",
+        shift: Boolean(slot.autoSchedule.shift && nextSlot.shift),
+        leave: Boolean(slot.autoSchedule.leave && nextSlot.leave),
+        overtime: Boolean(slot.autoSchedule.overtime && nextSlot.overtime)
+      };
+      if (!nextSlot.autoSchedule.shift && !nextSlot.autoSchedule.leave && !nextSlot.autoSchedule.overtime) {
+        delete nextSlot.autoSchedule;
+      }
+    }
     if (nextSlot.shift || nextSlot.leave || nextSlot.overtime) {
       nextSchedule[key] = nextSlot;
     }
@@ -1489,9 +1636,11 @@ function applyClipboardSlotToScheduleCell(memberId, dateString, clipboardSlot) {
   }
   const nextShiftId = clipboardSlot?.shift || null;
   slot.shift = nextShiftId;
+  clearAutoSchedulePart(slot, "shift");
   if (!slotHasBlockingRequest(slot, "leave")) {
     slot.leave = clipboardSlot?.leave || null;
     delete slot.leaveRequestId;
+    clearAutoSchedulePart(slot, "leave");
     if (clipboardSlot?.leaveMeta) {
       slot.leaveMeta = { ...clipboardSlot.leaveMeta };
     } else {
@@ -1501,6 +1650,7 @@ function applyClipboardSlotToScheduleCell(memberId, dateString, clipboardSlot) {
   if (!slotHasBlockingRequest(slot, "overtime")) {
     slot.overtime = clipboardSlot?.overtime || null;
     delete slot.overtimeRequestId;
+    clearAutoSchedulePart(slot, "overtime");
     if (clipboardSlot?.overtimeMeta) {
       slot.overtimeMeta = { ...clipboardSlot.overtimeMeta };
     } else {
@@ -1733,6 +1883,7 @@ function markAutoLeave(scheduleMap, member, dateString, leave, preview, reason) 
     reasonEnabled: Boolean(reason),
     reason: reason || ""
   };
+  markAutoSchedulePart(slot, "leave");
   return true;
 }
 
@@ -1921,6 +2072,7 @@ function findBestDailyShiftAssignments(scheduleMap, dateString, preview) {
     const slot = ensureWorkScheduleSlot(scheduleMap, member.id, dateString);
     if (slot) {
       slot.shift = shift.id;
+      markAutoSchedulePart(slot, "shift");
     }
   });
   const missingDetails = getRemainingDailyShiftDemandDetails(scheduleMap, dateString);
@@ -1982,19 +2134,25 @@ function placeDailySurplusRestDays(scheduleMap, dateString, dates, rangeStartDat
   });
 }
 
-function buildAutoSchedulePreview(dates = getVisibleDates()) {
+function buildAutoSchedulePreview(dates = getVisibleDates(), options = {}) {
   const startDate = dates[0] || getTodayDateString();
+  const endDate = dates[dates.length - 1] || startDate;
   const regularLeave = getLeaveByCode("0036");
   const restLeave = getLeaveByCode("0047");
   const preview = {
     startDate,
+    endDate,
     dates,
     slots: {},
     warnings: [],
     cancelLeaveRequestIds: new Set(),
-    memberTargets: {}
+    memberTargets: {},
+    clearedCount: 0
   };
   const scheduleMap = deepClone(state.schedule || {});
+  if (options.resetAutoGenerated) {
+    preview.clearedCount = clearAutoSchedulePartsInRange(scheduleMap, dates);
+  }
   if (!regularLeave || !restLeave) {
     preview.warnings.push("找不到例假 0036 或休息日 0047，無法完整自動排班");
     return preview;
@@ -2056,10 +2214,24 @@ function buildAutoSchedulePreview(dates = getVisibleDates()) {
     }
   });
 
-  Object.entries(scheduleMap).forEach(([key, slot]) => {
+  const forcePreviewKeys = new Set();
+  if (options.resetAutoGenerated) {
+    state.members.forEach((member) => {
+      dates.forEach((dateString) => {
+        const key = getScheduleKeyForDateString(member.id, dateString);
+        const slot = key ? scheduleMap[key] : null;
+        if (isAutoSchedulePart(slot, "shift") || isAutoSchedulePart(slot, "leave")) {
+          forcePreviewKeys.add(key);
+        }
+      });
+    });
+  }
+  const diffKeys = new Set([...Object.keys(state.schedule || {}), ...Object.keys(scheduleMap), ...forcePreviewKeys]);
+  diffKeys.forEach((key) => {
+    const slot = scheduleMap[key] || null;
     const original = state.schedule[key] || null;
-    if (JSON.stringify(original || null) !== JSON.stringify(slot || null)) {
-      preview.slots[key] = slot;
+    if (forcePreviewKeys.has(key) || JSON.stringify(original || null) !== JSON.stringify(slot || null)) {
+      preview.slots[key] = slot || { shift: null, leave: null, overtime: null };
     }
   });
   preview.cancelLeaveRequestIds = Array.from(preview.cancelLeaveRequestIds);
@@ -2087,7 +2259,7 @@ async function previewAutoSchedule() {
         </div>
       </div>
     `,
-    footerButtons: '<button class="btn-primary" type="button" data-generate-auto-schedule="true">產生預覽</button>'
+    footerButtons: '<button class="btn-primary" type="button" data-generate-auto-schedule="true">開始排班</button>'
   });
 }
 
@@ -2112,16 +2284,46 @@ async function generateAutoSchedulePreviewFromModal() {
   showInfoMessage(`已產生自動排班預覽：${startDate} ～ ${endDate}，${changeCount} 格預排${warningCount ? `，${warningCount} 則提醒` : ""}`);
 }
 
+async function rescheduleAutoSchedule() {
+  if (!promptManagerAccess("重新排班需先登入主管帳號")) {
+    return;
+  }
+  if (!lastAutoSchedulePeriod) {
+    showInfoMessage("尚無可重新排班的期間，請先使用自動排班並存檔");
+    return;
+  }
+  const { startDate, endDate } = lastAutoSchedulePeriod;
+  const dates = enumerateDateRange(startDate, endDate);
+  if (!dates.length) {
+    reportValidationError("上次排班期間無效，請重新選擇期間");
+    return;
+  }
+  await refreshRequestData();
+  autoSchedulePreview = buildAutoSchedulePreview(dates, { resetAutoGenerated: true });
+  renderAll();
+  const changeCount = Object.keys(autoSchedulePreview.slots || {}).length;
+  const warningCount = autoSchedulePreview.warnings.length;
+  const clearedText = autoSchedulePreview.clearedCount ? `，已清除 ${autoSchedulePreview.clearedCount} 格上一輪自動結果` : "";
+  showInfoMessage(`已重新產生自動排班預覽：${startDate} ～ ${endDate}，${changeCount} 格預排${clearedText}${warningCount ? `，${warningCount} 則提醒` : ""}`);
+}
+
 async function applyAutoSchedulePreview() {
-  if (!promptManagerAccess("套用自動排班需先登入主管帳號")) {
+  if (!promptManagerAccess("確定存檔需先登入主管帳號")) {
     return;
   }
   if (!autoSchedulePreview) {
     showInfoMessage("目前沒有自動排班預覽");
     return;
   }
-  if (!await confirmAction("確定要套用目前綠色預排結果嗎？套用後會寫入班表。")) {
+  if (!await confirmAction("確定要存檔目前綠色預排結果嗎？")) {
     return;
+  }
+  const previewDates = autoSchedulePreview.dates || [];
+  if (previewDates.length) {
+    lastAutoSchedulePeriod = {
+      startDate: previewDates[0],
+      endDate: previewDates[previewDates.length - 1]
+    };
   }
   Object.entries(autoSchedulePreview.slots || {}).forEach(([key, slot]) => {
     state.schedule[key] = deepClone(slot);
@@ -2132,7 +2334,7 @@ async function applyAutoSchedulePreview() {
   pruneEmptySchedule();
   renderAll();
   queueSave();
-  showInfoMessage("已套用自動排班預覽");
+  showInfoMessage("已存檔自動排班結果");
 }
 
 function cancelAutoSchedulePreview() {
@@ -2550,12 +2752,12 @@ function syncToolbarCollapseUi() {
   toggle.innerHTML = toolbarCollapsed
     ? `
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M6 9l6 6 6-6"></path>
+        <path d="M6 15l6-6 6 6"></path>
       </svg>
     `
     : `
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M6 15l6-6 6 6"></path>
+        <path d="M6 9l6 6 6-6"></path>
       </svg>
     `;
 }
@@ -3133,12 +3335,20 @@ function applyVisibleOrderById(items, visibleIds) {
 }
 
 function captureScheduleViewport() {
-  return { scrollX: window.scrollX || 0, scrollY: window.scrollY || 0 };
+  const scroller = document.getElementById("scheduleTableScroller");
+  return {
+    scrollLeft: scroller?.scrollLeft || 0,
+    scrollY: window.scrollY || 0
+  };
 }
 
 function restoreScheduleViewport(viewport) {
   requestAnimationFrame(() => {
-    window.scrollTo(viewport?.scrollX || 0, viewport?.scrollY || 0);
+    const scroller = document.getElementById("scheduleTableScroller");
+    if (scroller) {
+      scroller.scrollLeft = Number(viewport?.scrollLeft) || 0;
+    }
+    window.scrollTo(0, viewport?.scrollY || 0);
     syncStickyHeaderScroll();
   });
 }
@@ -3377,6 +3587,7 @@ function renderHeader() {
   document.getElementById("monthTitle").textContent = `${startDate} ～ ${endDate}`;
   document.getElementById("dbHint").textContent = "";
   renderAuthBar();
+  syncScheduleNavOffset();
 }
 
 function renderAll() {
@@ -3384,6 +3595,7 @@ function renderAll() {
   renderToolbar();
   renderTable();
   renderAuthGate();
+  syncAutoScheduleButtons();
 }
 
 function ensureScheduleSlot(memberId, day) {
@@ -3430,6 +3642,17 @@ function buildPersistedState() {
         ...slot.overtimeMeta
       };
     }
+    if (slot.autoSchedule && typeof slot.autoSchedule === "object") {
+      nextSlot.autoSchedule = {
+        source: AUTO_SCHEDULE_SOURCE,
+        shift: Boolean(slot.autoSchedule.shift && nextSlot.shift),
+        leave: Boolean(slot.autoSchedule.leave && nextSlot.leave),
+        overtime: Boolean(slot.autoSchedule.overtime && nextSlot.overtime)
+      };
+      if (!nextSlot.autoSchedule.shift && !nextSlot.autoSchedule.leave && !nextSlot.autoSchedule.overtime) {
+        delete nextSlot.autoSchedule;
+      }
+    }
     if (nextSlot.shift || nextSlot.leave || nextSlot.overtime) {
       nextState.schedule[key] = nextSlot;
     }
@@ -3460,6 +3683,7 @@ function clearLegacyLeaveFromSlot(slot) {
   slot.leave = null;
   slot.leaveMeta = null;
   slot.leaveRequestId = null;
+  clearAutoSchedulePart(slot, "leave");
 }
 
 function clearLegacyOvertimeFromSlot(slot) {
@@ -3469,6 +3693,7 @@ function clearLegacyOvertimeFromSlot(slot) {
   slot.overtime = null;
   slot.overtimeMeta = null;
   slot.overtimeRequestId = null;
+  clearAutoSchedulePart(slot, "overtime");
 }
 
 async function refreshScheduleFromRequests(saveSchedule = false) {
@@ -3610,6 +3835,7 @@ async function applySelectionToCell(memberId, day) {
   if (type === "shift") {
     const nextShiftId = slot.shift === id ? null : id;
     slot.shift = nextShiftId;
+    clearAutoSchedulePart(slot, "shift");
   }
   if (type === "overtime") {
     if (slotHasBlockingRequest(slot, "overtime")) {
@@ -3649,7 +3875,10 @@ async function applySelectionToCell(memberId, day) {
       showInfoMessage(`設定加班失敗：${formatSchedulerError(error, "設定失敗")}`);
     }
   }
-  if (type === "cancel-shift") slot.shift = null;
+  if (type === "cancel-shift") {
+    slot.shift = null;
+    clearAutoSchedulePart(slot, "shift");
+  }
   if (type === "cancel-leave") {
     if (slotHasBlockingRequest(slot, "leave")) {
       showInfoMessage("這格已有請假申請，請先將申請設為已退回後再清除假別");
@@ -5850,11 +6079,13 @@ function syncApprovedRequestsToSchedule() {
       slot.leave = null;
       slot.leaveMeta = null;
       slot.leaveRequestId = null;
+      clearAutoSchedulePart(slot, "leave");
     }
     if (slot?.overtimeRequestId) {
       slot.overtime = null;
       slot.overtimeRequestId = null;
       slot.overtimeMeta = null;
+      clearAutoSchedulePart(slot, "overtime");
     }
   });
   leaveOverlayRecords.forEach((record) => {
@@ -6125,6 +6356,7 @@ function clearScheduleLeaveByRequestId(requestId) {
       slot.leave = null;
       slot.leaveMeta = null;
       slot.leaveRequestId = null;
+      clearAutoSchedulePart(slot, "leave");
     }
   });
 }
@@ -6135,6 +6367,7 @@ function clearScheduleOvertimeByRequestId(requestId) {
       slot.overtime = null;
       slot.overtimeRequestId = null;
       slot.overtimeMeta = null;
+      clearAutoSchedulePart(slot, "overtime");
     }
   });
 }
@@ -6164,6 +6397,7 @@ function applyApprovedLeaveRequestToSchedule(record) {
       reason: record.reason || ""
     };
     slot.leaveRequestId = record.id;
+    clearAutoSchedulePart(slot, "leave");
     state.schedule[slotKey] = slot;
   });
   pruneEmptySchedule();
@@ -6197,6 +6431,7 @@ function applyApprovedOvertimeRequestToSchedule(record) {
     reason: record.reason || ""
   };
   slot.overtimeRequestId = record.id;
+  clearAutoSchedulePart(slot, "overtime");
   state.schedule[slotKey] = slot;
   pruneEmptySchedule();
 }
@@ -6396,6 +6631,10 @@ function bindEvents() {
     closeCoreActionsMenu();
     await previewAutoSchedule();
   });
+  bindClick("autoScheduleRescheduleButton", async () => {
+    closeCoreActionsMenu();
+    await rescheduleAutoSchedule();
+  });
   bindClick("autoScheduleApplyButton", async () => {
     closeCoreActionsMenu();
     await applyAutoSchedulePreview();
@@ -6416,11 +6655,13 @@ function bindEvents() {
     });
   }
 
-  const tableWrap = document.getElementById("tableWrap");
-  if (tableWrap) {
-    tableWrap.addEventListener("scroll", syncStickyHeaderScroll, { passive: true });
+  const scheduleScroller = document.getElementById("scheduleTableScroller");
+  if (scheduleScroller) {
+    scheduleScroller.addEventListener("scroll", syncStickyHeaderScroll, { passive: true });
   }
+  initializeScheduleNavOffset();
   window.addEventListener("resize", () => {
+    syncScheduleNavOffset();
     syncScheduleColumnWidths();
     syncStickyHeaderLayout();
     syncStickyHeaderScroll();
@@ -6531,6 +6772,7 @@ function bindEvents() {
       target.dataset.saveShift ||
       target.dataset.saveNamedItem ||
       target.id === "autoSchedulePreviewButton" ||
+      target.id === "autoScheduleRescheduleButton" ||
       target.id === "autoScheduleApplyButton" ||
       target.id === "autoScheduleCancelButton" ||
       target.dataset.generateAutoSchedule ||

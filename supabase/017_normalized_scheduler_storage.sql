@@ -1,5 +1,46 @@
 begin;
 
+create extension if not exists pgcrypto;
+
+do $$
+begin
+  if not exists (select 1 from pg_type where typnamespace = 'public'::regnamespace and typname = 'app_role') then
+    create type public.app_role as enum ('employee', 'manager');
+  end if;
+end $$;
+
+create table if not exists public.departments (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  name text not null,
+  scheduler_item_id text,
+  start_date date,
+  end_date date,
+  hidden_from_leave boolean not null default false,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.profiles (
+  id uuid primary key default gen_random_uuid(),
+  employee_code text not null unique,
+  full_name text not null,
+  role public.app_role not null default 'employee',
+  home_department_id uuid references public.departments (id) on delete set null,
+  position_name text,
+  hire_date date,
+  leave_date date,
+  pay_by_day boolean not null default false,
+  schedule_department_ids text[] not null default '{}',
+  fixed_rest_weekday integer not null default 0,
+  monthly_rest_days integer not null default 0,
+  login_email text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.scheduler_settings (
   id text primary key default 'default',
   current_year integer not null default extract(year from now())::integer,

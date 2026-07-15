@@ -1,0 +1,7 @@
+# Supabase CLI / Edge Functions 設定
+# 自架與雲端部署 member-auth-admin 時使用
+
+project_id = "workforce-scheduler"
+
+[functions.member-auth-admin]
+verify_jwt = true
