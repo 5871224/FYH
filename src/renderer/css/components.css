@@ -179,22 +179,60 @@ input[type="time"] {
   height: 34px;
 }
 
-/* Tabs share the same active and hover treatment. */
+/* Meal and record pages use a Chrome-inspired tab strip in the existing warm palette. */
 .meal-tabs,
 .record-tabs {
-  padding: 4px;
-  border: 1px solid rgba(156, 107, 47, 0.14);
-  border-radius: var(--ui-control-radius);
-  background: rgba(255, 255, 255, 0.5);
+  position: relative;
+  isolation: isolate;
+  padding: 6px 8px 0;
+  border: 1px solid rgba(156, 107, 47, 0.18);
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(180deg, rgba(239, 226, 200, 0.78), rgba(255, 255, 255, 0.46));
+  box-shadow: inset 0 -1px 0 var(--ui-border);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 107, 47, 0.35) transparent;
 }
 
-.meal-tabs .ghost-btn,
-.record-tabs .ghost-btn {
-  border-color: transparent;
-  background: transparent;
+.meal-tabs .page-tab-btn,
+.record-tabs .page-tab-btn {
+  flex: 0 0 auto;
+  min-height: var(--ui-control-height);
+  margin: 0 0 -1px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-bottom-color: var(--ui-border);
+  border-radius: 14px 14px 0 0 !important;
+  background: rgba(255, 253, 248, 0.38);
+  color: var(--ui-muted);
   box-shadow: none;
-  font-size: 15px !important;
+  font-size: 15px;
   font-weight: 800;
+  transform: none;
+}
+
+.meal-tabs .page-tab-btn:not(:disabled):hover,
+.record-tabs .page-tab-btn:not(:disabled):hover {
+  background: var(--ui-surface-hover);
+  color: var(--ui-text);
+  box-shadow: none;
+  transform: none;
+}
+
+.meal-tabs .page-tab-btn.active,
+.record-tabs .page-tab-btn.active {
+  z-index: 1;
+  border-color: var(--ui-border);
+  border-bottom-color: var(--ui-surface);
+  background: var(--ui-surface);
+  color: var(--ui-accent-strong);
+  box-shadow: inset 0 3px 0 rgba(156, 107, 47, 0.58), 0 -3px 10px rgba(72, 52, 31, 0.08);
+}
+
+.meal-tabs .page-tab-btn:focus-visible,
+.record-tabs .page-tab-btn:focus-visible {
+  z-index: 2;
+  outline: none;
+  box-shadow: var(--ui-focus-ring);
 }
 
 .records-section > h2 {
@@ -203,8 +241,6 @@ input[type="time"] {
   line-height: 1.3;
 }
 
-.meal-tabs .active,
-.record-tabs .active,
 .settings-view-option.active {
   background: var(--ui-accent);
   color: #fff;

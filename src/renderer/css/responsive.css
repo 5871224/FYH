@@ -172,6 +172,20 @@ body:not(.is-authenticated) .toolbar-card {
   }
 
 
+  /* 訂餐與記錄頁籤在手機維持單列，超出寬度時於籤頁列內水平滑動。 */
+  .meal-tabs,
+  .record-tabs {
+    padding-inline: 4px;
+    scroll-snap-type: x proximity;
+  }
+
+  .meal-tabs .page-tab-btn,
+  .record-tabs .page-tab-btn {
+    min-height: 42px;
+    padding-inline: 16px;
+    scroll-snap-align: start;
+  }
+
   /* 今天日期沿用全裝置共用的微亮藍色提示，避免手機版另行覆蓋。 */
 
   /* 假別與加班設定在手機保留可讀欄寬，由既有設定表格容器提供水平捲動。 */
