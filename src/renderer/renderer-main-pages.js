@@ -131,7 +131,6 @@ function renderMealPage() {
     ` : ""}
     ${isManager() && mealPageTab === "settings" ? renderMealSettingsSection() : isManager() && mealPageTab === "stats" ? renderMealReportSection() : `
     <section class="records-section meal-order-section">
-      <h2>今日訂餐</h2>
       ${mealOrderState.error ? `<div class="auth-error clock-error">${escapeHtml(mealOrderState.error)}</div>` : ""}
     ${unavailableReason ? `<div class="auth-error clock-error">${escapeHtml(unavailableReason)}</div>` : ""}
     ${products.length ? `

@@ -3343,6 +3343,8 @@ thead th.today,
 /* ===== Schedule-specific layout: schedule.css ===== */
 
 
+
+
 /* Expanded toolbar: keep the control row outside normal flow, preserving the original height. */
 .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-top-row {
   position: absolute;
@@ -3710,11 +3712,14 @@ input[type="time"] {
 .meal-tabs .page-tab-btn.active,
 .record-tabs .page-tab-btn.active {
   z-index: 1;
-  border-color: var(--ui-border);
+  border-color: rgba(156, 107, 47, 0.48);
   border-bottom-color: var(--ui-surface);
-  background: var(--ui-surface);
+  background: linear-gradient(180deg, #fff7e8 0%, var(--ui-surface) 72%);
   color: var(--ui-accent-strong);
-  box-shadow: inset 0 3px 0 rgba(156, 107, 47, 0.58), 0 -3px 10px rgba(72, 52, 31, 0.08);
+  box-shadow: inset 0 4px 0 var(--ui-accent), 0 -4px 14px rgba(72, 52, 31, 0.14);
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
 }
 
 .meal-tabs .page-tab-btn:focus-visible,
@@ -3730,12 +3735,6 @@ body.is-meal-view .meal-tabs ~ .records-section {
   border-top: 0;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
-}
-
-.records-section > h2 {
-  margin-bottom: 12px;
-  font-size: 18px;
-  line-height: 1.3;
 }
 
 .settings-view-option.active {
@@ -4519,6 +4518,10 @@ body.is-meal-view .meal-tabs ~ .records-section {
   }
 
 
+
+
+
+
   .modal-overlay,
   .auth-overlay {
     padding: var(--ui-mobile-page-gutter);
@@ -4602,11 +4605,6 @@ body.is-meal-view .meal-tabs ~ .records-section {
     gap: var(--ui-mobile-gap-tight);
     margin: 5px 0 8px;
     padding: 2px;
-  }
-
-  .records-section > h2 {
-    margin-bottom: 8px;
-    font-size: 17px;
   }
 
   .records-filter-row {

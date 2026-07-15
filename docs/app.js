@@ -8791,7 +8791,6 @@ function renderMealPage() {
     ` : ""}
     ${isManager() && mealPageTab === "settings" ? renderMealSettingsSection() : isManager() && mealPageTab === "stats" ? renderMealReportSection() : `
     <section class="records-section meal-order-section">
-      <h2>今日訂餐</h2>
       ${mealOrderState.error ? `<div class="auth-error clock-error">${escapeHtml(mealOrderState.error)}</div>` : ""}
     ${unavailableReason ? `<div class="auth-error clock-error">${escapeHtml(unavailableReason)}</div>` : ""}
     ${products.length ? `
@@ -8905,7 +8904,6 @@ function renderPersonalRecordsSection() {
     const pages = Math.max(1, Math.ceil(total / pageSize));
 
     return `<section class="records-section">
-      <h2>個人記錄</h2>
       <div class="records-admin-toolbar personal-record-toolbar">
         <div class="records-admin-filters personal-record-filters">
           <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-personal-record-filter="fromDate"></label>
@@ -8972,7 +8970,6 @@ function renderMealReportSection() {
         ? `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>姓名</th><th>訂餐日數</th><th>金額</th><th>自付額</th></tr></thead><tbody>${memberRows.map((row) => `<tr><td>${escapeHtml(row.employeeName)}</td><td>${Number(row.days || 0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td><td>$${Number(row.selfPay || 0).toFixed(0)}</td></tr>`).join("") || '<tr><td colspan="4">沒有訂餐資料</td></tr>'}</tbody></table></div>`
         : `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>日期</th><th>單位</th><th>員工</th><th>品項</th><th>數量</th><th>單價</th><th>小計</th><th>備註</th></tr></thead><tbody>${details.map((row) => `<tr><td>${escapeHtml(row.date || "")}</td><td>${escapeHtml(row.departmentName || "")}</td><td>${escapeHtml(row.employeeName || "")}</td><td>${escapeHtml(row.productName || "")}</td><td>${Number(row.quantity || 0)}</td><td>$${Number(row.unitPrice || 0).toFixed(0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td><td>${escapeHtml(withWarningNote(row))}</td></tr>`).join("") || '<tr><td colspan="8">沒有訂餐資料</td></tr>'}</tbody></table></div>`;
     return `<section class="records-section">
-      <h2>訂餐統計</h2>
       <div class="meal-admin-toolbar meal-report-toolbar">
         <div class="meal-toolbar-fields meal-report-fields">
           <label class="meal-toolbar-field meal-field-from">
@@ -9038,7 +9035,6 @@ function renderOvertimeReviewSection() {
     const filters = review.filters;
     const rows = review.requests || [];
     return `<section class="records-section">
-      <h2>加班審核</h2>
       <div class="records-admin-toolbar overtime-review-toolbar">
         <div class="records-admin-filters overtime-review-filters">
           <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-overtime-review-filter="fromDate"></label>
@@ -9086,7 +9082,6 @@ function renderAttendanceAdminSection() {
     const total = Number(admin.total || 0);
     const pages = Math.max(1, Math.ceil(total / pageSize));
     return `<section class="records-section">
-      <h2>打卡管理</h2>
       <div class="records-admin-toolbar attendance-admin-toolbar">
         <div class="records-admin-filters attendance-admin-filters">
           <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate)}" data-attendance-filter="fromDate"></label>
@@ -9121,7 +9116,6 @@ function renderMealSettingsSection() {
     const mealAdmin = recordsState.mealAdmin;
     const subsidy = Number(mealAdmin.settings?.company_subsidy || 55);
     return `<section class="records-section">
-      <h2>訂餐設定</h2>
       <div class="meal-admin-toolbar meal-settings-toolbar">
         <div class="meal-toolbar-fields meal-settings-fields">
           <label class="meal-toolbar-field meal-settings-toolbar-label">
