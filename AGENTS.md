@@ -10,6 +10,27 @@
 4. 只修改本次需求相關檔案，不因順手整理而擴大變更範圍。
 5. 穩定的新規則直接整理進 `規格書.md`；不新增獨立規格書、臨時需求文件或一次性說明文件。
 
+## 工具能力與查找方式
+
+1. 不可只憑記憶判斷「沒有工具」或「無法修改」。工具能力可能依對話與權限變動，執行前應先查詢目前可用工具。
+2. GitHub 工具從 `api_tool.list_resources` 查找：
+   - `paths` 使用 `["GitHub"]`
+   - `query` 使用單一功能關鍵字，例如 `fetch_file`、`update_file`、`search`、`commit`、`workflow`、`pull request`
+3. 查到工具定義後，直接呼叫對應的 `GitHub.*` 函式，不要反覆查找同一項能力。
+4. GitHub 常用能力包括：
+   - 搜尋儲存庫與程式碼
+   - 讀取、建立、更新、刪除儲存庫檔案
+   - 讀取提交、差異與狀態
+   - 讀取與管理 Issue、Pull Request
+   - 讀取 GitHub Actions 的 run、job、step、log、artifact 與狀態
+   - 在權限允許時重跑失敗的 workflow 或 job
+5. 修改既有 GitHub 檔案的標準流程：
+   - 先用 `GitHub.fetch_file` 取得最新內容與 `sha`
+   - 再用 `GitHub.update_file` 完整覆寫並直接提交到 `main`
+   - 建立新檔用 `GitHub.create_file`；刪除檔案先讀取最新 `sha`，再用 `GitHub.delete_file`
+6. 工具清單是當下能力的唯一準據；若查不到特定寫入或刪除函式，才說明目前無法執行。不得因一次查詢沒有結果，就推論整個 GitHub 連接器不能讀寫。
+7. 本檔只記錄穩定的工具查找方法，不列出可能隨系統更新而變動的完整函式清單。
+
 ## 主要目錄
 
 - 前端原始碼：`src/renderer/`
