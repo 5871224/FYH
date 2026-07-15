@@ -27,7 +27,8 @@ jobs:
 
       - name: Apply requested meal page changes
         run: |
-          node scripts/apply-meal-page-polish.js
+          git show origin/main:scripts/apply-meal-page-polish.js > /tmp/apply-meal-page-polish.js
+          node /tmp/apply-meal-page-polish.js
           rm scripts/apply-meal-page-polish.js
           rm .github/workflows/apply-meal-page-polish.yml
           rm .github/meal-page-polish-trigger
