@@ -97,8 +97,13 @@ function renderMealPage() {
   const status = mealOrderState.status;
   const products = status?.products || [];
   const orders = status?.orders || [];
-  const orderQuantityMap = new Map(orders.map((item) => [item.product_id, Number(item.quantity || 0)]));
-  const orderNoteMap = new Map(orders.map((item) => [item.product_id, item.note || ""]));
+  const pendingItems = Array.isArray(mealOrderState.pendingItems) ? mealOrderState.pendingItems : null;
+  const orderQuantityMap = pendingItems
+    ? new Map(pendingItems.map((item) => [item.productId, Number(item.quantity || 0)]))
+    : new Map(orders.map((item) => [item.product_id, Number(item.quantity || 0)]));
+  const orderNoteMap = pendingItems
+    ? new Map(pendingItems.map((item) => [item.productId, item.note || ""]))
+    : new Map(orders.map((item) => [item.product_id, item.note || ""]));
   const disabled = mealOrderState.loading || !status?.orderingOpen || !status?.attendance?.clock_in_at;
   const unavailableReason = !status
     ? ""
