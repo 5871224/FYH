@@ -17,7 +17,7 @@ function renderRecordsTabs() {
       ["attendance", "打卡管理", isAdmin()]
     ].filter((tab) => tab[2]);
     if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
-    return `<div class="record-tabs">${tabs.map(([id, label]) => `<button class="ghost-btn compact-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
+    return `<div class="record-tabs" role="tablist" aria-label="記錄頁分頁">${tabs.map(([id, label]) => `<button class="ghost-btn page-tab-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" role="tab" aria-selected="${recordsState.activeTab === id ? "true" : "false"}" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
   }
 
 function memberOptions(selectedValue, members = state.members) {

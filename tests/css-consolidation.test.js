@@ -130,3 +130,20 @@ test("手機假別與加班設定表格應使用內部水平捲動", () => {
   assert.match(responsive, /\.catalog-settings-modal \.settings-table-row-overtime\s*\{\s*min-width:\s*840px;/s);
   assert.doesNotMatch(responsive, /\.catalog-settings-modal \.settings-table-row-shift\s*\{\s*min-width:/s);
 });
+
+test("訂餐與記錄頁使用 Chrome 式共用籤頁", () => {
+  const foundation = read("src/renderer/css/foundation.css");
+  const components = read("src/renderer/css/components.css");
+  const responsive = read("src/renderer/css/responsive.css");
+  const mealPage = read("src/renderer/renderer-main-pages.js");
+  const recordsView = read("src/renderer/renderer-records-views.js");
+  assert.match(foundation, /\.meal-tabs \{[^}]*flex-wrap:\s*nowrap;[^}]*overflow-x:\s*auto;/s);
+  assert.match(foundation, /\.record-tabs \{[^}]*flex-wrap:\s*nowrap;[^}]*overflow-x:\s*auto;/s);
+  assert.match(components, /\.meal-tabs \.page-tab-btn,[\s\S]*border-radius:\s*14px 14px 0 0 !important;/);
+  assert.match(components, /\.meal-tabs \.page-tab-btn\.active,[\s\S]*border-bottom-color:\s*var\(--ui-surface\);[\s\S]*color:\s*var\(--ui-accent-strong\);/);
+  assert.match(responsive, /\.meal-tabs,[\s\S]*\.record-tabs \{[^}]*scroll-snap-type:\s*x proximity;/s);
+  assert.match(mealPage, /class="meal-tabs" role="tablist" aria-label="訂餐頁分頁"/);
+  assert.match(mealPage, /class="ghost-btn page-tab-btn/);
+  assert.match(recordsView, /class="record-tabs" role="tablist" aria-label="記錄頁分頁"/);
+  assert.match(recordsView, /role="tab" aria-selected=/);
+});

@@ -451,14 +451,13 @@ body.is-records-view .app-shell {
 
 .meal-tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 4px;
   margin: 10px 0 16px;
-}
-
-.meal-tabs .active {
-  background: #8b6f47;
-  color: #fff;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
 }
 
 .meal-order-table-wrap {
@@ -552,18 +551,23 @@ body.is-records-view .app-shell {
   overflow-x: auto;
 }
 
-.record-tabs,
+.record-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 4px;
+  margin: 12px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+}
+
 .records-filter-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   margin: 12px 0;
-}
-
-.record-tabs .active {
-  background: #8b6f47;
-  color: #fff;
 }
 
 .records-filter-row input,
