@@ -26,7 +26,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -35,7 +35,7 @@ jobs:
           node-version: "22"
 
       - name: Apply meal order save fix
-        if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
+        if: github.event_name == 'pull_request' && github.head_ref == 'agent/finalize-meal-order-inputs' && github.actor != 'github-actions[bot]'
         shell: bash
         run: |
           node <<'NODE'
@@ -180,14 +180,14 @@ jobs:
         run: npm run web:publish
 
       - name: Commit synchronized meal order fix
-        if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
+        if: github.event_name == 'pull_request' && github.head_ref == 'agent/finalize-meal-order-inputs' && github.actor != 'github-actions[bot]'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A -- .github/workflows/deploy-pages.yml .github/workflows/preserve-meal-order-inputs.yml src/renderer/renderer-main-pages.js src/renderer/renderer-meal-page.js src/renderer/app.js src/renderer/index.html docs/app.js docs/index.html tests/renderer-meal-consolidation.test.js '福圓號排班系統擴充規格書.txt'
           git commit -m "完成訂餐儲存欄位保留修正"
-          git push origin HEAD:main
+          git push origin HEAD:${{ github.head_ref }}
 
       - name: Check reproducible static publish
         run: git diff --exit-code -- docs
