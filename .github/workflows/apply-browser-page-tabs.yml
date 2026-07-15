@@ -1,0 +1,53 @@
+name: Apply Browser Page Tabs
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/browser-style-page-tabs' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout pull request branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Apply browser-style tabs
+        run: node scripts/apply-browser-page-tabs.js
+
+      - name: Build static web
+        run: npm run web:publish
+
+      - name: Run validation
+        shell: bash
+        run: |
+          npm test
+          npm run web:check
+          node scripts/check-normalized-storage.js
+          node scripts/check-expansion-acceptance.js
+          node scripts/check-settings-lists.js
+          npm run renderer:check
+          npm run css:architecture
+          npm run js:architecture
+
+      - name: Commit synchronized changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/renderer/renderer-main-pages.js src/renderer/renderer-records-views.js src/renderer/css/foundation.css src/renderer/css/components.css src/renderer/css/responsive.css src/renderer/app.css src/renderer/app.js src/renderer/index.html docs/app.css docs/app.js docs/index.html tests/css-consolidation.test.js '規格書.md'
+          git commit -m "改用 Chrome 式頁籤"
+          git push origin HEAD:${{ github.head_ref }}
