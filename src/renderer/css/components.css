@@ -235,6 +235,14 @@ input[type="time"] {
   box-shadow: var(--ui-focus-ring);
 }
 
+body.is-records-view .record-tabs ~ .records-section,
+body.is-meal-view .meal-tabs ~ .records-section {
+  margin-top: 0;
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
 .records-section > h2 {
   margin-bottom: 12px;
   font-size: 18px;

@@ -460,7 +460,7 @@ body.is-records-view .app-shell {
   flex-wrap: nowrap;
   align-items: flex-end;
   gap: 4px;
-  margin: 10px 0 16px;
+  margin: 10px 0 0;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-inline: contain;
@@ -562,7 +562,7 @@ body.is-records-view .app-shell {
   flex-wrap: nowrap;
   align-items: flex-end;
   gap: 4px;
-  margin: 12px 0;
+  margin: 12px 0 0;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-inline: contain;
@@ -3715,6 +3715,14 @@ input[type="time"] {
   z-index: 2;
   outline: none;
   box-shadow: var(--ui-focus-ring);
+}
+
+body.is-records-view .record-tabs ~ .records-section,
+body.is-meal-view .meal-tabs ~ .records-section {
+  margin-top: 0;
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 .records-section > h2 {
