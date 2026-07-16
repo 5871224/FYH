@@ -9,6 +9,7 @@ const views = read("src/renderer/renderer-records-views.js");
 const renderer = read("src/renderer/renderer.js");
 const build = read("scripts/build-js.js");
 const coreSource = read("scripts/renderer-core-source.js");
+const components = read("src/renderer/css/components.css");
 const attendanceAdminFunction = read("supabase/functions/attendance-admin-list-v2/index.ts");
 const reportRecordsFunction = read("supabase/functions/report-records/index.ts");
 
@@ -33,6 +34,15 @@ test("打卡管理顯示項目應排除資料品質防呆提示", () => {
 
   assert.equal(attendanceAdminFunction.includes('output.push("打卡時間不完整或格式異常")'), true);
   assert.equal(attendanceAdminFunction.includes('output.push("班別缺少完整上下班時間")'), true);
+});
+
+test("打卡管理操作欄應使用單列 SVG 圖示按鈕", () => {
+  assert.equal(views.includes('class="records-table attendance-admin-table"'), true);
+  assert.equal(views.includes('aria-label="編輯" title="編輯"><svg'), true);
+  assert.equal(views.includes('<path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path>'), true);
+  assert.equal(views.includes('aria-label="歷程" title="歷程"><svg'), true);
+  assert.match(components, /\.attendance-admin-table \.attendance-admin-action-col \{[^}]*width: 90px;[^}]*white-space: nowrap;/s);
+  assert.match(components, /\.attendance-admin-actions \{[^}]*display: inline-flex;[^}]*gap: 6px;[^}]*white-space: nowrap;/s);
 });
 
 test("第十三階段應移出記錄頁畫面並維持模組順序", () => {

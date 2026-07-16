@@ -9098,8 +9098,8 @@ function renderAttendanceAdminSection() {
         </div>
       </div>
       ${admin.error ? `<div class="auth-error">${escapeHtml(admin.error)}</div>` : ""}
-      <div class="records-table-wrap"><table class="records-table">
-        <thead><tr><th>日期</th><th>員工</th><th>班別</th><th>上班</th><th>下班</th><th>異常</th><th>備註</th><th>操作</th></tr></thead>
+      <div class="records-table-wrap"><table class="records-table attendance-admin-table">
+        <thead><tr><th>日期</th><th>員工</th><th>班別</th><th>上班</th><th>下班</th><th>異常</th><th>備註</th><th class="attendance-admin-action-col">操作</th></tr></thead>
         <tbody>${admin.rows.map((row) => `<tr>
           <td>${escapeHtml(row.work_date || "")}</td>
           <td>${escapeHtml(row.employee_name_snapshot || "")}<br><span>${escapeHtml(row.employee_code_snapshot || "")}</span></td>
@@ -9108,7 +9108,10 @@ function renderAttendanceAdminSection() {
           <td>${formatRecordDateTime(row.clock_out_at)}<br><span>${escapeHtml(row.clock_out_department_name_snapshot || "")}</span></td>
           <td>${escapeHtml((row.issues || []).join("、") || "正常")}</td>
           <td>${escapeHtml(row.attendance_note || "")}</td>
-          <td><button class="ghost-btn compact-btn" type="button" data-edit-attendance="${escapeHtml(row.user_id)}:${escapeHtml(row.work_date)}:${escapeHtml(row.id || "")}">編輯</button>${row.id ? `<button class="ghost-btn compact-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}">歷程</button>` : ""}</td>
+          <td class="attendance-admin-action-col"><div class="attendance-admin-actions">
+            <button class="settings-icon-btn" type="button" data-edit-attendance="${escapeHtml(row.user_id)}:${escapeHtml(row.work_date)}:${escapeHtml(row.id || "")}" aria-label="編輯" title="編輯"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
+            ${row.id ? `<button class="settings-icon-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}
+          </div></td>
         </tr>`).join("") || '<tr><td colspan="8">沒有資料</td></tr>'}</tbody>
       </table></div>
       <div class="records-filter-row records-pagination">

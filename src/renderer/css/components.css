@@ -354,6 +354,27 @@ body.is-meal-view .meal-tabs ~ .records-section {
   background: var(--ui-row-hover);
 }
 
+.attendance-admin-table .attendance-admin-action-col {
+  width: 90px;
+  min-width: 90px;
+  padding-right: 8px;
+  padding-left: 8px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.attendance-admin-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.attendance-admin-actions .settings-icon-btn {
+  flex: 0 0 auto;
+}
+
 :is(.records-table, .meal-order-table, .meal-settings-table) th:first-child {
   border-top-left-radius: calc(var(--ui-table-radius) - 1px);
 }
