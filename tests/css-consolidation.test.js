@@ -108,6 +108,7 @@ test("班表共用樣式不再依賴後載入覆蓋", () => {
   assert.equal(rootRuleBodies(schedule, ".calendar-nav").length, 0);
   assert.equal(rootRuleBodies(schedule, ".calendar-nav-left select").length, 0);
   assert.equal(rootRuleBodies(schedule, ".toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row").length, 0);
+  assert.match(schedule, /@media \(max-width: 768px\)[\s\S]*#coreHomeButton \{[^}]*top:\s*0;[^}]*right:\s*0;/s);
   assert.equal(rootRuleBodies(foundation, ".toolbar-title-row").length, 1);
 });
 
