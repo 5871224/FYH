@@ -133,15 +133,19 @@ body:not(.is-authenticated) .toolbar-card {
     min-height: calc(100dvh - 12px) !important;
   }
 
+  body.is-home-view .clock-page-header {
+    margin-bottom: clamp(20px, 3vh, 28px);
+  }
+
   body.is-home-view .home-action-grid {
     flex: 1;
-    grid-template-rows: repeat(4, minmax(104px, 1fr));
-    gap: clamp(8px, 2vh, 16px);
+    grid-template-rows: repeat(4, minmax(92px, 1fr));
+    gap: clamp(14px, 2.6vh, 22px);
   }
 
   body.is-home-view .home-action-card {
-    min-height: 104px;
-    padding: 18px 16px;
+    min-height: 92px;
+    padding: 14px 16px;
   }
 
   /* 班表手機版控制項字級統一：頂部檢視／範圍選單與浮動工具列選單皆不得使用過小字級。 */
