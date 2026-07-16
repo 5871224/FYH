@@ -244,8 +244,8 @@ function renderOvertimeReviewSection() {
             <td class="overtime-review-status-col">${escapeHtml(getOvertimeStatusLabel(row.status || ""))}</td>
             <td class="overtime-review-action-col"><div class="overtime-review-action-buttons">
               <button class="settings-icon-btn" type="button" data-open-overtime-review="${escapeHtml(row.id)}" aria-label="調整" title="調整"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
-              <button class="settings-icon-btn overtime-review-approve-btn" type="button" data-approve-overtime="${escapeHtml(row.id)}" aria-label="核准" title="核准"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"></path></svg></button>
-              <button class="settings-icon-btn overtime-review-return-btn" type="button" data-return-overtime="${escapeHtml(row.id)}" aria-label="退回" title="退回"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7l-5 5 5 5"></path><path d="M5 12h8a6 6 0 0 1 6 6"></path></svg></button>
+              <button class="settings-icon-btn overtime-review-approve-btn" type="button" data-approve-overtime="${escapeHtml(row.id)}" aria-label="核准" title="核准"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h4"></path><path d="M9 14l2 2 4-4"></path></svg></button>
+              <button class="settings-icon-btn overtime-review-return-btn" type="button" data-return-overtime="${escapeHtml(row.id)}" aria-label="退回" title="退回"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h4"></path><path d="M10 12l4 4"></path><path d="M14 12l-4 4"></path></svg></button>
             </div></td>
           </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
         </table>
