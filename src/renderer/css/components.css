@@ -443,8 +443,11 @@ body.is-meal-view .meal-tabs ~ .records-section {
   width: auto;
 }
 
-.meal-settings-operation-col {
-  width: 48px;
+.meal-settings-table .meal-settings-operation-col {
+  width: 60px;
+  min-width: 60px;
+  padding-right: 8px !important;
+  padding-left: 8px !important;
   white-space: nowrap;
   text-align: center;
 }
@@ -688,8 +691,11 @@ body.is-meal-view .meal-tabs ~ .records-section {
     text-align: center;
   }
 
-  .meal-settings-operation-col {
-    width: 48px;
+  .meal-settings-table .meal-settings-operation-col {
+    width: 52px;
+    min-width: 52px;
+    padding-right: 5px !important;
+    padding-left: 5px !important;
     text-align: center;
   }
 

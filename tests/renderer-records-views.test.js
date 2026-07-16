@@ -23,7 +23,8 @@ test("訂餐統計與訂餐設定畫面應保留即時篩選、匯出、拖曳�
   assert.equal(read("src/renderer/renderer-records-events.js").includes("scheduleRecordsReload"), true, "訂餐統計未保留即時查詢");
   assert.equal(views.includes('data-delete-meal-product="${escapeHtml(String(index))}" aria-label="刪除" title="刪除"><svg'), true);
   assert.equal(views.includes('<path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M7 7l1 13h8l1-13"></path><path d="M10 11v6"></path><path d="M14 11v6"></path>'), true);
-  assert.match(components, /\.meal-settings-operation-col \{\s*width: 48px;/s);
+  assert.match(components, /\.meal-settings-table \.meal-settings-operation-col \{\s*width: 60px;\s*min-width: 60px;\s*padding-right: 8px !important;\s*padding-left: 8px !important;/s);
+  assert.match(components, /\.meal-settings-table \.meal-settings-operation-col \{\s*width: 52px;\s*min-width: 52px;\s*padding-right: 5px !important;\s*padding-left: 5px !important;/s);
 });
 
 test("打卡管理顯示項目應排除資料品質防呆提示", () => {
