@@ -221,11 +221,6 @@ button {
   box-shadow: 0 12px 24px rgba(72, 52, 31, 0.06);
 }
 
-.home-action-card-primary {
-  color: #fff;
-  background: linear-gradient(135deg, #8f5f25 0%, #5d3a17 100%);
-}
-
 .home-action-title,
 .home-action-text {
   display: block;
@@ -234,6 +229,7 @@ button {
 .home-action-title {
   font-size: 23px;
   font-weight: 900;
+  letter-spacing: 0.16em;
   margin-bottom: 0;
 }
 

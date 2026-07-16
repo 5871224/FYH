@@ -116,12 +116,17 @@ test("手機主要頁面與表單響應式規格集中於 responsive", () => {
   const foundation = read("src/renderer/css/foundation.css");
   const components = read("src/renderer/css/components.css");
   const responsive = read("src/renderer/css/responsive.css");
+  const mainPages = read("src/renderer/renderer-main-pages.js");
   assert.doesNotMatch(foundation + components + responsive, /\.home-hero\b/);
   assert.doesNotMatch(components, /body\.is-home-view \.app-shell[\s\S]*padding: var\(--ui-mobile-page-gutter\);/);
   assert.doesNotMatch(components, /\.home-card,[\s\S]*\.calendar-card \{\s*padding: var\(--ui-mobile-card-padding\);/);
   assert.doesNotMatch(components, /\.form-grid,\s*\.two-col,[\s\S]*grid-template-columns: 1fr;/);
   assert.match(responsive, /body\.is-home-view \.app-shell,[\s\S]*body\.is-schedule-view \.app-shell \{[^}]*padding: 8px 8px 4px;[^}]*gap: var\(--ui-mobile-gap\);/s);
   assert.match(responsive, /body\.is-schedule-view \.app-shell \{\s*padding-bottom: calc\(min\(42vh, 300px\) \+ 12px\);\s*\}/s);
+  assert.match(foundation, /\.home-action-title \{[^}]*letter-spacing:\s*0\.16em;/s);
+  assert.doesNotMatch(mainPages, /home-action-card-primary/);
+  assert.match(responsive, /body\.is-home-view \.home-card \{[^}]*min-height:\s*calc\(100dvh - 12px\) !important;/s);
+  assert.match(responsive, /body\.is-home-view \.home-action-grid \{[^}]*flex:\s*1;[^}]*grid-template-rows:\s*repeat\(4, minmax\(104px, 1fr\)\);/s);
   assert.match(responsive, /body\.is-schedule-view \.nav-actions > \.nav-btn \{[^}]*flex:\s*1 1 0;[^}]*font-size:\s*12px;[^}]*white-space:\s*nowrap;/s);
   assert.match(responsive, /body\.is-schedule-view \.nav-actions > \.core-actions-shell \{\s*flex:\s*1 1 100%;/s);
   assert.match(responsive, /:is\(body\.is-clock-view, body\.is-meal-view, body\.is-records-view\) \.page-home-btn \{[^}]*width:\s*var\(--schedule-nav-control-height\);[^}]*height:\s*var\(--schedule-nav-control-height\);/s);

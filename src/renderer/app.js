@@ -8721,7 +8721,7 @@ function renderHomeDashboard() {
       </div>
     </div>
     <div class="home-action-grid">
-      <button class="home-action-card home-action-card-primary" type="button" data-home-action="clock">
+      <button class="home-action-card" type="button" data-home-action="clock">
         <span class="home-action-title">打卡</span>
       </button>
       <button class="home-action-card" type="button" data-home-action="schedule">

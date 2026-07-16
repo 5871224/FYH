@@ -227,11 +227,6 @@ button {
   box-shadow: 0 12px 24px rgba(72, 52, 31, 0.06);
 }
 
-.home-action-card-primary {
-  color: #fff;
-  background: linear-gradient(135deg, #8f5f25 0%, #5d3a17 100%);
-}
-
 .home-action-title,
 .home-action-text {
   display: block;
@@ -240,6 +235,7 @@ button {
 .home-action-title {
   font-size: 23px;
   font-weight: 900;
+  letter-spacing: 0.16em;
   margin-bottom: 0;
 }
 
@@ -5222,19 +5218,20 @@ body:not(.is-authenticated) .toolbar-card {
     box-shadow: none !important;
   }
 
-  /* 首頁入口按鈕放大並統一配色，充分利用手機垂直空間。 */
+  /* 首頁依可用高度自動分配四個入口，避免短內容在底部留下大面積空白。 */
+  body.is-home-view .home-card {
+    min-height: calc(100dvh - 12px) !important;
+  }
+
   body.is-home-view .home-action-grid {
-    gap: 16px;
+    flex: 1;
+    grid-template-rows: repeat(4, minmax(104px, 1fr));
+    gap: clamp(8px, 2vh, 16px);
   }
 
   body.is-home-view .home-action-card {
     min-height: 104px;
     padding: 18px 16px;
-  }
-
-  body.is-home-view .home-action-card-primary {
-    color: var(--text) !important;
-    background: rgba(255, 253, 248, 0.86) !important;
   }
 
   /* 班表手機版控制項字級統一：頂部檢視／範圍選單與浮動工具列選單皆不得使用過小字級。 */
