@@ -119,6 +119,10 @@ test("手機主要頁面與表單響應式規格集中於 responsive", () => {
   assert.doesNotMatch(components, /\.form-grid,\s*\.two-col,[\s\S]*grid-template-columns: 1fr;/);
   assert.match(responsive, /body\.is-home-view \.app-shell,[\s\S]*body\.is-schedule-view \.app-shell \{[^}]*padding: 8px 8px 4px;[^}]*gap: var\(--ui-mobile-gap\);/s);
   assert.match(responsive, /body\.is-schedule-view \.app-shell \{\s*padding-bottom: calc\(min\(42vh, 300px\) \+ 12px\);\s*\}/s);
+  assert.match(responsive, /body\.is-schedule-view \.nav-actions > \.nav-btn \{[^}]*flex:\s*1 1 0;[^}]*font-size:\s*12px;[^}]*white-space:\s*nowrap;/s);
+  assert.match(responsive, /body\.is-schedule-view \.nav-actions > \.core-actions-shell \{\s*flex:\s*1 1 100%;/s);
+  assert.match(responsive, /:is\(body\.is-clock-view, body\.is-meal-view, body\.is-records-view\) \.page-home-btn \{[^}]*width:\s*var\(--schedule-nav-control-height\);[^}]*height:\s*var\(--schedule-nav-control-height\);/s);
+  assert.match(responsive, /:is\(body\.is-clock-view, body\.is-meal-view, body\.is-records-view\) \.page-home-btn svg \{[^}]*width:\s*18px;[^}]*height:\s*18px;/s);
   assert.match(responsive, /\.form-grid,\s*\.two-col \{\s*grid-template-columns: 1fr;/s);
   assert.match(responsive, /\.modal:not\(\.attendance-edit-modal\) :is\(\.form-grid, \.two-col\)[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) !important;/s);
 });

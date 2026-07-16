@@ -5248,6 +5248,32 @@ body:not(.is-authenticated) .toolbar-card {
     padding-bottom: 7px;
   }
 
+  /* 四個週期切換固定同列；功能選單保留下一列的完整寬度。 */
+  body.is-schedule-view .nav-actions > .nav-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-right: 2px;
+    padding-left: 2px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  body.is-schedule-view .nav-actions > .core-actions-shell {
+    flex: 1 1 100%;
+  }
+
+  /* 打卡、訂餐與記錄頁的返回首頁按鈕對齊班表頁尺寸。 */
+  :is(body.is-clock-view, body.is-meal-view, body.is-records-view) .page-home-btn {
+    width: var(--schedule-nav-control-height);
+    min-width: var(--schedule-nav-control-height);
+    height: var(--schedule-nav-control-height);
+  }
+
+  :is(body.is-clock-view, body.is-meal-view, body.is-records-view) .page-home-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
   /* 班表欄標題在手機仍需清楚可讀。 */
   body.is-schedule-view .table-sticky-cell {
     height: 38px;
