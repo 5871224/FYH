@@ -182,7 +182,7 @@ async function list(ctx: any, body: any) {
   return {
     ok: true,
     members,
-    issueTypes: ["未打上班", "未打下班", "無排班但有打卡", "遲到", "早退", "上班晚於下班", "打卡時間不完整或格式異常", "上班地點不符", "下班地點不符", "班別缺少完整上下班時間"],
+    issueTypes: ["未打上班", "未打下班", "無排班但有打卡", "遲到", "早退", "上班晚於下班", "上班地點不符", "下班地點不符"],
     rows: rows.slice(offset, offset + PAGE_SIZE),
     total: rows.length,
     page,
