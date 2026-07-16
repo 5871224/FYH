@@ -6185,7 +6185,7 @@ function renderCellInner(key, memberId = "", day = 0, slotOverride = null, isPre
   const visibleSegments = segments.slice(0, 3);
   return `<div class="cell-inner">${visibleSegments.map((segment) => (
     `<div class="seg" style="background-color:${segment.color};color:${segment.textColor || textColor(segment.color)}" ${
-      segment.category === "leave" && !isPreview && shouldPromptLeaveDetail(segment, cellState.leaveMeta)
+      segment.category === "leave" && !isPreview && shouldPromptLeaveDetail(getItem("leave", cellState.leave), cellState.leaveMeta)
         ? `data-hover-schedule-detail="${memberId}:${day}:leave"`
         : segment.category === "overtime" && !isPreview && cellState.overtimeMeta
           ? `data-hover-schedule-detail="${memberId}:${day}:overtime"`

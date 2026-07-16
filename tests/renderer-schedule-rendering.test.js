@@ -52,6 +52,27 @@ test("儲存格渲染應保留班別、假別與加班三段資訊", () => {
   assert.equal(html.includes("早班") && html.includes("事假") && html.includes("加班"), true);
 });
 
+test("需填時間或需填原因的假別應產生明細提示標記", () => {
+  const leaves = {
+    time: { name: "時數假", color: "#222222", requiresTime: true, requiresReason: false },
+    reason: { name: "事假", color: "#333333", requiresTime: false, requiresReason: true },
+    plain: { name: "例假", color: "#444444", requiresTime: false, requiresReason: false }
+  };
+  const context = {
+    state: { schedule: {} },
+    getItem: (category, id) => category === "leave" ? leaves[id] || null : null,
+    getItemTextColor: () => "#ffffff", textColor: () => "#ffffff", escapeHtml: String,
+    shouldPromptLeaveDetail: (leave) => Boolean(leave?.requiresTime || leave?.requiresReason)
+  };
+  const api = evaluate(["renderer-schedule-cells.js"], "({ renderCellInner })", context);
+
+  ["time", "reason"].forEach((leaveId) => {
+    const html = api.renderCellInner("K", "M", "2026-07-01", { leave: leaveId }, false);
+    assert.equal(html.includes('data-hover-schedule-detail="M:2026-07-01:leave"'), true, leaveId);
+  });
+  assert.equal(api.renderCellInner("K", "M", "2026-07-01", { leave: "plain" }, false).includes("data-hover-schedule-detail"), false);
+});
+
 test("第五階段應移出班表渲染並維持建置順序", () => {
   const renderer = fs.readFileSync(path.join(root, "src", "renderer", "renderer.js"), "utf8");
   const build = fs.readFileSync(path.join(root, "scripts", "build-js.js"), "utf8");
