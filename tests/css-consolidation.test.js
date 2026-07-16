@@ -118,6 +118,7 @@ test("手機主要頁面與表單響應式規格集中於 responsive", () => {
   assert.doesNotMatch(components, /\.home-card,[\s\S]*\.calendar-card \{\s*padding: var\(--ui-mobile-card-padding\);/);
   assert.doesNotMatch(components, /\.form-grid,\s*\.two-col,[\s\S]*grid-template-columns: 1fr;/);
   assert.match(responsive, /body\.is-home-view \.app-shell,[\s\S]*body\.is-schedule-view \.app-shell \{[^}]*padding: 8px 8px 4px;[^}]*gap: var\(--ui-mobile-gap\);/s);
+  assert.match(responsive, /body\.is-schedule-view \.app-shell \{\s*padding-bottom: calc\(min\(42vh, 300px\) \+ 12px\);\s*\}/s);
   assert.match(responsive, /\.form-grid,\s*\.two-col \{\s*grid-template-columns: 1fr;/s);
   assert.match(responsive, /\.modal:not\(\.attendance-edit-modal\) :is\(\.form-grid, \.two-col\)[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) !important;/s);
 });

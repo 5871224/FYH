@@ -107,6 +107,11 @@ body:not(.is-authenticated) .toolbar-card {
     gap: var(--ui-mobile-gap);
   }
 
+  /* 讓班表最後一列可捲到浮動工具列上方，底部空間隨工具列最大高度調整。 */
+  body.is-schedule-view .app-shell {
+    padding-bottom: calc(min(42vh, 300px) + 12px);
+  }
+
   .home-card,
   .clock-card,
   .meal-card,
