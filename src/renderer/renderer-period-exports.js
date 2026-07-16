@@ -77,6 +77,9 @@
   }
 
   function aggregateRows(payload, original, dateColumnIndex) {
+    if (Array.isArray(payload?.approvedOvertimeRows) && typeof original === "function") {
+      return original(payload);
+    }
     if (Array.isArray(payload?.exportRows) && typeof original === "function") {
       return original(payload);
     }

@@ -840,6 +840,15 @@
     return requestFunction("attendance-overtime-admin-list", filters);
   }
 
+  async function getApprovedOvertimeExportRows(filters = {}) {
+    ensureManager();
+    return requestFunction("attendance-overtime-admin-list", {
+      action: "export_approved",
+      fromDate: filters.fromDate,
+      toDate: filters.toDate
+    });
+  }
+
   async function reviewOvertimeRequest(payload = {}) {
     ensureManager();
     return requestFunction("attendance-overtime-admin-action", { action: "review", ...payload });
@@ -2063,6 +2072,7 @@
     getAttendanceAdminHistory,
     saveAttendanceAdminRecord,
     getOvertimeReviewList,
+    getApprovedOvertimeExportRows,
     reviewOvertimeRequest,
     createAdminOvertimeRequest,
     getMemberOrder,

@@ -152,6 +152,27 @@ async function batchReviewOvertime(status) {
     }
   }
 
+async function exportApprovedOvertimeReview() {
+    const filters = ensureOvertimeReviewState().filters;
+    try {
+      setSaveStatus("正在準備已核准加班資料...", true);
+      const result = await window.schedulerApi.getApprovedOvertimeExportRows({
+        fromDate: filters.fromDate,
+        toDate: filters.toDate
+      });
+      const exported = await window.schedulerApi.exportOvertime({
+        state,
+        startDate: filters.fromDate,
+        endDate: filters.toDate,
+        approvedOvertimeRows: result.rows || []
+      });
+      if (exported.empty) showInfoMessage("所選期間沒有已核准的加班資料");
+      setSaveStatus("");
+    } catch (error) {
+      setSaveStatus(`匯出加班失敗：${error.message || error}`);
+    }
+  }
+
 async function cancelMealFromRecords() {
     const confirmed = await confirmAction("確定要取消今日整張訂單嗎？");
     if (!confirmed) return;

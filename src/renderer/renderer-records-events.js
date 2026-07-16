@@ -80,6 +80,7 @@ function bindRecordsEvents() {
       if (page > 0) { recordsState.attendanceAdmin.page = page; void loadAttendanceAdmin(); }
       return;
     }
+    if (target.dataset.exportApprovedOvertime !== undefined) { void exportApprovedOvertimeReview(); return; }
     if (target.dataset.overtimeReviewBatch) { void batchReviewOvertime(target.dataset.overtimeReviewBatch); return; }
     if (target.dataset.adminOvertimeCreate) { void createAdminOvertimeForEmployee(target.dataset.adminOvertimeCreate); return; }
     if (target.dataset.deleteRecordOvertime) { void deleteRecordOvertime(target.dataset.deleteRecordOvertime); return; }

@@ -12,6 +12,7 @@ const coreSource = read("scripts/renderer-core-source.js");
 const components = read("src/renderer/css/components.css");
 const attendanceAdminFunction = read("supabase/functions/attendance-admin-list-v2/index.ts");
 const reportRecordsFunction = read("supabase/functions/report-records/index.ts");
+const overtimeAdminListFunction = read("supabase/functions/attendance-overtime-admin-list/index.ts");
 
 test("記錄頁畫面應保留個人、加班審核與打卡管理分頁", () => {
   ["個人記錄", "加班審核", "打卡管理", "data-records-tab", "renderPersonalRecordsSection", "renderOvertimeReviewSection", "renderAttendanceAdminSection"].forEach((marker) => assert.equal(views.includes(marker), true, "缺少：" + marker));
@@ -54,6 +55,16 @@ test("加班審核操作欄應使用單列 SVG 圖示按鈕", () => {
   assert.equal(views.includes('<path d="M10 12l4 4"></path><path d="M14 12l-4 4"></path>'), true);
   assert.match(components, /\.overtime-review-table \.overtime-review-action-col \{[^}]*width: 128px;[^}]*white-space: nowrap;/s);
   assert.match(components, /\.overtime-review-table \.overtime-review-action-buttons \{[^}]*display: inline-flex;[^}]*flex-wrap: nowrap;[^}]*white-space: nowrap;/s);
+});
+
+test("加班審核應依所選期間匯出全部已核准資料", () => {
+  assert.equal(views.includes('data-export-approved-overtime="true">匯出加班</button>'), true);
+  assert.equal(read("src/renderer/renderer-records-events.js").includes("exportApprovedOvertimeReview"), true);
+  assert.equal(read("src/renderer/web-api.js").includes('action: "export_approved"'), true);
+  assert.equal(overtimeAdminListFunction.includes('.eq("status", "approved")'), true);
+  assert.equal(overtimeAdminListFunction.includes('return { ok: true, rows }'), true);
+  assert.equal(read("src/renderer/renderer-period-exports.js").includes('Array.isArray(payload?.approvedOvertimeRows)'), true);
+  assert.match(components, /\.overtime-review-actions \{\s*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/s);
 });
 
 test("第十三階段應移出記錄頁畫面並維持模組順序", () => {

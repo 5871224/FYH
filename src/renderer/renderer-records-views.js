@@ -225,6 +225,7 @@ function renderOvertimeReviewSection() {
         </div>
         <div class="records-admin-actions overtime-review-actions">
           <button class="ghost-btn compact-btn" type="button" data-open-admin-overtime-create="true">代為申請</button>
+          <button class="ghost-btn compact-btn" type="button" data-export-approved-overtime="true">匯出加班</button>
           <button class="primary-btn compact-btn" type="button" data-overtime-review-batch="approved">批次核准</button>
           <button class="ghost-btn compact-btn" type="button" data-overtime-review-batch="returned">批次退回</button>
         </div>

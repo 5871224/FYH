@@ -1408,6 +1408,10 @@ body.is-meal-view .meal-tabs ~ .records-section {
     width: 100%;
   }
 
+  .overtime-review-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .records-admin-actions > button {
     width: 100%;
     min-width: 0;

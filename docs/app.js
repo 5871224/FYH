@@ -192,6 +192,24 @@
     });
   }
 
+  function formatApprovedOvertimeDuration(value) {
+    const totalMinutes = Math.round(Number(value) * 60);
+    if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return "";
+    return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}${String(totalMinutes % 60).padStart(2, "0")}`;
+  }
+
+  function getApprovedOvertimeRows(payload) {
+    return (payload.approvedOvertimeRows || []).map((row) => [
+      row.employee_code || "",
+      compactIsoDate(row.work_date),
+      "0000",
+      formatApprovedOvertimeDuration(row.total_overtime_hours),
+      0,
+      1,
+      "", "", "", "", "", ""
+    ]);
+  }
+
   function getOfficialLeaveRows(payload) {
     const excludedLeaveCodes = new Set(["0036", "0047"]);
     const hiddenDepartmentIds = new Set((payload.state?.departments || []).filter((department) => department?.hiddenFromSchedule).map((department) => department.id));
@@ -280,6 +298,9 @@
   }
 
   function getOvertimeExportRows(payload) {
+    if (Array.isArray(payload?.approvedOvertimeRows)) {
+      return getApprovedOvertimeRows(payload);
+    }
     if (hasOfficialScheduleExportRows(payload)) {
       return getOfficialOvertimeRows(payload);
     }
@@ -2060,6 +2081,15 @@
     return requestFunction("attendance-overtime-admin-list", filters);
   }
 
+  async function getApprovedOvertimeExportRows(filters = {}) {
+    ensureManager();
+    return requestFunction("attendance-overtime-admin-list", {
+      action: "export_approved",
+      fromDate: filters.fromDate,
+      toDate: filters.toDate
+    });
+  }
+
   async function reviewOvertimeRequest(payload = {}) {
     ensureManager();
     return requestFunction("attendance-overtime-admin-action", { action: "review", ...payload });
@@ -3283,6 +3313,7 @@
     getAttendanceAdminHistory,
     saveAttendanceAdminRecord,
     getOvertimeReviewList,
+    getApprovedOvertimeExportRows,
     reviewOvertimeRequest,
     createAdminOvertimeRequest,
     getMemberOrder,
@@ -9056,6 +9087,7 @@ function renderOvertimeReviewSection() {
         </div>
         <div class="records-admin-actions overtime-review-actions">
           <button class="ghost-btn compact-btn" type="button" data-open-admin-overtime-create="true">代為申請</button>
+          <button class="ghost-btn compact-btn" type="button" data-export-approved-overtime="true">匯出加班</button>
           <button class="primary-btn compact-btn" type="button" data-overtime-review-batch="approved">批次核准</button>
           <button class="ghost-btn compact-btn" type="button" data-overtime-review-batch="returned">批次退回</button>
         </div>
@@ -10054,6 +10086,7 @@ function bindRecordsEvents() {
       if (page > 0) { recordsState.attendanceAdmin.page = page; void loadAttendanceAdmin(); }
       return;
     }
+    if (target.dataset.exportApprovedOvertime !== undefined) { void exportApprovedOvertimeReview(); return; }
     if (target.dataset.overtimeReviewBatch) { void batchReviewOvertime(target.dataset.overtimeReviewBatch); return; }
     if (target.dataset.adminOvertimeCreate) { void createAdminOvertimeForEmployee(target.dataset.adminOvertimeCreate); return; }
     if (target.dataset.deleteRecordOvertime) { void deleteRecordOvertime(target.dataset.deleteRecordOvertime); return; }
@@ -10322,6 +10355,27 @@ async function batchReviewOvertime(status) {
       showInfoMessage("批次審核已完成");
     } catch (error) {
       showInfoMessage(error.message || "批次審核失敗");
+    }
+  }
+
+async function exportApprovedOvertimeReview() {
+    const filters = ensureOvertimeReviewState().filters;
+    try {
+      setSaveStatus("正在準備已核准加班資料...", true);
+      const result = await window.schedulerApi.getApprovedOvertimeExportRows({
+        fromDate: filters.fromDate,
+        toDate: filters.toDate
+      });
+      const exported = await window.schedulerApi.exportOvertime({
+        state,
+        startDate: filters.fromDate,
+        endDate: filters.toDate,
+        approvedOvertimeRows: result.rows || []
+      });
+      if (exported.empty) showInfoMessage("所選期間沒有已核准的加班資料");
+      setSaveStatus("");
+    } catch (error) {
+      setSaveStatus(`匯出加班失敗：${error.message || error}`);
     }
   }
 
@@ -11558,6 +11612,9 @@ async function exportLeave() {
   }
 
   function aggregateRows(payload, original, dateColumnIndex) {
+    if (Array.isArray(payload?.approvedOvertimeRows) && typeof original === "function") {
+      return original(payload);
+    }
     if (Array.isArray(payload?.exportRows) && typeof original === "function") {
       return original(payload);
     }

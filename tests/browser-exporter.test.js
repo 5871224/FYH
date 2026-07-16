@@ -110,6 +110,20 @@ test("官方加班匯出應正確輸出時間與休息區段", () => {
   ]]);
 });
 
+test("已核准加班匯出只填指定欄位並將總時數轉為四碼時分", () => {
+  const rows = exporter.getOvertimeExportRows({
+    approvedOvertimeRows: [
+      { employee_code: "A001", work_date: "2026-07-17", total_overtime_hours: 2.5 },
+      { employee_code: "A002", work_date: "2026-07-18", total_overtime_hours: 1.25 }
+    ]
+  });
+
+  assert.deepEqual(rows, [
+    ["A001", "20260717", "0000", "0230", 0, 1, "", "", "", "", "", ""],
+    ["A002", "20260718", "0000", "0115", 0, 1, "", "", "", "", "", ""]
+  ]);
+});
+
 test("SAP 休例假匯出應套用代碼並排除日薪人員", () => {
   const rows = exporter.getSapLeaveExportRows({
     exportRows: [

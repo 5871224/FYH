@@ -97,11 +97,47 @@ async function listRequests(ctx: any, body: any) {
   };
 }
 
+async function exportApprovedRequests(ctx: any, body: any) {
+  await requireAdmin(ctx);
+  const today = dateText();
+  const fromDate = validDate(body?.fromDate, addDays(today, -30));
+  const toDate = validDate(body?.toDate, today);
+  if (fromDate > toDate) throw new Error("開始日期必須早於或等於結束日期");
+
+  const requestResult = await ctx.supabaseAdmin.from("attendance_overtime_requests")
+    .select("user_id,work_date,total_overtime_hours")
+    .eq("is_deleted_by_employee", false)
+    .eq("status", "approved")
+    .gte("work_date", fromDate).lte("work_date", toDate)
+    .order("work_date", { ascending: true });
+  if (requestResult.error) throw requestResult.error;
+
+  const requests = requestResult.data || [];
+  const userIds = [...new Set(requests.map((row: any) => row.user_id).filter(Boolean))];
+  const employeeResult = userIds.length
+    ? await ctx.supabaseAdmin.from("set_employee").select("id,employee_code").in("id", userIds)
+    : { data: [], error: null };
+  if (employeeResult.error) throw employeeResult.error;
+  const employeeCodes = new Map((employeeResult.data || []).map((row: any) => [row.id, row.employee_code || ""]));
+  const rows = requests.map((row: any) => ({
+    employee_code: employeeCodes.get(row.user_id) || "",
+    work_date: row.work_date,
+    total_overtime_hours: Number(row.total_overtime_hours || 0)
+  })).sort((left: any, right: any) => (
+    left.employee_code.localeCompare(right.employee_code) || left.work_date.localeCompare(right.work_date)
+  ));
+
+  return { ok: true, rows };
+}
+
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
     if (req.method !== "POST") return Response.json({ message: "Method Not Allowed" }, { status: 405 });
     try {
-      return Response.json(await listRequests(ctx, await req.json()));
+      const body = await req.json();
+      return Response.json(body?.action === "export_approved"
+        ? await exportApprovedRequests(ctx, body)
+        : await listRequests(ctx, body));
     } catch (error) {
       return Response.json({ message: error instanceof Error ? error.message : "讀取加班審核失敗" }, { status: 400 });
     }

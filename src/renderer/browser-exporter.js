@@ -185,6 +185,24 @@
     });
   }
 
+  function formatApprovedOvertimeDuration(value) {
+    const totalMinutes = Math.round(Number(value) * 60);
+    if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return "";
+    return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}${String(totalMinutes % 60).padStart(2, "0")}`;
+  }
+
+  function getApprovedOvertimeRows(payload) {
+    return (payload.approvedOvertimeRows || []).map((row) => [
+      row.employee_code || "",
+      compactIsoDate(row.work_date),
+      "0000",
+      formatApprovedOvertimeDuration(row.total_overtime_hours),
+      0,
+      1,
+      "", "", "", "", "", ""
+    ]);
+  }
+
   function getOfficialLeaveRows(payload) {
     const excludedLeaveCodes = new Set(["0036", "0047"]);
     const hiddenDepartmentIds = new Set((payload.state?.departments || []).filter((department) => department?.hiddenFromSchedule).map((department) => department.id));
@@ -273,6 +291,9 @@
   }
 
   function getOvertimeExportRows(payload) {
+    if (Array.isArray(payload?.approvedOvertimeRows)) {
+      return getApprovedOvertimeRows(payload);
+    }
     if (hasOfficialScheduleExportRows(payload)) {
       return getOfficialOvertimeRows(payload);
     }
