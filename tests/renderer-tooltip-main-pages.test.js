@@ -23,6 +23,7 @@ test("假別明細摘要應保留整天、時間與原因", () => {
 });
 
 test("主頁渲染應保留首頁四個入口與訂餐管理分頁", () => {
+  assert.equal(pages.includes('<div class="home-hero clock-page-header">'), true);
   ["data-home-action=\"clock\"", "data-home-action=\"schedule\"", "data-home-action=\"meal\"", "data-home-action=\"records\""].forEach((marker) => assert.equal(pages.includes(marker), true));
   assert.equal(pages.includes("data-meal-tab=\"stats\""), true);
   assert.equal(pages.includes("data-meal-tab=\"settings\""), true);

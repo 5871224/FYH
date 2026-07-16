@@ -8679,7 +8679,7 @@ function renderHomeDashboard() {
     return;
   }
   homeCard.innerHTML = `
-    <div class="home-hero">
+    <div class="home-hero clock-page-header">
       <div>
         <p class="home-eyebrow">福圓號</p>
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
