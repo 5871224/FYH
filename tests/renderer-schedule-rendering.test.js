@@ -73,6 +73,16 @@ test("需填時間或需填原因的假別應產生明細提示標記", () => {
   assert.equal(api.renderCellInner("K", "M", "2026-07-01", { leave: "plain" }, false).includes("data-hover-schedule-detail"), false);
 });
 
+test("休假明細只保留右上關閉並將儲存放在標題列", () => {
+  const source = fs.readFileSync(path.join(root, "src", "renderer", "renderer-schedule-assignment-modals.js"), "utf8");
+  const start = source.indexOf("function openLeaveAssignmentModal");
+  const end = source.indexOf("async function saveLeaveAssignmentFromModal", start);
+  const leaveModal = source.slice(start, end);
+  assert.match(leaveModal, /headerButtons:\s*`<button class="btn-primary"[^>]*data-save-leave-assignment="true">儲存<\/button>`/);
+  assert.match(leaveModal, /hideFooterClose:\s*true/);
+  assert.doesNotMatch(leaveModal, /footerButtons:/);
+});
+
 test("第五階段應移出班表渲染並維持建置順序", () => {
   const renderer = fs.readFileSync(path.join(root, "src", "renderer", "renderer.js"), "utf8");
   const build = fs.readFileSync(path.join(root, "scripts", "build-js.js"), "utf8");

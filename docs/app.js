@@ -10866,6 +10866,8 @@ function openLeaveAssignmentModal(memberId, day, leaveId) {
   openEntityListModal({
     title: "休假明細",
     modalClass: "modal modal-form-compact",
+    headerButtons: `<button class="btn-primary" type="button" data-save-leave-assignment="true">儲存</button>`,
+    hideFooterClose: true,
     body: `
       <div class="form-row">
         <label>假別</label>
@@ -10897,8 +10899,7 @@ function openLeaveAssignmentModal(memberId, day, leaveId) {
         <label for="leaveAssignmentReason">原因內容</label>
         <input id="leaveAssignmentReason" type="text" maxlength="60" value="${escapeHtml(reason)}" ${reasonEnabled ? "" : "disabled"} placeholder="請輸入原因">
       </div>
-    `,
-    footerButtons: `<button class="btn-primary" type="button" data-save-leave-assignment="true">儲存</button>`
+    `
   });
   syncLeaveAssignmentModalUi();
 }
