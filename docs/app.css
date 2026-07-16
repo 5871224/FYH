@@ -4079,14 +4079,33 @@ body.is-meal-view .meal-tabs ~ .records-section {
 }
 
 .overtime-review-table .overtime-review-action-col {
-  width: 116px;
-  min-width: 116px;
+  width: 128px;
+  min-width: 128px;
+  padding-right: 8px;
+  padding-left: 8px;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .overtime-review-table .overtime-review-action-buttons {
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
   gap: 5px;
+  white-space: nowrap;
+}
+
+.overtime-review-action-buttons .settings-icon-btn {
+  flex: 0 0 auto;
+}
+
+.overtime-review-approve-btn {
+  color: #2f7d4a;
+}
+
+.overtime-review-return-btn {
+  color: #a04c39;
 }
 
 .overtime-review-table .overtime-review-action-buttons .compact-btn {

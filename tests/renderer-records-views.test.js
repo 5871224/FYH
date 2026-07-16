@@ -45,6 +45,16 @@ test("打卡管理操作欄應使用單列 SVG 圖示按鈕", () => {
   assert.match(components, /\.attendance-admin-actions \{[^}]*display: inline-flex;[^}]*gap: 6px;[^}]*white-space: nowrap;/s);
 });
 
+test("加班審核操作欄應使用單列 SVG 圖示按鈕", () => {
+  assert.equal(views.includes('data-open-overtime-review="${escapeHtml(row.id)}" aria-label="調整" title="調整"><svg'), true);
+  assert.equal(views.includes('<path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path>'), true);
+  assert.equal(views.includes('data-approve-overtime="${escapeHtml(row.id)}" aria-label="核准" title="核准"><svg'), true);
+  assert.equal(views.includes('<path d="M5 12l4 4 10-10"></path>'), true);
+  assert.equal(views.includes('data-return-overtime="${escapeHtml(row.id)}" aria-label="退回" title="退回"><svg'), true);
+  assert.match(components, /\.overtime-review-table \.overtime-review-action-col \{[^}]*width: 128px;[^}]*white-space: nowrap;/s);
+  assert.match(components, /\.overtime-review-table \.overtime-review-action-buttons \{[^}]*display: inline-flex;[^}]*flex-wrap: nowrap;[^}]*white-space: nowrap;/s);
+});
+
 test("第十三階段應移出記錄頁畫面並維持模組順序", () => {
   const ordered = ["renderer-main-pages.js", "renderer-records-views.js", "renderer-modal-navigation.js", "renderer.js"];
   [build, coreSource].forEach((manifest) => {
