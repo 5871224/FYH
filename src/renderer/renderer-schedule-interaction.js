@@ -372,6 +372,13 @@ function renderScheduleCell(memberId, dateString) {
   }
   const key = getScheduleKeyForDateString(memberId, dateString);
   cell.innerHTML = renderCellInner(key, memberId, dateString, state.schedule[key] || null, false);
+  if (state.tableView === "member" && state.tableStatsVisible) {
+    const member = state.members.find((item) => item.id === memberId);
+    const statsCell = cell.closest("tr")?.querySelector(".stats-col");
+    if (member && statsCell) {
+      statsCell.innerHTML = renderMemberStats(member);
+    }
+  }
 }
 
 async function persistScheduleCell(memberId, dateString) {
