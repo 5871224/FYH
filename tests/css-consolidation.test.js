@@ -112,8 +112,10 @@ test("班表共用樣式不再依賴後載入覆蓋", () => {
 });
 
 test("手機主要頁面與表單響應式規格集中於 responsive", () => {
+  const foundation = read("src/renderer/css/foundation.css");
   const components = read("src/renderer/css/components.css");
   const responsive = read("src/renderer/css/responsive.css");
+  assert.doesNotMatch(foundation + components + responsive, /\.home-hero\b/);
   assert.doesNotMatch(components, /body\.is-home-view \.app-shell[\s\S]*padding: var\(--ui-mobile-page-gutter\);/);
   assert.doesNotMatch(components, /\.home-card,[\s\S]*\.calendar-card \{\s*padding: var\(--ui-mobile-card-padding\);/);
   assert.doesNotMatch(components, /\.form-grid,\s*\.two-col,[\s\S]*grid-template-columns: 1fr;/);

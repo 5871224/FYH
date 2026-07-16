@@ -183,14 +183,6 @@ button {
   box-shadow: var(--shadow);
 }
 
-.home-hero {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  margin-bottom: 24px;
-}
-
 .home-header-actions {
   display: flex;
   gap: 8px;
@@ -204,12 +196,6 @@ button {
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.12em;
-}
-
-.home-hero h1 {
-  margin: 0;
-  font-size: clamp(28px, 5vw, 44px);
-  line-height: 1.15;
 }
 
 .home-subtitle {
@@ -2943,11 +2929,6 @@ thead th.today,
     flex-direction: column;
     justify-content: center;
     border-radius: 24px;
-  }
-
-  .home-hero {
-    flex-direction: row;
-    align-items: flex-start;
   }
 
   .home-header-actions {
