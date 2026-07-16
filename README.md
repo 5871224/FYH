@@ -218,7 +218,7 @@ npm run ci:check
 - `npm run js:check`：確認每個 JavaScript 原始模組都已明確列入建置清單，且 `app.js`、入口版本、動態載入限制與語法一致。
 - `npm run web`：先建立 CSS 與 JavaScript bundle，再啟動本機靜態預覽伺服器。
 - `npm run web:check`：檢查公開 Supabase 設定。
-- `npm run web:publish`：建立兩種 bundle，清理並依來源內容完整重建 `docs/`。
+- `npm run web:publish`：先將來源文字換行正規化為 LF，建立兩種 bundle，清理並依來源內容完整重建 `docs/`；相同來源在 Windows 與 Linux 會產生相同內容及快取版本。
 - `npm run scope:check`：在 Pull Request 中比對 PR 說明聲明的允許／禁止修改範圍與實際變更檔案。
 - `npm test`：執行 `tests/` 中的 Node.js 單元測試。
 - `npm run renderer:check`：檢查 CSS、JavaScript bundle、renderer 結構與發布內容對齊。
