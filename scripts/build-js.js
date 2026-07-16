@@ -69,8 +69,8 @@ const modules = [
   "renderer.js",
 ];
 
-function stripBom(text) {
-  return text.replace(/^\uFEFF/, "");
+function normalizeText(text) {
+  return text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
 }
 
 function validateManifest() {
@@ -89,7 +89,7 @@ function validateManifest() {
 function readModule(fileName) {
   const filePath = path.join(rendererDir, fileName);
   if (!fs.existsSync(filePath)) throw new Error(`Missing JavaScript module: ${fileName}`);
-  const content = stripBom(fs.readFileSync(filePath, "utf8")).trimEnd();
+  const content = normalizeText(fs.readFileSync(filePath, "utf8")).trimEnd();
   const hasDynamicLoader = /document\.createElement\(["']script["']\)/.test(content)
     || /\.src\s*=\s*["'`]\.\/[^"'`]+\.js/.test(content);
   if (hasDynamicLoader) {
@@ -118,7 +118,7 @@ function buildBundle() {
 
 function expectedIndex(bundle) {
   const hash = crypto.createHash("sha256").update(bundle).digest("hex").slice(0, 12);
-  const html = fs.readFileSync(indexPath, "utf8");
+  const html = normalizeText(fs.readFileSync(indexPath, "utf8"));
   const next = html.replace(/(\.\/app\.js)(?:\?v=[^"'\s>]+)?/g, `$1?v=${hash}`);
   if (!next.includes("./app.js?v=")) throw new Error("index.html does not load app.js");
 

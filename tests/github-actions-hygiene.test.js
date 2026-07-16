@@ -8,7 +8,7 @@ const workflowsDir = path.join(root, ".github", "workflows");
 const workflowPath = path.join(workflowsDir, "deploy-pages.yml");
 
 function read(file) {
-  return fs.readFileSync(file, "utf8");
+  return fs.readFileSync(file, "utf8").replace(/\r\n?/g, "\n");
 }
 
 test("儲存庫只保留單一正式 GitHub Actions workflow", () => {

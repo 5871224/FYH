@@ -17,8 +17,8 @@ const modules = [
   ["pages.css", "Final page-specific rules"]
 ];
 
-function stripBom(text) {
-  return text.replace(/^\uFEFF/, "");
+function normalizeText(text) {
+  return text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
 }
 
 function buildBundle() {
@@ -32,7 +32,7 @@ function buildBundle() {
   for (const [fileName, label] of modules) {
     const filePath = path.join(cssDir, fileName);
     if (!fs.existsSync(filePath)) throw new Error(`Missing CSS module: ${fileName}`);
-    const content = stripBom(fs.readFileSync(filePath, "utf8")).trimEnd();
+    const content = normalizeText(fs.readFileSync(filePath, "utf8")).trimEnd();
     if (/^\s*@import\b/m.test(content)) throw new Error(`CSS module must not use @import: ${fileName}`);
     sections.push(`/* ===== ${label}: ${fileName} ===== */`, content, "");
   }
@@ -41,7 +41,7 @@ function buildBundle() {
 
 function expectedIndex(bundle) {
   const hash = crypto.createHash("sha256").update(bundle).digest("hex").slice(0, 12);
-  const html = fs.readFileSync(indexPath, "utf8");
+  const html = normalizeText(fs.readFileSync(indexPath, "utf8"));
   const next = html.replace(/(\.\/app\.css)(?:\?v=[^"'\s>]+)?/g, `$1?v=${hash}`);
   if (!next.includes('./app.css?v=')) throw new Error("index.html does not load app.css");
   return { next, hash };
