@@ -28,6 +28,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Pack repository snapshot
+        run: git archive --format=zip --output=/tmp/fyh-source.zip HEAD
+
+      - name: Upload repository snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: fyh-source-${{ github.sha }}
+          path: /tmp/fyh-source.zip
+          retention-days: 1
+
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
