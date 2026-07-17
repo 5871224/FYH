@@ -1231,9 +1231,6 @@
     checkRestCompliance
   };
 
-  if (typeof module !== "undefined" && module.exports) {
-    module.exports = api;
-  }
   globalScope.restCompliance = api;
 })(typeof window !== "undefined" ? window : globalThis);
 ;
@@ -1345,18 +1342,6 @@
 
   function getSessionMaxIdleMs() {
     return isPhoneDevice() ? mobileSessionMaxIdleMs : desktopSessionMaxIdleMs;
-  }
-
-  function migrateLegacyTabletSession() {
-    if (!isTabletDevice()) {
-      return;
-    }
-    const tabSession = sessionStorage.getItem(sessionStorageKey);
-    const legacySession = localStorage.getItem(sessionStorageKey);
-    if (!tabSession && legacySession) {
-      sessionStorage.setItem(sessionStorageKey, legacySession);
-    }
-    localStorage.removeItem(sessionStorageKey);
   }
 
   function readStoredSession() {
@@ -1722,7 +1707,6 @@
   }
 
   async function initializeAuth() {
-    migrateLegacyTabletSession();
     persistSession(readStoredSession());
     if (!currentSession?.user) {
       return { session: null, profile: null };
@@ -2392,14 +2376,14 @@
 
   function mapMemberDirectoryRows(profileRows = []) {
     return (profileRows || []).map((row) => {
-      const fallbackDeptId = row.home_department_id || "";
+      const departmentId = row.home_department_id || "";
       const scheduleShiftIds = normalizeTextArray(row.schedule_shift_ids)
         .filter((value, index, list) => value && list.indexOf(value) === index);
       return {
         id: row.id,
         code: row.employee_code || "",
         name: row.full_name || "",
-        deptId: fallbackDeptId,
+        deptId: departmentId,
         scheduleShiftIds,
         positionId: "",
         proxyMemberId: "",
@@ -2850,14 +2834,14 @@
     }).filter((row) => row && (row.shift_type_id || row.leave_type_id || row.overtime_type_id));
     const savedScheduleKeys = new Set(scheduleRows.map((row) => makeScheduleEntryKey(row.member_id, row.work_date)));
     const existingScheduleRows = await fetchExistingScheduleRowsForRanges(state.scheduleLoadedRanges);
-    const obsoleteScheduleRows = (existingScheduleRows || [])
+    const removedScheduleRows = (existingScheduleRows || [])
       .filter((row) => row?.id && !savedScheduleKeys.has(makeScheduleEntryKey(row.member_id, row.work_date)))
       .map((row) => ({
         member_id: row.member_id,
         work_date: row.work_date,
         delete_entry: true
       }));
-    await saveScheduleEntryRows([...scheduleRows, ...obsoleteScheduleRows]);
+    await saveScheduleEntryRows([...scheduleRows, ...removedScheduleRows]);
 
     await syncLeaveAndOvertimeCatalogs(state);
     return { ok: true, savedAt: new Date().toISOString() };
@@ -2980,25 +2964,6 @@
       throw new Error(`找不到對應的人員資料：${normalizedMemberCode}`);
     }
     return profile.id;
-  }
-
-  async function pruneEmptyScheduleEntry(rowOrId) {
-    const rowId = typeof rowOrId === "string" ? rowOrId : rowOrId?.id;
-    if (!rowId) {
-      return;
-    }
-    const rows = typeof rowOrId === "string"
-      ? await restSelect("schedule_entries", {
-        select: "id,shift_type_id,leave_type_id,overtime_type_id",
-        filters: { id: `eq.${rowId}` },
-        limit: "1",
-        auth: true
-      })
-      : [rowOrId];
-    const row = rows?.[0];
-    if (row && !row.shift_type_id && !row.leave_type_id && !row.overtime_type_id) {
-      await restDelete("schedule_entries", { id: `eq.${row.id}` }, { auth: true });
-    }
   }
 
   async function saveScheduleEntryRows(rows) {
@@ -3161,11 +3126,7 @@
   }
 
   async function exportMealReport(report = {}) {
-    const details = Array.isArray(report.exportDetails)
-      ? report.exportDetails
-      : Array.isArray(report.details)
-        ? report.details
-        : [];
+    const details = Array.isArray(report.exportDetails) ? report.exportDetails : [];
     if (!details.length) return { canceled: true, empty: true };
     const rows = buildMealEmployeeRows(report, details);
     if (!rows.length) return { canceled: true, empty: true };
@@ -3351,7 +3312,7 @@
 
 /* ===== renderer-foundation.js ===== */
 /* 排班主程式共用常數與初始狀態工廠
- * 由 renderer.js 第一階段拆分；維持既有全域 bundle 執行方式。
+ * 由固定建置清單載入。
  */
 
 const COLORS = [
@@ -3425,14 +3386,6 @@ const LEAVE_CATALOG = [
   { code: "0091", name: "家庭照顧假(扣事假用)" },
   { code: "0092", name: "半薪生理假(扣病假用)" }
 ];
-
-const LEGACY_LEAVE_NAME_MAP = {
-  "特休": "0017",
-  "病假": "0011",
-  "事假": "0010",
-  "例假": "0036",
-  "休假": "0047"
-};
 
 const DEFAULT_STATE = {
   role: "manager",
@@ -3879,22 +3832,9 @@ function daysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
 }
 
-function weekdayOf(day) {
-  return new Date(state.year, state.month, day).getDay();
-}
-
 function getConfiguredWeekStart() {
   const value = Number(state.rules?.weekStart);
   return Number.isInteger(value) && value >= 0 && value <= 6 ? value : 0;
-}
-
-function getWeekIndexForDay(day) {
-  const offset = (weekdayOf(1) - getConfiguredWeekStart() + 7) % 7;
-  return Math.floor((day + offset - 1) / 7);
-}
-
-function getWeekStripeClass(day) {
-  return getWeekIndexForDay(day) % 2 === 1 ? "week-alt" : "";
 }
 
 function getWeekIndexForDate(dateString) {
@@ -3910,20 +3850,6 @@ function getWeekIndexForDate(dateString) {
 
 function getWeekStripeClassForDate(dateString) {
   return getWeekIndexForDate(dateString) % 2 === 1 ? "week-alt" : "";
-}
-
-function getWeekBoundaryClass(day, daysInCurrentMonth) {
-  const classes = [];
-  const weekday = weekdayOf(day);
-  const weekStart = getConfiguredWeekStart();
-  const weekEnd = (weekStart + 6) % 7;
-  if (weekday === weekStart && day !== 1) {
-    classes.push("week-boundary-start");
-  }
-  if (weekday === weekEnd && day !== daysInCurrentMonth) {
-    classes.push("week-boundary-end");
-  }
-  return classes.join(" ");
 }
 
 function getWeekBoundaryClassForDate(dateString, index, totalDays) {
@@ -4157,15 +4083,6 @@ function isValidTimeRange(start, end) {
 function isValidDateRange(start, end) {
   return Boolean(start && end && start < end);
 }
-
-function isValidDateTimeRange(startDate, startTime, endDate, endTime) {
-  const normalizedStartTime = normalizeTimeText(startTime);
-  const normalizedEndTime = normalizeTimeText(endTime);
-  if (!startDate || !endDate || !normalizedStartTime || !normalizedEndTime) {
-    return false;
-  }
-  return `${startDate}T${normalizedStartTime}` < `${endDate}T${normalizedEndTime}`;
-}
 ;
 
 /* ===== renderer-ui-helpers.js ===== */
@@ -4288,7 +4205,7 @@ function setTimeInputDisabled(id, disabled) {
 
 /* ===== renderer-visibility.js ===== */
 /* 人員與單位任職、營運及班表顯示區間判定
- * 由 renderer.js 第二階段拆分；維持既有全域 bundle 執行方式。
+ * 由固定建置清單載入。
  */
 
 function isMemberActiveOnDate(member, year, month, day) {
@@ -4300,26 +4217,6 @@ function isMemberActiveOnDate(member, year, month, day) {
     return false;
   }
   return true;
-}
-
-function doesDateRangeOverlapMonth(startDate, endDate, year, month) {
-  const monthStart = toDateString(year, month, 1);
-  const monthEnd = toDateString(year, month, daysInMonth(year, month));
-  if (startDate && startDate > monthEnd) {
-    return false;
-  }
-  if (endDate && endDate < monthStart) {
-    return false;
-  }
-  return true;
-}
-
-function isDepartmentActiveInMonth(department, year, month) {
-  return doesDateRangeOverlapMonth(department?.startDate || "", department?.endDate || "", year, month);
-}
-
-function isMemberActiveInMonth(member, year, month) {
-  return doesDateRangeOverlapMonth(member?.hireDate || "", member?.leaveDate || "", year, month);
 }
 
 function doesDateRangeOverlapRange(startDate, endDate, rangeStart, rangeEnd) {
@@ -4366,7 +4263,7 @@ function isMemberActiveInVisibleRange(member) {
 
 /* ===== renderer-state-normalization.js ===== */
 /* 排班狀態清理、目錄正規化與顏色工具
- * 由 renderer.js 第二階段拆分；維持既有全域 bundle 執行方式。
+ * 由固定建置清單載入。
  */
 
 function textColor(hex) {
@@ -4471,34 +4368,17 @@ function sanitizeShift(shift, fallbackIndex, merged) {
   };
 }
 
-function sanitizeNamedColorItem(item, fallbackIndex, prefix, label) {
-  return {
-    id: item?.id || uid(`${prefix}${fallbackIndex}`),
-    name: item?.name || `${label} ${fallbackIndex + 1}`,
-    color: item?.color || COLORS[fallbackIndex % COLORS.length].hex
-  };
-}
-
-function resolveLeaveCatalogEntry(item, fallbackIndex) {
-  const requestedCode = item?.code || LEGACY_LEAVE_NAME_MAP[item?.name] || "";
-  const byCode = LEAVE_CATALOG.find((entry) => entry.code === requestedCode);
-  if (byCode) {
-    return byCode;
+function sanitizeLeaveItem(item, index) {
+  const code = String(item?.code || "").trim();
+  const catalogEntry = LEAVE_CATALOG.find((entry) => entry.code === code);
+  if (!catalogEntry) {
+    return null;
   }
-  const byName = LEAVE_CATALOG.find((entry) => entry.name === item?.name);
-  if (byName) {
-    return byName;
-  }
-  return LEAVE_CATALOG[fallbackIndex % LEAVE_CATALOG.length];
-}
-
-function sanitizeLeaveItem(item, fallbackIndex) {
-  const catalogEntry = resolveLeaveCatalogEntry(item, fallbackIndex);
-  const color = item?.color || COLORS[fallbackIndex % COLORS.length].hex;
+  const color = item?.color || COLORS[index % COLORS.length].hex;
   const autoText = item?.autoTextColor ?? !item?.textColor;
   return {
-    id: item?.id || uid(`l${fallbackIndex}`),
-    code: catalogEntry.code,
+    id: item?.id || uid(`l${index}`),
+    code,
     name: item?.name || catalogEntry.name,
     color,
     textColor: item?.textColor || autoLeaveTextColor(color),
@@ -4617,7 +4497,7 @@ function normalizeState(payload) {
     ? payload.members.map((member, index) => sanitizeMember(member, index, merged))
     : merged.members;
   merged.leaves = Array.isArray(payload.leaves)
-    ? payload.leaves.map((item, index) => sanitizeLeaveItem(item, index))
+    ? payload.leaves.map((item, index) => sanitizeLeaveItem(item, index)).filter(Boolean)
     : merged.leaves;
   merged.overtime = Array.isArray(payload.overtime)
     ? payload.overtime.map((item, index) => sanitizeOvertimeItem(item, index))
@@ -5407,11 +5287,6 @@ function shiftHasVisibleDepartment(shift) {
   return !shiftDeptIds.length || shiftDeptIds.some((deptId) => (
     isDepartmentVisibleInScheduleRange(state.departments.find((department) => department.id === deptId))
   ));
-}
-
-function getRemainingDailyShiftDemand(scheduleMap, dateString) {
-  return getRemainingDailyShiftDemandDetails(scheduleMap, dateString)
-    .reduce((sum, item) => sum + item.missing, 0);
 }
 
 function getRemainingDailyShiftDemandDetails(scheduleMap, dateString) {
@@ -8169,7 +8044,7 @@ document.addEventListener("change", (event) => {
 
 /* ===== renderer-auth-context.js ===== */
 /* 登入狀態、權限判斷、工具列外殼與密碼修改。
- * 由 renderer.js 拆分；維持既有全域 bundle 執行方式。
+ * 由固定建置清單載入。
  */
 
 function isLoggedIn() {
@@ -8226,10 +8101,6 @@ async function ensureManagerDirectoryLoaded() {
 
 function getCurrentProfileName() {
   return currentProfile?.full_name || currentSession?.user?.email || "";
-}
-
-function getCurrentRoleLabel() {
-  return getRoleLabel(currentProfile?.role);
 }
 
 function getRoleLabel(role) {
@@ -8871,21 +8742,9 @@ function renderMealReportSection() {
       map.set(key, current);
       return map;
     }, new Map()).values()).sort((a, b) => String(a.productName).localeCompare(String(b.productName)));
-    const fallbackMemberRows = Array.from(allDetails.reduce((map, row) => {
-      const key = row.employeeId || row.employeeName || "";
-      const current = map.get(key) || { employeeName: row.employeeName || "", dates: new Set(), amount: 0 };
-      if (Number(row.quantity || 0) > 0 && row.date) current.dates.add(row.date);
-      current.amount += Number(row.amount || 0);
-      map.set(key, current);
-      return map;
-    }, new Map()).values()).map((row) => {
-      const days = row.dates.size;
-      return { employeeName: row.employeeName, days, amount: row.amount, selfPay: row.amount - days * companySubsidy };
-    });
-    const memberRows = (Array.isArray(report.memberSummary) && report.memberSummary.length
-      ? report.memberSummary
-      : fallbackMemberRows
-    ).slice().sort((a, b) => String(a.employeeName).localeCompare(String(b.employeeName)));
+    const memberRows = (Array.isArray(report.memberSummary) ? report.memberSummary : [])
+      .slice()
+      .sort((a, b) => String(a.employeeName).localeCompare(String(b.employeeName)));
     const table = view === "item"
       ? `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>品項</th><th>數量</th><th>單價</th><th>小計</th></tr></thead><tbody>${itemRows.map((row) => `<tr><td>${escapeHtml(row.productName)}</td><td>${Number(row.quantity || 0)}</td><td>$${Number(row.unitPrice || 0).toFixed(0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td></tr>`).join("") || '<tr><td colspan="4">沒有訂餐資料</td></tr>'}</tbody></table></div>`
       : view === "member"
@@ -9981,7 +9840,7 @@ function bindRecordsEvents() {
 
 /* ===== renderer-runtime-helpers.js ===== */
 /* 執行狀態、單位、人員、班別與目錄查詢共用工具。
- * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ * 由固定建置清單載入。
  */
 
 function setSaveStatus(message, saving = false) {
@@ -9991,10 +9850,6 @@ function setSaveStatus(message, saving = false) {
 
 function getDepartmentName(deptId) {
   return state.departments.find((department) => department.id === deptId)?.name || "未指定單位";
-}
-
-function getPositionName(positionId) {
-  return state.positions.find((position) => position.id === positionId)?.name || "未指定職位";
 }
 
 function getSalaryTypeLabel(member) {
@@ -10518,10 +10373,10 @@ async function forceSave() {
 
 /* ===== renderer-schedule-selection-actions.js ===== */
 /* 班表工具列選取與套用到儲存格的操作。
- * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ * 由固定建置清單載入。
  */
 
-function clearLegacyLeaveFromSlot(slot) {
+function clearLeaveFromSlot(slot) {
   if (!slot) {
     return;
   }
@@ -10529,7 +10384,7 @@ function clearLegacyLeaveFromSlot(slot) {
   slot.leaveMeta = null;
 }
 
-function clearLegacyOvertimeFromSlot(slot) {
+function clearOvertimeFromSlot(slot) {
   if (!slot) {
     return;
   }
@@ -10562,7 +10417,7 @@ async function applySelectionToCell(memberId, day) {
     }
     try {
       if (slot.leave === id) {
-        clearLegacyLeaveFromSlot(slot);
+        clearLeaveFromSlot(slot);
         await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
         return;
       } else if (shouldPromptLeaveDetail(leave, null)) {
@@ -10611,7 +10466,7 @@ async function applySelectionToCell(memberId, day) {
           reason: slot.overtimeMeta?.reason || ""
         };
       } else {
-        clearLegacyOvertimeFromSlot(slot);
+        clearOvertimeFromSlot(slot);
       }
       await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
     } catch (error) {
@@ -10630,7 +10485,7 @@ async function applySelectionToCell(memberId, day) {
   }
   if (type === "cancel-leave") {
     try {
-      clearLegacyLeaveFromSlot(slot);
+      clearLeaveFromSlot(slot);
       await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
     } catch (error) {
       showInfoMessage(`清除請假失敗：${formatSchedulerError(error, "清除失敗")}`);
@@ -10639,7 +10494,7 @@ async function applySelectionToCell(memberId, day) {
   }
   if (type === "cancel-overtime") {
     try {
-      clearLegacyOvertimeFromSlot(slot);
+      clearOvertimeFromSlot(slot);
       await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
     } catch (error) {
       showInfoMessage(`清除加班失敗：${formatSchedulerError(error, "清除失敗")}`);
@@ -11045,7 +10900,7 @@ function syncScheduleOvertimeFormUi() {
 
 /* ===== renderer-schedule-compliance-settings.js ===== */
 /* 班表目錄同步、月週設定與例休檢查畫面。
- * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ * 由固定建置清單載入。
  */
 
 async function syncScheduleCatalogs() {
@@ -11053,14 +10908,6 @@ async function syncScheduleCatalogs() {
     return;
   }
   await window.schedulerApi.syncCatalogs(state);
-}
-
-function formatMonthText(year, month) {
-  return `${year} 年 ${month + 1} 月`;
-}
-
-function formatWeekStartLabel(value) {
-  return WEEK_START_OPTIONS.find((option) => option.value === value)?.label || "星期日";
 }
 
 function getConfiguredMonthStartDay() {

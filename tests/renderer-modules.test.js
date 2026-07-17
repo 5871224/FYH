@@ -30,7 +30,7 @@ test("共用訊息與時間輸入工具應保留既有格式", () => {
 test("任職與營運區間判定應包含起訖日", () => {
   const visibility = evaluateModule(
     "renderer-visibility.js",
-    "({ isMemberActiveOnDate, doesDateRangeOverlapMonth, doesDateRangeOverlapRange, isDepartmentVisibleInSchedule, isDepartmentOperatingOnDate })",
+    "({ isMemberActiveOnDate, doesDateRangeOverlapRange, isDepartmentVisibleInSchedule, isDepartmentOperatingOnDate })",
     {
       toDateString: (year, month, day) => `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
       daysInMonth: (year, month) => new Date(year, month + 1, 0).getDate(),
@@ -42,7 +42,6 @@ test("任職與營運區間判定應包含起訖日", () => {
   assert.equal(visibility.isMemberActiveOnDate(member, 2026, 6, 2), true);
   assert.equal(visibility.isMemberActiveOnDate(member, 2026, 6, 4), true);
   assert.equal(visibility.isMemberActiveOnDate(member, 2026, 6, 5), false);
-  assert.equal(visibility.doesDateRangeOverlapMonth("2026-06-20", "2026-07-01", 2026, 6), true);
   assert.equal(visibility.doesDateRangeOverlapRange("2026-08-25", "", "2026-07-01", "2026-08-25"), true);
   assert.equal(visibility.isDepartmentVisibleInSchedule({ hiddenFromSchedule: false }), true);
   assert.equal(visibility.isDepartmentOperatingOnDate({ startDate: "2026-07-01", endDate: "2026-07-31" }, "2026-07-31"), true);
@@ -55,7 +54,6 @@ test("狀態正規化工具應保留顏色與排班清理規則", () => {
     {
       COLORS: [{ hex: "#378ADD" }],
       LEAVE_CATALOG: [{ code: "0010", name: "事假" }],
-      LEGACY_LEAVE_NAME_MAP: {},
       uid: (prefix) => `${prefix}-id`,
       normalizeRole: () => "employee",
       normalizeRestWeekday: () => 0,
@@ -82,7 +80,7 @@ test("狀態正規化工具應保留顏色與排班清理規則", () => {
   assert.equal(Boolean(cleaned.B), false);
 });
 
-test("renderer 第二階段拆分應維持核心來源與建置順序", () => {
+test("renderer 模組應維持核心來源與建置順序", () => {
   const renderer = fs.readFileSync(path.join(root, "src", "renderer", "renderer.js"), "utf8");
   const build = fs.readFileSync(path.join(root, "scripts", "build-js.js"), "utf8");
   const movedMarkers = [

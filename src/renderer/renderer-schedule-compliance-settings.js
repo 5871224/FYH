@@ -1,5 +1,5 @@
 /* 班表目錄同步、月週設定與例休檢查畫面。
- * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ * 由固定建置清單載入。
  */
 
 async function syncScheduleCatalogs() {
@@ -7,14 +7,6 @@ async function syncScheduleCatalogs() {
     return;
   }
   await window.schedulerApi.syncCatalogs(state);
-}
-
-function formatMonthText(year, month) {
-  return `${year} 年 ${month + 1} 月`;
-}
-
-function formatWeekStartLabel(value) {
-  return WEEK_START_OPTIONS.find((option) => option.value === value)?.label || "星期日";
 }
 
 function getConfiguredMonthStartDay() {

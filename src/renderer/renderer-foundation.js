@@ -1,5 +1,5 @@
 /* 排班主程式共用常數與初始狀態工廠
- * 由 renderer.js 第一階段拆分；維持既有全域 bundle 執行方式。
+ * 由固定建置清單載入。
  */
 
 const COLORS = [
@@ -73,14 +73,6 @@ const LEAVE_CATALOG = [
   { code: "0091", name: "家庭照顧假(扣事假用)" },
   { code: "0092", name: "半薪生理假(扣病假用)" }
 ];
-
-const LEGACY_LEAVE_NAME_MAP = {
-  "特休": "0017",
-  "病假": "0011",
-  "事假": "0010",
-  "例假": "0036",
-  "休假": "0047"
-};
 
 const DEFAULT_STATE = {
   role: "manager",

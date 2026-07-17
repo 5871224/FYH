@@ -1,6 +1,15 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const compliance = require("../src/renderer/rest-compliance.js");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+
+const context = { window: {} };
+vm.runInNewContext(
+  fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "rest-compliance.js"), "utf8"),
+  context
+);
+const compliance = context.window.restCompliance;
 
 function day(date, options = {}) {
   return {

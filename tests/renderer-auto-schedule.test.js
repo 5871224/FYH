@@ -60,9 +60,10 @@ test("班別需求應依營運狀態及需求人數計算", () => {
   context.state.shifts = [{ id: "A", name: "早班", requiredStaffCount: 2, applicableDeptId: "D" }];
   context.state.departments = [{ id: "D" }];
   context.state.members = [{ id: "M1", scheduleShiftIds: ["A"] }];
-  const api = evaluateAutoSchedule("({ getShiftDemandForDate, getRemainingDailyShiftDemand })", context);
+  const api = evaluateAutoSchedule("({ getShiftDemandForDate, getRemainingDailyShiftDemandDetails })", context);
   assert.equal(api.getShiftDemandForDate(context.state.shifts[0], "2026-07-12"), 2);
-  assert.equal(api.getRemainingDailyShiftDemand({ "M1_2026-07-12": { shift: "A" } }, "2026-07-12"), 1);
+  const remaining = api.getRemainingDailyShiftDemandDetails({ "M1_2026-07-12": { shift: "A" } }, "2026-07-12");
+  assert.equal(remaining.reduce((sum, item) => sum + item.missing, 0), 1);
 });
 
 test("最小成本分配應優先符合人員班別順位", () => {
@@ -79,7 +80,7 @@ test("最小成本分配應優先符合人員班別順位", () => {
   assert.deepEqual(Array.from(pairs), ["A:M1", "B:M2"]);
 });
 
-test("第四階段應移出自動排班並維持建置順序", () => {
+test("自動排班應維持明確建置順序", () => {
   const renderer = fs.readFileSync(path.join(root, "src", "renderer", "renderer.js"), "utf8");
   const build = fs.readFileSync(path.join(root, "scripts", "build-js.js"), "utf8");
   ["function getLeaveByCode(code) {", "function findMinimumCostFlowAssignments", "function buildAutoSchedulePreview", "async function applyAutoSchedulePreview"].forEach((marker) => assert.equal(renderer.includes(marker), false, "renderer.js 仍包含：" + marker));

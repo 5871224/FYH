@@ -1,5 +1,5 @@
 /* 執行狀態、單位、人員、班別與目錄查詢共用工具。
- * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ * 由固定建置清單載入。
  */
 
 function setSaveStatus(message, saving = false) {
@@ -9,10 +9,6 @@ function setSaveStatus(message, saving = false) {
 
 function getDepartmentName(deptId) {
   return state.departments.find((department) => department.id === deptId)?.name || "未指定單位";
-}
-
-function getPositionName(positionId) {
-  return state.positions.find((position) => position.id === positionId)?.name || "未指定職位";
 }
 
 function getSalaryTypeLabel(member) {

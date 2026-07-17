@@ -238,8 +238,5 @@
     checkRestCompliance
   };
 
-  if (typeof module !== "undefined" && module.exports) {
-    module.exports = api;
-  }
   globalScope.restCompliance = api;
 })(typeof window !== "undefined" ? window : globalThis);

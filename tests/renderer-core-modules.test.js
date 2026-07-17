@@ -35,7 +35,7 @@ test("renderer foundation 應保留目錄與預設狀態", () => {
 test("日期與時間工具應正確處理格式及區間", () => {
   const utils = evaluateModule(
     "renderer-date-utils.js",
-    "({ toDateString, toDateObject, enumerateDateRange, normalizeTimeText, toMinutes, isValidTimeRange, isValidDateRange, isValidDateTimeRange, isMemberActiveOnDateString })"
+    "({ toDateString, toDateObject, enumerateDateRange, normalizeTimeText, toMinutes, isValidTimeRange, isValidDateRange, isMemberActiveOnDateString })"
   );
 
   assert.equal(utils.toDateString(2026, 6, 2), "2026-07-02");
@@ -47,7 +47,6 @@ test("日期與時間工具應正確處理格式及區間", () => {
   assert.equal(utils.isValidTimeRange("08:00", "17:00"), true);
   assert.equal(utils.isValidTimeRange("17:00", "08:00"), false);
   assert.equal(utils.isValidDateRange("2026-07-01", "2026-07-02"), true);
-  assert.equal(utils.isValidDateTimeRange("2026-07-01", "23:00", "2026-07-02", "01:00"), true);
   assert.equal(utils.isMemberActiveOnDateString({ hireDate: "2026-07-02", leaveDate: "2026-07-04" }, "2026-07-03"), true);
   assert.equal(utils.isMemberActiveOnDateString({ hireDate: "2026-07-02", leaveDate: "2026-07-04" }, "2026-07-05"), false);
 });

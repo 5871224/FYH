@@ -6,6 +6,35 @@
 
 
 -- ============================================================================================
+-- 現行欄位與函式正規化
+-- ============================================================================================
+
+begin;
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'meal_orders' and column_name = 'clock_location_id'
+  ) and not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'meal_orders' and column_name = 'attendance_department_id'
+  ) then
+    alter table public.meal_orders rename column clock_location_id to attendance_department_id;
+  end if;
+end $$;
+
+drop index if exists public.idx_meal_orders_clock_location_id;
+create index if not exists idx_meal_orders_attendance_department_id on public.meal_orders(attendance_department_id);
+alter table public.set_leave alter column code set not null;
+create unique index if not exists idx_set_leave_code on public.set_leave(code);
+drop function if exists public.save_meal_order_v2(uuid, jsonb, text);
+drop function if exists public.set_schedule_documents_updated_at();
+
+commit;
+
+
+-- ============================================================================================
 -- 區段 01：原檔 024_schedule_entries_rpc.sql
 -- ============================================================================================
 
@@ -655,58 +684,6 @@ $$;
 
 revoke all on function public.admin_update_attendance_record(uuid, uuid, date, timestamptz, uuid, timestamptz, uuid, text, uuid, text) from public, anon, authenticated;
 grant execute on function public.admin_update_attendance_record(uuid, uuid, date, timestamptz, uuid, timestamptz, uuid, text, uuid, text) to service_role;
-
-commit;
-
-
--- ============================================================================================
--- 區段 06：原檔 030_v2_meal_snapshot.sql
--- ============================================================================================
-
-begin;
-
-create or replace function public.save_meal_order_v2(
-  p_user_id uuid,
-  p_items jsonb,
-  p_note text default ''
-)
-returns jsonb
-language plpgsql
-security invoker
-set search_path = public
-as $$
-declare
-  v_date date := (timezone('Asia/Taipei', now()))::date;
-  v_department_id uuid;
-  v_department_name text;
-  v_clock_location_id uuid;
-  v_result jsonb;
-begin
-  select department_id, department_name_snapshot, clock_location_id
-  into v_department_id, v_department_name, v_clock_location_id
-  from public.meal_orders
-  where user_id = p_user_id
-    and order_date = v_date
-  order by submitted_at asc
-  limit 1;
-
-  v_result := public.save_meal_order(p_user_id, p_items, p_note);
-
-  if v_department_id is not null then
-    update public.meal_orders
-    set department_id = v_department_id,
-        department_name_snapshot = coalesce(v_department_name, ''),
-        clock_location_id = coalesce(v_clock_location_id, v_department_id)
-    where user_id = p_user_id
-      and order_date = v_date;
-  end if;
-
-  return v_result;
-end;
-$$;
-
-revoke all on function public.save_meal_order_v2(uuid, jsonb, text) from public, anon, authenticated;
-grant execute on function public.save_meal_order_v2(uuid, jsonb, text) to service_role;
 
 commit;
 
@@ -1478,21 +1455,6 @@ commit;
 
 
 -- ============================================================================================
--- 區段 16：原檔 migrations/039_remove_legacy_attendance_tables.sql
--- ============================================================================================
-
-begin;
-
--- The current attendance flow uses attendance_records and set_departments.
--- These two empty legacy tables are no longer referenced by views,
--- database functions, or the application.
-drop table if exists public.attendance_logs;
-drop table if exists public.clock_locations;
-
-commit;
-
-
--- ============================================================================================
 -- 區段 17：原檔 migrations/040_enforce_employee_code_uniqueness.sql
 -- ============================================================================================
 
@@ -1805,11 +1767,9 @@ revoke all on function public.protect_employee_role_changes() from public, anon,
 revoke all on function public.protect_last_effective_admin_v2() from public, anon, authenticated;
 revoke all on function public.rls_auto_enable() from public, anon, authenticated;
 revoke all on function public.set_updated_at() from public, anon, authenticated;
-revoke all on function public.set_schedule_documents_updated_at() from public, anon, authenticated;
 revoke all on function public.is_effective_admin_row(text, date, date) from public, anon, authenticated;
 
 alter function public.set_updated_at() set search_path = public, pg_catalog;
-alter function public.set_schedule_documents_updated_at() set search_path = public, pg_catalog;
 
 
 drop index if exists public.idx_attendance_overtime_active_user_date;
@@ -1824,7 +1784,7 @@ create index if not exists idx_attendance_overtime_deleted_by on public.attendan
 create index if not exists idx_attendance_overtime_reviewed_by on public.attendance_overtime_requests(reviewed_by);
 create index if not exists idx_attendance_records_clock_in_department_id on public.attendance_records(clock_in_department_id);
 create index if not exists idx_attendance_records_clock_out_department_id on public.attendance_records(clock_out_department_id);
-create index if not exists idx_meal_orders_clock_location_id on public.meal_orders(clock_location_id);
+create index if not exists idx_meal_orders_attendance_department_id on public.meal_orders(attendance_department_id);
 create index if not exists idx_meal_orders_department_id on public.meal_orders(department_id);
 create index if not exists idx_meal_orders_product_id on public.meal_orders(product_id);
 create index if not exists idx_meal_settings_updated_by on public.meal_settings(updated_by);
@@ -2965,6 +2925,9 @@ declare
   v_cutoff time;
   v_order_id uuid;
   v_submitted_at timestamptz;
+  v_department_id uuid;
+  v_department_name text;
+  v_attendance_department_id uuid;
   v_existing_count integer := 0;
   v_new_count integer := 0;
 begin
@@ -3009,8 +2972,8 @@ begin
   where user_id = p_user_id
     and order_date = v_order_date;
 
-  select order_id, submitted_at
-  into v_order_id, v_submitted_at
+  select order_id, submitted_at, department_id, department_name_snapshot, attendance_department_id
+  into v_order_id, v_submitted_at, v_department_id, v_department_name, v_attendance_department_id
   from public.meal_orders
   where user_id = p_user_id
     and order_date = v_order_date
@@ -3091,7 +3054,7 @@ begin
     order_date,
     department_id,
     department_name_snapshot,
-    clock_location_id,
+    attendance_department_id,
     product_id,
     product_name_snapshot,
     quantity,
@@ -3123,9 +3086,9 @@ begin
     coalesce(v_employee.employee_code, ''),
     coalesce(v_employee.full_name, ''),
     v_order_date,
-    v_attendance.clock_in_department_id,
-    coalesce(v_attendance.clock_in_department_name_snapshot, ''),
-    v_attendance.clock_in_department_id,
+    coalesce(v_department_id, v_attendance.clock_in_department_id),
+    coalesce(v_department_name, v_attendance.clock_in_department_name_snapshot, ''),
+    coalesce(v_attendance_department_id, v_department_id, v_attendance.clock_in_department_id),
     p.id,
     coalesce(p.name, ''),
     a.quantity,

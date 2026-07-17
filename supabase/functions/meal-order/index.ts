@@ -185,7 +185,7 @@ async function saveOrder(ctx: any, body: any) {
   const positiveCount = items.filter((item) => item.quantity > 0).length;
   if (!(context.orders || []).length && positiveCount === 0) throw new Error("尚未選擇訂餐品項");
 
-  const { error } = await ctx.supabaseAdmin.rpc("save_meal_order_v2", {
+  const { error } = await ctx.supabaseAdmin.rpc("save_meal_order", {
     p_user_id: profile.id,
     p_items: items,
     p_note: ""

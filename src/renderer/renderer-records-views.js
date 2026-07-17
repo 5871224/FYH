@@ -125,21 +125,9 @@ function renderMealReportSection() {
       map.set(key, current);
       return map;
     }, new Map()).values()).sort((a, b) => String(a.productName).localeCompare(String(b.productName)));
-    const fallbackMemberRows = Array.from(allDetails.reduce((map, row) => {
-      const key = row.employeeId || row.employeeName || "";
-      const current = map.get(key) || { employeeName: row.employeeName || "", dates: new Set(), amount: 0 };
-      if (Number(row.quantity || 0) > 0 && row.date) current.dates.add(row.date);
-      current.amount += Number(row.amount || 0);
-      map.set(key, current);
-      return map;
-    }, new Map()).values()).map((row) => {
-      const days = row.dates.size;
-      return { employeeName: row.employeeName, days, amount: row.amount, selfPay: row.amount - days * companySubsidy };
-    });
-    const memberRows = (Array.isArray(report.memberSummary) && report.memberSummary.length
-      ? report.memberSummary
-      : fallbackMemberRows
-    ).slice().sort((a, b) => String(a.employeeName).localeCompare(String(b.employeeName)));
+    const memberRows = (Array.isArray(report.memberSummary) ? report.memberSummary : [])
+      .slice()
+      .sort((a, b) => String(a.employeeName).localeCompare(String(b.employeeName)));
     const table = view === "item"
       ? `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>品項</th><th>數量</th><th>單價</th><th>小計</th></tr></thead><tbody>${itemRows.map((row) => `<tr><td>${escapeHtml(row.productName)}</td><td>${Number(row.quantity || 0)}</td><td>$${Number(row.unitPrice || 0).toFixed(0)}</td><td>$${Number(row.amount || 0).toFixed(0)}</td></tr>`).join("") || '<tr><td colspan="4">沒有訂餐資料</td></tr>'}</tbody></table></div>`
       : view === "member"
