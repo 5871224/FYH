@@ -25,7 +25,7 @@ Supabase PostgreSQL
 - Supabase Auth 負責登入身分。
 - PostgreSQL、RLS 與 RPC 負責正式資料、權限與交易一致性。
 - 人員資料查詢依用途分為 `get_my_profile_v2()`、`get_schedule_directory_v2()` 與 `get_employee_admin_directory_v2()`；不得再以單一名錄同時服務登入、班表及管理頁面。管理名錄只在進入管理功能時延遲載入。
-- `supabase/functions/` 保存 Edge Function 原始碼；正式部署清單以 `scripts/deploy-edge-functions.ps1` 為準，不以資料夾是否存在判定。
+- `supabase/functions/` 只保存目前正式 Edge Function 原始碼；其資料夾清單必須與 `scripts/deploy-edge-functions.ps1` 的部署清單一致，不保留未部署或已停用端點。
 
 ## 專案結構與資料夾用途
 
@@ -155,7 +155,7 @@ GitHub Pages 的正式靜態發布成品，由 `npm run web:publish` 自動重�
 - 訂餐、取消與統計報表。
 - 個人記錄與管理報表。
 
-資料夾存在不代表仍為正式端點；正式部署名單只以 `scripts/deploy-edge-functions.ps1` 的 `$functions` 陣列為準。
+每個資料夾都必須對應正式部署端點，並列入 `scripts/deploy-edge-functions.ps1` 的 `$functions` 陣列；移除或停用端點時，原始碼、部署清單、README 與規格書必須同步清除。
 
 ### `tests/`
 
@@ -226,12 +226,12 @@ npm run ci:check
 - `npm run js:architecture`：檢查共享模組同名函式、相同函式內容、覆蓋式指定與過時 UI 標記。
 - `npm run ci:check`：先執行單元測試，再執行公開設定、資料結構、設定清單、renderer 與 JavaScript／CSS 架構驗證。
 
-## Pull Request 修改範圍
+## Git 與修改範圍
 
-1. 功能、介面、資料庫、權限或部署流程的修改，預設由工作分支建立 Draft Pull Request。
-2. PR 依 `.github/pull_request_template.md` 列出「允許修改範圍」、「禁止修改範圍」與驗收案例。
+1. 一般修改依 `AGENTS.md` 直接以單一完整提交更新 `main`，不得把半成品逐檔推送。
+2. 只有使用者明確要求審查流程時才建立 Pull Request；PR 依 `.github/pull_request_template.md` 列出允許範圍、禁止範圍與驗收案例。
 3. Pull Request 的 CI 會執行 `npm run scope:check`；實際變更檔案未符合聲明範圍時，驗證失敗。
-4. 不可使用 `**` 或 `*` 允許整個儲存庫，必須列出實際檔案或有意義的子目錄。
+4. PR 範圍不可使用 `**` 或 `*` 允許整個儲存庫，必須列出實際檔案或有意義的子目錄。
 
 ## 前端發布
 
@@ -274,7 +274,7 @@ SQL 執行期間只要出現錯誤就應立即停止，不可略過錯誤繼續�
 .\scripts\deploy-edge-functions.ps1
 ```
 
-腳本透過 `npx supabase@latest functions deploy` 逐一部署目前正式使用的 Edge Functions。部署名單以該腳本內的 `$functions` 陣列為唯一準據；不要直接把 `supabase/functions/` 下所有資料夾都視為正式端點。
+腳本透過 `npx supabase@latest functions deploy` 逐一部署目前正式使用的 Edge Functions。部署名單以該腳本內的 `$functions` 陣列為唯一準據，且 `supabase/functions/` 下的正式資料夾必須與該清單一致。
 
 ## 驗證
 
