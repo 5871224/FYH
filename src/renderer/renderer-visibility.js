@@ -1,5 +1,5 @@
 /* 人員與單位任職、營運及班表顯示區間判定
- * 由 renderer.js 第二階段拆分；維持既有全域 bundle 執行方式。
+ * 由固定建置清單載入。
  */
 
 function isMemberActiveOnDate(member, year, month, day) {
@@ -11,26 +11,6 @@ function isMemberActiveOnDate(member, year, month, day) {
     return false;
   }
   return true;
-}
-
-function doesDateRangeOverlapMonth(startDate, endDate, year, month) {
-  const monthStart = toDateString(year, month, 1);
-  const monthEnd = toDateString(year, month, daysInMonth(year, month));
-  if (startDate && startDate > monthEnd) {
-    return false;
-  }
-  if (endDate && endDate < monthStart) {
-    return false;
-  }
-  return true;
-}
-
-function isDepartmentActiveInMonth(department, year, month) {
-  return doesDateRangeOverlapMonth(department?.startDate || "", department?.endDate || "", year, month);
-}
-
-function isMemberActiveInMonth(member, year, month) {
-  return doesDateRangeOverlapMonth(member?.hireDate || "", member?.leaveDate || "", year, month);
 }
 
 function doesDateRangeOverlapRange(startDate, endDate, rangeStart, rangeEnd) {

@@ -1,5 +1,5 @@
 /* 排班狀態清理、目錄正規化與顏色工具
- * 由 renderer.js 第二階段拆分；維持既有全域 bundle 執行方式。
+ * 由固定建置清單載入。
  */
 
 function textColor(hex) {
@@ -104,34 +104,17 @@ function sanitizeShift(shift, fallbackIndex, merged) {
   };
 }
 
-function sanitizeNamedColorItem(item, fallbackIndex, prefix, label) {
-  return {
-    id: item?.id || uid(`${prefix}${fallbackIndex}`),
-    name: item?.name || `${label} ${fallbackIndex + 1}`,
-    color: item?.color || COLORS[fallbackIndex % COLORS.length].hex
-  };
-}
-
-function resolveLeaveCatalogEntry(item, fallbackIndex) {
-  const requestedCode = item?.code || LEGACY_LEAVE_NAME_MAP[item?.name] || "";
-  const byCode = LEAVE_CATALOG.find((entry) => entry.code === requestedCode);
-  if (byCode) {
-    return byCode;
+function sanitizeLeaveItem(item, index) {
+  const code = String(item?.code || "").trim();
+  const catalogEntry = LEAVE_CATALOG.find((entry) => entry.code === code);
+  if (!catalogEntry) {
+    return null;
   }
-  const byName = LEAVE_CATALOG.find((entry) => entry.name === item?.name);
-  if (byName) {
-    return byName;
-  }
-  return LEAVE_CATALOG[fallbackIndex % LEAVE_CATALOG.length];
-}
-
-function sanitizeLeaveItem(item, fallbackIndex) {
-  const catalogEntry = resolveLeaveCatalogEntry(item, fallbackIndex);
-  const color = item?.color || COLORS[fallbackIndex % COLORS.length].hex;
+  const color = item?.color || COLORS[index % COLORS.length].hex;
   const autoText = item?.autoTextColor ?? !item?.textColor;
   return {
-    id: item?.id || uid(`l${fallbackIndex}`),
-    code: catalogEntry.code,
+    id: item?.id || uid(`l${index}`),
+    code,
     name: item?.name || catalogEntry.name,
     color,
     textColor: item?.textColor || autoLeaveTextColor(color),
@@ -250,7 +233,7 @@ function normalizeState(payload) {
     ? payload.members.map((member, index) => sanitizeMember(member, index, merged))
     : merged.members;
   merged.leaves = Array.isArray(payload.leaves)
-    ? payload.leaves.map((item, index) => sanitizeLeaveItem(item, index))
+    ? payload.leaves.map((item, index) => sanitizeLeaveItem(item, index)).filter(Boolean)
     : merged.leaves;
   merged.overtime = Array.isArray(payload.overtime)
     ? payload.overtime.map((item, index) => sanitizeOvertimeItem(item, index))

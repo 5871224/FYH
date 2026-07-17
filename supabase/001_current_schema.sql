@@ -49,31 +49,6 @@ create table if not exists public.set_employee (
   updated_at timestamptz not null default now()
 );
 
-alter table public.set_employee
-  drop constraint if exists set_employee_role_check;
-
-do $$
-begin
-  if exists (
-    select 1
-    from information_schema.columns
-    where table_schema = 'public'
-      and table_name = 'set_employee'
-      and column_name = 'role'
-      and data_type = 'USER-DEFINED'
-  ) then
-    alter table public.set_employee
-      alter column role drop default;
-    alter table public.set_employee
-      alter column role type text using role::text;
-    alter table public.set_employee
-      alter column role set default 'employee';
-  end if;
-end $$;
-
-alter table public.set_employee
-  add constraint set_employee_role_check
-  check (role in ('admin', 'manager', 'employee'));
 
 alter table public.set_departments
   add column if not exists address text,
@@ -131,12 +106,11 @@ create table if not exists public.set_shift (
 
 create table if not exists public.set_leave (
   id uuid primary key default gen_random_uuid(),
-  code text,
+  code text not null unique,
   name text not null,
   color text not null default '#E8EEF8',
   text_color text,
   auto_text_color boolean not null default true,
-  display_name text,
   requires_time boolean not null default false,
   requires_reason boolean not null default false,
   hidden_from_toolbar boolean not null default false,
@@ -314,7 +288,7 @@ create table if not exists public.meal_orders (
   order_date date not null,
   department_id uuid references public.set_departments (id) on delete restrict,
   department_name_snapshot text not null,
-  clock_location_id uuid references public.set_departments (id) on delete restrict,
+  attendance_department_id uuid references public.set_departments (id) on delete restrict,
   product_id uuid references public.meal_products (id) on delete restrict,
   product_name_snapshot text not null,
   quantity integer not null check (quantity > 0),
@@ -877,153 +851,10 @@ declare
   v_attendance public.attendance_records%rowtype;
   v_cutoff time;
   v_order_id uuid;
-begin
-  if p_user_id is null then
-    raise exception '缺少訂餐人員' using errcode = '23502';
-  end if;
-  if jsonb_typeof(v_items) <> 'array' then
-    raise exception '訂餐品項格式錯誤' using errcode = '22023';
-  end if;
-
-  select *
-  into v_employee
-  from public.set_employee
-  where id = p_user_id;
-  if not found
-    or (v_employee.hire_date is not null and v_order_date < v_employee.hire_date)
-    or (v_employee.leave_date is not null and v_order_date > v_employee.leave_date + 5) then
-    raise exception '帳號不在有效任職期間，無法訂餐' using errcode = '42501';
-  end if;
-
-  select *
-  into v_attendance
-  from public.attendance_records
-  where user_id = p_user_id
-    and work_date = v_order_date;
-  if not found or v_attendance.clock_in_at is null or v_attendance.clock_in_department_id is null then
-    raise exception '請先完成上班打卡後再訂餐' using errcode = '23514';
-  end if;
-
-  select daily_cutoff_time
-  into v_cutoff
-  from public.meal_settings
-  where id = 'default';
-  v_cutoff := coalesce(v_cutoff, '10:30'::time);
-  if v_now_time > v_cutoff then
-    raise exception '今日訂餐已超過截止時間' using errcode = '23514';
-  end if;
-
-  if exists (
-    with incoming as (
-      select
-        nullif(raw.item->>'productId', '')::uuid as product_id,
-        coalesce(nullif(raw.item->>'quantity', '')::integer, 0) as quantity
-      from jsonb_array_elements(v_items) as raw(item)
-    ),
-    aggregated as (
-      select product_id, sum(quantity)::integer as quantity
-      from incoming
-      where product_id is not null
-        and quantity > 0
-      group by product_id
-    )
-    select 1
-    from aggregated a
-    left join public.meal_products p on p.id = a.product_id and p.is_active = true
-    where p.id is null
-  ) then
-    raise exception '訂餐品項不存在或已停用' using errcode = '23503';
-  end if;
-
-  select order_id
-  into v_order_id
-  from public.meal_orders
-  where user_id = p_user_id
-    and order_date = v_order_date
-  order by submitted_at desc
-  limit 1;
-  v_order_id := coalesce(v_order_id, gen_random_uuid());
-
-  delete from public.meal_orders
-  where user_id = p_user_id
-    and order_date = v_order_date;
-
-  insert into public.meal_orders (
-    order_id,
-    user_id,
-    employee_code_snapshot,
-    employee_name_snapshot,
-    order_date,
-    department_id,
-    department_name_snapshot,
-    clock_location_id,
-    product_id,
-    product_name_snapshot,
-    quantity,
-    unit_price,
-    note,
-    submitted_at,
-    updated_at
-  )
-  with incoming as (
-    select
-      nullif(raw.item->>'productId', '')::uuid as product_id,
-      coalesce(nullif(raw.item->>'quantity', '')::integer, 0) as quantity
-    from jsonb_array_elements(v_items) as raw(item)
-  ),
-  aggregated as (
-    select product_id, sum(quantity)::integer as quantity
-    from incoming
-    where product_id is not null
-      and quantity > 0
-    group by product_id
-  )
-  select
-    v_order_id,
-    p_user_id,
-    coalesce(v_employee.employee_code, ''),
-    coalesce(v_employee.full_name, ''),
-    v_order_date,
-    v_attendance.clock_in_department_id,
-    coalesce(v_attendance.clock_in_department_name_snapshot, ''),
-    v_attendance.clock_in_department_id,
-    p.id,
-    coalesce(p.name, ''),
-    a.quantity,
-    p.price,
-    nullif(trim(coalesce(p_note, '')), ''),
-    v_now,
-    v_now
-  from aggregated a
-  join public.meal_products p on p.id = a.product_id and p.is_active = true;
-
-  return jsonb_build_object('ok', true, 'orderDate', v_order_date::text, 'orderId', v_order_id::text);
-end;
-$$;
-
-revoke all on function public.save_meal_order(uuid, jsonb, text) from public, anon, authenticated;
-grant execute on function public.save_meal_order(uuid, jsonb, text) to service_role;
-
-create or replace function public.save_meal_order(
-  p_user_id uuid,
-  p_items jsonb,
-  p_note text default ''
-)
-returns jsonb
-language plpgsql
-security invoker
-set search_path = public
-as $$
-declare
-  v_now timestamptz := now();
-  v_order_date date := (timezone('Asia/Taipei', v_now))::date;
-  v_now_time time := (timezone('Asia/Taipei', v_now))::time;
-  v_items jsonb := coalesce(p_items, '[]'::jsonb);
-  v_employee public.set_employee%rowtype;
-  v_attendance public.attendance_records%rowtype;
-  v_cutoff time;
-  v_order_id uuid;
   v_submitted_at timestamptz;
+  v_department_id uuid;
+  v_department_name text;
+  v_attendance_department_id uuid;
   v_existing_count integer := 0;
   v_new_count integer := 0;
 begin
@@ -1068,8 +899,8 @@ begin
   where user_id = p_user_id
     and order_date = v_order_date;
 
-  select order_id, submitted_at
-  into v_order_id, v_submitted_at
+  select order_id, submitted_at, department_id, department_name_snapshot, attendance_department_id
+  into v_order_id, v_submitted_at, v_department_id, v_department_name, v_attendance_department_id
   from public.meal_orders
   where user_id = p_user_id
     and order_date = v_order_date
@@ -1150,7 +981,7 @@ begin
     order_date,
     department_id,
     department_name_snapshot,
-    clock_location_id,
+    attendance_department_id,
     product_id,
     product_name_snapshot,
     quantity,
@@ -1182,9 +1013,9 @@ begin
     coalesce(v_employee.employee_code, ''),
     coalesce(v_employee.full_name, ''),
     v_order_date,
-    v_attendance.clock_in_department_id,
-    coalesce(v_attendance.clock_in_department_name_snapshot, ''),
-    v_attendance.clock_in_department_id,
+    coalesce(v_department_id, v_attendance.clock_in_department_id),
+    coalesce(v_department_name, v_attendance.clock_in_department_name_snapshot, ''),
+    coalesce(v_attendance_department_id, v_department_id, v_attendance.clock_in_department_id),
     p.id,
     coalesce(p.name, ''),
     a.quantity,

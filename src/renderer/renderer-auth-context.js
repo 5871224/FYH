@@ -1,5 +1,5 @@
 /* 登入狀態、權限判斷、工具列外殼與密碼修改。
- * 由 renderer.js 拆分；維持既有全域 bundle 執行方式。
+ * 由固定建置清單載入。
  */
 
 function isLoggedIn() {
@@ -56,10 +56,6 @@ async function ensureManagerDirectoryLoaded() {
 
 function getCurrentProfileName() {
   return currentProfile?.full_name || currentSession?.user?.email || "";
-}
-
-function getCurrentRoleLabel() {
-  return getRoleLabel(currentProfile?.role);
 }
 
 function getRoleLabel(role) {

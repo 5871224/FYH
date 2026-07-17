@@ -29,8 +29,6 @@ requiredFiles.forEach((file) => assert(exists(file), `Missing renderer file: ${f
 assert(!exists("src/renderer/v2-meal.js"), "Meal UI still depends on a late-loaded patch module");
 ["v2-account.js", "v2-meal-export.js", "v2-settings-drag-handles.js", "v2-drag-scroll-preserve.js"].forEach((file) => assert(!exists(`src/renderer/${file}`), `Legacy renderer patch remains: ${file}`));
 
-const reportRecords = read("supabase/functions/report-records/index.ts");
-assert(!reportRecords.includes("full_name, department_id"), "report-records still queries retired set_employee.department_id");
 
 const databaseUpdates = read("supabase/002_current_updates.sql");
 const security = databaseUpdates;
@@ -61,7 +59,7 @@ const overtimeAdminAction = read("supabase/functions/attendance-overtime-admin-a
 assert(overtimeAdminAction.includes('rpc("admin_review_overtime_requests_v2"'), "Admin overtime review is not using the transactional RPC");
 
 const mealOrder = read("supabase/functions/meal-order/index.ts");
-assert(mealOrder.includes('rpc("save_meal_order_v2"'), "Meal order does not preserve the first department snapshot");
+assert(mealOrder.includes('rpc("save_meal_order"') && !mealOrder.includes("save_meal_order_v2"), "Meal order should use the canonical snapshot-preserving RPC");
 assert(mealOrder.includes("停用品項只能減少或取消"), "Disabled meal-item increase protection is missing");
 
 const sourceWebApi = read("src/renderer/web-api.js");

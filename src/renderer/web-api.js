@@ -106,18 +106,6 @@
     return isPhoneDevice() ? mobileSessionMaxIdleMs : desktopSessionMaxIdleMs;
   }
 
-  function migrateLegacyTabletSession() {
-    if (!isTabletDevice()) {
-      return;
-    }
-    const tabSession = sessionStorage.getItem(sessionStorageKey);
-    const legacySession = localStorage.getItem(sessionStorageKey);
-    if (!tabSession && legacySession) {
-      sessionStorage.setItem(sessionStorageKey, legacySession);
-    }
-    localStorage.removeItem(sessionStorageKey);
-  }
-
   function readStoredSession() {
     try {
       const stored = JSON.parse(getSessionStore().getItem(sessionStorageKey) || "null");
@@ -481,7 +469,6 @@
   }
 
   async function initializeAuth() {
-    migrateLegacyTabletSession();
     persistSession(readStoredSession());
     if (!currentSession?.user) {
       return { session: null, profile: null };
@@ -1151,14 +1138,14 @@
 
   function mapMemberDirectoryRows(profileRows = []) {
     return (profileRows || []).map((row) => {
-      const fallbackDeptId = row.home_department_id || "";
+      const departmentId = row.home_department_id || "";
       const scheduleShiftIds = normalizeTextArray(row.schedule_shift_ids)
         .filter((value, index, list) => value && list.indexOf(value) === index);
       return {
         id: row.id,
         code: row.employee_code || "",
         name: row.full_name || "",
-        deptId: fallbackDeptId,
+        deptId: departmentId,
         scheduleShiftIds,
         positionId: "",
         proxyMemberId: "",
@@ -1609,14 +1596,14 @@
     }).filter((row) => row && (row.shift_type_id || row.leave_type_id || row.overtime_type_id));
     const savedScheduleKeys = new Set(scheduleRows.map((row) => makeScheduleEntryKey(row.member_id, row.work_date)));
     const existingScheduleRows = await fetchExistingScheduleRowsForRanges(state.scheduleLoadedRanges);
-    const obsoleteScheduleRows = (existingScheduleRows || [])
+    const removedScheduleRows = (existingScheduleRows || [])
       .filter((row) => row?.id && !savedScheduleKeys.has(makeScheduleEntryKey(row.member_id, row.work_date)))
       .map((row) => ({
         member_id: row.member_id,
         work_date: row.work_date,
         delete_entry: true
       }));
-    await saveScheduleEntryRows([...scheduleRows, ...obsoleteScheduleRows]);
+    await saveScheduleEntryRows([...scheduleRows, ...removedScheduleRows]);
 
     await syncLeaveAndOvertimeCatalogs(state);
     return { ok: true, savedAt: new Date().toISOString() };
@@ -1739,25 +1726,6 @@
       throw new Error(`找不到對應的人員資料：${normalizedMemberCode}`);
     }
     return profile.id;
-  }
-
-  async function pruneEmptyScheduleEntry(rowOrId) {
-    const rowId = typeof rowOrId === "string" ? rowOrId : rowOrId?.id;
-    if (!rowId) {
-      return;
-    }
-    const rows = typeof rowOrId === "string"
-      ? await restSelect("schedule_entries", {
-        select: "id,shift_type_id,leave_type_id,overtime_type_id",
-        filters: { id: `eq.${rowId}` },
-        limit: "1",
-        auth: true
-      })
-      : [rowOrId];
-    const row = rows?.[0];
-    if (row && !row.shift_type_id && !row.leave_type_id && !row.overtime_type_id) {
-      await restDelete("schedule_entries", { id: `eq.${row.id}` }, { auth: true });
-    }
   }
 
   async function saveScheduleEntryRows(rows) {
@@ -1920,11 +1888,7 @@
   }
 
   async function exportMealReport(report = {}) {
-    const details = Array.isArray(report.exportDetails)
-      ? report.exportDetails
-      : Array.isArray(report.details)
-        ? report.details
-        : [];
+    const details = Array.isArray(report.exportDetails) ? report.exportDetails : [];
     if (!details.length) return { canceled: true, empty: true };
     const rows = buildMealEmployeeRows(report, details);
     if (!rows.length) return { canceled: true, empty: true };

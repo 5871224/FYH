@@ -119,11 +119,6 @@ function shiftHasVisibleDepartment(shift) {
   ));
 }
 
-function getRemainingDailyShiftDemand(scheduleMap, dateString) {
-  return getRemainingDailyShiftDemandDetails(scheduleMap, dateString)
-    .reduce((sum, item) => sum + item.missing, 0);
-}
-
 function getRemainingDailyShiftDemandDetails(scheduleMap, dateString) {
   return getVisibleAutoScheduleShifts(dateString)
     .map((shift) => {

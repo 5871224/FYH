@@ -35,7 +35,6 @@ const modules = [
 const movedNames = [
   "setSaveStatus",
   "getDepartmentName",
-  "getPositionName",
   "getSalaryTypeLabel",
   "normalizeRestWeekday",
   "getRestWeekdayLabel",
@@ -72,8 +71,8 @@ const movedNames = [
   "buildPersistedState",
   "queueSave",
   "forceSave",
-  "clearLegacyLeaveFromSlot",
-  "clearLegacyOvertimeFromSlot",
+  "clearLeaveFromSlot",
+  "clearOvertimeFromSlot",
   "applySelectionToCell",
   "selectChip",
   "removeAssignmentsByItem",
@@ -86,8 +85,6 @@ const movedNames = [
   "saveOvertimeAssignmentFromModal",
   "syncScheduleOvertimeFormUi",
   "syncScheduleCatalogs",
-  "formatMonthText",
-  "formatWeekStartLabel",
   "getConfiguredMonthStartDay",
   "formatDateTextFromIso",
   "formatWeekRangeText",
@@ -105,7 +102,7 @@ const movedNames = [
   "exportLeave"
 ];
 
-test("最終拆分後 renderer.js 只保留狀態與啟動流程", () => {
+test("renderer.js 只保留狀態與啟動流程", () => {
   const topLevelFunctions = [...renderer.matchAll(/^(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\(/gm)].map((match) => match[1]);
   assert.deepEqual(topLevelFunctions, ["loadApp", "refreshScheduleCatalogsAfterInitialRender"]);
   assert.ok(renderer.split(/\r?\n/).length < 160, "renderer.js 仍過大");
@@ -113,7 +110,7 @@ test("最終拆分後 renderer.js 只保留狀態與啟動流程", () => {
   for (const name of movedNames) assert.equal(renderer.includes("function " + name), false, "renderer.js 仍保留 " + name);
 });
 
-test("最終模組應依原責任順序進入建置與測試來源", () => {
+test("模組應依責任順序進入建置與測試來源", () => {
   [build, core].forEach((manifest) => {
     let previous = manifest.indexOf('"renderer-records-page.js"');
     for (const file of modules) {
@@ -121,7 +118,7 @@ test("最終模組應依原責任順序進入建置與測試來源", () => {
       assert.ok(index > previous, "模組順序錯誤：" + file);
       previous = index;
     }
-    assert.ok(manifest.indexOf('"renderer.js"') > previous, "renderer.js 應在最終模組之後");
+    assert.ok(manifest.indexOf('"renderer.js"') > previous, "renderer.js 應在責任模組之後");
   });
 });
 

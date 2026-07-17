@@ -17,7 +17,6 @@ const attendanceOvertimeEmployee = read("supabase", "functions", "attendance-ove
 const attendanceOvertimeAdminList = read("supabase", "functions", "attendance-overtime-admin-list", "index.ts");
 const attendanceOvertimeAdminAction = read("supabase", "functions", "attendance-overtime-admin-action", "index.ts");
 const mealOrder = read("supabase", "functions", "meal-order", "index.ts");
-const reportRecords = read("supabase", "functions", "report-records", "index.ts");
 
 assert(schema.includes("role in ('admin', 'manager', 'employee')"), "database should support admin, manager, employee roles");
 assert(schema.includes("create table if not exists public.attendance_records"), "database should include attendance records");
@@ -63,12 +62,12 @@ assert(renderer.includes('data-meal-tab="stats"') && renderer.includes("renderMe
 assert(!renderer.includes('["meal", "訂餐統計", isManager()]'), "records page should not expose the meal stats tab");
 assert(renderer.includes('<table class="meal-order-table">'), "today meal order should render as a table");
 assert(renderer.includes("data-meal-product-row") && renderer.includes("commitMealProductOrderFromDom"), "meal settings should support drag ordering");
-assert(schema.includes("create or replace function public.save_meal_order") || databaseUpdates.includes("create or replace function public.save_meal_order_v2"), "meal ordering should use a database transaction RPC");
-assert(mealOrder.includes('rpc("save_meal_order"') || mealOrder.includes('rpc("save_meal_order_v2"'), "meal ordering should call the transaction RPC");
+assert(schema.includes("create or replace function public.save_meal_order"), "meal ordering should use the canonical database transaction RPC");
+assert(mealOrder.includes('rpc("save_meal_order"') && !mealOrder.includes("save_meal_order_v2"), "meal ordering should call only the canonical transaction RPC");
 assert(schema.includes("請先完成上班打卡後再訂餐") && schema.includes("今日訂餐已超過截止時間"), "meal ordering should require clock-in and cutoff checks in the transaction");
 assert(renderer.includes("data-meal-note-product-id"), "meal ordering should support per-item notes");
 
 assert(index.includes('id="recordsCard"') && renderer.includes("function renderRecordsPage"), "records page should be present");
-assert(reportRecords.includes("personalRecords") && reportRecords.includes("mealStats"), "reports should include personal records and meal stats");
+assert(renderer.includes("function loadRecordsPage") && renderer.includes("function loadMealReport") && webApi.includes('requestFunction("personal-records-v2"') && webApi.includes('requestFunction("meal-report-v2"'), "records and meal reports should use their dedicated current APIs");
 
 console.log("expansion acceptance checks passed");

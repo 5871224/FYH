@@ -41,6 +41,14 @@ assert(!webApi.includes("fetchSchedulerRowByItemId") && !webApi.includes("delete
 assert(!webApi.includes("login_email_by_employee_code"), "login should derive the auth email from employee code without a database login_email RPC");
 assert(!schema.includes("login_email"), "set_employee should not store login_email");
 assert(!renderer.includes("merged.overtime = merged.overtime.length ? [merged.overtime[0]] : [];"), "overtime settings should keep every overtime type from storage");
+assert(!webApi.includes("migrateLegacyTabletSession"), "web api should not keep legacy tablet session migration");
+assert(!renderer.includes("LEGACY_LEAVE_NAME_MAP") && !renderer.includes("resolveLeaveCatalogEntry"), "renderer should not keep legacy leave-name or index inference");
+assert(!renderer.includes("clearLegacyLeaveFromSlot") && !renderer.includes("clearLegacyOvertimeFromSlot"), "renderer should use current schedule-clear naming");
+assert(!renderer.includes("function getRemainingDailyShiftDemand(") && !renderer.includes("function isValidDateTimeRange("), "renderer should not keep test-only helper wrappers");
+assert(!renderer.includes("function getWeekStripeClass(") && !renderer.includes("function getWeekBoundaryClass("), "renderer should not keep retired month-based week helpers");
+assert(!renderer.includes("function getPositionName(") && !renderer.includes("function formatMonthText(") && !renderer.includes("function formatWeekStartLabel("), "renderer should not keep unused display helpers");
+assert(!renderer.includes("function sanitizeNamedColorItem(") && !renderer.includes("function isDepartmentActiveInMonth(") && !renderer.includes("function isMemberActiveInMonth("), "renderer should not keep unused normalization or month helpers");
+assert(!fs.readFileSync(path.join(rootDir, "src", "renderer", "rest-compliance.js"), "utf8").includes("module.exports"), "browser source should not expose CommonJS solely for tests");
 assert(!renderer.includes("leaveRequestId") && !renderer.includes("overtimeRequestId"), "schedule state should not keep legacy request ids");
 assert(
   !renderer.includes('data-open-leave-request="true"') &&
@@ -98,7 +106,7 @@ assert(schema.includes("create table if not exists public.set_employee"), "schem
 const setEmployeeSchema = schema.slice(schema.indexOf("create table if not exists public.set_employee"), schema.indexOf("create table if not exists public.set_shift"));
 assert(!setEmployeeSchema.includes("is_active"), "set_employee should not keep an is_active column");
 assert(schema.includes("role in ('admin', 'manager', 'employee')"), "employee roles should include admin");
-assert(schema.includes("alter column role type text using role::text"), "current schema should migrate legacy app_role enum columns to text");
+assert(!schema.includes("alter column role type text using role::text"), "current schema should not keep legacy role enum conversion");
 assert(schema.includes("schedule_shift_ids uuid[]"), "schema should store ordered member shift priorities as uuid ids");
 assert(schema.includes("applicable_department_id uuid not null"), "schema should store one required shift department id");
 assert(!schema.includes("applicable_department_ids uuid[]"), "schema should not keep shift department applicability arrays");
@@ -118,6 +126,11 @@ assert(schema.includes("create table if not exists public.overtime_review_logs")
 assert(schema.includes("create table if not exists public.meal_products"), "schema should create meal products");
 assert(schema.includes("create table if not exists public.meal_settings"), "schema should create meal settings");
 assert(schema.includes("create table if not exists public.meal_orders"), "schema should create meal order item rows");
+assert(schema.includes("attendance_department_id uuid references public.set_departments"), "meal orders should use the canonical attendance department field");
+assert(!schema.includes("clock_location_id") && !schema.includes("display_name text"), "current schema should not keep compatibility-only meal or leave fields");
+assert(schema.includes("code text not null unique"), "leave codes should be required and unique");
+assert(!databaseUpdates.includes("create or replace function public.save_meal_order_v2"), "updates should not recreate the old meal wrapper RPC");
+assert(!databaseUpdates.includes("set_schedule_documents_updated_at() from") && !databaseUpdates.includes("alter function public.set_schedule_documents_updated_at"), "updates should not manage an orphaned legacy trigger function");
 assert(schema.includes("unique (user_id, work_date)"), "attendance and overtime should be unique by user/date where required");
 assert(schema.includes("unique (user_id, order_date, product_id)"), "meal orders should be unique by user/date/product");
 assert(schema.includes("create or replace function public.is_admin(p_user_id uuid)"), "schema should expose an admin helper");
@@ -140,6 +153,9 @@ assert(databaseUpdates.includes("create or replace function public.save_schedule
 assert(databaseUpdates.includes("on conflict (member_id, work_date)"), "schedule entry RPC should upsert by member and work date");
 assert(databaseUpdates.includes("grant execute on function public.save_schedule_entries_bulk(jsonb) to authenticated"), "schedule entry RPC should be executable by authenticated users");
 assert(!schema.includes("schedule_documents"), "current schema should not recreate legacy JSON storage");
+
+assert(!fs.existsSync(path.join(rootDir, "supabase", "functions", "attendance-clock-safe")), "retired attendance-clock-safe endpoint still exists");
+assert(!fs.existsSync(path.join(rootDir, "supabase", "functions", "report-records")), "retired report-records endpoint still exists");
 
 const retiredTableNames = ["manager_departments", "schedule_documents", "schedule_months"];
 const retiredReferenceRoots = [

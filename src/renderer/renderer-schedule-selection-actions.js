@@ -1,8 +1,8 @@
 /* 班表工具列選取與套用到儲存格的操作。
- * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
+ * 由固定建置清單載入。
  */
 
-function clearLegacyLeaveFromSlot(slot) {
+function clearLeaveFromSlot(slot) {
   if (!slot) {
     return;
   }
@@ -10,7 +10,7 @@ function clearLegacyLeaveFromSlot(slot) {
   slot.leaveMeta = null;
 }
 
-function clearLegacyOvertimeFromSlot(slot) {
+function clearOvertimeFromSlot(slot) {
   if (!slot) {
     return;
   }
@@ -43,7 +43,7 @@ async function applySelectionToCell(memberId, day) {
     }
     try {
       if (slot.leave === id) {
-        clearLegacyLeaveFromSlot(slot);
+        clearLeaveFromSlot(slot);
         await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
         return;
       } else if (shouldPromptLeaveDetail(leave, null)) {
@@ -92,7 +92,7 @@ async function applySelectionToCell(memberId, day) {
           reason: slot.overtimeMeta?.reason || ""
         };
       } else {
-        clearLegacyOvertimeFromSlot(slot);
+        clearOvertimeFromSlot(slot);
       }
       await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
     } catch (error) {
@@ -111,7 +111,7 @@ async function applySelectionToCell(memberId, day) {
   }
   if (type === "cancel-leave") {
     try {
-      clearLegacyLeaveFromSlot(slot);
+      clearLeaveFromSlot(slot);
       await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
     } catch (error) {
       showInfoMessage(`清除請假失敗：${formatSchedulerError(error, "清除失敗")}`);
@@ -120,7 +120,7 @@ async function applySelectionToCell(memberId, day) {
   }
   if (type === "cancel-overtime") {
     try {
-      clearLegacyOvertimeFromSlot(slot);
+      clearOvertimeFromSlot(slot);
       await finishScheduleCellMutationWithUndo(memberId, dateString, previousSchedule);
     } catch (error) {
       showInfoMessage(`清除加班失敗：${formatSchedulerError(error, "清除失敗")}`);

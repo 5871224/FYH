@@ -11,7 +11,6 @@ const build = read("scripts/build-js.js");
 const coreSource = read("scripts/renderer-core-source.js");
 const components = read("src/renderer/css/components.css");
 const attendanceAdminFunction = read("supabase/functions/attendance-admin-list-v2/index.ts");
-const reportRecordsFunction = read("supabase/functions/report-records/index.ts");
 const overtimeAdminListFunction = read("supabase/functions/attendance-overtime-admin-list/index.ts");
 
 test("記錄頁畫面應保留個人、加班審核與打卡管理分頁", () => {
@@ -31,11 +30,9 @@ test("打卡管理顯示項目應排除資料品質防呆提示", () => {
   assert.equal(views.includes("<span>顯示項目</span><select data-attendance-filter=\"issueType\">"), true);
   assert.equal(views.includes("<span>異常類型</span>"), false);
 
-  [attendanceAdminFunction, reportRecordsFunction].forEach((source) => {
-    const options = source.match(/issueTypes:\s*\[([^\]]*)\]/s)?.[1] || "";
-    assert.equal(options.includes("打卡時間不完整或格式異常"), false);
-    assert.equal(options.includes("班別缺少完整上下班時間"), false);
-  });
+  const options = attendanceAdminFunction.match(/issueTypes:\s*\[([^\]]*)\]/s)?.[1] || "";
+  assert.equal(options.includes("打卡時間不完整或格式異常"), false);
+  assert.equal(options.includes("班別缺少完整上下班時間"), false);
 
   assert.equal(attendanceAdminFunction.includes('output.push("打卡時間不完整或格式異常")'), true);
   assert.equal(attendanceAdminFunction.includes('output.push("班別缺少完整上下班時間")'), true);
@@ -71,7 +68,7 @@ test("加班審核應依所選期間匯出全部已核准資料", () => {
   assert.match(components, /\.overtime-review-actions \{\s*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/s);
 });
 
-test("第十三階段應移出記錄頁畫面並維持模組順序", () => {
+test("記錄頁畫面應維持明確模組順序", () => {
   const ordered = ["renderer-main-pages.js", "renderer-records-views.js", "renderer-modal-navigation.js", "renderer.js"];
   [build, coreSource].forEach((manifest) => {
     let previous = -1;

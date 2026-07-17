@@ -12,7 +12,6 @@ function assert(condition, message) {
 const required = [
   "supabase/002_current_updates.sql",
   "supabase/functions/attendance-clock/index.ts",
-  "supabase/functions/attendance-clock-safe/index.ts",
   "supabase/functions/attendance-overtime-employee/index.ts",
   "supabase/functions/attendance-overtime-admin-list/index.ts",
   "supabase/functions/attendance-overtime-admin-action/index.ts",
@@ -32,6 +31,11 @@ const required = [
 ];
 
 required.forEach((file) => assert(exists(file), `缺少 renderer 檔案：${file}`));
+
+assert(!exists("supabase/functions/attendance-clock-safe"), "仍保留未使用的 attendance-clock-safe 過渡端點");
+assert(!exists("supabase/functions/report-records"), "仍保留未使用的 report-records 共用端點");
+const deployScript = read("scripts/deploy-edge-functions.ps1");
+assert(!deployScript.includes("attendance-clock-safe") && !deployScript.includes("report-records"), "部署清單仍包含已淘汰端點");
 
 const actionsWorkflow = read(".github/workflows/deploy-pages.yml");
 const projectPackage = JSON.parse(read("package.json"));
@@ -56,9 +60,6 @@ assert(!actionsWorkflow.includes("contents: write") && !/\bgit\s+(?:commit|push)
 assert(workflowFiles.length === 1 && workflowFiles[0] === "deploy-pages.yml", `仍保留重複的 GitHub Actions workflow：${workflowFiles.join(", ")}`);
 assert(!exists(".github/workflows/canonicalize-v2-api-data.yml") && !exists(".github/workflows/v2-alignment.yml") && !exists(".github/workflows/v2-final-check.yml"), "仍保留重複的 renderer 一次性 workflow");
 assert(String(projectPackage.scripts?.["ci:check"] || "").includes("npm run renderer:check"), "ci:check 未包含完整 renderer 驗證");
-
-const reportRecords = read("supabase/functions/report-records/index.ts");
-assert(!reportRecords.includes("full_name, department_id"), "仍查詢不存在的 set_employee.department_id");
 
 const currentSchema = read("supabase/001_current_schema.sql");
 const databaseUpdates = read("supabase/002_current_updates.sql");
@@ -112,7 +113,7 @@ assert(databaseUpdates.includes("is_employee_account_effective") && databaseUpda
 const setEmployeeBlock = currentSchema.slice(currentSchema.indexOf("create table if not exists public.set_employee"), currentSchema.indexOf("create table if not exists public.set_shift"));
 assert(!setEmployeeBlock.includes("is_active"), "set_employee 現行結構仍包含 is_active");
 const employeeEdgeFiles = [
-  "report-records", "catalog-admin", "attendance-overtime-admin-list", "attendance-overtime-admin-action",
+  "catalog-admin", "attendance-overtime-admin-list", "attendance-overtime-admin-action",
   "member-auth-admin", "meal-report-v2", "member-order-v2", "personal-records-v2",
   "attendance-admin-action-v2", "attendance-clock", "meal-order", "member-delete-v2",
   "meal-cancel-v2", "attendance-admin-list-v2", "attendance-overtime-employee",
@@ -136,10 +137,6 @@ assert(attendanceClock.includes("isIPad"), "iPad 判定修正缺失");
 assert(!attendanceClock.includes("clock_in_ip:"), "員工打卡回應仍暴露上班 IP");
 assert(!attendanceClock.includes("clock_in_latitude:"), "員工打卡回應仍暴露上班 GPS");
 
-const safeClock = read("supabase/functions/attendance-clock-safe/index.ts");
-assert(!safeClock.includes("clock_in_ip:"), "備援安全打卡回應仍暴露 IP");
-assert(!safeClock.includes("clock_in_latitude:"), "備援安全打卡回應仍暴露 GPS");
-
 const adminSql = databaseUpdates;
 assert(adminSql.includes("p_reason text default ''"), "打卡異動原因未設為選填");
 assert(adminSql.includes("old_record, new_record"), "打卡完整新舊快照稽核缺失");
@@ -160,7 +157,7 @@ const adminAction = read("supabase/functions/attendance-overtime-admin-action/in
 assert(adminAction.includes('rpc("admin_review_overtime_requests_v2"'), "管理員加班審核未使用交易 RPC");
 
 const mealOrder = read("supabase/functions/meal-order/index.ts");
-assert(mealOrder.includes('rpc("save_meal_order_v2"'), "訂餐未保留第一次訂餐單位快照");
+assert(mealOrder.includes('rpc("save_meal_order"') && !mealOrder.includes("save_meal_order_v2"), "訂餐應直接使用保留第一次單位快照的正式 RPC");
 assert(mealOrder.includes("停用品項只能減少或取消"), "停用品項增加數量限制缺失");
 
 const mealSettingsSql = databaseUpdates;
@@ -185,7 +182,7 @@ assert(sourceWebApi.includes("function isTabletDevice"), "平板裝置判定未�
 assert(sourceWebApi.includes("isAndroidTablet"), "Android 平板 Session 判斷缺失");
 assert(sourceWebApi.includes("isIPad"), "iPad Session 判斷缺失");
 assert(sourceWebApi.includes("30 * 60 * 1000"), "平板未使用電腦版 30 分鐘閒置期限");
-assert(sourceWebApi.includes("migrateLegacyTabletSession"), "舊平板 Session 遷移缺失");
+assert(!sourceWebApi.includes("migrateLegacyTabletSession"), "前端仍保留舊平板 Session 遷移");
 
 const { readRendererCore } = require("./renderer-core-source.js");
 const sourceRenderer = readRendererCore(root);

@@ -40,7 +40,7 @@ const sessionStorageKey = "scheduler.test.session";
 const mobileSessionMaxIdleMs = 48 * 60 * 60 * 1000;
 const desktopSessionMaxIdleMs = 30 * 60 * 1000;
 `;
-  const api = vm.runInNewContext(prefix + webApi.slice(start, end) + "\n;({ isTabletDevice, isPhoneDevice, getSessionStore, getSessionMaxIdleMs, migrateLegacyTabletSession, persistSession })", context);
+  const api = vm.runInNewContext(prefix + webApi.slice(start, end) + "\n;({ isTabletDevice, isPhoneDevice, getSessionStore, getSessionMaxIdleMs, persistSession })", context);
   return { api, localStorage, sessionStorage, key: "scheduler.test.session" };
 }
 
@@ -73,18 +73,6 @@ test("手機仍使用 localStorage 與 48 小時期限", () => {
   assert.equal(api.getSessionMaxIdleMs(), 48 * 60 * 60 * 1000);
 });
 
-test("舊平板 localStorage Session 應遷移到目前分頁", () => {
-  const { api, localStorage, sessionStorage, key } = createSessionApi({
-    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15)",
-    maxTouchPoints: 5
-  });
-  const legacy = JSON.stringify({ session: { access_token: "token", user: { id: "U1" } }, lastActivityAt: Date.now() });
-  localStorage.setItem(key, legacy);
-  api.migrateLegacyTabletSession();
-  assert.equal(sessionStorage.getItem(key), legacy);
-  assert.equal(localStorage.getItem(key), null);
-});
-
 test("正式 Session 寫入只保留目前裝置應使用的儲存區", () => {
   const { api, localStorage, sessionStorage, key } = createSessionApi({
     userAgent: "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X)",
@@ -102,5 +90,5 @@ test("平板 Session 應由正式 web-api 管理而非包裝所有 API", () => {
   assert.equal(build.includes("v2-tablet-session.js"), false);
   assert.equal(webApi.includes('["pointerdown", "keydown", "touchstart"]'), true);
   assert.equal(webApi.includes("lastActivityWriteAt < 15000"), true);
-  assert.equal(webApi.includes("migrateLegacyTabletSession();"), true);
+  assert.equal(webApi.includes("migrateLegacyTabletSession"), false);
 });

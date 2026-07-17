@@ -3,9 +3,7 @@ $ErrorActionPreference = "Stop"
 $functions = @(
   "member-auth-admin",
   "catalog-admin",
-  "report-records",
   "attendance-clock",
-  "attendance-clock-safe",
   "meal-order",
   "attendance-overtime-employee",
   "attendance-overtime-admin-list",

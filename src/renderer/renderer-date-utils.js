@@ -10,22 +10,9 @@ function daysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
 }
 
-function weekdayOf(day) {
-  return new Date(state.year, state.month, day).getDay();
-}
-
 function getConfiguredWeekStart() {
   const value = Number(state.rules?.weekStart);
   return Number.isInteger(value) && value >= 0 && value <= 6 ? value : 0;
-}
-
-function getWeekIndexForDay(day) {
-  const offset = (weekdayOf(1) - getConfiguredWeekStart() + 7) % 7;
-  return Math.floor((day + offset - 1) / 7);
-}
-
-function getWeekStripeClass(day) {
-  return getWeekIndexForDay(day) % 2 === 1 ? "week-alt" : "";
 }
 
 function getWeekIndexForDate(dateString) {
@@ -41,20 +28,6 @@ function getWeekIndexForDate(dateString) {
 
 function getWeekStripeClassForDate(dateString) {
   return getWeekIndexForDate(dateString) % 2 === 1 ? "week-alt" : "";
-}
-
-function getWeekBoundaryClass(day, daysInCurrentMonth) {
-  const classes = [];
-  const weekday = weekdayOf(day);
-  const weekStart = getConfiguredWeekStart();
-  const weekEnd = (weekStart + 6) % 7;
-  if (weekday === weekStart && day !== 1) {
-    classes.push("week-boundary-start");
-  }
-  if (weekday === weekEnd && day !== daysInCurrentMonth) {
-    classes.push("week-boundary-end");
-  }
-  return classes.join(" ");
 }
 
 function getWeekBoundaryClassForDate(dateString, index, totalDays) {
@@ -287,13 +260,4 @@ function isValidTimeRange(start, end) {
 
 function isValidDateRange(start, end) {
   return Boolean(start && end && start < end);
-}
-
-function isValidDateTimeRange(startDate, startTime, endDate, endTime) {
-  const normalizedStartTime = normalizeTimeText(startTime);
-  const normalizedEndTime = normalizeTimeText(endTime);
-  if (!startDate || !endDate || !normalizedStartTime || !normalizedEndTime) {
-    return false;
-  }
-  return `${startDate}T${normalizedStartTime}` < `${endDate}T${normalizedEndTime}`;
 }
