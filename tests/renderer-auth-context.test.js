@@ -6,29 +6,21 @@ const vm = require("node:vm");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
-const requestHelpers = read("src/renderer/renderer-request-helpers.js");
 const authContext = read("src/renderer/renderer-auth-context.js");
+const stateNormalization = read("src/renderer/renderer-state-normalization.js");
+const settingsCatalog = read("src/renderer/renderer-settings-catalog.js");
 const renderer = read("src/renderer/renderer.js");
 const build = read("scripts/build-js.js");
 const coreSource = read("scripts/renderer-core-source.js");
 
-test("日期區間衝突判定應保留邊界重疊規則", () => {
-  const start = requestHelpers.indexOf("function hasDateRangeOverlap");
-  const end = requestHelpers.indexOf("function findDirectLeaveScheduleConflict", start);
-  const api = vm.runInNewContext(requestHelpers.slice(start, end) + "\n;({ hasDateRangeOverlap })");
-  assert.equal(api.hasDateRangeOverlap("2026-07-10", "2026-07-12", "2026-07-12", "2026-07-13"), true);
-  assert.equal(api.hasDateRangeOverlap("2026-07-10", "2026-07-11", "2026-07-12", "2026-07-13"), false);
-  assert.equal(api.hasDateRangeOverlap("", "2026-07-11", "2026-07-12", "2026-07-13"), false);
-});
-
 test("目前人員應優先依 profile id，再依工號解析", () => {
-  const start = requestHelpers.indexOf("function resolveCurrentMember");
-  const end = requestHelpers.indexOf("function requestMatchesMember", start);
+  const start = authContext.indexOf("function resolveCurrentMember");
+  const end = authContext.indexOf("function normalizeRole", start);
   const context = {
     state: { members: [{ id: "M1", code: "001" }, { id: "M2", code: "002" }] },
     currentProfile: { id: "M2", employee_code: "001" }
   };
-  const api = vm.runInNewContext(requestHelpers.slice(start, end) + "\n;({ resolveCurrentMember })", context);
+  const api = vm.runInNewContext(authContext.slice(start, end) + "\n;({ resolveCurrentMember })", context);
   assert.equal(api.resolveCurrentMember().id, "M2");
   context.currentProfile = { id: "missing", employee_code: "001" };
   assert.equal(api.resolveCurrentMember().id, "M1");
@@ -49,11 +41,17 @@ test("管理權限應只允許管理員與主管", () => {
   assert.equal(api.canEditSchedule(), true);
 });
 
-test("第九階段應移出登入與申請工具並維持模組順序", () => {
+test("假別明細與設定輔助應位於對應責任模組", () => {
+  assert.equal(stateNormalization.includes("function leaveRequiresTime"), true);
+  assert.equal(stateNormalization.includes("function defaultLeaveIsAllDay"), true);
+  assert.equal(settingsCatalog.includes("function getLeaveCatalogDisplayName"), true);
+});
+
+test("登入與班表模組順序應維持且不再載入舊申請輔助模組", () => {
   const ordered = [
     "renderer-overtime-employee.js",
-    "renderer-request-helpers.js",
     "renderer-auth-context.js",
+    "renderer-schedule-tooltip.js",
     "renderer-attendance-page.js",
     "renderer-meal-page.js",
     "renderer-records-page.js",
@@ -66,11 +64,29 @@ test("第九階段應移出登入與申請工具並維持模組順序", () => {
       assert.ok(index > previous, `模組順序錯誤：${file}`);
       previous = index;
     });
+    assert.equal(manifest.includes("renderer-request-helpers.js"), false);
   });
   ["isLoggedIn", "resolveCurrentMember", "openSignInDialog", "saveChangedPassword"].forEach((name) => {
     assert.equal(renderer.includes(`function ${name}`), false, `renderer.js 仍保留 ${name}`);
   });
   assert.equal(authContext.includes("function renderAuthGate"), true);
-  assert.equal(requestHelpers.includes("function getLeaveCatalogDisplayName"), true);
   assert.ok(renderer.split("\n").length < 3200, "renderer.js 未明顯縮小");
+});
+
+test("排班前端不得保留已淘汰申請流程的無引用輔助名稱", () => {
+  const source = [authContext, stateNormalization, settingsCatalog, read("src/renderer/renderer-schedule-interaction.js")].join("\n");
+  [
+    "getRequestActor",
+    "requestMatchesMember",
+    "hasDateRangeOverlap",
+    "findDirectLeaveScheduleConflict",
+    "hasDirectOvertimeScheduleConflict",
+    "formatRequestDateText",
+    "formatOvertimeTimeText",
+    "formatOvertimeRestLines",
+    "getLeaveStyleForRecord",
+    "getLeaveStyleForSlot",
+    "cleanSlotMeta",
+    "cancelLeaveRequestIds"
+  ].forEach((name) => assert.equal(source.includes(name), false, `仍保留舊輔助名稱：${name}`));
 });

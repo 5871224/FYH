@@ -12,21 +12,25 @@ function evaluateInteraction(exportExpression, context = {}) {
   return vm.runInNewContext(`${source}\n;${exportExpression}`, context);
 }
 
-test("班表剪貼簿資料應移除舊申請欄位", () => {
+test("班表剪貼簿資料應完整複製目前明細且不共用物件", () => {
   const interaction = evaluateInteraction(
-    "({ cleanSlotMeta, serializeScheduleSlotForClipboard })"
+    "({ serializeScheduleSlotForClipboard })"
   );
-  const meta = interaction.cleanSlotMeta({ displayName: "事假", requestId: "old", requestStatus: "approved" });
-  assert.deepEqual(JSON.parse(JSON.stringify(meta)), { displayName: "事假" });
-
-  const slot = interaction.serializeScheduleSlotForClipboard({
+  const source = {
     shift: "shift-1",
     leave: "leave-1",
-    leaveMeta: { displayName: "事假", requestId: "old" },
-    overtime: null
-  });
-  assert.equal(slot.shift, "shift-1");
-  assert.equal(slot.leaveMeta.requestId, undefined);
+    leaveMeta: { displayName: "事假", allDay: false, startTime: "09:00", endTime: "12:00" },
+    overtime: "overtime-1",
+    overtimeMeta: { startTime: "18:00", endTime: "20:00", useRest1: false }
+  };
+  const slot = interaction.serializeScheduleSlotForClipboard(source);
+  assert.deepEqual(JSON.parse(JSON.stringify(slot.leaveMeta)), source.leaveMeta);
+  assert.deepEqual(JSON.parse(JSON.stringify(slot.overtimeMeta)), source.overtimeMeta);
+
+  source.leaveMeta.displayName = "已修改";
+  source.overtimeMeta.endTime = "21:00";
+  assert.equal(slot.leaveMeta.displayName, "事假");
+  assert.equal(slot.overtimeMeta.endTime, "20:00");
 });
 
 test("班表鍵值解析應支援含底線的人員代碼", () => {

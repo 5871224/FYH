@@ -16,6 +16,14 @@ function autoLeaveTextColor(hex) {
   return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#000000" : "#ffffff";
 }
 
+function leaveRequiresTime(leave) {
+  return Boolean(leave?.requiresTime);
+}
+
+function defaultLeaveIsAllDay(leave) {
+  return !leaveRequiresTime(leave);
+}
+
 function sanitizeDepartment(department, fallbackIndex) {
   return {
     id: department?.id || uid(`d${fallbackIndex}`),

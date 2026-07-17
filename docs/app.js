@@ -2236,22 +2236,6 @@
       .map(([, row]) => row.id);
   }
 
-  function isLegacyRequestCatalogRow(row) {
-    return String(row?.id || "").startsWith("catalog:");
-  }
-
-  async function deleteRowsByForeignIds(table, column, ids) {
-    const values = [...new Set((ids || []).map((value) => String(value || "").trim()).filter(Boolean))];
-    if (!values.length) {
-      return;
-    }
-    await restDelete(table, {
-      [column]: buildInFilter(values)
-    }, {
-      auth: true
-    });
-  }
-
   async function clearScheduleEntriesByForeignIds(column, ids, payload) {
     const values = [...new Set((ids || []).map((value) => String(value || "").trim()).filter(Boolean))];
     if (!values.length) {
@@ -2360,7 +2344,6 @@
   function mapLeaveRows(rows = []) {
     return (rows || [])
       .filter((row) => row.id)
-      .filter((row) => !isLegacyRequestCatalogRow(row))
       .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.code || "").localeCompare(String(b.code || "")))
       .map((row) => ({
         id: row.id,
@@ -2535,7 +2518,7 @@
   }
 
   async function syncLeaveAndOvertimeCatalogs(state) {
-    const leaveItems = (state.leaves || []).filter((item) => item?.id && item?.code && !String(item.id).startsWith("catalog:"));
+    const leaveItems = (state.leaves || []).filter((item) => item?.id && item?.code);
     if (leaveItems.length) {
       await restInsert("set_leave", leaveItems.map((item, index) => ({
         id: item.id,
@@ -2690,7 +2673,7 @@
         prefer: "resolution=merge-duplicates,return=minimal"
       });
     }
-    const keptLeaveIds = leaves.map((item) => item.id).filter((id) => !String(id).startsWith("catalog:"));
+    const keptLeaveIds = leaves.map((item) => item.id);
     const existingLeaveMap = await fetchRowsById("set_leave");
     const removedLeaveRowIds = getRemovedRowIds(existingLeaveMap, keptLeaveIds);
     await clearScheduleEntriesByForeignIds("leave_type_id", removedLeaveRowIds, {
@@ -4400,6 +4383,14 @@ function autoLeaveTextColor(hex) {
   return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#000000" : "#ffffff";
 }
 
+function leaveRequiresTime(leave) {
+  return Boolean(leave?.requiresTime);
+}
+
+function defaultLeaveIsAllDay(leave) {
+  return !leaveRequiresTime(leave);
+}
+
 function sanitizeDepartment(department, fallbackIndex) {
   return {
     id: department?.id || uid(`d${fallbackIndex}`),
@@ -4828,15 +4819,6 @@ function getSelectedScheduleCells() {
     .sort((a, b) => Number(a.dataset.rowIndex) - Number(b.dataset.rowIndex) || Number(a.dataset.colIndex) - Number(b.dataset.colIndex));
 }
 
-function cleanSlotMeta(meta) {
-  if (!meta || typeof meta !== "object") {
-    return null;
-  }
-  return Object.fromEntries(
-    Object.entries(meta).filter(([key]) => !key.startsWith("request"))
-  );
-}
-
 function serializeScheduleSlotForClipboard(slot) {
   if (!slot) {
     return { shift: null, leave: null, leaveMeta: null, overtime: null, overtimeMeta: null };
@@ -4844,9 +4826,9 @@ function serializeScheduleSlotForClipboard(slot) {
   return {
     shift: slot.shift || null,
     leave: slot.leave || null,
-    leaveMeta: slot.leave ? cleanSlotMeta(slot.leaveMeta) : null,
+    leaveMeta: slot.leave && slot.leaveMeta ? { ...slot.leaveMeta } : null,
     overtime: slot.overtime || null,
-    overtimeMeta: slot.overtime ? cleanSlotMeta(slot.overtimeMeta) : null
+    overtimeMeta: slot.overtime && slot.overtimeMeta ? { ...slot.overtimeMeta } : null
   };
 }
 
@@ -5788,7 +5770,6 @@ function buildAutoSchedulePreview(dates = getVisibleDates()) {
     dates,
     slots: {},
     warnings: [],
-    cancelLeaveRequestIds: new Set(),
     memberTargets: {}
   };
   const scheduleMap = deepClone(state.schedule || {});
@@ -5859,7 +5840,6 @@ function buildAutoSchedulePreview(dates = getVisibleDates()) {
       preview.slots[key] = slot;
     }
   });
-  preview.cancelLeaveRequestIds = Array.from(preview.cancelLeaveRequestIds);
   return preview;
 }
 
@@ -6327,6 +6307,13 @@ function renderHeader() {
 ;
 
 /* ===== renderer-settings-catalog.js ===== */
+function getLeaveCatalogDisplayName(item) {
+  if (!item) {
+    return "";
+  }
+  return LEAVE_CATALOG.find((entry) => entry.code === item.code)?.name || item.name || "";
+}
+
 function openListSettings(category) {
   modalContext = { category: "list-settings", listCategory: category };
   const titleMap = {
@@ -8180,10 +8167,14 @@ document.addEventListener("change", (event) => {
 });
 ;
 
-/* ===== renderer-request-helpers.js ===== */
-/* 請假、加班申請與目前人員的共用判定工具。
+/* ===== renderer-auth-context.js ===== */
+/* 登入狀態、權限判斷、工具列外殼與密碼修改。
  * 由 renderer.js 拆分；維持既有全域 bundle 執行方式。
  */
+
+function isLoggedIn() {
+  return Boolean(currentSession?.user);
+}
 
 function resolveCurrentMember() {
   if (currentProfile?.id) {
@@ -8192,97 +8183,6 @@ function resolveCurrentMember() {
   }
   if (!currentProfile?.employee_code) return null;
   return state.members.find((member) => member.code === currentProfile.employee_code) || null;
-}
-
-function requestMatchesMember(record, memberId = "", memberCode = "") {
-  if (!record) {
-    return false;
-  }
-  return Boolean(
-    (memberId && record.memberId === memberId)
-    || (memberCode && record.memberCode === memberCode)
-  );
-}
-
-function hasDateRangeOverlap(startDate, endDate, otherStartDate, otherEndDate) {
-  if (!startDate || !endDate || !otherStartDate || !otherEndDate) {
-    return false;
-  }
-  return otherStartDate <= endDate && otherEndDate >= startDate;
-}
-
-function findDirectLeaveScheduleConflict(scheduleMemberId, startDate, endDate) {
-  if (!scheduleMemberId || !startDate || !endDate) {
-    return "";
-  }
-  return enumerateDateRange(startDate, endDate).find((dateString) => {
-    const slot = getScheduleSlotByDateString(scheduleMemberId, dateString);
-    return Boolean(slot?.leave);
-  }) || "";
-}
-
-function hasDirectOvertimeScheduleConflict(scheduleMemberId, workDate) {
-  if (!scheduleMemberId || !workDate) {
-    return false;
-  }
-  const slot = getScheduleSlotByDateString(scheduleMemberId, workDate);
-  return Boolean(slot?.overtime);
-}
-
-function formatRequestDateText(startDate, endDate) {
-  if (!startDate) {
-    return "";
-  }
-  return startDate === endDate || !endDate ? startDate : `${startDate} ~ ${endDate}`;
-}
-
-function formatOvertimeTimeText(record) {
-  return `${record.startTime || "--:--"} - ${record.endTime || "--:--"}`;
-}
-
-function formatOvertimeRestLines(record) {
-  const lines = [];
-  if (record.useRest1) {
-    lines.push(`休息1：${record.rest1StartTime || "--:--"} - ${record.rest1EndTime || "--:--"}`);
-  }
-  if (record.useRest2) {
-    lines.push(`休息2：${record.rest2StartTime || "--:--"} - ${record.rest2EndTime || "--:--"}`);
-  }
-  return lines;
-}
-
-function leaveRequiresTime(leave) {
-  return Boolean(leave?.requiresTime);
-}
-
-function defaultLeaveIsAllDay(leave) {
-  return !leaveRequiresTime(leave);
-}
-
-function getLeaveStyleForRecord(record) {
-  const leaveItemId = String(record?.leaveItemId || "").trim();
-  return leaveItemId ? state.leaves.find((item) => item.id === leaveItemId) || null : null;
-}
-
-function getLeaveStyleForSlot(slot) {
-  return getItem("leave", slot?.leave);
-}
-
-function getLeaveCatalogDisplayName(item) {
-  if (!item) {
-    return "";
-  }
-  return LEAVE_CATALOG.find((entry) => entry.code === item.code)?.name || item.name || "";
-}
-;
-
-/* ===== renderer-auth-context.js ===== */
-/* 登入狀態、權限判斷、工具列外殼與密碼修改。
- * 由 renderer.js 拆分；維持既有全域 bundle 執行方式。
- */
-
-function isLoggedIn() {
-  return Boolean(currentSession?.user);
 }
 
 function normalizeRole(role) {
@@ -8326,22 +8226,6 @@ async function ensureManagerDirectoryLoaded() {
 
 function getCurrentProfileName() {
   return currentProfile?.full_name || currentSession?.user?.email || "";
-}
-
-function getRequestActor() {
-  if (currentMember) {
-    return {
-      code: currentMember.code || currentProfile?.employee_code || "",
-      name: currentMember.name || getCurrentProfileName()
-    };
-  }
-  if (currentProfile) {
-    return {
-      code: currentProfile.employee_code || "",
-      name: currentProfile.full_name || getCurrentProfileName()
-    };
-  }
-  return null;
 }
 
 function getCurrentRoleLabel() {

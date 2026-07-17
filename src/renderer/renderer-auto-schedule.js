@@ -7,7 +7,6 @@ function buildAutoSchedulePreview(dates = getVisibleDates()) {
     dates,
     slots: {},
     warnings: [],
-    cancelLeaveRequestIds: new Set(),
     memberTargets: {}
   };
   const scheduleMap = deepClone(state.schedule || {});
@@ -78,7 +77,6 @@ function buildAutoSchedulePreview(dates = getVisibleDates()) {
       preview.slots[key] = slot;
     }
   });
-  preview.cancelLeaveRequestIds = Array.from(preview.cancelLeaveRequestIds);
   return preview;
 }
 

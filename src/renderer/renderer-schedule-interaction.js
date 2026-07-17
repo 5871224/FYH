@@ -166,15 +166,6 @@ function getSelectedScheduleCells() {
     .sort((a, b) => Number(a.dataset.rowIndex) - Number(b.dataset.rowIndex) || Number(a.dataset.colIndex) - Number(b.dataset.colIndex));
 }
 
-function cleanSlotMeta(meta) {
-  if (!meta || typeof meta !== "object") {
-    return null;
-  }
-  return Object.fromEntries(
-    Object.entries(meta).filter(([key]) => !key.startsWith("request"))
-  );
-}
-
 function serializeScheduleSlotForClipboard(slot) {
   if (!slot) {
     return { shift: null, leave: null, leaveMeta: null, overtime: null, overtimeMeta: null };
@@ -182,9 +173,9 @@ function serializeScheduleSlotForClipboard(slot) {
   return {
     shift: slot.shift || null,
     leave: slot.leave || null,
-    leaveMeta: slot.leave ? cleanSlotMeta(slot.leaveMeta) : null,
+    leaveMeta: slot.leave && slot.leaveMeta ? { ...slot.leaveMeta } : null,
     overtime: slot.overtime || null,
-    overtimeMeta: slot.overtime ? cleanSlotMeta(slot.overtimeMeta) : null
+    overtimeMeta: slot.overtime && slot.overtimeMeta ? { ...slot.overtimeMeta } : null
   };
 }
 
