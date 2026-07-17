@@ -54,6 +54,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --check
-          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = "docs/app.css docs/index.html src/renderer/app.css src/renderer/css/components.css src/renderer/index.html tests/settings-width-and-catalog-delete.test.js "
+          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = ".github/mobile-settings-header.patch .github/workflows/deploy-pages.yml docs/app.css docs/index.html src/renderer/app.css src/renderer/css/components.css src/renderer/index.html tests/settings-width-and-catalog-delete.test.js "
           git commit -m "修正手機設定表格水平捲動表頭"
           git push origin HEAD:agent/fix-mobile-settings-header
