@@ -1,3 +1,10 @@
+function getLeaveCatalogDisplayName(item) {
+  if (!item) {
+    return "";
+  }
+  return LEAVE_CATALOG.find((entry) => entry.code === item.code)?.name || item.name || "";
+}
+
 function openListSettings(category) {
   modalContext = { category: "list-settings", listCategory: category };
   const titleMap = {

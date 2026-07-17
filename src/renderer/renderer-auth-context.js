@@ -6,6 +6,15 @@ function isLoggedIn() {
   return Boolean(currentSession?.user);
 }
 
+function resolveCurrentMember() {
+  if (currentProfile?.id) {
+    const byId = state.members.find((member) => member.id === currentProfile.id);
+    if (byId) return byId;
+  }
+  if (!currentProfile?.employee_code) return null;
+  return state.members.find((member) => member.code === currentProfile.employee_code) || null;
+}
+
 function normalizeRole(role) {
   return role === "admin" || role === "manager" ? role : "employee";
 }
@@ -47,22 +56,6 @@ async function ensureManagerDirectoryLoaded() {
 
 function getCurrentProfileName() {
   return currentProfile?.full_name || currentSession?.user?.email || "";
-}
-
-function getRequestActor() {
-  if (currentMember) {
-    return {
-      code: currentMember.code || currentProfile?.employee_code || "",
-      name: currentMember.name || getCurrentProfileName()
-    };
-  }
-  if (currentProfile) {
-    return {
-      code: currentProfile.employee_code || "",
-      name: currentProfile.full_name || getCurrentProfileName()
-    };
-  }
-  return null;
 }
 
 function getCurrentRoleLabel() {

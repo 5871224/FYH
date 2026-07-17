@@ -31,8 +31,6 @@ assert(!webApi.includes("savedScheduleRows"), "schedule entry cleanup should not
 assert(!webApi.includes('restInsert("schedule_documents"'), "saveState should not write schedule_documents JSON");
 assert(!webApi.includes('restSelect("schedule_documents"'), "loadState should not read schedule_documents JSON");
 assert(webApi.includes('parts.slice(0, -3).join("_")'), "schedule key parser should keep member ids containing underscores");
-assert(!webApi.includes('deleteRowsByForeignIds("leave_requests"'), "web api should not write old leave_requests table");
-assert(!webApi.includes('deleteRowsByForeignIds("overtime_requests"'), "web api should not write old overtime_requests table");
 assert(webApi.includes('clearScheduleEntriesByForeignIds("leave_type_id"'), "deleting leave settings should clear schedule entry leave references before deleting leave types");
 assert(webApi.includes('clearScheduleEntriesByForeignIds("overtime_type_id"'), "deleting overtime settings should clear schedule entry overtime references before deleting overtime types");
 assert(webApi.includes("async function fetchRowsById") && webApi.includes("async function fetchRowById"), "catalog settings should resolve rows by uuid id");
@@ -69,8 +67,22 @@ assert(
 );
 assert(!webApi.includes("getOvertimeTypeByReference") && !webApi.includes("listOvertimeRequests"), "web api should not expose legacy request wrappers");
 assert(!webApi.includes("requestLeaveCatalog"), "deleted leave settings should not be preserved by the removed request catalog");
-assert(webApi.includes("function isLegacyRequestCatalogRow(row)") && webApi.includes("!isLegacyRequestCatalogRow(row)"), "legacy catalog leave rows should not load as active leave settings");
-assert(webApi.includes('!String(id).startsWith("catalog:")'), "legacy catalog leave ids should not be preserved during save");
+assert(!webApi.includes("isLegacyRequestCatalogRow") && !webApi.includes('startsWith("catalog:")'), "web api should not keep retired request catalog compatibility code");
+assert(
+  !renderer.includes("getRequestActor") &&
+    !renderer.includes("requestMatchesMember") &&
+    !renderer.includes("hasDateRangeOverlap") &&
+    !renderer.includes("findDirectLeaveScheduleConflict") &&
+    !renderer.includes("hasDirectOvertimeScheduleConflict") &&
+    !renderer.includes("formatRequestDateText") &&
+    !renderer.includes("formatOvertimeTimeText") &&
+    !renderer.includes("formatOvertimeRestLines") &&
+    !renderer.includes("getLeaveStyleForRecord") &&
+    !renderer.includes("getLeaveStyleForSlot") &&
+    !renderer.includes("cleanSlotMeta") &&
+    !renderer.includes("cancelLeaveRequestIds"),
+  "renderer should not keep retired schedule request helper names"
+);
 assert(
   !exporter.includes("請假申請預覽") &&
     !exporter.includes("加班申請預覽") &&
