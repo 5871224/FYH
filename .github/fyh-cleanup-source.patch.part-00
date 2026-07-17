@@ -1,0 +1,159 @@
+diff --git a/scripts/check-expansion-acceptance.js b/scripts/check-expansion-acceptance.js
+index d0d1ef2..65e3d85 100644
+--- a/scripts/check-expansion-acceptance.js
++++ b/scripts/check-expansion-acceptance.js
+@@ -17,7 +17,6 @@ const attendanceOvertimeEmployee = read("supabase", "functions", "attendance-ove
+ const attendanceOvertimeAdminList = read("supabase", "functions", "attendance-overtime-admin-list", "index.ts");
+ const attendanceOvertimeAdminAction = read("supabase", "functions", "attendance-overtime-admin-action", "index.ts");
+ const mealOrder = read("supabase", "functions", "meal-order", "index.ts");
+-const reportRecords = read("supabase", "functions", "report-records", "index.ts");
+ 
+ assert(schema.includes("role in ('admin', 'manager', 'employee')"), "database should support admin, manager, employee roles");
+ assert(schema.includes("create table if not exists public.attendance_records"), "database should include attendance records");
+@@ -63,12 +62,12 @@ assert(renderer.includes('data-meal-tab="stats"') && renderer.includes("renderMe
+ assert(!renderer.includes('["meal", "訂餐統計", isManager()]'), "records page should not expose the meal stats tab");
+ assert(renderer.includes('<table class="meal-order-table">'), "today meal order should render as a table");
+ assert(renderer.includes("data-meal-product-row") && renderer.includes("commitMealProductOrderFromDom"), "meal settings should support drag ordering");
+-assert(schema.includes("create or replace function public.save_meal_order") || databaseUpdates.includes("create or replace function public.save_meal_order_v2"), "meal ordering should use a database transaction RPC");
+-assert(mealOrder.includes('rpc("save_meal_order"') || mealOrder.includes('rpc("save_meal_order_v2"'), "meal ordering should call the transaction RPC");
++assert(schema.includes("create or replace function public.save_meal_order"), "meal ordering should use the canonical database transaction RPC");
++assert(mealOrder.includes('rpc("save_meal_order"') && !mealOrder.includes("save_meal_order_v2"), "meal ordering should call only the canonical transaction RPC");
+ assert(schema.includes("請先完成上班打卡後再訂餐") && schema.includes("今日訂餐已超過截止時間"), "meal ordering should require clock-in and cutoff checks in the transaction");
+ assert(renderer.includes("data-meal-note-product-id"), "meal ordering should support per-item notes");
+ 
+ assert(index.includes('id="recordsCard"') && renderer.includes("function renderRecordsPage"), "records page should be present");
+-assert(reportRecords.includes("personalRecords") && reportRecords.includes("mealStats"), "reports should include personal records and meal stats");
++assert(renderer.includes("function loadRecordsPage") && renderer.includes("function loadMealReport") && webApi.includes('requestFunction("personal-records-v2"') && webApi.includes('requestFunction("meal-report-v2"'), "records and meal reports should use their dedicated current APIs");
+ 
+ console.log("expansion acceptance checks passed");
+diff --git a/scripts/check-normalized-storage.js b/scripts/check-normalized-storage.js
+index cb96522..dba445d 100644
+--- a/scripts/check-normalized-storage.js
++++ b/scripts/check-normalized-storage.js
+@@ -41,6 +41,14 @@ assert(!webApi.includes("fetchSchedulerRowByItemId") && !webApi.includes("delete
+ assert(!webApi.includes("login_email_by_employee_code"), "login should derive the auth email from employee code without a database login_email RPC");
+ assert(!schema.includes("login_email"), "set_employee should not store login_email");
+ assert(!renderer.includes("merged.overtime = merged.overtime.length ? [merged.overtime[0]] : [];"), "overtime settings should keep every overtime type from storage");
++assert(!webApi.includes("migrateLegacyTabletSession"), "web api should not keep legacy tablet session migration");
++assert(!renderer.includes("LEGACY_LEAVE_NAME_MAP") && !renderer.includes("resolveLeaveCatalogEntry"), "renderer should not keep legacy leave-name or index inference");
++assert(!renderer.includes("clearLegacyLeaveFromSlot") && !renderer.includes("clearLegacyOvertimeFromSlot"), "renderer should use current schedule-clear naming");
++assert(!renderer.includes("function getRemainingDailyShiftDemand(") && !renderer.includes("function isValidDateTimeRange("), "renderer should not keep test-only helper wrappers");
++assert(!renderer.includes("function getWeekStripeClass(") && !renderer.includes("function getWeekBoundaryClass("), "renderer should not keep retired month-based week helpers");
++assert(!renderer.includes("function getPositionName(") && !renderer.includes("function formatMonthText(") && !renderer.includes("function formatWeekStartLabel("), "renderer should not keep unused display helpers");
++assert(!renderer.includes("function sanitizeNamedColorItem(") && !renderer.includes("function isDepartmentActiveInMonth(") && !renderer.includes("function isMemberActiveInMonth("), "renderer should not keep unused normalization or month helpers");
++assert(!fs.readFileSync(path.join(rootDir, "src", "renderer", "rest-compliance.js"), "utf8").includes("module.exports"), "browser source should not expose CommonJS solely for tests");
+ assert(!renderer.includes("leaveRequestId") && !renderer.includes("overtimeRequestId"), "schedule state should not keep legacy request ids");
+ assert(
+   !renderer.includes('data-open-leave-request="true"') &&
+@@ -98,7 +106,7 @@ assert(schema.includes("create table if not exists public.set_employee"), "schem
+ const setEmployeeSchema = schema.slice(schema.indexOf("create table if not exists public.set_employee"), schema.indexOf("create table if not exists public.set_shift"));
+ assert(!setEmployeeSchema.includes("is_active"), "set_employee should not keep an is_active column");
+ assert(schema.includes("role in ('admin', 'manager', 'employee')"), "employee roles should include admin");
+-assert(schema.includes("alter column role type text using role::text"), "current schema should migrate legacy app_role enum columns to text");
++assert(!schema.includes("alter column role type text using role::text"), "current schema should not keep legacy role enum conversion");
+ assert(schema.includes("schedule_shift_ids uuid[]"), "schema should store ordered member shift priorities as uuid ids");
+ assert(schema.includes("applicable_department_id uuid not null"), "schema should store one required shift department id");
+ assert(!schema.includes("applicable_department_ids uuid[]"), "schema should not keep shift department applicability arrays");
+@@ -118,6 +126,11 @@ assert(schema.includes("create table if not exists public.overtime_review_logs")
+ assert(schema.includes("create table if not exists public.meal_products"), "schema should create meal products");
+ assert(schema.includes("create table if not exists public.meal_settings"), "schema should create meal settings");
+ assert(schema.includes("create table if not exists public.meal_orders"), "schema should create meal order item rows");
++assert(schema.includes("attendance_department_id uuid references public.set_departments"), "meal orders should use the canonical attendance department field");
++assert(!schema.includes("clock_location_id") && !schema.includes("display_name text"), "current schema should not keep compatibility-only meal or leave fields");
++assert(schema.includes("code text not null unique"), "leave codes should be required and unique");
++assert(!databaseUpdates.includes("create or replace function public.save_meal_order_v2"), "updates should not recreate the old meal wrapper RPC");
++assert(!databaseUpdates.includes("set_schedule_documents_updated_at() from") && !databaseUpdates.includes("alter function public.set_schedule_documents_updated_at"), "updates should not manage an orphaned legacy trigger function");
+ assert(schema.includes("unique (user_id, work_date)"), "attendance and overtime should be unique by user/date where required");
+ assert(schema.includes("unique (user_id, order_date, product_id)"), "meal orders should be unique by user/date/product");
+ assert(schema.includes("create or replace function public.is_admin(p_user_id uuid)"), "schema should expose an admin helper");
+@@ -141,6 +154,9 @@ assert(databaseUpdates.includes("on conflict (member_id, work_date)"), "schedule
+ assert(databaseUpdates.includes("grant execute on function public.save_schedule_entries_bulk(jsonb) to authenticated"), "schedule entry RPC should be executable by authenticated users");
+ assert(!schema.includes("schedule_documents"), "current schema should not recreate legacy JSON storage");
+ 
++assert(!fs.existsSync(path.join(rootDir, "supabase", "functions", "attendance-clock-safe")), "retired attendance-clock-safe endpoint still exists");
++assert(!fs.existsSync(path.join(rootDir, "supabase", "functions", "report-records")), "retired report-records endpoint still exists");
++
+ const retiredTableNames = ["manager_departments", "schedule_documents", "schedule_months"];
+ const retiredReferenceRoots = [
+   path.join(rootDir, "src"),
+diff --git a/scripts/check-renderer-alignment.js b/scripts/check-renderer-alignment.js
+index fa9ab6e..1954afa 100644
+--- a/scripts/check-renderer-alignment.js
++++ b/scripts/check-renderer-alignment.js
+@@ -29,8 +29,6 @@ requiredFiles.forEach((file) => assert(exists(file), `Missing renderer file: ${f
+ assert(!exists("src/renderer/v2-meal.js"), "Meal UI still depends on a late-loaded patch module");
+ ["v2-account.js", "v2-meal-export.js", "v2-settings-drag-handles.js", "v2-drag-scroll-preserve.js"].forEach((file) => assert(!exists(`src/renderer/${file}`), `Legacy renderer patch remains: ${file}`));
+ 
+-const reportRecords = read("supabase/functions/report-records/index.ts");
+-assert(!reportRecords.includes("full_name, department_id"), "report-records still queries retired set_employee.department_id");
+ 
+ const databaseUpdates = read("supabase/002_current_updates.sql");
+ const security = databaseUpdates;
+@@ -61,7 +59,7 @@ const overtimeAdminAction = read("supabase/functions/attendance-overtime-admin-a
+ assert(overtimeAdminAction.includes('rpc("admin_review_overtime_requests_v2"'), "Admin overtime review is not using the transactional RPC");
+ 
+ const mealOrder = read("supabase/functions/meal-order/index.ts");
+-assert(mealOrder.includes('rpc("save_meal_order_v2"'), "Meal order does not preserve the first department snapshot");
++assert(mealOrder.includes('rpc("save_meal_order"') && !mealOrder.includes("save_meal_order_v2"), "Meal order should use the canonical snapshot-preserving RPC");
+ assert(mealOrder.includes("停用品項只能減少或取消"), "Disabled meal-item increase protection is missing");
+ 
+ const sourceWebApi = read("src/renderer/web-api.js");
+diff --git a/scripts/check-renderer-contracts.js b/scripts/check-renderer-contracts.js
+index 986a211..3cb2daf 100644
+--- a/scripts/check-renderer-contracts.js
++++ b/scripts/check-renderer-contracts.js
+@@ -12,7 +12,6 @@ function assert(condition, message) {
+ const required = [
+   "supabase/002_current_updates.sql",
+   "supabase/functions/attendance-clock/index.ts",
+-  "supabase/functions/attendance-clock-safe/index.ts",
+   "supabase/functions/attendance-overtime-employee/index.ts",
+   "supabase/functions/attendance-overtime-admin-list/index.ts",
+   "supabase/functions/attendance-overtime-admin-action/index.ts",
+@@ -33,6 +32,11 @@ const required = [
+ 
+ required.forEach((file) => assert(exists(file), `缺少 renderer 檔案：${file}`));
+ 
++assert(!exists("supabase/functions/attendance-clock-safe"), "仍保留未使用的 attendance-clock-safe 過渡端點");
++assert(!exists("supabase/functions/report-records"), "仍保留未使用的 report-records 共用端點");
++const deployScript = read("scripts/deploy-edge-functions.ps1");
++assert(!deployScript.includes("attendance-clock-safe") && !deployScript.includes("report-records"), "部署清單仍包含已淘汰端點");
++
+ const actionsWorkflow = read(".github/workflows/deploy-pages.yml");
+ const projectPackage = JSON.parse(read("package.json"));
+ const workflowFiles = fs.readdirSync(path.join(root, ".github", "workflows"))
+@@ -57,9 +61,6 @@ assert(workflowFiles.length === 1 && workflowFiles[0] === "deploy-pages.yml", `
+ assert(!exists(".github/workflows/canonicalize-v2-api-data.yml") && !exists(".github/workflows/v2-alignment.yml") && !exists(".github/workflows/v2-final-check.yml"), "仍保留重複的 renderer 一次性 workflow");
+ assert(String(projectPackage.scripts?.["ci:check"] || "").includes("npm run renderer:check"), "ci:check 未包含完整 renderer 驗證");
+ 
+-const reportRecords = read("supabase/functions/report-records/index.ts");
+-assert(!reportRecords.includes("full_name, department_id"), "仍查詢不存在的 set_employee.department_id");
+-
+ const currentSchema = read("supabase/001_current_schema.sql");
+ const databaseUpdates = read("supabase/002_current_updates.sql");
+ const security = databaseUpdates;
+@@ -112,7 +113,7 @@ assert(databaseUpdates.includes("is_employee_account_effective") && databaseUpda
+ const setEmployeeBlock = currentSchema.slice(currentSchema.indexOf("create table if not exists public.set_employee"), currentSchema.indexOf("create table if not exists public.set_shift"));
+ assert(!setEmployeeBlock.includes("is_active"), "set_employee 現行結構仍包含 is_active");
+ const employeeEdgeFiles = [
+-  "report-records", "catalog-admin", "attendance-overtime-admin-list", "attendance-overtime-admin-action",
++  "catalog-admin", "attendance-overtime-admin-list", "attendance-overtime-admin-action",
+   "member-auth-admin", "meal-report-v2", "member-order-v2", "personal-records-v2",
+   "attendance-admin-action-v2", "attendance-clock", "meal-order", "member-delete-v2",
+   "meal-cancel-v2", "attendance-admin-list-v2", "attendance-overtime-employee",
+@@ -136,10 +137,6 @@ assert(attendanceClock.includes("isIPad"), "iPad 判定修正缺失");
+ assert(!attendanceClock.includes("clock_in_ip:"), "員工打卡回應仍暴露上班 IP");
+ assert(!attendanceClock.includes("clock_in_latitude:"), "員工打卡回應仍暴露上班 GPS");
+ 
+-const safeClock = read("supabase/functions/attendance-clock-safe/index.ts");
+-assert(!safeClock.includes("clock_in_ip:"), "備援安全打卡回應仍暴露 IP");
+-assert(!safeClock.includes("clock_in_latitude:"), "備援安全打卡回應仍暴露 GPS");
+-
+ const adminSql = databaseUpdates;
+ assert(adminSql.includes("p_reason text default ''"), "打卡異動原因未設為選填");
+ assert(adminSql.includes("old_record, new_record"), "打卡完整新舊快照稽核缺失");
+@@ -160,7 +157,7 @@ const adminAction = read("supabase/functions/attendance-overtime-admin-action/in
+ assert(adminAction.includes('rpc("admin_review_overtime_requests_v2"'), "管理員加班審核未使用交易 RPC");
+ 
+ const mealOrder = read("supabase/functions/meal-order/index.ts");
+-assert(mealOrder.includes('rpc("save_meal_order_v2"'), "訂餐未保留第一次訂餐單位快照");
