@@ -43,7 +43,7 @@ jobs:
       - name: Restore permanent workflow and remove patch carriers
         run: |
           git show origin/main:.github/workflows/deploy-pages.yml > .github/workflows/deploy-pages.yml
-          rm -f .github/fyh-cleanup-source.patch.part-*
+          rm -f .github/fyh-cleanup-source.patch.part-* .github/fyh-cleanup-marker.txt
           cmp .github/workflows/deploy-pages.yml <(git show origin/main:.github/workflows/deploy-pages.yml)
 
       - name: Run complete validation
