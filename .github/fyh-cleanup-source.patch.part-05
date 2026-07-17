@@ -1,0 +1,249 @@
++    "({ toDateString, toDateObject, enumerateDateRange, normalizeTimeText, toMinutes, isValidTimeRange, isValidDateRange, isMemberActiveOnDateString })"
+   );
+ 
+   assert.equal(utils.toDateString(2026, 6, 2), "2026-07-02");
+@@ -47,7 +47,6 @@ test("日期與時間工具應正確處理格式及區間", () => {
+   assert.equal(utils.isValidTimeRange("08:00", "17:00"), true);
+   assert.equal(utils.isValidTimeRange("17:00", "08:00"), false);
+   assert.equal(utils.isValidDateRange("2026-07-01", "2026-07-02"), true);
+-  assert.equal(utils.isValidDateTimeRange("2026-07-01", "23:00", "2026-07-02", "01:00"), true);
+   assert.equal(utils.isMemberActiveOnDateString({ hireDate: "2026-07-02", leaveDate: "2026-07-04" }, "2026-07-03"), true);
+   assert.equal(utils.isMemberActiveOnDateString({ hireDate: "2026-07-02", leaveDate: "2026-07-04" }, "2026-07-05"), false);
+ });
+diff --git a/tests/renderer-module-boundaries.test.js b/tests/renderer-module-boundaries.test.js
+index a3e91c0..6a071e2 100644
+--- a/tests/renderer-module-boundaries.test.js
++++ b/tests/renderer-module-boundaries.test.js
+@@ -35,7 +35,6 @@ const modules = [
+ const movedNames = [
+   "setSaveStatus",
+   "getDepartmentName",
+-  "getPositionName",
+   "getSalaryTypeLabel",
+   "normalizeRestWeekday",
+   "getRestWeekdayLabel",
+@@ -72,8 +71,8 @@ const movedNames = [
+   "buildPersistedState",
+   "queueSave",
+   "forceSave",
+-  "clearLegacyLeaveFromSlot",
+-  "clearLegacyOvertimeFromSlot",
++  "clearLeaveFromSlot",
++  "clearOvertimeFromSlot",
+   "applySelectionToCell",
+   "selectChip",
+   "removeAssignmentsByItem",
+@@ -86,8 +85,6 @@ const movedNames = [
+   "saveOvertimeAssignmentFromModal",
+   "syncScheduleOvertimeFormUi",
+   "syncScheduleCatalogs",
+-  "formatMonthText",
+-  "formatWeekStartLabel",
+   "getConfiguredMonthStartDay",
+   "formatDateTextFromIso",
+   "formatWeekRangeText",
+@@ -105,7 +102,7 @@ const movedNames = [
+   "exportLeave"
+ ];
+ 
+-test("最終拆分後 renderer.js 只保留狀態與啟動流程", () => {
++test("renderer.js 只保留狀態與啟動流程", () => {
+   const topLevelFunctions = [...renderer.matchAll(/^(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\(/gm)].map((match) => match[1]);
+   assert.deepEqual(topLevelFunctions, ["loadApp", "refreshScheduleCatalogsAfterInitialRender"]);
+   assert.ok(renderer.split(/\r?\n/).length < 160, "renderer.js 仍過大");
+@@ -113,7 +110,7 @@ test("最終拆分後 renderer.js 只保留狀態與啟動流程", () => {
+   for (const name of movedNames) assert.equal(renderer.includes("function " + name), false, "renderer.js 仍保留 " + name);
+ });
+ 
+-test("最終模組應依原責任順序進入建置與測試來源", () => {
++test("模組應依責任順序進入建置與測試來源", () => {
+   [build, core].forEach((manifest) => {
+     let previous = manifest.indexOf('"renderer-records-page.js"');
+     for (const file of modules) {
+@@ -121,7 +118,7 @@ test("最終模組應依原責任順序進入建置與測試來源", () => {
+       assert.ok(index > previous, "模組順序錯誤：" + file);
+       previous = index;
+     }
+-    assert.ok(manifest.indexOf('"renderer.js"') > previous, "renderer.js 應在最終模組之後");
++    assert.ok(manifest.indexOf('"renderer.js"') > previous, "renderer.js 應在責任模組之後");
+   });
+ });
+ 
+diff --git a/tests/renderer-modules.test.js b/tests/renderer-modules.test.js
+index 5fef492..91025c2 100644
+--- a/tests/renderer-modules.test.js
++++ b/tests/renderer-modules.test.js
+@@ -30,7 +30,7 @@ test("共用訊息與時間輸入工具應保留既有格式", () => {
+ test("任職與營運區間判定應包含起訖日", () => {
+   const visibility = evaluateModule(
+     "renderer-visibility.js",
+-    "({ isMemberActiveOnDate, doesDateRangeOverlapMonth, doesDateRangeOverlapRange, isDepartmentVisibleInSchedule, isDepartmentOperatingOnDate })",
++    "({ isMemberActiveOnDate, doesDateRangeOverlapRange, isDepartmentVisibleInSchedule, isDepartmentOperatingOnDate })",
+     {
+       toDateString: (year, month, day) => `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+       daysInMonth: (year, month) => new Date(year, month + 1, 0).getDate(),
+@@ -42,7 +42,6 @@ test("任職與營運區間判定應包含起訖日", () => {
+   assert.equal(visibility.isMemberActiveOnDate(member, 2026, 6, 2), true);
+   assert.equal(visibility.isMemberActiveOnDate(member, 2026, 6, 4), true);
+   assert.equal(visibility.isMemberActiveOnDate(member, 2026, 6, 5), false);
+-  assert.equal(visibility.doesDateRangeOverlapMonth("2026-06-20", "2026-07-01", 2026, 6), true);
+   assert.equal(visibility.doesDateRangeOverlapRange("2026-08-25", "", "2026-07-01", "2026-08-25"), true);
+   assert.equal(visibility.isDepartmentVisibleInSchedule({ hiddenFromSchedule: false }), true);
+   assert.equal(visibility.isDepartmentOperatingOnDate({ startDate: "2026-07-01", endDate: "2026-07-31" }, "2026-07-31"), true);
+@@ -55,7 +54,6 @@ test("狀態正規化工具應保留顏色與排班清理規則", () => {
+     {
+       COLORS: [{ hex: "#378ADD" }],
+       LEAVE_CATALOG: [{ code: "0010", name: "事假" }],
+-      LEGACY_LEAVE_NAME_MAP: {},
+       uid: (prefix) => `${prefix}-id`,
+       normalizeRole: () => "employee",
+       normalizeRestWeekday: () => 0,
+@@ -82,7 +80,7 @@ test("狀態正規化工具應保留顏色與排班清理規則", () => {
+   assert.equal(Boolean(cleaned.B), false);
+ });
+ 
+-test("renderer 第二階段拆分應維持核心來源與建置順序", () => {
++test("renderer 模組應維持核心來源與建置順序", () => {
+   const renderer = fs.readFileSync(path.join(root, "src", "renderer", "renderer.js"), "utf8");
+   const build = fs.readFileSync(path.join(root, "scripts", "build-js.js"), "utf8");
+   const movedMarkers = [
+diff --git a/tests/renderer-records-views.test.js b/tests/renderer-records-views.test.js
+index 55ffcb6..d24179f 100644
+--- a/tests/renderer-records-views.test.js
++++ b/tests/renderer-records-views.test.js
+@@ -11,7 +11,6 @@ const build = read("scripts/build-js.js");
+ const coreSource = read("scripts/renderer-core-source.js");
+ const components = read("src/renderer/css/components.css");
+ const attendanceAdminFunction = read("supabase/functions/attendance-admin-list-v2/index.ts");
+-const reportRecordsFunction = read("supabase/functions/report-records/index.ts");
+ const overtimeAdminListFunction = read("supabase/functions/attendance-overtime-admin-list/index.ts");
+ 
+ test("記錄頁畫面應保留個人、加班審核與打卡管理分頁", () => {
+@@ -31,11 +30,9 @@ test("打卡管理顯示項目應排除資料品質防呆提示", () => {
+   assert.equal(views.includes("<span>顯示項目</span><select data-attendance-filter=\"issueType\">"), true);
+   assert.equal(views.includes("<span>異常類型</span>"), false);
+ 
+-  [attendanceAdminFunction, reportRecordsFunction].forEach((source) => {
+-    const options = source.match(/issueTypes:\s*\[([^\]]*)\]/s)?.[1] || "";
+-    assert.equal(options.includes("打卡時間不完整或格式異常"), false);
+-    assert.equal(options.includes("班別缺少完整上下班時間"), false);
+-  });
++  const options = attendanceAdminFunction.match(/issueTypes:\s*\[([^\]]*)\]/s)?.[1] || "";
++  assert.equal(options.includes("打卡時間不完整或格式異常"), false);
++  assert.equal(options.includes("班別缺少完整上下班時間"), false);
+ 
+   assert.equal(attendanceAdminFunction.includes('output.push("打卡時間不完整或格式異常")'), true);
+   assert.equal(attendanceAdminFunction.includes('output.push("班別缺少完整上下班時間")'), true);
+@@ -71,7 +68,7 @@ test("加班審核應依所選期間匯出全部已核准資料", () => {
+   assert.match(components, /\.overtime-review-actions \{\s*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/s);
+ });
+ 
+-test("第十三階段應移出記錄頁畫面並維持模組順序", () => {
++test("記錄頁畫面應維持明確模組順序", () => {
+   const ordered = ["renderer-main-pages.js", "renderer-records-views.js", "renderer-modal-navigation.js", "renderer.js"];
+   [build, coreSource].forEach((manifest) => {
+     let previous = -1;
+diff --git a/tests/renderer-tablet-session.test.js b/tests/renderer-tablet-session.test.js
+index dbaa26c..a0b0358 100644
+--- a/tests/renderer-tablet-session.test.js
++++ b/tests/renderer-tablet-session.test.js
+@@ -40,7 +40,7 @@ const sessionStorageKey = "scheduler.test.session";
+ const mobileSessionMaxIdleMs = 48 * 60 * 60 * 1000;
+ const desktopSessionMaxIdleMs = 30 * 60 * 1000;
+ `;
+-  const api = vm.runInNewContext(prefix + webApi.slice(start, end) + "\n;({ isTabletDevice, isPhoneDevice, getSessionStore, getSessionMaxIdleMs, migrateLegacyTabletSession, persistSession })", context);
++  const api = vm.runInNewContext(prefix + webApi.slice(start, end) + "\n;({ isTabletDevice, isPhoneDevice, getSessionStore, getSessionMaxIdleMs, persistSession })", context);
+   return { api, localStorage, sessionStorage, key: "scheduler.test.session" };
+ }
+ 
+@@ -73,18 +73,6 @@ test("手機仍使用 localStorage 與 48 小時期限", () => {
+   assert.equal(api.getSessionMaxIdleMs(), 48 * 60 * 60 * 1000);
+ });
+ 
+-test("舊平板 localStorage Session 應遷移到目前分頁", () => {
+-  const { api, localStorage, sessionStorage, key } = createSessionApi({
+-    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15)",
+-    maxTouchPoints: 5
+-  });
+-  const legacy = JSON.stringify({ session: { access_token: "token", user: { id: "U1" } }, lastActivityAt: Date.now() });
+-  localStorage.setItem(key, legacy);
+-  api.migrateLegacyTabletSession();
+-  assert.equal(sessionStorage.getItem(key), legacy);
+-  assert.equal(localStorage.getItem(key), null);
+-});
+-
+ test("正式 Session 寫入只保留目前裝置應使用的儲存區", () => {
+   const { api, localStorage, sessionStorage, key } = createSessionApi({
+     userAgent: "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X)",
+@@ -102,5 +90,5 @@ test("平板 Session 應由正式 web-api 管理而非包裝所有 API", () => {
+   assert.equal(build.includes("v2-tablet-session.js"), false);
+   assert.equal(webApi.includes('["pointerdown", "keydown", "touchstart"]'), true);
+   assert.equal(webApi.includes("lastActivityWriteAt < 15000"), true);
+-  assert.equal(webApi.includes("migrateLegacyTabletSession();"), true);
++  assert.equal(webApi.includes("migrateLegacyTabletSession"), false);
+ });
+diff --git a/tests/rest-compliance.test.js b/tests/rest-compliance.test.js
+index 3862e44..958aa68 100644
+--- a/tests/rest-compliance.test.js
++++ b/tests/rest-compliance.test.js
+@@ -1,6 +1,15 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+-const compliance = require("../src/renderer/rest-compliance.js");
++const fs = require("node:fs");
++const path = require("node:path");
++const vm = require("node:vm");
++
++const context = { window: {} };
++vm.runInNewContext(
++  fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "rest-compliance.js"), "utf8"),
++  context
++);
++const compliance = context.window.restCompliance;
+ 
+ function day(date, options = {}) {
+   return {
+diff --git "a/\350\246\217\346\240\274\346\233\270.md" "b/\350\246\217\346\240\274\346\233\270.md"
+index 9039f2e..5787544 100644
+--- "a/\350\246\217\346\240\274\346\233\270.md"
++++ "b/\350\246\217\346\240\274\346\233\270.md"
+@@ -1712,7 +1712,7 @@ Android 返回鍵：
+ - `order_date`：訂餐日期。
+ - `department_id`：訂餐單位。
+ - `department_name_snapshot`：單位名稱快照。
+-- `clock_location_id`：訂餐所依據的上班打卡單位識別；欄名為相容命名，目前外鍵指向 `set_departments.id`。
++- `attendance_department_id`：訂餐所依據的上班打卡單位識別，外鍵指向 `set_departments.id`。
+ - `product_id`：商品。
+ - `product_name_snapshot`：商品名稱快照。
+ - `quantity`：數量。
+@@ -1801,8 +1801,8 @@ Android 返回鍵：
+ 2. `app-config.js` 保存公開部署設定，必須在 `app.js` 前獨立載入；除外部 ExcelJS 外，入口不得再直接載入其他本機 JavaScript。
+ 3. `app.js` 為自動產生檔，不得直接修改。`docs/` 不發布個別 JavaScript 原始模組。
+ 4. 禁止在執行期間以 `document.createElement("script")` 補載本機功能檔，也禁止依靠不同快取版本或載入時機重複載入模組。
+-5. 第一階段為相容性 bundle：保留既有全域函式、全域狀態與原始載入順序，不在同一次異動全面改寫成 ES Modules。
+-6. 後續應逐步把共用 API 呼叫、日期格式、驗證、狀態管理與各功能頁拆成明確責任模組，並消除後載入檔案覆寫前一版本函式的做法。
++5. JavaScript 模組依固定建置清單與明確責任順序合併；正式來源不得保留舊版相容層或僅供測試呼叫的公開函式。
++6. 共用 API、日期格式、驗證、狀態管理與各功能頁維持明確責任模組；不得以後載入檔案覆寫前一版本函式。
+ 7. 不得新增 `fix`、`refinement`、`final`、`v3` 等補丁型 JavaScript；需求應修改責任正確的現有模組，或建立具明確功能名稱的新模組並加入固定建置清單。
+ 8. 每次修改模組順序、移除覆寫或轉換為 ES Modules 時，必須分階段執行並通過 `npm run js:check`、`npm run web:publish`、`npm run renderer:check` 與相關功能驗收。
+ 
+@@ -2201,9 +2201,7 @@ Edge Function／正式後端 API
+ |---|---|---|
+ | `member-auth-admin` | 建立、修改帳號與重設密碼 | 帳號管理 API＋身分服務介接 |
+ | `catalog-admin` | 班別、假別與班表加班設定的受保護管理操作 | 設定管理 API＋目錄 Service |
+-| `report-records` | 共用個人記錄、管理查詢與報表資料整合 | 記錄／報表查詢 API |
+ | `attendance-clock` | 今日打卡狀態、GPS／IP 驗證、上下班打卡 | 打卡 Controller＋位置驗證 Service |
+-| `attendance-clock-safe` | 代理打卡請求並過濾敏感回傳欄位 | 安全 API Gateway／回應過濾層 |
+ | `meal-order` | 今日訂餐、商品設定讀取與訂單保存 | 訂餐 API＋訂單 Service |
+ | `attendance-overtime-employee` | 員工加班資格、狀態、送出與刪除 | 員工加班 API＋加班 Service |
+ | `attendance-overtime-admin-list` | 管理員加班審核清單 | 管理端加班查詢 API |
+@@ -2680,7 +2678,7 @@ Edge Function／正式後端 API
+ ### 9.10.3 發布門檻
+ 
+ 1. 必要自動檢查全部通過，不得以刪除安全或驗收檢查換取成功。
+-2. 資料庫異動已在相容順序下套用，並確認新舊前端過渡期。
++2. 資料庫異動已依正式 SQL 完整套用，且前端、Edge Function 與資料庫只使用同一套現行契約。
+ 3. 權限異動至少測試員工、主管、管理員與未登入。
+ 4. 前端異動完成 `web:publish`，`src/renderer/` 與 `docs/` 一致。
+ 5. 高風險操作完成交易失敗、重複送出及回滾驗證。
+@@ -2763,6 +2761,7 @@ Edge Function／正式後端 API
