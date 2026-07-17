@@ -40,6 +40,17 @@ jobs:
       - name: Build static web
         run: npm run web:publish
 
+      - name: Upload repository snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-snapshot
+          path: |
+            .
+            !.git/**
+            !node_modules/**
+          include-hidden-files: true
+          retention-days: 1
+
       - name: Check reproducible static publish
         run: git diff --exit-code -- docs
 
