@@ -53,6 +53,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --cached --check
           git commit -m "清除班表舊申請流程殘留"
           git push origin HEAD:agent/repo-snapshot-20260717
