@@ -1,28 +1,31 @@
-name: Apply Mobile Settings Header Fix
-run-name: "套用手機設定表頭修正"
+name: Validate Web App
+run-name: "${{ github.event_name == 'pull_request' && format('PR #{0} 驗證', github.event.pull_request.number) || github.event_name == 'push' && 'main 驗證' || '手動驗證' }}"
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: mobile-settings-header-${{ github.event.pull_request.number }}
+  group: web-validate-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  apply:
-    if: github.head_ref == 'agent/fix-mobile-settings-header'
+  validate:
+    name: Validate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout repair branch
+      - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: agent/fix-mobile-settings-header
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -30,30 +33,39 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Apply source and regression-test patch
-        run: git apply --index .github/mobile-settings-header.patch
+      - name: Check declared change scope
+        if: github.event_name == 'pull_request'
+        run: npm run scope:check
 
-      - name: Rebuild published files
+      - name: Build static web
         run: npm run web:publish
 
-      - name: Restore permanent workflow and remove patch carrier
-        run: |
-          git show origin/main:.github/workflows/deploy-pages.yml > .github/workflows/deploy-pages.yml
-          rm -f .github/mobile-settings-header.patch
-          cmp .github/workflows/deploy-pages.yml <(git show origin/main:.github/workflows/deploy-pages.yml)
+      - name: Check reproducible static publish
+        run: git diff --exit-code -- docs
 
-      - name: Run regression validation
-        run: |
-          npm test
-          npm run renderer:check
-          npm run css:architecture
+      - name: Check workflow hygiene
+        run: node --test tests/github-actions-hygiene.test.js
 
-      - name: Commit validated fix
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --check
-          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = ".github/mobile-settings-header.patch .github/workflows/deploy-pages.yml docs/app.css docs/index.html src/renderer/app.css src/renderer/css/components.css src/renderer/index.html tests/settings-width-and-catalog-delete.test.js "
-          git commit -m "修正手機設定表格水平捲動表頭"
-          git push origin HEAD:agent/fix-mobile-settings-header
+      - name: Run unit tests
+        run: npm test
+
+      - name: Check public Supabase settings
+        run: npm run web:check
+
+      - name: Check normalized storage
+        run: node scripts/check-normalized-storage.js
+
+      - name: Check expansion acceptance
+        run: node scripts/check-expansion-acceptance.js
+
+      - name: Check settings lists
+        run: node scripts/check-settings-lists.js
+
+      - name: Check renderer bundles
+        run: npm run renderer:check
+
+      - name: Check CSS architecture
+        run: npm run css:architecture
+
+      - name: Check JavaScript architecture
+        run: npm run js:architecture

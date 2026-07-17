@@ -8,13 +8,15 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("電腦版設定列表應配合彈窗寬度，不使用第二套固定最小寬度", () => {
+test("設定列表應以完整內容寬度維持水平捲動後的表頭格式", () => {
   const css = read("src/renderer/css/components.css");
   assert.equal(css.includes("min-width: 1040px"), false);
   assert.equal(css.includes("min-width: 880px"), false);
   assert.equal(css.includes("min-width: 1060px"), false);
-  assert.match(css, /\.member-settings-modal \.member-table \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;/);
-  assert.match(css, /\.catalog-settings-modal \.settings-table \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;/);
+  assert.match(css, /\.member-settings-modal \.member-table,[\s\S]*?\.catalog-settings-modal \.settings-table \{[\s\S]*?width: max-content;[\s\S]*?min-width: 100%;/);
+  assert.match(css, /\.member-settings-modal \.member-table-row,[\s\S]*?\.catalog-settings-modal \.settings-table-row \{[\s\S]*?width: 100%;[\s\S]*?min-width: 100%;/);
+  assert.equal(css.includes(".member-settings-modal .member-table {\n  width: 100%;\n  min-width: 0;"), false);
+  assert.equal(css.includes(".catalog-settings-modal .settings-table {\n  width: 100%;\n  min-width: 0;"), false);
   assert.equal((css.match(/\.catalog-settings-modal \.settings-table-row-shift \{/g) || []).length, 1);
   assert.equal(css.includes("--settings-drag-column-width: 30px"), true);
   assert.equal(css.includes("--settings-action-column-width: 72px"), true);

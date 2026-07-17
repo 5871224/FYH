@@ -4267,14 +4267,18 @@ body.is-meal-view .meal-tabs ~ .records-section {
   }
 }
 
-/* Keep the sticky member-table header opaque across horizontal scrolling. */
-.member-settings-modal .member-table {
-  width: 100%;
-  min-width: 0;
+/* Settings grids must own their full intrinsic width so sticky headers keep
+ * their background, borders and column alignment while the scroll frame moves. */
+.member-settings-modal .member-table,
+.catalog-settings-modal .settings-table {
+  width: max-content;
+  min-width: 100%;
 }
 
-.member-settings-modal .member-table-row {
+.member-settings-modal .member-table-row,
+.catalog-settings-modal .settings-table-row {
   width: 100%;
+  min-width: 100%;
 }
 
 .member-settings-modal .member-table-head {
@@ -4340,17 +4344,11 @@ body.is-meal-view .meal-tabs ~ .records-section {
   border-radius: 999px;
 }
 
-.catalog-settings-modal .settings-table {
-  width: 100%;
-  min-width: 0;
-}
-
 .department-settings-modal .department-settings-table {
   width: max-content;
   min-width: 100%;
 }
 
-.catalog-settings-modal .settings-table-row,
 .department-settings-modal .department-settings-row {
   width: 100%;
 }
