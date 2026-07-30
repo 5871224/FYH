@@ -318,6 +318,63 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function installToolbarRapidEdit() {
+    const chipSelector = '#shiftChips [data-chip-type="shift"][data-chip-id], #leaveChips [data-chip-type="leave"][data-chip-id]';
+    let lastChipKey = "";
+    let lastChipClickAt = 0;
+    let rapidEditOpenedAt = 0;
+
+    document.body.addEventListener("click", (event) => {
+      const chip = event.target instanceof Element ? event.target.closest(chipSelector) : null;
+      if (!chip) {
+        return;
+      }
+      const type = chip.dataset.chipType || "";
+      const id = chip.dataset.chipId || "";
+      if (!id || (type !== "shift" && type !== "leave")) {
+        return;
+      }
+
+      const now = Date.now();
+      const key = `${type}:${id}`;
+      const isRapidSecondClick = key === lastChipKey && now - lastChipClickAt <= 550;
+      lastChipKey = key;
+      lastChipClickAt = now;
+      if (!isRapidSecondClick) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      lastChipKey = "";
+      lastChipClickAt = 0;
+      rapidEditOpenedAt = now;
+
+      if (!canEditSchedule()) {
+        promptManagerAccess(`修改${type === "shift" ? "班別" : "假別"}需先登入主管帳號`);
+        return;
+      }
+
+      state.selected = { type, id };
+      renderToolbar();
+      renderTable();
+      if (type === "shift") {
+        openShiftFormModal("edit", id);
+      } else {
+        openNamedColorFormModal("leave", "edit", id);
+      }
+    }, true);
+
+    document.body.addEventListener("dblclick", (event) => {
+      const chip = event.target instanceof Element ? event.target.closest(chipSelector) : null;
+      if (!chip || Date.now() - rapidEditOpenedAt > 700) {
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }, true);
+  }
+
   const baseRenderTable = renderTable;
   renderTable = function renderTableWithVisibleEmptyDepartments(...args) {
     const result = baseRenderTable.apply(this, args);
@@ -363,5 +420,6 @@ window.addEventListener("DOMContentLoaded", () => {
   }, true);
 
   installToolbarStackedLayout();
+  installToolbarRapidEdit();
   renderVisibleEmptyDepartments();
 });
