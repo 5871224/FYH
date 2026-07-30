@@ -4,16 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>班表</title>
-  <link rel="stylesheet" href="./app.css?v=acca19b88acd">
+  <link rel="stylesheet" href="./app.css?v=0fe6afda7987">
 </head>
 <body>
   <div class="app-shell">
     <section class="toolbar-card toolbar-floating-card">
-      <div class="toolbar-top-row">
-        <button class="ghost-btn toolbar-collapse-toggle" id="toolbarCollapseToggle" type="button" aria-expanded="true" aria-label="收合工具列" title="收合工具列">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
-        </button>
-      </div>
+      <button class="ghost-btn toolbar-collapse-toggle" id="toolbarCollapseToggle" type="button" aria-expanded="true" aria-label="收合工具列" title="收合工具列">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+      </button>
+      <button class="ghost-btn toolbar-history-btn" id="scheduleUndoButton" type="button" aria-label="上一步（Ctrl+Z）" title="上一步（Ctrl+Z）" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7l-5 5 5 5"></path><path d="M5 12h8a6 6 0 0 1 6 6"></path></svg>
+      </button>
+      <button class="ghost-btn toolbar-history-btn" id="scheduleRedoButton" type="button" aria-label="下一步（Ctrl+Y）" title="下一步（Ctrl+Y）" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l5 5-5 5"></path><path d="M19 12h-8a6 6 0 0 0-6 6"></path></svg>
+      </button>
       <div class="toolbar-grid" id="toolbarGrid" style="display:none">
         <div class="toolbar-section toolbar-section-combined">
           <div class="toolbar-title-row toolbar-title-row-combined">
@@ -51,14 +55,6 @@
         <div class="calendar-nav-left">
           <select id="tableViewSelect" aria-label="班表檢視"><option value="member">人員檢視</option><option value="member-stats">人員檢視-統計欄</option><option value="shift">班別檢視</option></select>
           <select id="tableDeptScopeFilter" aria-label="班表顯示範圍"></select>
-          <div class="toolbar-history-actions schedule-nav-history-actions" aria-label="班表操作歷程">
-            <button class="ghost-btn toolbar-history-btn" id="scheduleUndoButton" type="button" aria-label="上一步（Ctrl+Z）" title="上一步（Ctrl+Z）" disabled>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7l-5 5 5 5"></path><path d="M5 12h8a6 6 0 0 1 6 6"></path></svg>
-            </button>
-            <button class="ghost-btn toolbar-history-btn" id="scheduleRedoButton" type="button" aria-label="下一步（Ctrl+Y）" title="下一步（Ctrl+Y）" disabled>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l5 5-5 5"></path><path d="M19 12h-8a6 6 0 0 0-6 6"></path></svg>
-            </button>
-          </div>
         </div>
         <div class="month-title-wrap"><h2 id="monthTitle"></h2></div>
         <div class="nav-actions">

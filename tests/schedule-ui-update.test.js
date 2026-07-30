@@ -6,12 +6,16 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("班表操作列與保留功能符合新介面契約", () => {
+test("班表浮動工具列使用整合式左側操作列", () => {
   const html = read("src/renderer/index.html");
-  const filterIndex = html.indexOf('id="tableDeptScopeFilter"');
-  const undoIndex = html.indexOf('id="scheduleUndoButton"');
-  const redoIndex = html.indexOf('id="scheduleRedoButton"');
-  assert.ok(filterIndex >= 0 && undoIndex > filterIndex && redoIndex > undoIndex);
+  const toolbarIndex = html.indexOf('class="toolbar-card toolbar-floating-card"');
+  const collapseIndex = html.indexOf('id="toolbarCollapseToggle"', toolbarIndex);
+  const undoIndex = html.indexOf('id="scheduleUndoButton"', toolbarIndex);
+  const redoIndex = html.indexOf('id="scheduleRedoButton"', toolbarIndex);
+  const gridIndex = html.indexOf('id="toolbarGrid"', toolbarIndex);
+  assert.ok(toolbarIndex >= 0 && collapseIndex > toolbarIndex && undoIndex > collapseIndex && redoIndex > undoIndex && gridIndex > redoIndex);
+  assert.equal(html.includes('class="toolbar-top-row"'), false);
+  assert.equal(html.includes("schedule-nav-history-actions"), false);
   assert.match(html, /toolbar-section-overtime" hidden/);
   assert.match(html, /id="tablePrevWeekButton"[^>]* hidden/);
   assert.match(html, /id="tableNextWeekButton"[^>]* hidden/);
@@ -29,6 +33,8 @@ test("班表週移動與例假排班顯示具有正式程式契約", () => {
   assert.match(cells, /hasRegularHolidayWork/);
   assert.match(css, /\.table-week-jump \{[\s\S]*?display: none !important;/);
   assert.match(css, /\.table-sticky-cell-day\.sun:not\(\.today\)/);
-  assert.match(css, /#toolbarCollapseToggle \{[\s\S]*?width: 44px;/);
+  assert.match(css, /\.toolbar-floating-card \{[\s\S]*?grid-template-columns: 44px minmax\(0, 1fr\);/);
+  assert.match(css, /\.toolbar-floating-card > \.toolbar-grid \{[\s\S]*?grid-template-columns: minmax\(0, 1\.66fr\) minmax\(0, 0\.78fr\);/);
+  assert.match(css, /\.toolbar-floating-card\.toolbar-floating-card-collapsed \{[\s\S]*?grid-template-rows: repeat\(3, auto\);/);
   assert.match(css, /\.cell\.regular-holiday-work-cell[\s\S]*?#ffe58f/);
 });

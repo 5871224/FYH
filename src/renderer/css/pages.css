@@ -155,17 +155,51 @@
 
 
 /* ===== 班表頁操作列與例假排班提示 ===== */
-#toolbarCollapseToggle {
+.toolbar-floating-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  align-items: start;
+  gap: 8px 12px;
+}
+
+.toolbar-floating-card > #toolbarCollapseToggle,
+.toolbar-floating-card > #scheduleUndoButton,
+.toolbar-floating-card > #scheduleRedoButton {
+  position: static !important;
+  grid-column: 1;
+  box-sizing: border-box;
   width: 44px;
   min-width: 44px;
+  margin: 0 !important;
+  padding: 0;
+}
+
+.toolbar-floating-card > #toolbarCollapseToggle {
+  grid-row: 1;
   height: 44px;
   min-height: 44px;
-  padding: 0;
   border: 1px solid var(--ui-accent-strong);
   border-radius: 14px;
   background: linear-gradient(135deg, var(--ui-accent) 0%, var(--ui-accent-strong) 100%);
   color: #fff;
   box-shadow: 0 8px 18px rgba(72, 52, 31, 0.2);
+}
+
+.toolbar-floating-card > #scheduleUndoButton {
+  grid-row: 2;
+}
+
+.toolbar-floating-card > #scheduleRedoButton {
+  grid-row: 3;
+}
+
+.toolbar-floating-card > #scheduleUndoButton,
+.toolbar-floating-card > #scheduleRedoButton {
+  height: 40px;
+  min-height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 253, 248, 0.96);
 }
 
 #toolbarCollapseToggle:not(:disabled):hover {
@@ -181,25 +215,29 @@
   stroke-width: 2.6;
 }
 
-.toolbar-floating-card:not(.toolbar-floating-card-collapsed) #toolbarCollapseToggle,
-.toolbar-floating-card.toolbar-floating-card-collapsed #toolbarCollapseToggle {
-  flex: 0 0 44px;
+.toolbar-floating-card > .toolbar-grid {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1.66fr) minmax(0, 0.78fr);
 }
 
-.calendar-nav-left .schedule-nav-history-actions {
-  position: static;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
+.toolbar-floating-card > .toolbar-grid > .toolbar-section-combined,
+.toolbar-floating-card > .toolbar-grid > .toolbar-section-leave {
+  min-width: 0;
 }
 
-.calendar-nav-left .toolbar-history-btn {
-  width: var(--schedule-nav-control-height);
-  min-width: var(--schedule-nav-control-height);
-  height: var(--schedule-nav-control-height);
-  min-height: var(--schedule-nav-control-height);
-  border-radius: 12px;
+.toolbar-floating-card.toolbar-floating-card-collapsed {
+  display: grid;
+  grid-template-columns: 44px;
+  grid-template-rows: repeat(3, auto);
+  gap: 8px;
+  padding: 8px;
+}
+
+.toolbar-floating-card.toolbar-floating-card-collapsed > .toolbar-grid {
+  display: none !important;
 }
 
 .table-sticky-cell-day.sun:not(.today),
@@ -230,14 +268,28 @@
 }
 
 @media (max-width: 768px) {
-  .calendar-nav-left .schedule-nav-history-actions {
-    flex: 0 0 auto;
+  .toolbar-floating-card {
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 8px;
   }
 
-  #toolbarCollapseToggle {
+  .toolbar-floating-card > #toolbarCollapseToggle,
+  .toolbar-floating-card > #scheduleUndoButton,
+  .toolbar-floating-card > #scheduleRedoButton {
     width: 42px;
     min-width: 42px;
+  }
+
+  .toolbar-floating-card > #toolbarCollapseToggle {
     height: 42px;
     min-height: 42px;
+  }
+
+  .toolbar-floating-card > .toolbar-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .toolbar-floating-card.toolbar-floating-card-collapsed {
+    grid-template-columns: 42px;
   }
 }
