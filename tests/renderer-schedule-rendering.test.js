@@ -52,6 +52,31 @@ test("儲存格渲染應保留班別、假別與加班三段資訊", () => {
   assert.equal(html.includes("早班") && html.includes("事假") && html.includes("加班"), true);
 });
 
+test("例假排班只變更例假段落與班別檢視人員區塊", () => {
+  const items = {
+    shift: { A: { name: "早班", color: "#111111" } },
+    leave: { R: { name: "例假", color: "#ff9bb0", code: "0036" } },
+    overtime: {}
+  };
+  const slot = { shift: "A", leave: "R" };
+  const context = {
+    state: { schedule: {} },
+    getItem: (category, id) => items[category][id] || null,
+    getItemTextColor: () => "#ffffff",
+    textColor: () => "#ffffff",
+    escapeHtml: String,
+    shouldPromptLeaveDetail: () => false,
+    getDisplayedSlot: () => slot
+  };
+  const api = evaluate(["renderer-schedule-cells.js"], "({ renderCellInner, renderShiftViewCell })", context);
+  const memberHtml = api.renderCellInner("K", "M", "2026-07-01", slot, false);
+  assert.equal((memberHtml.match(/regular-holiday-work-seg/g) || []).length, 1);
+  assert.equal(memberHtml.includes("regular-holiday-work-indicator") || memberHtml.includes("＋"), false);
+  const shiftHtml = api.renderShiftViewCell([{ id: "M", name: "王小明" }], "2026-07-01");
+  assert.equal(shiftHtml.includes("regular-holiday-work-member"), true);
+  assert.equal(shiftHtml.includes("＋"), false);
+});
+
 test("需填時間或需填原因的假別應產生明細提示標記", () => {
   const leaves = {
     time: { name: "時數假", color: "#222222", requiresTime: true, requiresReason: false },
