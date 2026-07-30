@@ -8699,10 +8699,14 @@ function renderScheduleIcon(record) {
       const item = findSegmentItem(segment);
       const color = item?.color || segment.color || (segment.category === "overtime" ? "#D85A30" : "#888780");
       const itemText = item ? getItemTextColor(item, color) : (segment.textColor || textColor(color));
-      const specialLeaveText = segment.category === "leave" && String(segment.code || item?.code || "") === "0047" && hasShift;
+      const segmentCode = String(segment.code || item?.code || "");
+      const specialLeaveText = segment.category === "leave" && segmentCode === "0047" && hasShift;
+      const regularHolidayWorkClass = segment.category === "leave" && segmentCode === "0036" && hasShift
+        ? " regular-holiday-work-seg"
+        : "";
       const foreground = specialLeaveText ? "rgb(112, 112, 112)" : itemText;
       const name = item?.name || segment.name || (segment.category === "overtime" ? "加班" : "");
-      return `<div class="seg" style="background-color:${escapeHtml(color)};color:${escapeHtml(foreground)}"><span class="seg-label ${getScheduleSegmentSizeClass({ name }, segments.length)}">${escapeHtml(name)}</span></div>`;
+      return `<div class="seg${regularHolidayWorkClass}" style="background-color:${escapeHtml(color)};color:${escapeHtml(foreground)}"><span class="seg-label ${getScheduleSegmentSizeClass({ name }, segments.length)}">${escapeHtml(name)}</span></div>`;
     }).join("")}</div>`;
   }
 
@@ -8901,10 +8905,11 @@ function renderAttendanceAdminSection() {
       </div>
       ${admin.error ? `<div class="auth-error">${escapeHtml(admin.error)}</div>` : ""}
       <div class="records-table-wrap"><table class="records-table attendance-admin-table">
-        <thead><tr><th>日期</th><th>員工</th><th>班別</th><th>上班</th><th>下班</th><th>異常</th><th>備註</th><th class="attendance-admin-action-col">操作</th></tr></thead>
+        <thead><tr><th>日期</th><th>員工</th><th class="attendance-schedule-icon-col">圖示</th><th>班別</th><th>上班</th><th>下班</th><th>異常</th><th>備註</th><th class="attendance-admin-action-col">操作</th></tr></thead>
         <tbody>${admin.rows.map((row) => `<tr>
           <td>${escapeHtml(row.work_date || "")}</td>
           <td>${escapeHtml(row.employee_name_snapshot || "")}<br><span>${escapeHtml(row.employee_code_snapshot || "")}</span></td>
+          <td class="attendance-schedule-icon-col">${renderScheduleIcon(row)}</td>
           <td>${escapeHtml(row.shift_name || "-")}<br><span>${escapeHtml(`${String(row.shift_start_time || "").slice(0, 5)}-${String(row.shift_end_time || "").slice(0, 5)}`)}</span></td>
           <td>${formatRecordDateTime(row.clock_in_at)}<br><span>${escapeHtml(row.clock_in_department_name_snapshot || "")}</span></td>
           <td>${formatRecordDateTime(row.clock_out_at)}<br><span>${escapeHtml(row.clock_out_department_name_snapshot || "")}</span></td>
@@ -8914,7 +8919,7 @@ function renderAttendanceAdminSection() {
             <button class="settings-icon-btn" type="button" data-edit-attendance="${escapeHtml(row.user_id)}:${escapeHtml(row.work_date)}:${escapeHtml(row.id || "")}" aria-label="編輯" title="編輯"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
             ${row.id ? `<button class="settings-icon-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}
           </div></td>
-        </tr>`).join("") || '<tr><td colspan="8">沒有資料</td></tr>'}</tbody>
+        </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
       </table></div>
       <div class="records-filter-row records-pagination">
         <button class="ghost-btn compact-btn" type="button" data-attendance-admin-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>

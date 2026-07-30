@@ -303,3 +303,74 @@
     grid-template-columns: 42px;
   }
 }
+
+/* ===== 打卡管理班表圖示與設定表格視窗寬度 ===== */
+.attendance-admin-table .attendance-schedule-icon-col {
+  width: var(--day-col-width);
+  min-width: var(--day-col-width);
+  max-width: var(--day-col-width);
+  padding: 2px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.attendance-admin-table th.attendance-schedule-icon-col {
+  padding-right: 2px;
+  padding-left: 2px;
+}
+
+.attendance-admin-table .attendance-schedule-icon-col .personal-record-schedule-cell {
+  width: 100%;
+  min-height: 36px;
+}
+
+:is(.catalog-settings-modal, .member-settings-modal) :is(.settings-table-wrap, .member-table-wrap),
+:is(.catalog-settings-modal, .member-settings-modal) :is(.settings-table-scroll, .member-table-scroll),
+.catalog-settings-modal .settings-table,
+.member-settings-modal .member-table {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.catalog-settings-modal .settings-table-scroll,
+.member-settings-modal .member-table-scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.catalog-settings-modal .settings-table-row-shift {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns:
+    var(--settings-drag-column-width)
+    minmax(0, .72fr)
+    minmax(0, .9fr)
+    minmax(0, .56fr)
+    minmax(0, 2.25fr)
+    minmax(0, .78fr)
+    minmax(0, .68fr)
+    var(--settings-action-column-width);
+}
+
+.member-settings-modal .member-table-row {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns:
+    var(--settings-drag-column-width)
+    minmax(0, .82fr)
+    minmax(0, .82fr)
+    minmax(0, 1.72fr)
+    minmax(0, .56fr)
+    minmax(0, .88fr)
+    minmax(0, .68fr)
+    minmax(0, .65fr)
+    var(--settings-action-column-width);
+}
+
+.catalog-settings-modal .settings-table-row-shift > *,
+.member-settings-modal .member-table-row > * {
+  min-width: 0;
+}
+

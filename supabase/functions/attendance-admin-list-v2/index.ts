@@ -68,6 +68,19 @@ function nowMinutes() {
     + Number(parts.find((part) => part.type === "minute")?.value || 0);
 }
 
+function catalogSegment(category: string, item: any) {
+  if (!item) return null;
+  return {
+    category,
+    itemId: item.id || "",
+    code: item.code || "",
+    name: item.name || (category === "overtime" ? "加班" : ""),
+    color: item.color || (category === "overtime" ? "#D85A30" : "#888780"),
+    textColor: item.text_color || "",
+    autoTextColor: item.auto_text_color !== false
+  };
+}
+
 async function requireAdmin(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!userId) throw new Error("請先登入");
@@ -133,19 +146,32 @@ async function list(ctx: any, body: any) {
   const [memberResult, attendanceResult, scheduleResult] = await Promise.all([
     ctx.supabaseAdmin.from("set_employee").select("id,employee_code,full_name,role,hire_date,leave_date").order("employee_code", { ascending: true }),
     ctx.supabaseAdmin.from("attendance_records").select("*").gte("work_date", fromDate).lte("work_date", toDate),
-    ctx.supabaseAdmin.from("schedule_entries").select("member_id,work_date,shift_type_id").gte("work_date", fromDate).lte("work_date", toDate)
+    ctx.supabaseAdmin.from("schedule_entries").select("member_id,work_date,shift_type_id,leave_type_id,overtime_type_id").gte("work_date", fromDate).lte("work_date", toDate)
   ]);
   for (const result of [memberResult, attendanceResult, scheduleResult]) if (result.error) throw result.error;
 
-  const shiftIds = [...new Set((scheduleResult.data || []).map((row: any) => row.shift_type_id).filter(Boolean))];
-  const shiftResult = shiftIds.length
-    ? await ctx.supabaseAdmin.from("set_shift").select("id,name,start_time,end_time,applicable_department_id").in("id", shiftIds)
-    : { data: [], error: null };
-  if (shiftResult.error) throw shiftResult.error;
+  const scheduleRows = scheduleResult.data || [];
+  const shiftIds = [...new Set(scheduleRows.map((row: any) => row.shift_type_id).filter(Boolean))];
+  const leaveIds = [...new Set(scheduleRows.map((row: any) => row.leave_type_id).filter(Boolean))];
+  const overtimeTypeIds = [...new Set(scheduleRows.map((row: any) => row.overtime_type_id).filter(Boolean))];
+  const [shiftResult, leaveResult, overtimeTypeResult] = await Promise.all([
+    shiftIds.length
+      ? ctx.supabaseAdmin.from("set_shift").select("id,name,start_time,end_time,applicable_department_id,color,text_color,auto_text_color").in("id", shiftIds)
+      : Promise.resolve({ data: [], error: null }),
+    leaveIds.length
+      ? ctx.supabaseAdmin.from("set_leave").select("id,code,name,color,text_color,auto_text_color").in("id", leaveIds)
+      : Promise.resolve({ data: [], error: null }),
+    overtimeTypeIds.length
+      ? ctx.supabaseAdmin.from("set_overtime").select("id,name,color,text_color,auto_text_color").in("id", overtimeTypeIds)
+      : Promise.resolve({ data: [], error: null })
+  ]);
+  for (const result of [shiftResult, leaveResult, overtimeTypeResult]) if (result.error) throw result.error;
 
   const members = memberResult.data || [];
   const shifts = new Map((shiftResult.data || []).map((row: any) => [row.id, row]));
-  const schedules = new Map((scheduleResult.data || []).map((row: any) => [`${row.member_id}:${row.work_date}`, { ...row, shift: shifts.get(row.shift_type_id) || null }]));
+  const leaves = new Map((leaveResult.data || []).map((row: any) => [row.id, row]));
+  const overtimeTypes = new Map((overtimeTypeResult.data || []).map((row: any) => [row.id, row]));
+  const schedules = new Map(scheduleRows.map((row: any) => [`${row.member_id}:${row.work_date}`, row]));
   const attendance = new Map((attendanceResult.data || []).map((row: any) => [`${row.user_id}:${row.work_date}`, row]));
   const rows: any[] = [];
 
@@ -160,18 +186,27 @@ async function list(ctx: any, body: any) {
         employee_code_snapshot: member.employee_code,
         employee_name_snapshot: member.full_name
       };
-      const schedule = schedules.get(key) || null;
-      const currentIssues = issues(current, schedule?.shift || null, today);
+      const schedule: any = schedules.get(key) || null;
+      const shift: any = schedule?.shift_type_id ? shifts.get(schedule.shift_type_id) || null : null;
+      const leave: any = schedule?.leave_type_id ? leaves.get(schedule.leave_type_id) || null : null;
+      const overtimeType: any = schedule?.overtime_type_id ? overtimeTypes.get(schedule.overtime_type_id) || null : null;
+      const scheduleSegments = [
+        catalogSegment("shift", shift),
+        catalogSegment("leave", leave),
+        catalogSegment("overtime", overtimeType)
+      ].filter(Boolean);
+      const currentIssues = issues(current, shift, today);
       if (abnormalOnly && !currentIssues.length) continue;
       if (issueType && !currentIssues.includes(issueType)) continue;
       rows.push({
         ...current,
         employee_code_snapshot: current.employee_code_snapshot || member.employee_code || "",
         employee_name_snapshot: current.employee_name_snapshot || member.full_name || "",
-        shift_name: schedule?.shift?.name || "",
-        shift_start_time: schedule?.shift?.start_time || "",
-        shift_end_time: schedule?.shift?.end_time || "",
-        shift_department_id: schedule?.shift?.applicable_department_id || "",
+        shift_name: shift?.name || "",
+        shift_start_time: shift?.start_time || "",
+        shift_end_time: shift?.end_time || "",
+        shift_department_id: shift?.applicable_department_id || "",
+        scheduleSegments,
         issues: currentIssues
       });
     }
