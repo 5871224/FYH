@@ -24,3 +24,14 @@ test("浮動工具列控制按鈕依新版版面排列", () => {
   assert.match(config, /overflow-x: auto;/);
   assert.doesNotThrow(() => new Function(config), "app-config.js 必須可解析");
 });
+
+test("班別與假別重新渲染後仍可快速連點開啟修改", () => {
+  const config = read("src/renderer/app-config.js");
+  assert.match(config, /function installToolbarRapidEdit\(\)/);
+  assert.match(config, /const key = `\$\{type\}:\$\{id\}`/);
+  assert.match(config, /now - lastChipClickAt <= 550/);
+  assert.match(config, /event\.stopImmediatePropagation\(\)/);
+  assert.match(config, /openShiftFormModal\("edit", id\)/);
+  assert.match(config, /openNamedColorFormModal\("leave", "edit", id\)/);
+  assert.match(config, /installToolbarRapidEdit\(\)/);
+});
