@@ -19,25 +19,37 @@ function getShiftViewCellState(shift, dateString) {
   const members = getShiftViewMembersForDay(shift.id, dateString);
   const isOperating = isShiftOperatingOnDate(shift, dateString);
   const requiredStaffCount = getShiftDemandForDate(shift, dateString);
-  const hasRegularHolidayWork = members.some((member) => {
-    const slot = getDisplayedSlot(member.id, dateString);
-    return Boolean(slot?.shift && isRegularRestLeaveId(slot.leave));
-  });
   return {
     members,
     isOperating,
-    isShortage: members.length < requiredStaffCount,
-    hasRegularHolidayWork
+    isShortage: members.length < requiredStaffCount
   };
 }
 
-function renderShiftViewCell(members) {
+function isRegularHolidayWorkSlot(slot) {
+  if (!slot?.shift || !slot.leave) {
+    return false;
+  }
+  if (typeof isRegularRestLeaveId === "function") {
+    return isRegularRestLeaveId(slot.leave);
+  }
+  return getItem("leave", slot.leave)?.code === "0036";
+}
+
+function renderRegularHolidayWorkIndicator() {
+  return '<span class="regular-holiday-work-indicator" aria-label="例假排班" title="例假排班">＋</span>';
+}
+
+function renderShiftViewCell(members, dateString) {
   if (!members.length) {
     return '<div class="shift-view-members"></div>';
   }
   return `
     <div class="shift-view-members">
-      ${members.map((member) => `<div class="shift-view-member">${escapeHtml(member.name)}</div>`).join("")}
+      ${members.map((member) => {
+        const isRegularHolidayWork = isRegularHolidayWorkSlot(getDisplayedSlot(member.id, dateString));
+        return `<div class="shift-view-member ${isRegularHolidayWork ? "has-regular-holiday-work" : ""}"><span class="shift-view-member-name">${escapeHtml(member.name)}</span>${isRegularHolidayWork ? renderRegularHolidayWorkIndicator() : ""}</div>`;
+      }).join("")}
     </div>
   `;
 }
@@ -102,6 +114,9 @@ function renderCellInner(key, memberId = "", day = 0, slotOverride = null, isPre
     return '<div class="cell-inner"></div>';
   }
   const visibleSegments = segments.slice(0, 3);
+  const regularHolidayWorkIndicator = isRegularHolidayWorkSlot(cellState)
+    ? renderRegularHolidayWorkIndicator()
+    : "";
   return `<div class="cell-inner">${visibleSegments.map((segment) => (
     `<div class="seg" style="background-color:${segment.color};color:${segment.textColor || textColor(segment.color)}" ${
       segment.category === "leave" && !isPreview && shouldPromptLeaveDetail(getItem("leave", cellState.leave), cellState.leaveMeta)
@@ -110,5 +125,5 @@ function renderCellInner(key, memberId = "", day = 0, slotOverride = null, isPre
           ? `data-hover-schedule-detail="${memberId}:${day}:overtime"`
           : ""
     }><span class="seg-label ${getScheduleSegmentSizeClass(segment, visibleSegments.length)}">${escapeHtml(segment.name)}</span></div>`
-  )).join("")}</div>`;
+  )).join("")}${regularHolidayWorkIndicator}</div>`;
 }
