@@ -1,0 +1,56 @@
+name: Apply toolbar chip edit preview
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-build-validate-publish:
+    if: github.event.pull_request.head.ref == 'agent/toolbar-chip-edit-preview-20260730'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout temporary branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply requested changes
+        run: node .github/scripts/apply-toolbar-chip-edit-preview.cjs
+
+      - name: Remove temporary automation files
+        run: |
+          rm -f .github/scripts/apply-toolbar-chip-edit-preview.cjs
+          rm -f .github/workflows/apply-toolbar-chip-edit-preview.yml
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build and publish static files
+        run: npm run web:publish
+
+      - name: Validate project
+        run: npm run ci:check
+
+      - name: Publish one complete commit to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git reset --soft origin/main
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to publish"
+            exit 0
+          fi
+          git commit -m "優化班表浮動工具列操作"
+          git push origin HEAD:main
