@@ -5,7 +5,13 @@ const vm = require("vm");
 function loadPublicConfig() {
   const filePath = path.resolve(__dirname, "..", "src", "renderer", "app-config.js");
   const code = fs.readFileSync(filePath, "utf8");
-  const sandbox = { window: {} };
+  const sandbox = {
+    window: {
+      addEventListener() {
+        // 公開設定檢查只讀取 SCHEDULER_CONFIG，不執行瀏覽器 DOM 初始化。
+      }
+    }
+  };
   vm.runInNewContext(code, sandbox);
   return sandbox.window.SCHEDULER_CONFIG || {};
 }
