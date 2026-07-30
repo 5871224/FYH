@@ -21,19 +21,7 @@ jobs:
           node-version: 22
 
       - name: Apply requested changes
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          workflow = Path('.github/workflows/agent-schedule-ui-20260730.yml').read_text(encoding='utf-8')
-          marker = "python3 - <<'PY'\n"
-          start = workflow.index(marker) + len(marker)
-          end = workflow.index("\n          PY", start)
-          lines = workflow[start:end].splitlines()
-          script = "\n".join(line[10:] if line.startswith("          ") else line for line in lines)
-          exec(compile(script, 'schedule-ui-update.py', 'exec'), {'__name__': '__main__'})
-          PY
+        run: python3 scripts/agent-schedule-ui-update.py
 
       - name: Install dependencies
         run: npm install
@@ -47,7 +35,7 @@ jobs:
       - name: Publish one complete commit to main
         shell: bash
         run: |
-          rm -f .github/workflows/agent-schedule-ui-20260730.yml .github/workflows/agent-schedule-ui-pr.yml
+          rm -f .github/workflows/agent-schedule-ui-20260730.yml .github/workflows/agent-schedule-ui-pr.yml scripts/agent-schedule-ui-update.py
           git config user.name "ChatGPT"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main
