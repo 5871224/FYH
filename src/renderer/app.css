@@ -5500,3 +5500,92 @@ body:not(.is-authenticated) .toolbar-card {
     min-width: 700px;
   }
 }
+
+
+/* ===== 班表頁操作列與例假排班提示 ===== */
+#toolbarCollapseToggle {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--ui-accent-strong);
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--ui-accent) 0%, var(--ui-accent-strong) 100%);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(72, 52, 31, 0.2);
+}
+
+#toolbarCollapseToggle:not(:disabled):hover {
+  background: linear-gradient(135deg, #ad7938 0%, #704718 100%);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(72, 52, 31, 0.26);
+}
+
+#toolbarCollapseToggle svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.6;
+}
+
+.toolbar-floating-card:not(.toolbar-floating-card-collapsed) #toolbarCollapseToggle,
+.toolbar-floating-card.toolbar-floating-card-collapsed #toolbarCollapseToggle {
+  flex: 0 0 44px;
+}
+
+.calendar-nav-left .schedule-nav-history-actions {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.calendar-nav-left .toolbar-history-btn {
+  width: var(--schedule-nav-control-height);
+  min-width: var(--schedule-nav-control-height);
+  height: var(--schedule-nav-control-height);
+  min-height: var(--schedule-nav-control-height);
+  border-radius: 12px;
+}
+
+.table-sticky-cell-day.sun:not(.today),
+.table-sticky-cell-day.sat:not(.today),
+.table-sticky-cell-day.sun:not(.today) span,
+.table-sticky-cell-day.sat:not(.today) span {
+  color: var(--text);
+}
+
+.table-week-jump {
+  display: none !important;
+}
+
+.cell.regular-holiday-work-cell,
+.cell.regular-holiday-work-cell .cell-inner,
+.cell.regular-holiday-work-cell .seg,
+.shift-view-cell.regular-holiday-work-cell .shift-view-member {
+  background: #ffe58f !important;
+  color: #2b241c !important;
+}
+
+.cell.regular-holiday-work-cell {
+  box-shadow: inset 0 0 0 2px #d8a600;
+}
+
+.cell.regular-holiday-work-cell .seg {
+  border-color: rgba(120, 88, 0, 0.24) !important;
+}
+
+@media (max-width: 768px) {
+  .calendar-nav-left .schedule-nav-history-actions {
+    flex: 0 0 auto;
+  }
+
+  #toolbarCollapseToggle {
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    min-height: 42px;
+  }
+}

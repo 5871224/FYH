@@ -19,10 +19,15 @@ function getShiftViewCellState(shift, dateString) {
   const members = getShiftViewMembersForDay(shift.id, dateString);
   const isOperating = isShiftOperatingOnDate(shift, dateString);
   const requiredStaffCount = getShiftDemandForDate(shift, dateString);
+  const hasRegularHolidayWork = members.some((member) => {
+    const slot = getDisplayedSlot(member.id, dateString);
+    return Boolean(slot?.shift && isRegularRestLeaveId(slot.leave));
+  });
   return {
     members,
     isOperating,
-    isShortage: members.length < requiredStaffCount
+    isShortage: members.length < requiredStaffCount,
+    hasRegularHolidayWork
   };
 }
 

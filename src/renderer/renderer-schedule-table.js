@@ -27,7 +27,7 @@ function renderTable() {
           const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, index, days);
           const shiftViewCellState = getShiftViewCellState(shift, dateString);
           const inactiveClass = shiftViewCellState.isOperating ? "" : "inactive-cell";
-          html += `<td class="cell shift-view-cell ${inactiveClass} ${shiftViewCellState.isShortage ? "shift-view-shortage" : ""} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-shift-id="${shift.id}" data-date="${dateString}">${renderShiftViewCell(shiftViewCellState.members)}</td>`;
+          html += `<td class="cell shift-view-cell ${inactiveClass} ${shiftViewCellState.isShortage ? "shift-view-shortage" : ""} ${shiftViewCellState.hasRegularHolidayWork ? "regular-holiday-work-cell" : ""} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-shift-id="${shift.id}" data-date="${dateString}">${renderShiftViewCell(shiftViewCellState.members)}</td>`;
         });
         html += "</tr>";
       });
@@ -67,7 +67,10 @@ function renderTable() {
             const previewSlot = getPreviewSlotByKey(key);
             const displayedSlot = previewSlot || state.schedule[key] || null;
             const previewClass = previewSlot ? "auto-schedule-preview" : "";
-            html += `<td class="cell ${previewClass} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}">${renderCellInner(key, member.id, dateString, displayedSlot, Boolean(previewSlot))}</td>`;
+            const regularHolidayWorkClass = displayedSlot?.shift && isRegularRestLeaveId(displayedSlot.leave)
+              ? "regular-holiday-work-cell"
+              : "";
+            html += `<td class="cell ${previewClass} ${regularHolidayWorkClass} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}">${renderCellInner(key, member.id, dateString, displayedSlot, Boolean(previewSlot))}</td>`;
           });
           html += "</tr>";
           rowIndex += 1;
@@ -86,5 +89,6 @@ function renderTable() {
 function renderHeader() {
   const { startDate, endDate } = getVisibleDateRange();
   document.getElementById("monthTitle").textContent = `${startDate} ～ ${endDate}`;
+  syncScheduleWeekNavigationButtons();
   renderAuthBar();
 }

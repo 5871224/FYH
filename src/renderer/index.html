@@ -4,20 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>班表</title>
-  <link rel="stylesheet" href="./app.css?v=664361f14cb5">
+  <link rel="stylesheet" href="./app.css?v=acca19b88acd">
 </head>
 <body>
   <div class="app-shell">
     <section class="toolbar-card toolbar-floating-card">
       <div class="toolbar-top-row">
-        <div class="toolbar-history-actions" aria-label="班表操作歷程">
-          <button class="ghost-btn toolbar-history-btn" id="scheduleUndoButton" type="button" aria-label="上一步（Ctrl+Z）" title="上一步（Ctrl+Z）" disabled>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7l-5 5 5 5"></path><path d="M5 12h8a6 6 0 0 1 6 6"></path></svg>
-          </button>
-          <button class="ghost-btn toolbar-history-btn" id="scheduleRedoButton" type="button" aria-label="下一步（Ctrl+Y）" title="下一步（Ctrl+Y）" disabled>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l5 5-5 5"></path><path d="M19 12h-8a6 6 0 0 0-6 6"></path></svg>
-          </button>
-        </div>
         <button class="ghost-btn toolbar-collapse-toggle" id="toolbarCollapseToggle" type="button" aria-expanded="true" aria-label="收合工具列" title="收合工具列">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
         </button>
@@ -39,7 +31,7 @@
           </div>
           <div id="leaveChips" class="chips"></div>
         </div>
-        <div class="toolbar-section toolbar-section-overtime">
+        <div class="toolbar-section toolbar-section-overtime" hidden>
           <div class="toolbar-title-row">
             <span class="toolbar-title">加班</span>
             <button class="settings-icon-btn toolbar-settings-btn" id="overtimeSettingsButton" type="button" aria-label="加班設定" title="加班設定"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
@@ -59,6 +51,14 @@
         <div class="calendar-nav-left">
           <select id="tableViewSelect" aria-label="班表檢視"><option value="member">人員檢視</option><option value="member-stats">人員檢視-統計欄</option><option value="shift">班別檢視</option></select>
           <select id="tableDeptScopeFilter" aria-label="班表顯示範圍"></select>
+          <div class="toolbar-history-actions schedule-nav-history-actions" aria-label="班表操作歷程">
+            <button class="ghost-btn toolbar-history-btn" id="scheduleUndoButton" type="button" aria-label="上一步（Ctrl+Z）" title="上一步（Ctrl+Z）" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7l-5 5 5 5"></path><path d="M5 12h8a6 6 0 0 1 6 6"></path></svg>
+            </button>
+            <button class="ghost-btn toolbar-history-btn" id="scheduleRedoButton" type="button" aria-label="下一步（Ctrl+Y）" title="下一步（Ctrl+Y）" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l5 5-5 5"></path><path d="M19 12h-8a6 6 0 0 0-6 6"></path></svg>
+            </button>
+          </div>
         </div>
         <div class="month-title-wrap"><h2 id="monthTitle"></h2></div>
         <div class="nav-actions">
@@ -87,8 +87,8 @@
       <div class="table-sticky-header" id="tableStickyHeader">
         <div class="table-sticky-header-left"><div class="table-sticky-cell table-sticky-cell-dept">單位</div><div class="table-sticky-cell table-sticky-cell-person">人員</div><div class="table-sticky-cell table-sticky-cell-stats">統計</div></div>
         <div class="table-sticky-header-scroll"><div class="table-sticky-header-days" id="tableStickyHeaderDays"></div></div>
-        <button class="table-week-jump table-week-jump-prev" id="tablePrevWeekButton" type="button" aria-label="前一週" title="前一週"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
-        <button class="table-week-jump table-week-jump-next" id="tableNextWeekButton" type="button" aria-label="後一週" title="後一週"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+        <button class="table-week-jump table-week-jump-prev" id="tablePrevWeekButton" type="button" hidden aria-label="前一週" title="前一週"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+        <button class="table-week-jump table-week-jump-next" id="tableNextWeekButton" type="button" hidden aria-label="後一週" title="後一週"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
       </div>
       <div class="table-wrap" id="tableWrap"><table id="mainTable"></table></div>
     </section>
@@ -99,6 +99,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="./app-config.js?v=20260707v6"></script>
-  <script src="./app.js?v=6f90ae2b8e74"></script>
+  <script src="./app.js?v=72839cd1f8db"></script>
 </body>
 </html>

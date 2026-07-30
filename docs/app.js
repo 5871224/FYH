@@ -5998,10 +5998,15 @@ function getShiftViewCellState(shift, dateString) {
   const members = getShiftViewMembersForDay(shift.id, dateString);
   const isOperating = isShiftOperatingOnDate(shift, dateString);
   const requiredStaffCount = getShiftDemandForDate(shift, dateString);
+  const hasRegularHolidayWork = members.some((member) => {
+    const slot = getDisplayedSlot(member.id, dateString);
+    return Boolean(slot?.shift && isRegularRestLeaveId(slot.leave));
+  });
   return {
     members,
     isOperating,
-    isShortage: members.length < requiredStaffCount
+    isShortage: members.length < requiredStaffCount,
+    hasRegularHolidayWork
   };
 }
 
@@ -6118,7 +6123,7 @@ function renderTable() {
           const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, index, days);
           const shiftViewCellState = getShiftViewCellState(shift, dateString);
           const inactiveClass = shiftViewCellState.isOperating ? "" : "inactive-cell";
-          html += `<td class="cell shift-view-cell ${inactiveClass} ${shiftViewCellState.isShortage ? "shift-view-shortage" : ""} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-shift-id="${shift.id}" data-date="${dateString}">${renderShiftViewCell(shiftViewCellState.members)}</td>`;
+          html += `<td class="cell shift-view-cell ${inactiveClass} ${shiftViewCellState.isShortage ? "shift-view-shortage" : ""} ${shiftViewCellState.hasRegularHolidayWork ? "regular-holiday-work-cell" : ""} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-shift-id="${shift.id}" data-date="${dateString}">${renderShiftViewCell(shiftViewCellState.members)}</td>`;
         });
         html += "</tr>";
       });
@@ -6158,7 +6163,10 @@ function renderTable() {
             const previewSlot = getPreviewSlotByKey(key);
             const displayedSlot = previewSlot || state.schedule[key] || null;
             const previewClass = previewSlot ? "auto-schedule-preview" : "";
-            html += `<td class="cell ${previewClass} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}">${renderCellInner(key, member.id, dateString, displayedSlot, Boolean(previewSlot))}</td>`;
+            const regularHolidayWorkClass = displayedSlot?.shift && isRegularRestLeaveId(displayedSlot.leave)
+              ? "regular-holiday-work-cell"
+              : "";
+            html += `<td class="cell ${previewClass} ${regularHolidayWorkClass} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}">${renderCellInner(key, member.id, dateString, displayedSlot, Boolean(previewSlot))}</td>`;
           });
           html += "</tr>";
           rowIndex += 1;
@@ -6177,6 +6185,7 @@ function renderTable() {
 function renderHeader() {
   const { startDate, endDate } = getVisibleDateRange();
   document.getElementById("monthTitle").textContent = `${startDate} ～ ${endDate}`;
+  syncScheduleWeekNavigationButtons();
   renderAuthBar();
 }
 ;
@@ -11184,7 +11193,46 @@ async function handleSignOut() {
  * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
  */
 
+function getScheduleWeekNavigationBounds(startDate) {
+  const cycleStartDate = getEightWeekCycleStartForDate(startDate);
+  return {
+    minStartDate: cycleStartDate,
+    maxStartDate: addDaysToDateString(cycleStartDate, 49)
+  };
+}
+
+function canChangeScheduleWindowWeeks(weeks) {
+  if (Math.abs(weeks) !== 1) {
+    return true;
+  }
+  const startDate = toDateObject(state.scheduleStartDate)
+    ? state.scheduleStartDate
+    : getEightWeekCycleStartForDate(getTodayDateString());
+  const targetDate = addDaysToDateString(startDate, weeks * 7);
+  const { minStartDate, maxStartDate } = getScheduleWeekNavigationBounds(startDate);
+  return Boolean(targetDate && targetDate >= minStartDate && targetDate <= maxStartDate);
+}
+
+function syncScheduleWeekNavigationButtons() {
+  const controls = [
+    ["prevWeekButton", -1],
+    ["tablePrevWeekButton", -1],
+    ["nextWeekButton", 1],
+    ["tableNextWeekButton", 1]
+  ];
+  controls.forEach(([id, weeks]) => {
+    const button = document.getElementById(id);
+    if (button) {
+      button.disabled = !canChangeScheduleWindowWeeks(weeks);
+    }
+  });
+}
+
 async function changeScheduleWindowWeeks(weeks) {
+  if (!canChangeScheduleWindowWeeks(weeks)) {
+    syncScheduleWeekNavigationButtons();
+    return;
+  }
   const startDate = toDateObject(state.scheduleStartDate) ? state.scheduleStartDate : getEightWeekCycleStartForDate(getTodayDateString());
   state.scheduleStartDate = addDaysToDateString(startDate, weeks * 7);
   syncVisibleDatePartsFromStart();
