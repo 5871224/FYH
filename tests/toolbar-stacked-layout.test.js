@@ -35,3 +35,9 @@ test("班別與假別重新渲染後仍可快速連點開啟修改", () => {
   assert.match(config, /openNamedColorFormModal\("leave", "edit", id\)/);
   assert.match(config, /installToolbarRapidEdit\(\)/);
 });
+
+test("公開設定檢查不執行瀏覽器 DOM 初始化", () => {
+  const checker = read("scripts/check-public-supabase.js");
+  assert.match(checker, /addEventListener\(\) \{/);
+  assert.match(checker, /只讀取 SCHEDULER_CONFIG/);
+});
