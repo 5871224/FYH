@@ -24,7 +24,7 @@ jobs:
         run: python3 scripts/agent-integrate-toolbar-controls.py
 
       - name: Remove temporary automation files
-        run: rm -f .github/workflows/agent-integrate-toolbar-controls.yml scripts/agent-integrate-toolbar-controls.py
+        run: rm -f .github/workflows/agent-integrate-toolbar-controls.yml scripts/agent-integrate-toolbar-controls.py .agent-integrate-toolbar-trigger
 
       - name: Install dependencies
         run: npm install
