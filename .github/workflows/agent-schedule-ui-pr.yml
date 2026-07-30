@@ -25,13 +25,13 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          from textwrap import dedent
 
           workflow = Path('.github/workflows/agent-schedule-ui-20260730.yml').read_text(encoding='utf-8')
           marker = "python3 - <<'PY'\n"
           start = workflow.index(marker) + len(marker)
           end = workflow.index("\n          PY", start)
-          script = dedent(workflow[start:end])
+          lines = workflow[start:end].splitlines()
+          script = "\n".join(line[10:] if line.startswith("          ") else line for line in lines)
           exec(compile(script, 'schedule-ui-update.py', 'exec'), {'__name__': '__main__'})
           PY
 
