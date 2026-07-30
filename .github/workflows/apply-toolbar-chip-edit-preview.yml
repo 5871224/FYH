@@ -29,6 +29,7 @@ jobs:
       - name: Remove temporary automation files
         run: |
           rm -f .github/scripts/apply-toolbar-chip-edit-preview.cjs
+          rm -f .github/scripts/toolbar-build-trigger.txt
           rm -f .github/workflows/apply-toolbar-chip-edit-preview.yml
 
       - name: Install dependencies
