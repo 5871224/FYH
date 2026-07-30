@@ -1,0 +1,50 @@
+name: Apply attendance icon and settings width
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-build-validate-publish:
+    if: github.event.pull_request.head.ref == 'agent/attendance-icon-settings-width-20260730'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply requested changes
+        run: python scripts/tmp-apply-attendance-icon-settings-width.py
+
+      - name: Remove temporary automation files
+        run: |
+          rm -f scripts/tmp-apply-attendance-icon-settings-width.py
+          rm -f .github/workflows/tmp-apply-attendance-icon-settings-width.yml
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build and publish static files
+        run: npm run web:publish
+
+      - name: Validate project
+        run: npm run ci:check
+
+      - name: Publish one complete commit to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git add -A
+          git reset --soft origin/main
+          git commit -m "新增打卡班表圖示並調整設定表格寬度"
+          git push origin HEAD:main
