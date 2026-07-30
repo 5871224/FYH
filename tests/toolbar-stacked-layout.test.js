@@ -19,6 +19,7 @@ test("浮動工具列控制按鈕依新版版面排列", () => {
   assert.match(config, /grid-template-rows: auto auto !important;/);
   assert.match(config, /toolbar-section-combined[\s\S]*?grid-row: 1;/);
   assert.match(config, /toolbar-section-leave[\s\S]*?grid-row: 2;/);
+  assert.match(config, /toolbar-floating-card \.toolbar-title-row,[\s\S]*?flex-wrap: nowrap !important;/);
   assert.match(config, /toolbar-floating-card #shiftChips,[\s\S]*?flex-wrap: nowrap !important;/);
   assert.match(config, /overflow-x: auto;/);
   assert.doesNotThrow(() => new Function(config), "app-config.js 必須可解析");
