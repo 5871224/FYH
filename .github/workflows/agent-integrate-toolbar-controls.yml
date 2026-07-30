@@ -1,9 +1,9 @@
 name: Apply integrated toolbar controls
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - agent/integrate-toolbar-controls-20260730
 
 permissions:
   contents: write
