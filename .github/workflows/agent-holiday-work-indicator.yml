@@ -21,10 +21,12 @@ jobs:
           node-version: 22
 
       - name: Apply requested changes
-        run: python3 scripts/agent-holiday-work-indicator.py
+        run: |
+          python3 scripts/agent-holiday-work-indicator.py
+          python3 scripts/agent-holiday-work-indicator-fix.py
 
       - name: Remove temporary automation files
-        run: rm -f .github/workflows/agent-holiday-work-indicator.yml scripts/agent-holiday-work-indicator.py
+        run: rm -f .github/workflows/agent-holiday-work-indicator.yml scripts/agent-holiday-work-indicator.py scripts/agent-holiday-work-indicator-fix.py
 
       - name: Install dependencies
         run: npm install
