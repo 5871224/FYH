@@ -5,10 +5,82 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>班表</title>
   <link rel="stylesheet" href="./app.css?v=4f1e5ee3e42a">
+  <style id="toolbarChipInteractionStyles">
+    .toolbar-selected-preview {
+      grid-column: 1;
+      grid-row: 1;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      min-width: 44px;
+      height: 44px;
+      min-height: 44px;
+      padding: 4px;
+      overflow: hidden;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.08;
+      text-align: center;
+      user-select: none;
+    }
+
+    .toolbar-selected-preview-label {
+      display: -webkit-box;
+      max-width: 100%;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+    }
+
+    #shiftChips .chip,
+    #leaveChips .chip {
+      border-radius: 8px;
+      user-select: none;
+    }
+
+    .toolbar-floating-card.toolbar-has-selection-preview {
+      grid-template-rows: auto auto auto 1fr;
+    }
+
+    .toolbar-floating-card.toolbar-has-selection-preview > #toolbarCollapseToggle {
+      grid-row: 2;
+    }
+
+    .toolbar-floating-card.toolbar-has-selection-preview > #scheduleUndoButton {
+      grid-row: 3;
+    }
+
+    .toolbar-floating-card.toolbar-has-selection-preview > #scheduleRedoButton {
+      grid-row: 4;
+    }
+
+    .toolbar-floating-card.toolbar-has-selection-preview > .toolbar-grid {
+      grid-row: 1 / span 4;
+    }
+
+    .toolbar-floating-card.toolbar-floating-card-collapsed.toolbar-has-selection-preview {
+      grid-template-rows: repeat(4, auto);
+    }
+
+    @media (max-width: 768px) {
+      .toolbar-floating-card > #toolbarSelectedPreview {
+        width: 42px;
+        min-width: 42px;
+        height: 42px;
+        min-height: 42px;
+      }
+    }
+  </style>
 </head>
 <body>
   <div class="app-shell">
     <section class="toolbar-card toolbar-floating-card">
+      <div class="toolbar-selected-preview" id="toolbarSelectedPreview" role="img" hidden aria-live="polite"></div>
       <button class="ghost-btn toolbar-collapse-toggle" id="toolbarCollapseToggle" type="button" aria-expanded="true" aria-label="收合工具列" title="收合工具列">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
       </button>
@@ -22,16 +94,16 @@
         <div class="toolbar-section toolbar-section-combined">
           <div class="toolbar-title-row toolbar-title-row-combined">
             <span class="toolbar-title">班別</span>
-            <select id="deptFilter"></select>
             <button class="settings-icon-btn toolbar-settings-btn" id="shiftSettingsButton" type="button" aria-label="班別設定" title="班別設定"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
+            <select id="deptFilter"></select>
           </div>
           <div id="shiftChips" class="chips chips-shift"></div>
         </div>
         <div class="toolbar-section toolbar-section-leave">
           <div class="toolbar-title-row">
             <span class="toolbar-title">假別</span>
-            <button class="ghost-btn compact-btn toolbar-inline-action" id="restComplianceButton" type="button">例休檢查</button>
             <button class="settings-icon-btn toolbar-settings-btn" id="leaveSettingsButton" type="button" aria-label="假別設定" title="假別設定"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
+            <button class="ghost-btn compact-btn toolbar-inline-action" id="restComplianceButton" type="button">例休檢查</button>
           </div>
           <div id="leaveChips" class="chips"></div>
         </div>
@@ -104,5 +176,90 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="./app-config.js?v=20260707v6"></script>
   <script src="./app.js?v=cd08b4955861"></script>
+  <script id="toolbarChipInteractionScript">
+    (() => {
+      function getSelectedToolbarItem() {
+        const type = state?.selected?.type || "";
+        const id = state?.selected?.id || "";
+        if (!id || (type !== "shift" && type !== "leave")) return null;
+        const item = getItem(type, id);
+        return item ? { type, item } : null;
+      }
+
+      function syncSelectedToolbarPreview() {
+        const preview = document.getElementById("toolbarSelectedPreview");
+        const toolbar = preview?.closest(".toolbar-floating-card");
+        if (!preview || !toolbar) return;
+        const selected = getSelectedToolbarItem();
+        toolbar.classList.toggle("toolbar-has-selection-preview", Boolean(selected));
+        if (!selected) {
+          preview.hidden = true;
+          preview.textContent = "";
+          preview.removeAttribute("title");
+          preview.removeAttribute("aria-label");
+          preview.style.backgroundColor = "";
+          preview.style.color = "";
+          preview.style.borderColor = "";
+          return;
+        }
+        const { type, item } = selected;
+        const categoryLabel = type === "shift" ? "班別" : "假別";
+        const color = item.color || "#888780";
+        const name = item.name || categoryLabel;
+        preview.hidden = false;
+        preview.style.backgroundColor = color;
+        preview.style.color = getItemTextColor(item, color);
+        preview.style.borderColor = color;
+        preview.title = `已選擇${categoryLabel}：${name}`;
+        preview.setAttribute("aria-label", preview.title);
+        preview.replaceChildren(Object.assign(document.createElement("span"), {
+          className: "toolbar-selected-preview-label",
+          textContent: name
+        }));
+      }
+
+      function enhanceToolbarChips() {
+        document.querySelectorAll('#shiftChips [data-chip-type="shift"][data-chip-id]').forEach((chip) => {
+          chip.title = `雙擊修改班別：${chip.textContent.trim()}`;
+        });
+        document.querySelectorAll('#leaveChips [data-chip-type="leave"][data-chip-id]').forEach((chip) => {
+          chip.title = `雙擊修改假別：${chip.textContent.trim()}`;
+        });
+      }
+
+      const baseRenderToolbar = renderToolbar;
+      renderToolbar = function renderToolbarWithSelectedPreview(...args) {
+        const result = baseRenderToolbar.apply(this, args);
+        enhanceToolbarChips();
+        syncSelectedToolbarPreview();
+        return result;
+      };
+
+      document.body.addEventListener("dblclick", (event) => {
+        const chip = event.target.closest('#shiftChips [data-chip-type="shift"][data-chip-id], #leaveChips [data-chip-type="leave"][data-chip-id]');
+        if (!chip) return;
+        const type = chip.dataset.chipType || "";
+        const id = chip.dataset.chipId || "";
+        if (!id || (type !== "shift" && type !== "leave")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (!canEditSchedule()) {
+          promptManagerAccess(`修改${type === "shift" ? "班別" : "假別"}需先登入主管帳號`);
+          return;
+        }
+        state.selected = { type, id };
+        renderToolbar();
+        renderTable();
+        if (type === "shift") {
+          openShiftFormModal("edit", id);
+        } else {
+          openNamedColorFormModal("leave", "edit", id);
+        }
+      });
+
+      enhanceToolbarChips();
+      syncSelectedToolbarPreview();
+    })();
+  </script>
 </body>
 </html>
