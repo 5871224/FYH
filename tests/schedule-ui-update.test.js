@@ -51,6 +51,6 @@ test("班表週移動與例假排班顯示具有正式程式契約", () => {
   assert.match(css, /\.toolbar-floating-card\.toolbar-floating-card-collapsed \{[\s\S]*?grid-template-rows: repeat\(3, auto\);/);
   assert.doesNotMatch(css, /\.cell\.regular-holiday-work-cell/);
   assert.doesNotMatch(css, /regular-holiday-work-indicator/);
-  assert.match(css, /\.seg\.regular-holiday-work-seg \{[\s\S]*?background: #ffe58f !important;/);
-  assert.match(css, /\.shift-view-member\.regular-holiday-work-member \{[\s\S]*?background: #ffe58f;/);
+  assert.match(css, /\.seg\.regular-holiday-work-seg \{\s*background: #ffe58f !important;\s*\}/);
+  assert.match(css, /\.shift-view-member\.regular-holiday-work-member \{\s*background: #ffe58f;\s*\}/);
 });
