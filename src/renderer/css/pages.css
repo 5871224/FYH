@@ -251,6 +251,24 @@
   display: none !important;
 }
 
+.calendar-nav-left .schedule-nav-history-actions {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.calendar-nav-left .schedule-nav-history-actions .toolbar-history-btn {
+  width: var(--schedule-nav-control-height);
+  min-width: var(--schedule-nav-control-height);
+  height: var(--schedule-nav-control-height);
+  min-height: var(--schedule-nav-control-height);
+  padding: 0;
+  border-radius: 12px;
+}
+
 .seg.regular-holiday-work-seg {
   background: #ffe58f !important;
   color: #4f3d00 !important;

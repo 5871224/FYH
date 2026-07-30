@@ -4768,26 +4768,28 @@ function discardLastScheduleUndoSnapshot() {
 
 let scheduleHistoryBusy = false;
 
-function getScheduleUndoButton() {
-  return document.getElementById("scheduleUndoButton");
+function getScheduleUndoButtons() {
+  return ["scheduleUndoButton", "scheduleUndoTopButton"]
+    .map((id) => document.getElementById(id))
+    .filter(Boolean);
 }
 
-function getScheduleRedoButton() {
-  return document.getElementById("scheduleRedoButton");
+function getScheduleRedoButtons() {
+  return ["scheduleRedoButton", "scheduleRedoTopButton"]
+    .map((id) => document.getElementById(id))
+    .filter(Boolean);
 }
 
 function syncScheduleHistoryButtons() {
   const editable = typeof canEditSchedule === "function" && canEditSchedule();
-  const undoButton = getScheduleUndoButton();
-  const redoButton = getScheduleRedoButton();
-  if (undoButton) {
-    undoButton.disabled = scheduleHistoryBusy || !editable || scheduleUndoStack.length === 0;
-    undoButton.setAttribute("aria-disabled", String(undoButton.disabled));
-  }
-  if (redoButton) {
-    redoButton.disabled = scheduleHistoryBusy || !editable || scheduleRedoStack.length === 0;
-    redoButton.setAttribute("aria-disabled", String(redoButton.disabled));
-  }
+  getScheduleUndoButtons().forEach((button) => {
+    button.disabled = scheduleHistoryBusy || !editable || scheduleUndoStack.length === 0;
+    button.setAttribute("aria-disabled", String(button.disabled));
+  });
+  getScheduleRedoButtons().forEach((button) => {
+    button.disabled = scheduleHistoryBusy || !editable || scheduleRedoStack.length === 0;
+    button.setAttribute("aria-disabled", String(button.disabled));
+  });
 }
 
 function pushScheduleHistorySnapshot(stack, snapshot) {
@@ -4840,15 +4842,19 @@ async function redoSchedule() {
 }
 
 function bindScheduleHistoryControls() {
-  getScheduleUndoButton()?.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    void undoSchedule();
+  getScheduleUndoButtons().forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void undoSchedule();
+    });
   });
-  getScheduleRedoButton()?.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    void redoSchedule();
+  getScheduleRedoButtons().forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void redoSchedule();
+    });
   });
   window.schedulerScheduleHistory = {
     undo: undoSchedule,

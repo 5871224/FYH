@@ -15,7 +15,11 @@ test("班表浮動工具列使用整合式左側操作列", () => {
   const gridIndex = html.indexOf('id="toolbarGrid"', toolbarIndex);
   assert.ok(toolbarIndex >= 0 && collapseIndex > toolbarIndex && undoIndex > collapseIndex && redoIndex > undoIndex && gridIndex > redoIndex);
   assert.equal(html.includes('class="toolbar-top-row"'), false);
-  assert.equal(html.includes("schedule-nav-history-actions"), false);
+  const filterIndex = html.indexOf('id="tableDeptScopeFilter"');
+  const topUndoIndex = html.indexOf('id="scheduleUndoTopButton"');
+  const topRedoIndex = html.indexOf('id="scheduleRedoTopButton"');
+  assert.ok(filterIndex >= 0 && topUndoIndex > filterIndex && topRedoIndex > topUndoIndex);
+  assert.match(html, /class="toolbar-history-actions schedule-nav-history-actions"/);
   assert.match(html, /toolbar-section-overtime" hidden/);
   assert.match(html, /id="tablePrevWeekButton"[^>]* hidden/);
   assert.match(html, /id="tableNextWeekButton"[^>]* hidden/);
@@ -26,6 +30,7 @@ test("班表週移動與例假排班顯示具有正式程式契約", () => {
   const table = read("src/renderer/renderer-schedule-table.js");
   const cells = read("src/renderer/renderer-schedule-cells.js");
   const css = read("src/renderer/css/pages.css");
+  const interaction = read("src/renderer/renderer-schedule-interaction.js");
   assert.match(actions, /function canChangeScheduleWindowWeeks\(weeks\)/);
   assert.match(actions, /maxStartDate: addDaysToDateString\(cycleStartDate, 49\)/);
   assert.match(actions, /button\.disabled = !canChangeScheduleWindowWeeks\(weeks\)/);
@@ -36,6 +41,10 @@ test("班表週移動與例假排班顯示具有正式程式契約", () => {
   assert.match(cells, /regular-holiday-work-seg/);
   assert.match(cells, /regular-holiday-work-member/);
   assert.match(css, /\.table-week-jump \{[\s\S]*?display: none !important;/);
+  assert.match(css, /\.calendar-nav-left \.schedule-nav-history-actions \{[\s\S]*?display: inline-flex;/);
+  assert.match(interaction, /function getScheduleUndoButtons\(\)/);
+  assert.match(interaction, /scheduleUndoTopButton/);
+  assert.match(interaction, /scheduleRedoTopButton/);
   assert.match(css, /\.table-sticky-cell-day\.sun:not\(\.today\)/);
   assert.match(css, /\.toolbar-floating-card \{[\s\S]*?grid-template-columns: 44px minmax\(0, 1fr\);/);
   assert.match(css, /\.toolbar-floating-card > \.toolbar-grid \{[\s\S]*?grid-template-columns: minmax\(0, 1\.66fr\) minmax\(0, 0\.78fr\);/);
