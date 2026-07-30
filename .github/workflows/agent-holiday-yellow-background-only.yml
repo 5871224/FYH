@@ -1,0 +1,47 @@
+name: Apply holiday yellow background only
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply-build-validate-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply requested changes
+        run: python3 scripts/agent-holiday-yellow-background-only.py
+
+      - name: Remove temporary automation files
+        run: rm -f .github/workflows/agent-holiday-yellow-background-only.yml scripts/agent-holiday-yellow-background-only.py
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build and publish static files
+        run: npm run web:publish
+
+      - name: Validate project
+        run: npm run ci:check
+
+      - name: Publish one complete commit to main
+        shell: bash
+        run: |
+          git config user.name "ChatGPT"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git reset --soft origin/main
+          git add -A
+          git commit -m "修正例假黃色區塊樣式"
+          git push origin HEAD:main
