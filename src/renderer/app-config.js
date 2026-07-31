@@ -5,6 +5,7 @@ window.SCHEDULER_CONFIG = {
 };
 
 if (typeof document !== "undefined" && typeof document.write === "function") {
+  document.write('<script src="./login-fast-home.mjs?v=20260731-login-fast-home"><\/script>');
   document.write('<script src="./app-config-base.mjs?v=20260730-toolbar-compact"><\/script>');
   document.write('<script src="./toolbar-compact.mjs?v=20260730-toolbar-compact"><\/script>');
 }
