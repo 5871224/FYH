@@ -98,3 +98,27 @@ test("既有登入狀態仍執行正常初始化並先顯示首頁", async () =>
   assert.equal(getRenderCalls(), 1);
   assert.equal(runtime.currentSession, authContext.session);
 });
+
+test("登出會清除尚未使用的登入身分快取", async () => {
+  const authContext = {
+    session: { user: { id: "user-3" } },
+    profile: { id: "user-3", name: "登出測試" }
+  };
+  const { runtime } = createRuntime(authContext);
+  let initializeCalls = 0;
+
+  runtime.schedulerApi = {
+    signIn: async () => authContext,
+    initializeAuth: async () => {
+      initializeCalls += 1;
+      return { session: null, profile: null };
+    },
+    signOut: async () => true
+  };
+
+  await runtime.schedulerApi.signIn("003", "password");
+  await runtime.schedulerApi.signOut();
+  await runtime.schedulerApi.initializeAuth();
+
+  assert.equal(initializeCalls, 1, "登出後不得沿用先前登入身分");
+});
