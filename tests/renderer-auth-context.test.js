@@ -47,11 +47,12 @@ test("假別明細與設定輔助應位於對應責任模組", () => {
   assert.equal(settingsCatalog.includes("function getLeaveCatalogDisplayName"), true);
 });
 
-test("登入與班表模組順序應維持且不再載入舊申請輔助模組", () => {
+test("登入、簽到簿與班表模組順序應維持且不再載入舊申請模組", () => {
   const ordered = [
-    "renderer-overtime-employee.js",
     "renderer-auth-context.js",
     "renderer-schedule-tooltip.js",
+    "renderer-main-pages.js",
+    "renderer-records-views.js",
     "renderer-attendance-page.js",
     "renderer-meal-page.js",
     "renderer-records-page.js",
@@ -64,6 +65,7 @@ test("登入與班表模組順序應維持且不再載入舊申請輔助模組",
       assert.ok(index > previous, `模組順序錯誤：${file}`);
       previous = index;
     });
+    assert.equal(manifest.includes("renderer-overtime-employee.js"), false);
     assert.equal(manifest.includes("renderer-request-helpers.js"), false);
   });
   ["isLoggedIn", "resolveCurrentMember", "openSignInDialog", "saveChangedPassword"].forEach((name) => {
