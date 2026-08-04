@@ -17,30 +17,32 @@ function rendererSource() {
   return [...js, ...css].join("\n");
 }
 
-test("記錄頁不再使用 v2 UI 標記", () => {
+test("簽到簿不再使用 v2 或舊審核 UI 標記", () => {
   const source = rendererSource();
   assert.doesNotMatch(source, /data-v2-/);
   assert.doesNotMatch(source, /(?:^|[.\s"'])v2-(?:personal|overtime)/m);
+  assert.doesNotMatch(source, /data-overtime-review-check|data-attendance-filter/);
   assert.match(source, /data-personal-record-filter/);
-  assert.match(source, /data-overtime-review-check/);
+  assert.match(source, /data-attendance-review-check/);
 });
 
-test("記錄篩選只由正式記錄事件處理器更新並重新載入", () => {
+test("簽到簿篩選只由正式記錄事件處理器更新並重新載入", () => {
   const formEvents = read("src/renderer/renderer-events-form.js");
   const recordsEvents = read("src/renderer/renderer-records-events.js");
-  assert.doesNotMatch(formEvents, /dataset\.(?:mealReportFilter|overtimeReviewFilter|attendanceFilter)/);
+  assert.doesNotMatch(formEvents, /dataset\.(?:mealReportFilter|overtimeReviewFilter|attendanceFilter|attendanceReviewFilter)/);
   assert.match(recordsEvents, /scheduleRecordsReload\("meal", loadMealReport\)/);
-  assert.match(recordsEvents, /scheduleRecordsReload\("overtime", loadOvertimeReview\)/);
-  assert.match(recordsEvents, /scheduleRecordsReload\("attendance", loadAttendanceAdmin\)/);
+  assert.match(recordsEvents, /scheduleRecordsReload\("attendance-review", loadAttendanceReview\)/);
+  assert.doesNotMatch(recordsEvents, /loadOvertimeReview|loadAttendanceAdmin/);
 });
 
 test("登入資料狀態由工廠與單一重設函式提供", () => {
   const foundation = read("src/renderer/renderer-foundation.js");
   const renderer = read("src/renderer/renderer.js");
   const auth = read("src/renderer/renderer-auth-actions.js");
-  for (const name of ["createAttendanceState", "createAttendanceOvertimeState", "createMealOrderState", "resetLoadedUserRuntimeState"]) {
+  for (const name of ["createAttendanceState", "createMealOrderState", "createRecordsState", "resetLoadedUserRuntimeState"]) {
     assert.match(foundation, new RegExp("function " + name + "\\("));
   }
+  assert.doesNotMatch(foundation + renderer + auth, /createAttendanceOvertimeState|attendanceOvertimeState/);
   assert.equal((renderer.match(/resetLoadedUserRuntimeState\(\)/g) || []).length, 2);
   assert.equal((auth.match(/resetLoadedUserRuntimeState\(\)/g) || []).length, 1);
   assert.doesNotMatch(renderer + auth, /attendanceState = \{ loading: false/);
