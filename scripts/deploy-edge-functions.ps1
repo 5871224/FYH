@@ -4,16 +4,12 @@ $functions = @(
   "member-auth-admin",
   "catalog-admin",
   "attendance-clock",
+  "attendance-ledger",
+  "attendance-ledger-export",
   "meal-order",
-  "attendance-overtime-employee",
-  "attendance-overtime-admin-list",
-  "attendance-overtime-admin-action",
-  "attendance-admin-list-v2",
-  "attendance-admin-action-v2",
   "department-attendance-v2",
   "member-delete-v2",
   "member-order-v2",
-  "personal-records-v2",
   "meal-report-v2",
   "meal-cancel-v2"
 )
