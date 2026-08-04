@@ -1,11 +1,7 @@
-/* 打卡頁資料讀取與打卡控制。
- * 由 renderer.js 拆分；維持既有全域 bundle 執行方式。
- */
+/* 簽到簿表格內的定位與上、下班打卡控制。 */
 
 function formatClockTime(value) {
-  if (!value) {
-    return "--:--";
-  }
+  if (!value) return "--:--";
   return new Intl.DateTimeFormat("zh-TW", {
     hour: "2-digit",
     minute: "2-digit",
@@ -14,26 +10,16 @@ function formatClockTime(value) {
   }).format(new Date(value));
 }
 
-function getTodayShiftSummary() {
-  const member = currentMember || resolveCurrentMember();
-  const dateString = attendanceState.serverDate || getTodayDateString();
-  const shift = getItem("shift", getSlot(member?.id || "", dateString)?.shift);
-  if (!shift) {
-    return "今日未排班";
-  }
-  return `${shift.name || "班別"}：${shift.startTime || "--:--"} ~ ${shift.endTime || "--:--"}`;
-}
-
 function getBrowserPosition() {
   const userAgent = navigator.userAgent || "";
   const isTablet = /iPad|Tablet|Silk/i.test(userAgent)
     || (/Android/i.test(userAgent) && !/Mobile|Mobi/i.test(userAgent));
   const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
-  const narrowTouch = !isTablet && coarsePointer && navigator.maxTouchPoints > 0 && Math.min(window.screen?.width || window.innerWidth, window.screen?.height || window.innerHeight) <= 820;
-  const isPhone = Boolean(navigator.userAgentData?.mobile || narrowTouch || (!isTablet && /Android|iPhone|iPod|Windows Phone|Mobi|Mobile/i.test(userAgent)));
-  if (!isPhone || !navigator.geolocation) {
-    return Promise.resolve({});
-  }
+  const narrowTouch = !isTablet && coarsePointer && navigator.maxTouchPoints > 0
+    && Math.min(window.screen?.width || window.innerWidth, window.screen?.height || window.innerHeight) <= 820;
+  const isPhone = Boolean(navigator.userAgentData?.mobile || narrowTouch
+    || (!isTablet && /Android|iPhone|iPod|Windows Phone|Mobi|Mobile/i.test(userAgent)));
+  if (!isPhone || !navigator.geolocation) return Promise.resolve({});
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (position) => resolve({
@@ -54,73 +40,30 @@ function getBrowserPosition() {
   });
 }
 
-async function loadTodayAttendance() {
-  if (!isLoggedIn()) {
-    return;
-  }
-  attendanceState = { ...attendanceState, loading: true, error: "" };
-  renderAll();
-  try {
-    const result = await window.schedulerApi.getTodayAttendance();
-    attendanceState = {
-      loading: false,
-      saving: false,
-      record: result.record || null,
-      serverDate: result.serverDate || getTodayDateString(),
-      error: ""
-    };
-  } catch (error) {
-    attendanceState = {
-      loading: false,
-      saving: false,
-      record: null,
-      serverDate: getTodayDateString(),
-      error: error.message || "讀取打卡狀態失敗"
-    };
-  }
-  renderAll();
-}
-
-async function maybePromptOvertimeAfterClockOut() {
-  return false;
-}
-
-async function submitAttendanceClock(action) {
+async function submitAttendanceClock(action, workDate) {
   if (!isLoggedIn()) {
     openSignInDialog();
     return;
   }
-  if (attendanceState.saving) {
+  if (workDate !== getTodayDateString()) {
+    showInfoMessage("只能在今天的紀錄列打卡");
     return;
   }
-  const confirmed = await confirmAction(action === "clock_in" ? "確定要上班打卡嗎？" : "確定要下班打卡嗎？");
-  if (!confirmed) {
-    return;
-  }
-  attendanceState = { ...attendanceState, saving: true, error: "" };
+  if (attendanceState.saving) return;
+  const label = action === "clock_in" ? "上班" : "下班";
+  const confirmed = await confirmAction(`確定要${label}打卡嗎？`);
+  if (!confirmed) return;
+  attendanceState = { saving: true, error: "" };
   renderAll();
   try {
     const position = await getBrowserPosition();
-    const result = await window.schedulerApi.clockAttendance(action, position);
-    attendanceState = {
-      loading: false,
-      saving: false,
-      record: result.record || null,
-      serverDate: result.serverDate || getTodayDateString(),
-      error: ""
-    };
-    const overtimeStatus = action === "clock_out" ? await loadTodayAttendanceOvertime(false) : null;
-    const promptedOvertime = action === "clock_out" ? await maybePromptOvertimeAfterClockOut(overtimeStatus) : false;
-    if (!promptedOvertime) {
-      showInfoMessage(action === "clock_in" ? "上班打卡完成" : "下班打卡完成");
-    }
+    await window.schedulerApi.clockAttendance(action, position);
+    attendanceState = { saving: false, error: "" };
+    await loadRecordsPage();
+    showInfoMessage(`${label}打卡完成`);
   } catch (error) {
-    attendanceState = {
-      ...attendanceState,
-      loading: false,
-      saving: false,
-      error: error.message || "打卡失敗"
-    };
+    attendanceState = { saving: false, error: error.message || "打卡失敗" };
+    showInfoMessage(attendanceState.error);
+    renderAll();
   }
-  renderAll();
 }

@@ -37,11 +37,6 @@ function bindDelegatedClickEvents() {
         renderAll();
         return;
       }
-      if (target.dataset.homeAction === "clock") {
-        appView = "clock";
-        await loadTodayAttendance();
-        return;
-      }
       if (target.dataset.homeAction === "schedule") {
         try {
           await ensureManagerDirectoryLoaded();
@@ -69,16 +64,8 @@ function bindDelegatedClickEvents() {
       showInfoMessage(comingSoon[target.dataset.homeAction] || "此功能尚未開放");
       return;
     }
-    if (target.dataset.clockAction) {
-      await submitAttendanceClock(target.dataset.clockAction);
-      return;
-    }
-    if (target.dataset.submitTodayOvertime) {
-      await submitTodayOvertimeRequest();
-      return;
-    }
-    if (target.dataset.deleteTodayOvertime) {
-      await deleteTodayOvertimeRequest();
+    if (target.dataset.personalClockAction) {
+      await submitAttendanceClock(target.dataset.personalClockAction, target.dataset.personalClockDate || "");
       return;
     }
     if (target.dataset.saveTodayMeal) {
@@ -112,45 +99,24 @@ function bindDelegatedClickEvents() {
       if (result.empty) showInfoMessage("目前沒有可匯出的訂餐資料");
       return;
     }
-    if (target.dataset.loadOvertimeReview) {
-      await loadOvertimeReview();
+    if (target.dataset.editAttendanceReview) {
+      openAttendanceReviewEditModal(target.dataset.editAttendanceReview);
       return;
     }
-    if (target.dataset.openOvertimeReview) {
-      openOvertimeReviewModal(target.dataset.openOvertimeReview);
+    if (target.dataset.saveAttendanceReview) {
+      await saveAttendanceReviewEdit(target.dataset.saveAttendanceReview);
       return;
     }
-    if (target.dataset.approveOvertime) {
-      await reviewOvertime(target.dataset.approveOvertime, "approved");
+    if (target.dataset.toggleAttendanceReview) {
+      await setAttendanceReviewed(target.dataset.toggleAttendanceReview, target.dataset.reviewed !== "true");
       return;
     }
-    if (target.dataset.returnOvertime) {
-      await reviewOvertime(target.dataset.returnOvertime, "returned");
+    if (target.dataset.openAdminAttendanceCreate) {
+      openAdminAttendanceCreateModal();
       return;
     }
-    if (target.dataset.saveOvertimeReview) {
-      await reviewOvertime(target.dataset.saveOvertimeReview, "pending", true);
-      return;
-    }
-    if (target.dataset.openAdminOvertimeCreate) {
-      openAdminOvertimeCreateModal();
-      return;
-    }
-    if (target.dataset.saveAdminOvertimeCreate) {
-      await saveAdminOvertimeCreate();
-      return;
-    }
-    if (target.dataset.loadAttendanceAdmin) {
-      recordsState.attendanceAdmin.page = 1;
-      await loadAttendanceAdmin();
-      return;
-    }
-    if (target.dataset.editAttendance) {
-      openAttendanceEditModal(target.dataset.editAttendance);
-      return;
-    }
-    if (target.dataset.saveAttendanceEdit) {
-      await saveAttendanceEdit(target.dataset.saveAttendanceEdit);
+    if (target.dataset.saveAdminAttendanceCreate !== undefined) {
+      await saveAdminAttendanceCreate();
       return;
     }
     if (target.dataset.viewAttendanceHistory) {

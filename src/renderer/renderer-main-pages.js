@@ -1,12 +1,10 @@
-/* 首頁、打卡頁與今日訂餐頁渲染。
+/* 首頁與今日訂餐頁渲染。
  * 由 renderer.js 拆分；不變更畫面內容或操作規則。
  */
 
 function renderHomeDashboard() {
   const homeCard = document.getElementById("homeCard");
-  if (!homeCard) {
-    return;
-  }
+  if (!homeCard) return;
   if (!isLoggedIn()) {
     homeCard.innerHTML = "";
     return;
@@ -22,10 +20,7 @@ function renderHomeDashboard() {
         <button class="ghost-btn home-signout-btn" type="button" id="homeSignOutButton">登出</button>
       </div>
     </div>
-    <div class="home-action-grid">
-      <button class="home-action-card" type="button" data-home-action="clock">
-        <span class="home-action-title">打卡</span>
-      </button>
+    <div class="home-action-grid home-action-grid-three">
       <button class="home-action-card" type="button" data-home-action="schedule">
         <span class="home-action-title">班表</span>
       </button>
@@ -33,56 +28,10 @@ function renderHomeDashboard() {
         <span class="home-action-title">訂餐</span>
       </button>
       <button class="home-action-card" type="button" data-home-action="records">
-        <span class="home-action-title">記錄</span>
+        <span class="home-action-title">簽到簿</span>
       </button>
     </div>
   `;
-}
-
-function renderClockPage() {
-  const clockCard = document.getElementById("clockCard");
-  if (!clockCard) {
-    return;
-  }
-  if (!isLoggedIn()) {
-    clockCard.innerHTML = "";
-    return;
-  }
-  const record = attendanceState.record || {};
-  const clockInDone = Boolean(record.clock_in_at);
-  const clockOutDone = Boolean(record.clock_out_at);
-  const disableClockIn = attendanceState.saving || clockInDone || clockOutDone;
-  const disableClockOut = attendanceState.saving || clockOutDone;
-  clockCard.innerHTML = `
-    <div class="clock-page-header">
-      <div>
-        <p class="home-eyebrow">打卡</p>
-        <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
-        <p class="home-subtitle clock-today-line"><span>今日日期：${escapeHtml(attendanceState.serverDate || getTodayDateString())}</span><span>${escapeHtml(getTodayShiftSummary())}</span></p>
-      </div>
-      ${renderHomeIconButton()}
-    </div>
-    ${attendanceState.error ? `<div class="auth-error clock-error">${escapeHtml(attendanceState.error)}</div>` : ""}
-    <div class="clock-action-grid">
-      <button class="clock-action-btn clock-in-btn" type="button" data-clock-action="clock_in" ${disableClockIn ? "disabled" : ""}>
-        <span>上班打卡</span>
-        <strong>${formatClockButtonStatus(record, "in")}</strong>
-      </button>
-      <button class="clock-action-btn clock-out-btn" type="button" data-clock-action="clock_out" ${disableClockOut ? "disabled" : ""}>
-        <span>下班打卡</span>
-        <strong>${formatClockButtonStatus(record, "out")}</strong>
-      </button>
-    </div>
-    ${renderTodayOvertimePanel()}
-    ${attendanceState.loading && !attendanceState.saving ? '<p class="clock-loading">讀取資料中...</p>' : ""}
-  `;
-}
-
-function getOvertimeStatusLabel(status) {
-  if (!status) return "-";
-  if (status === "approved") return "已核准";
-  if (status === "returned") return "退回";
-  return "待審";
 }
 
 function renderMealPage() {

@@ -1,4 +1,4 @@
-/* 個人記錄、訂餐統計、加班審核、打卡管理與訂餐設定畫面。
+/* 個人記錄、簽到審核、訂餐統計與訂餐設定畫面。
  * 每種畫面只保留一份正式實作。
  */
 
@@ -11,14 +11,13 @@ function renderHomeIconButton() {
 }
 
 function renderRecordsTabs() {
-    const tabs = [
-      ["personal", "個人記錄", true],
-      ["overtime", "加班審核", isAdmin()],
-      ["attendance", "打卡管理", isAdmin()]
-    ].filter((tab) => tab[2]);
-    if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
-    return `<div class="record-tabs" role="tablist" aria-label="記錄頁分頁">${tabs.map(([id, label]) => `<button class="ghost-btn page-tab-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" role="tab" aria-selected="${recordsState.activeTab === id ? "true" : "false"}" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
-  }
+  const tabs = [
+    ["personal", "個人記錄", true],
+    ["review", "簽到審核", isAdmin()]
+  ].filter((tab) => tab[2]);
+  if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
+  return `<div class="record-tabs" role="tablist" aria-label="簽到簿分頁">${tabs.map(([id, label]) => `<button class="ghost-btn page-tab-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" role="tab" aria-selected="${recordsState.activeTab === id ? "true" : "false"}" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
+}
 
 function memberOptions(selectedValue, members = state.members) {
   return `<option value="">全部人員</option>${(members || []).map((member) => `<option value="${escapeHtml(member.id)}" ${selectedValue === member.id ? "selected" : ""}>${escapeHtml(member.full_name || member.name || member.employee_code || member.code || "")}</option>`).join("")}`;
@@ -70,43 +69,76 @@ function renderScheduleIcon(record) {
     }).join("")}</div>`;
   }
 
-function punchLine(value, department) {
-    if (!value) return "-";
-    return `${formatRecordDateTime(value)}${department ? ` ${escapeHtml(department)}` : ""}`;
-  }
+function attendanceLocationName(location) {
+  if (!location || typeof location !== "object") return "";
+  return location.name || location.address || location.source || "";
+}
+
+function renderPunchLine(label, value, location) {
+  if (!value) return "";
+  const place = attendanceLocationName(location);
+  return `<div class="attendance-punch-line"><span>${escapeHtml(label)} ${escapeHtml(formatRecordDateTime(value))}</span>${place ? `<small>${escapeHtml(place)}</small>` : ""}</div>`;
+}
+
+function renderPersonalClockCell(record) {
+  const today = record.date === getTodayDateString();
+  const editable = today && record.editable !== false && !record.reviewed;
+  const lines = [
+    renderPunchLine("上班", record.clockIn, record.clockInLocation),
+    renderPunchLine("下班", record.clockOut, record.clockOutLocation)
+  ].filter(Boolean);
+  const buttons = editable ? `<div class="attendance-clock-buttons">
+    ${record.clockIn ? "" : `<button class="ghost-btn compact-btn" type="button" data-personal-clock-action="clock_in" data-personal-clock-date="${escapeHtml(record.date)}">上班打卡</button>`}
+    ${record.clockOut ? "" : `<button class="ghost-btn compact-btn" type="button" data-personal-clock-action="clock_out" data-personal-clock-date="${escapeHtml(record.date)}">下班打卡</button>`}
+  </div>` : "";
+  return `<div class="attendance-clock-stack">${lines.join("") || '<span class="attendance-empty-value">-</span>'}${buttons}</div>`;
+}
+
+function renderPersonalHoursInput(record, field) {
+  const value = record[field];
+  const editable = record.editable !== false && !record.reviewed;
+  return `<input class="attendance-hours-input" type="number" min="0" step="0.5" inputmode="decimal" value="${value === null || value === undefined ? "" : escapeHtml(String(value))}" data-personal-attendance-field="${field}" data-personal-attendance-date="${escapeHtml(record.date)}" ${editable ? "" : "disabled"}>`;
+}
+
+function renderReviewStatus(reviewed) {
+  return `<span class="attendance-review-status ${reviewed ? "is-reviewed" : "is-unreviewed"}">${reviewed ? "已審" : "未審"}</span>`;
+}
 
 function renderPersonalRecordsSection() {
-    ensureRecordsState();
-    const filters = recordsState.personalFilters;
-    const page = Number(recordsState.personalPage || 1);
-    const pageSize = Number(recordsState.personalPageSize || 50);
-    const total = Number(recordsState.personalTotal || 0);
-    const pages = Math.max(1, Math.ceil(total / pageSize));
+  ensureRecordsState();
+  const filters = recordsState.personalFilters;
+  const page = Number(recordsState.personalPage || 1);
+  const pageSize = Number(recordsState.personalPageSize || 50);
+  const total = Number(recordsState.personalTotal || 0);
+  const pages = Math.max(1, Math.ceil(total / pageSize));
 
-    return `<section class="records-section">
-      <div class="records-admin-toolbar personal-record-toolbar">
-        <div class="records-admin-filters personal-record-filters">
-          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-personal-record-filter="fromDate"></label>
-          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-personal-record-filter="toDate"></label>
-        </div>
+  return `<section class="records-section">
+    <div class="records-admin-toolbar personal-record-toolbar">
+      <div class="records-admin-filters personal-record-filters">
+        <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-personal-record-filter="fromDate"></label>
+        <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-personal-record-filter="toDate"></label>
       </div>
-      <div class="records-table-wrap"><table class="records-table personal-record-table">
-        <thead><tr><th>日期</th><th class="personal-schedule-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>異常</th><th>加班</th><th>打卡備註</th><th>加班備註</th><th>訂餐</th></tr></thead>
-        <tbody>${(recordsState.personal || []).map((record) => `<tr>
-          <td>${escapeHtml(record.date || "")}</td>
-          <td class="personal-schedule-icon-col">${renderScheduleIcon(record)}</td>
-          <td>${escapeHtml(record.shiftName || "-")}<br><span>${escapeHtml(record.shiftTime || "")}</span></td>
-          <td class="personal-punch-stack"><div>${punchLine(record.clockIn, record.clockInDepartment)}</div><div>${punchLine(record.clockOut, record.clockOutDepartment)}</div></td>
-          <td>${escapeHtml((record.issues || []).join("、") || "正常")}</td>
-          <td>${escapeHtml(getOvertimeStatusLabel(record.overtimeStatus || ""))}<br><span>${Number(record.overtimeHours || 0)} 小時</span></td>
-          <td>${escapeHtml(record.attendanceNote || "")}</td>
-          <td>${escapeHtml(record.overtimeNote || "")}</td>
-          <td><span class="meal-record-text">${escapeHtml(record.mealText || "-")}</span>${record.mealClockDeletedWarning ? '<br><span class="auth-error-inline">所依據的上班打卡已被刪除</span>' : ""}</td>
-        </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
-      </table></div>
-      <div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>
-    </section>`;
-  }
+    </div>
+    ${attendanceState.error ? `<div class="auth-error">${escapeHtml(attendanceState.error)}</div>` : ""}
+    <div class="records-table-wrap"><table class="records-table personal-record-table attendance-ledger-table">
+      <thead><tr><th>日期</th><th class="personal-schedule-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>上班時數</th><th>加班時數</th><th>備註</th><th>訂餐</th><th>審核</th></tr></thead>
+      <tbody>${(recordsState.personal || []).map((record) => `<tr class="${record.date === getTodayDateString() ? "is-today-row" : ""}">
+        <td>${escapeHtml(record.date || "")}</td>
+        <td class="personal-schedule-icon-col">${renderScheduleIcon(record)}</td>
+        <td>${escapeHtml(record.shiftName || "-")}<br><span>${escapeHtml(record.shiftTime || "")}</span></td>
+        <td>${renderPersonalClockCell(record)}</td>
+        <td>${renderPersonalHoursInput(record, "regularHours")}</td>
+        <td>${renderPersonalHoursInput(record, "overtimeHours")}</td>
+        <td>${record.editable !== false && !record.reviewed
+          ? `<textarea class="attendance-note-input" rows="2" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}">${escapeHtml(record.note || "")}</textarea>`
+          : escapeHtml(record.note || "")}</td>
+        <td><span class="meal-record-text">${escapeHtml(record.mealText || "-")}</span>${record.mealClockDeletedWarning ? '<br><span class="auth-error-inline">所依據的上班打卡已被刪除</span>' : ""}</td>
+        <td>${renderReviewStatus(record.reviewed)}</td>
+      </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
+    </table></div>
+    <div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>
+  </section>`;
+}
 
 function renderMealReportSection() {
     ensureRecordsState();
@@ -186,108 +218,72 @@ function formatPunchTime(value) {
     return value ? formatClockTime(value) : "-";
   }
 
-function renderOvertimeReviewPagination(review) {
-    const page = Number(review.page || 1);
-    const pageSize = Number(review.pageSize || 20);
-    const total = Number(review.total || 0);
-    const pages = Math.max(1, Math.ceil(total / pageSize));
-    return `<div class="records-filter-row records-pagination">
-      <button class="ghost-btn compact-btn" type="button" data-overtime-review-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
-      <span>共 ${total} 筆，第 ${page} / ${pages} 頁</span>
-      <button class="ghost-btn compact-btn" type="button" data-overtime-review-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
-    </div>`;
-  }
+function renderAttendanceReviewPagination(review) {
+  const page = Number(review.page || 1);
+  const pageSize = Number(review.pageSize || 50);
+  const total = Number(review.total || 0);
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  return `<div class="records-filter-row records-pagination">
+    <button class="ghost-btn compact-btn" type="button" data-attendance-review-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
+    <span>共 ${total} 筆，第 ${page} / ${pages} 頁</span>
+    <button class="ghost-btn compact-btn" type="button" data-attendance-review-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
+  </div>`;
+}
 
-function renderOvertimeReviewSection() {
-    const review = ensureOvertimeReviewState();
-    const filters = review.filters;
-    const rows = review.requests || [];
-    return `<section class="records-section">
-      <div class="records-admin-toolbar overtime-review-toolbar">
-        <div class="records-admin-filters overtime-review-filters">
-          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-overtime-review-filter="fromDate"></label>
-          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-overtime-review-filter="toDate"></label>
-          <label class="records-admin-field"><span>人員</span><select data-overtime-review-filter="memberId">${memberOptions(filters.memberId, review.members)}</select></label>
-          <label class="records-admin-field"><span>狀態</span><select data-overtime-review-filter="status">
-            <option value="pending" ${filters.status === "pending" ? "selected" : ""}>待審</option>
-            <option value="approved" ${filters.status === "approved" ? "selected" : ""}>核准</option>
-            <option value="returned" ${filters.status === "returned" ? "selected" : ""}>退回</option>
-            <option value="all" ${filters.status === "all" ? "selected" : ""}>全部</option>
-          </select></label>
-        </div>
-        <div class="records-admin-actions overtime-review-actions">
-          <button class="ghost-btn compact-btn" type="button" data-open-admin-overtime-create="true">代為申請</button>
-          <button class="ghost-btn compact-btn" type="button" data-export-approved-overtime="true">匯出加班</button>
-          <button class="primary-btn compact-btn" type="button" data-overtime-review-batch="approved">批次核准</button>
-          <button class="ghost-btn compact-btn" type="button" data-overtime-review-batch="returned">批次退回</button>
-        </div>
+function renderAttendanceReviewSection() {
+  const review = ensureAttendanceReviewState();
+  const filters = review.filters;
+  const rows = review.rows || [];
+  return `<section class="records-section">
+    <div class="records-admin-toolbar overtime-review-toolbar attendance-review-toolbar">
+      <div class="records-admin-filters overtime-review-filters attendance-review-filters">
+        <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-attendance-review-filter="fromDate"></label>
+        <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-attendance-review-filter="toDate"></label>
+        <label class="records-admin-field"><span>人員</span><select data-attendance-review-filter="memberId">${memberOptions(filters.memberId, review.members)}</select></label>
+        <label class="records-admin-field"><span>異常</span><select data-attendance-review-filter="issueType"><option value="" ${!filters.issueType ? "selected" : ""}>全部顯示</option>${(review.issueTypes || []).map((type) => `<option value="${escapeHtml(type)}" ${filters.issueType === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
+        <label class="records-admin-field"><span>狀態</span><select data-attendance-review-filter="status">
+          <option value="unreviewed" ${filters.status === "unreviewed" ? "selected" : ""}>未審</option>
+          <option value="reviewed" ${filters.status === "reviewed" ? "selected" : ""}>已審</option>
+          <option value="all" ${filters.status === "all" ? "selected" : ""}>全部</option>
+        </select></label>
       </div>
-      ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
-      <div class="records-table-wrap">
-        <table class="records-table overtime-review-table">
-          <thead><tr><th class="overtime-review-check-col"><input type="checkbox" data-overtime-review-check-all></th><th class="overtime-review-date-col">日期</th><th>員工</th><th>班別</th><th>打卡時間</th><th>加班時數</th><th>備註</th><th class="overtime-review-status-col">狀態</th><th class="overtime-review-action-col">操作</th></tr></thead>
-          <tbody>${rows.map((row) => `<tr>
-            <td class="overtime-review-check-col"><input type="checkbox" data-overtime-review-check="${escapeHtml(row.id)}"></td>
-            <td class="overtime-review-date-col">${escapeHtml(row.work_date || "")}${row.attendance_changed_warning ? '<br><span class="auth-error-inline">打卡時間已異動</span>' : ""}</td>
-            <td>${escapeHtml(row.employee?.full_name || "")}</td>
-            <td>${escapeHtml(row.shift?.name || "-")}<br><span>${escapeHtml(`${String(row.shift?.start_time || "").slice(0, 5)}-${String(row.shift?.end_time || "").slice(0, 5)}`)}</span></td>
-            <td>上班 ${formatPunchTime(row.attendance?.clock_in_at)}<br>下班 ${formatPunchTime(row.attendance?.clock_out_at)}</td>
-            <td>${formatHours(row.early_overtime_hours)}＋${formatHours(row.late_overtime_hours)}=${formatHours(row.total_overtime_hours)}</td>
-            <td>${escapeHtml(row.employee_note || "")}</td>
-            <td class="overtime-review-status-col">${escapeHtml(getOvertimeStatusLabel(row.status || ""))}</td>
-            <td class="overtime-review-action-col"><div class="overtime-review-action-buttons">
-              <button class="settings-icon-btn" type="button" data-open-overtime-review="${escapeHtml(row.id)}" aria-label="調整" title="調整"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
-              <button class="settings-icon-btn overtime-review-approve-btn" type="button" data-approve-overtime="${escapeHtml(row.id)}" aria-label="核准" title="核准"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h4"></path><path d="M9 14l2 2 4-4"></path></svg></button>
-              <button class="settings-icon-btn overtime-review-return-btn" type="button" data-return-overtime="${escapeHtml(row.id)}" aria-label="退回" title="退回"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h4"></path><path d="M10 12l4 4"></path><path d="M14 12l-4 4"></path></svg></button>
+      <div class="records-admin-actions overtime-review-actions attendance-review-actions">
+        <button class="ghost-btn compact-btn" type="button" data-open-admin-attendance-create="true">代為申請</button>
+        <button class="ghost-btn compact-btn" type="button" data-export-attendance-review="true">匯出加班</button>
+        <button class="primary-btn compact-btn" type="button" data-attendance-review-batch="reviewed">批次審核</button>
+        <button class="ghost-btn compact-btn" type="button" data-attendance-review-batch="returned">批次退回</button>
+      </div>
+    </div>
+    ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
+    <div class="records-table-wrap">
+      <table class="records-table attendance-review-table">
+        <thead><tr><th class="overtime-review-check-col"><input type="checkbox" data-attendance-review-check-all></th><th>日期</th><th>員工</th><th class="attendance-schedule-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>上班時數</th><th>加班時數</th><th>備註</th><th>異常</th><th>狀態</th><th>操作</th></tr></thead>
+        <tbody>${rows.map((row) => {
+          const token = `${row.user_id}:${row.work_date}`;
+          return `<tr>
+            <td class="overtime-review-check-col"><input type="checkbox" data-attendance-review-check="${escapeHtml(token)}"></td>
+            <td>${escapeHtml(row.work_date || "")}</td>
+            <td>${escapeHtml(row.employee_name || "")}<br><span>${escapeHtml(row.employee_code || "")}</span></td>
+            <td class="attendance-schedule-icon-col">${renderScheduleIcon(row)}</td>
+            <td>${escapeHtml(row.shiftName || "-")}<br><span>${escapeHtml(row.shiftTime || "")}</span></td>
+            <td>${renderPunchLine("上班", row.clock_in_at, row.clock_in_location) || "-"}${renderPunchLine("下班", row.clock_out_at, row.clock_out_location)}</td>
+            <td>${row.regularHours === null || row.regularHours === undefined ? "" : escapeHtml(String(row.regularHours))}</td>
+            <td>${row.overtimeHours === null || row.overtimeHours === undefined ? "" : escapeHtml(String(row.overtimeHours))}</td>
+            <td>${escapeHtml(row.note || "")}</td>
+            <td>${escapeHtml((row.issues || []).join("、") || "正常")}</td>
+            <td>${renderReviewStatus(row.reviewed)}</td>
+            <td><div class="attendance-review-row-actions">
+              <button class="ghost-btn compact-btn" type="button" data-edit-attendance-review="${escapeHtml(token)}">編輯</button>
+              <button class="compact-btn attendance-review-toggle ${row.reviewed ? "is-reviewed" : "is-unreviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}">${row.reviewed ? "已審" : "未審"}</button>
+              ${row.id ? `<button class="settings-icon-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}
             </div></td>
-          </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
-        </table>
-      </div>
-      ${renderOvertimeReviewPagination(review)}
-    </section>`;
-  }
-
-function renderAttendanceAdminSection() {
-    const admin = recordsState.attendanceAdmin;
-    const filters = admin.filters;
-    const page = Number(admin.page || 1);
-    const pageSize = Number(admin.pageSize || 50);
-    const total = Number(admin.total || 0);
-    const pages = Math.max(1, Math.ceil(total / pageSize));
-    return `<section class="records-section">
-      <div class="records-admin-toolbar attendance-admin-toolbar">
-        <div class="records-admin-filters attendance-admin-filters">
-          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate)}" data-attendance-filter="fromDate"></label>
-          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate)}" data-attendance-filter="toDate"></label>
-          <label class="records-admin-field"><span>人員</span><select data-attendance-filter="memberId">${memberOptions(filters.memberId, admin.members)}</select></label>
-          <label class="records-admin-field"><span>顯示項目</span><select data-attendance-filter="issueType"><option value="__all__" ${filters.abnormalOnly ? "" : "selected"}>全部顯示</option><option value="" ${filters.abnormalOnly && !filters.issueType ? "selected" : ""}>全部異常</option>${admin.issueTypes.map((type) => `<option value="${escapeHtml(type)}" ${filters.issueType === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
-        </div>
-      </div>
-      ${admin.error ? `<div class="auth-error">${escapeHtml(admin.error)}</div>` : ""}
-      <div class="records-table-wrap"><table class="records-table attendance-admin-table">
-        <thead><tr><th>日期</th><th>員工</th><th class="attendance-schedule-icon-col">圖示</th><th>班別</th><th>上班</th><th>下班</th><th>異常</th><th>備註</th><th class="attendance-admin-action-col">操作</th></tr></thead>
-        <tbody>${admin.rows.map((row) => `<tr>
-          <td>${escapeHtml(row.work_date || "")}</td>
-          <td>${escapeHtml(row.employee_name_snapshot || "")}<br><span>${escapeHtml(row.employee_code_snapshot || "")}</span></td>
-          <td class="attendance-schedule-icon-col">${renderScheduleIcon(row)}</td>
-          <td>${escapeHtml(row.shift_name || "-")}<br><span>${escapeHtml(`${String(row.shift_start_time || "").slice(0, 5)}-${String(row.shift_end_time || "").slice(0, 5)}`)}</span></td>
-          <td>${formatRecordDateTime(row.clock_in_at)}<br><span>${escapeHtml(row.clock_in_department_name_snapshot || "")}</span></td>
-          <td>${formatRecordDateTime(row.clock_out_at)}<br><span>${escapeHtml(row.clock_out_department_name_snapshot || "")}</span></td>
-          <td>${escapeHtml((row.issues || []).join("、") || "正常")}</td>
-          <td>${escapeHtml(row.attendance_note || "")}</td>
-          <td class="attendance-admin-action-col"><div class="attendance-admin-actions">
-            <button class="settings-icon-btn" type="button" data-edit-attendance="${escapeHtml(row.user_id)}:${escapeHtml(row.work_date)}:${escapeHtml(row.id || "")}" aria-label="編輯" title="編輯"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
-            ${row.id ? `<button class="settings-icon-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}
-          </div></td>
-        </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
-      </table></div>
-      <div class="records-filter-row records-pagination">
-        <button class="ghost-btn compact-btn" type="button" data-attendance-admin-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
-        <span>共 ${total} 筆，第 ${page} / ${pages} 頁</span>
-        <button class="ghost-btn compact-btn" type="button" data-attendance-admin-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
-      </div>
-    </section>`;
-  }
+          </tr>`;
+        }).join("") || '<tr><td colspan="12">沒有資料</td></tr>'}</tbody>
+      </table>
+    </div>
+    ${renderAttendanceReviewPagination(review)}
+  </section>`;
+}
 
 function renderMealSettingsSection() {
     const mealAdmin = recordsState.mealAdmin;
