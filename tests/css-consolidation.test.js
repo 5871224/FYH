@@ -84,12 +84,14 @@ test("班表外框不再依賴根層後載入修正", () => {
   assert.equal(rootRuleBodies(schedule, ".table-wrap").length, 0);
 });
 
-test("簽到簿樣式不再由響應式檔保留舊加班申請規則", () => {
+test("既有打卡樣式規則不再於 pages 重複", () => {
+  const foundation = read("src/renderer/css/foundation.css");
   const responsive = read("src/renderer/css/responsive.css");
   const pages = read("src/renderer/css/pages.css");
-  assert.doesNotMatch(responsive, /overtime-date-row|overtime-request-status-row|overtime-hours-summary/);
+  assert.equal(allRuleBodies(foundation, ".clock-action-btn").some((body) => body.includes("min-height: 120px;") && body.includes("padding: 18px 20px;")), true);
   assert.equal(allRuleBodies(pages, ".clock-action-btn").length, 0);
   assert.equal(allRuleBodies(responsive, ".overtime-hours-grid .form-row-wide").length, 0);
+  assert.equal(allRuleBodies(pages, ".overtime-hours-grid .form-row-wide").length, 1);
 });
 
 test("班表共用樣式不再依賴後載入覆蓋", () => {
@@ -125,13 +127,12 @@ test("手機主要頁面與表單響應式規格集中於 responsive", () => {
   assert.doesNotMatch(mainPages, /home-action-card-primary/);
   assert.match(responsive, /body\.is-home-view \.home-card \{[^}]*min-height:\s*calc\(100dvh - 12px\) !important;/s);
   assert.match(responsive, /body\.is-home-view \.clock-page-header \{[^}]*margin-bottom:\s*clamp\(20px, 3vh, 28px\);/s);
-  assert.match(responsive, /body\.is-home-view \.home-action-grid \{[^}]*flex:\s*1;[^}]*grid-template-rows:\s*repeat\(3, minmax\(92px, 1fr\)\);[^}]*gap:\s*clamp\(14px, 2\.6vh, 22px\);/s);
+  assert.match(responsive, /body\.is-home-view \.home-action-grid \{[^}]*flex:\s*1;[^}]*grid-template-rows:\s*repeat\(4, minmax\(92px, 1fr\)\);[^}]*gap:\s*clamp\(14px, 2\.6vh, 22px\);/s);
   assert.match(responsive, /body\.is-home-view \.home-action-card \{[^}]*min-height:\s*92px;[^}]*padding:\s*14px 16px;/s);
   assert.match(responsive, /body\.is-schedule-view \.nav-actions > \.nav-btn \{[^}]*flex:\s*1 1 0;[^}]*font-size:\s*12px;[^}]*white-space:\s*nowrap;/s);
   assert.match(responsive, /body\.is-schedule-view \.nav-actions > \.core-actions-shell \{\s*flex:\s*1 1 100%;/s);
-  assert.match(responsive, /:is\(body\.is-meal-view, body\.is-records-view\) \.page-home-btn \{[^}]*width:\s*var\(--schedule-nav-control-height\);[^}]*height:\s*var\(--schedule-nav-control-height\);/s);
-  assert.match(responsive, /:is\(body\.is-meal-view, body\.is-records-view\) \.page-home-btn svg \{[^}]*width:\s*18px;[^}]*height:\s*18px;/s);
-  assert.doesNotMatch(responsive, /body\.is-clock-view|\.clock-card/);
+  assert.match(responsive, /:is\(body\.is-clock-view, body\.is-meal-view, body\.is-records-view\) \.page-home-btn \{[^}]*width:\s*var\(--schedule-nav-control-height\);[^}]*height:\s*var\(--schedule-nav-control-height\);/s);
+  assert.match(responsive, /:is\(body\.is-clock-view, body\.is-meal-view, body\.is-records-view\) \.page-home-btn svg \{[^}]*width:\s*18px;[^}]*height:\s*18px;/s);
   assert.match(responsive, /\.form-grid,\s*\.two-col \{\s*grid-template-columns: 1fr;/s);
   assert.match(responsive, /\.modal:not\(\.attendance-edit-modal\) :is\(\.form-grid, \.two-col\)[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) !important;/s);
 });
@@ -169,10 +170,10 @@ test("電腦版主要頁面靠上且訂餐統計總計維持單行", () => {
   const foundation = read("src/renderer/css/foundation.css");
   const recordsView = read("src/renderer/renderer-records-views.js");
   assert.match(foundation, /\.app-shell \{[^}]*justify-content:\s*flex-start;/s);
-  for (const view of ["home", "meal", "records"]) {
+  for (const view of ["home", "clock", "meal", "records"]) {
     assert.match(foundation, new RegExp("body\\.is-" + view + "-view \\.app-shell \\{[^}]*justify-content:\\s*flex-start;", "s"));
   }
-  assert.doesNotMatch(foundation, /body\.is-(?:home|meal|records)-view \.app-shell \{[^}]*justify-content:\s*center;/s);
+  assert.doesNotMatch(foundation, /body\.is-(?:home|clock|meal|records)-view \.app-shell \{[^}]*justify-content:\s*center;/s);
   assert.match(foundation, /\.meal-stats-grid \{[^}]*margin-bottom:\s*16px;/s);
   assert.match(foundation, /\.meal-stats-grid > div \{[^}]*display:\s*flex;[^}]*white-space:\s*nowrap;/s);
   assert.match(foundation, /\.meal-stats-grid strong,[\s\S]*\.meal-stats-grid span \{[^}]*display:\s*inline;/s);
