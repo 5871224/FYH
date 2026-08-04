@@ -3,52 +3,13 @@ body:not(.is-authenticated) .toolbar-card {
   display: none !important;
 }
 
-/* 打卡頁加班申請：固定欄位順序與雙欄時數配置。 */
-
-.overtime-date-row {
-  display: grid;
-  width: 100%;
-  margin-top: 8px;
-}
-
-.overtime-date-row select {
-  width: 100%;
-  min-width: 0;
-}
-
-.overtime-request-status-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.overtime-request-status,
-.overtime-estimate-text {
-  margin: 0;
-}
-
-.overtime-hours-summary,
-.overtime-hours-grid {
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 8px;
-}
-
-.overtime-hours-summary > div,
-.overtime-hours-grid > .form-row {
-  min-width: 0;
-}
-
-/* 手機版主頁面外層配置統一規格：首頁、打卡、訂餐、紀錄、班表共用。 */
+/* 手機版主頁面外層配置統一規格：首頁、訂餐、簽到簿、班表共用。 */
 @media (max-width: 960px) {
   .app-shell {
     padding-top: 12px;
   }
 
   body.is-home-view .app-shell,
-  body.is-clock-view .app-shell,
   body.is-meal-view .app-shell,
   body.is-records-view .app-shell,
   body.is-schedule-view .app-shell {
@@ -56,15 +17,13 @@ body:not(.is-authenticated) .toolbar-card {
   }
 
   .home-card,
-  .clock-card,
   .meal-card,
   .records-card,
   .calendar-card {
     align-self: stretch;
   }
 
-  .home-card,
-  .clock-card {
+  .home-card {
     justify-content: flex-start;
   }
 
@@ -95,9 +54,8 @@ body:not(.is-authenticated) .toolbar-card {
 }
 
 @media (max-width: 640px) {
-  /* 手機畫面取消五個主要頁面的最外層卡片，只保留頁面安全間距與內部功能區塊，內容一律由上方開始排列。 */
+  /* 手機畫面取消四個主要頁面的最外層卡片，只保留頁面安全間距與內部功能區塊。 */
   body.is-home-view .app-shell,
-  body.is-clock-view .app-shell,
   body.is-meal-view .app-shell,
   body.is-records-view .app-shell,
   body.is-schedule-view .app-shell {
@@ -113,7 +71,6 @@ body:not(.is-authenticated) .toolbar-card {
   }
 
   .home-card,
-  .clock-card,
   .meal-card,
   .records-card,
   .calendar-card {
@@ -128,7 +85,7 @@ body:not(.is-authenticated) .toolbar-card {
     box-shadow: none !important;
   }
 
-  /* 首頁依可用高度自動分配四個入口，避免短內容在底部留下大面積空白。 */
+  /* 首頁依可用高度自動分配三個入口，避免短內容在底部留下大面積空白。 */
   body.is-home-view .home-card {
     min-height: calc(100dvh - 12px) !important;
   }
@@ -139,7 +96,7 @@ body:not(.is-authenticated) .toolbar-card {
 
   body.is-home-view .home-action-grid {
     flex: 1;
-    grid-template-rows: repeat(4, minmax(92px, 1fr));
+    grid-template-rows: repeat(3, minmax(92px, 1fr));
     gap: clamp(14px, 2.6vh, 22px);
   }
 
@@ -148,7 +105,7 @@ body:not(.is-authenticated) .toolbar-card {
     padding: 14px 16px;
   }
 
-  /* 班表手機版控制項字級統一：頂部檢視／範圍選單與浮動工具列選單皆不得使用過小字級。 */
+  /* 班表手機版控制項字級統一。 */
   body.is-schedule-view .calendar-nav-left select,
   body.is-schedule-view .toolbar-floating-card select {
     font-size: 15px !important;
@@ -185,14 +142,14 @@ body:not(.is-authenticated) .toolbar-card {
     flex: 1 1 100%;
   }
 
-  /* 打卡、訂餐與記錄頁的返回首頁按鈕對齊班表頁尺寸。 */
-  :is(body.is-clock-view, body.is-meal-view, body.is-records-view) .page-home-btn {
+  /* 訂餐與簽到簿的返回首頁按鈕對齊班表頁尺寸。 */
+  :is(body.is-meal-view, body.is-records-view) .page-home-btn {
     width: var(--schedule-nav-control-height);
     min-width: var(--schedule-nav-control-height);
     height: var(--schedule-nav-control-height);
   }
 
-  :is(body.is-clock-view, body.is-meal-view, body.is-records-view) .page-home-btn svg {
+  :is(body.is-meal-view, body.is-records-view) .page-home-btn svg {
     width: 18px;
     height: 18px;
   }
@@ -207,8 +164,7 @@ body:not(.is-authenticated) .toolbar-card {
     gap: 1px;
   }
 
-
-  /* 訂餐與記錄頁籤在手機維持單列，超出寬度時於籤頁列內水平滑動。 */
+  /* 訂餐與簽到簿頁籤在手機維持單列，超出寬度時於籤頁列內水平滑動。 */
   .meal-tabs,
   .record-tabs {
     padding-inline: 4px;
@@ -222,8 +178,6 @@ body:not(.is-authenticated) .toolbar-card {
     scroll-snap-align: start;
   }
 
-  /* 今天日期沿用全裝置共用的微亮藍色提示，避免手機版另行覆蓋。 */
-
   /* 假別與加班設定在手機保留可讀欄寬，由既有設定表格容器提供水平捲動。 */
   .catalog-settings-modal .settings-table-row-leave {
     min-width: 720px;
@@ -233,13 +187,12 @@ body:not(.is-authenticated) .toolbar-card {
     min-width: 840px;
   }
 
-  /* 手機表單欄數契約：頁面表單與打卡編輯器預設單欄；一般設定編輯視窗明確保留雙欄。 */
+  /* 手機表單欄數契約：頁面表單與簽到編輯器預設單欄；一般設定編輯視窗保留雙欄。 */
   .form-grid,
   .two-col {
     grid-template-columns: 1fr;
   }
 
-  /* 設定編輯彈窗沿用電腦版雙欄表單。實際編輯視窗是一般 modal，不能只依設定列表 modal 類別判斷。 */
   .modal:not(.attendance-edit-modal) :is(.form-grid, .two-col),
   :is(.department-settings-modal, .member-settings-modal, .catalog-settings-modal) :is(.form-grid, .two-col) {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
