@@ -1,17 +1,21 @@
 name: Run attendance ledger refactor
 
 on:
-  push:
+  pull_request:
     branches:
       - main
-    paths:
-      - .github/run-attendance-ledger-refactor-trigger.txt
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
 permissions:
   contents: write
 
 jobs:
   refactor:
+    if: github.event.pull_request.head.ref == 'attendance-ledger-refactor'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
