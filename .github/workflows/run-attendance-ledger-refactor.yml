@@ -29,6 +29,7 @@ jobs:
       - run: npm ci
       - name: Rewrite attendance system
         run: |
+          touch '福圓號排班系統擴充規格書.txt'
           python scripts/one-shot-attendance-ledger.py
           python - <<'PY'
           from pathlib import Path
