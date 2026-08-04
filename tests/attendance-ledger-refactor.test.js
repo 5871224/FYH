@@ -27,8 +27,35 @@ test("個人記錄與簽到審核欄位完整", () => {
 test("前端只呼叫統一 attendance-ledger API", () => {
   const api = read("src/renderer/web-api.js");
   assert.equal(api.includes('requestFunction("attendance-ledger"'), true);
+  assert.equal(api.includes('requestFunction("attendance-ledger-export"'), true);
   for (const oldName of ["attendance-overtime-admin-list", "attendance-admin-list-v2", "personal-records-v2"]) {
     assert.equal(api.includes(oldName), false, `仍有舊 API：${oldName}`);
+  }
+});
+
+test("每日簽到與訂餐後端只使用新資料模型", () => {
+  const clock = read("supabase/functions/attendance-clock/index.ts");
+  const ledger = read("supabase/functions/attendance-ledger/index.ts");
+  const exportApi = read("supabase/functions/attendance-ledger-export/index.ts");
+  const meal = read("supabase/functions/meal-order/index.ts");
+  for (const source of [clock, ledger, exportApi, meal]) {
+    assert.equal(source.includes("attendance_records"), false);
+  }
+  assert.equal(clock.includes('.from("attendance_days")'), true);
+  assert.equal(ledger.includes('.from("attendance_days")'), true);
+  assert.equal(ledger.includes('.from("attendance_audit_logs")'), true);
+  assert.equal(exportApi.includes('.from("attendance_days")'), true);
+  assert.equal(meal.includes('.from("attendance_days")'), true);
+  assert.equal(meal.includes("clock_in_location?.departmentId"), true);
+});
+
+test("Edge Function 部署清單只包含新簽到端點", () => {
+  const deploy = read("scripts/deploy-edge-functions.ps1");
+  for (const name of ["attendance-clock", "attendance-ledger", "attendance-ledger-export", "meal-order"]) {
+    assert.equal(deploy.includes(`"${name}"`), true, `部署清單缺少：${name}`);
+  }
+  for (const oldName of ["attendance-overtime-employee", "attendance-overtime-admin-list", "attendance-overtime-admin-action", "attendance-admin-list-v2", "attendance-admin-action-v2", "personal-records-v2"]) {
+    assert.equal(deploy.includes(oldName), false, `部署清單仍有舊端點：${oldName}`);
   }
 });
 
