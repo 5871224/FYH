@@ -71,15 +71,6 @@ function bindDelegatedFormEvents() {
       openMemberSettings();
       return;
     }
-    if (target instanceof HTMLInputElement && target.dataset.toggleOvertimePanel) {
-      attendanceOvertimeState = { ...attendanceOvertimeState, expanded: target.checked };
-      if (target.checked && !attendanceOvertimeState.status && !attendanceOvertimeState.loading) {
-        void loadTodayAttendanceOvertime();
-      } else {
-        renderAll();
-      }
-      return;
-    }
     if (!(target instanceof HTMLInputElement)) {
       return;
     }
