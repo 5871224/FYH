@@ -16,7 +16,7 @@ $functions = @(
 
 Write-Host "FYH Edge Functions deployment" -ForegroundColor Cyan
 Write-Host "This script does not run SQL migrations." -ForegroundColor Yellow
-Write-Host "Complete supabase/001_current_schema.sql and supabase/002_current_updates.sql before deployment." -ForegroundColor Yellow
+Write-Host "Complete supabase/001_current_schema.sql, supabase/002_current_updates.sql, and supabase/003_attendance_ledger.sql before deployment." -ForegroundColor Yellow
 
 foreach ($functionName in $functions) {
   Write-Host ""
