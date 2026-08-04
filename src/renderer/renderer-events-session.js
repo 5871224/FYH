@@ -20,8 +20,7 @@ function bindScheduleSessionEvents() {
     currentMember = null;
     managerDirectoryLoaded = false;
     managerDirectoryLoading = null;
-    attendanceState = { loading: false, saving: false, record: null, serverDate: "", error: "" };
-    attendanceOvertimeState = { loading: false, expanded: false, status: null, error: "" };
+    attendanceState = createAttendanceState();
     mealOrderState = { loading: false, status: null, error: "" };
     recordsState = createRecordsState();
     state = createEmptyState();
