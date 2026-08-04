@@ -1,0 +1,458 @@
+import { withSupabase } from "npm:@supabase/server@^1";
+
+const PAGE_SIZE = 50;
+const ISSUE_TYPES = [
+  "未打上班",
+  "未打下班",
+  "無排班但有打卡",
+  "遲到",
+  "早退",
+  "上班晚於下班",
+  "上班地點不符",
+  "下班地點不符"
+];
+
+function taipeiDate(date = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(date);
+}
+
+function addDays(value: string, count: number) {
+  const [year, month, day] = String(value || "").split("-").map(Number);
+  if (!year || !month || !day) return "";
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + count);
+  return taipeiDate(date);
+}
+
+function validDate(value: unknown, fallback: string) {
+  const text = String(value || "");
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : fallback;
+}
+
+function pageNumber(value: unknown) {
+  const number = Number(value || 1);
+  return Number.isFinite(number) && number > 0 ? Math.floor(number) : 1;
+}
+
+function effective(profile: any, today = taipeiDate()) {
+  const end = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
+  return Boolean((!profile.hire_date || today >= profile.hire_date) && (!end || today <= end));
+}
+
+function employedOn(profile: any, date: string) {
+  return Boolean((!profile?.hire_date || date >= profile.hire_date)
+    && (!profile?.leave_date || date <= profile.leave_date));
+}
+
+function datesBetween(fromDate: string, toDate: string) {
+  const dates: string[] = [];
+  for (let date = fromDate; date && date <= toDate; date = addDays(date, 1)) dates.push(date);
+  return dates;
+}
+
+function shiftMinutes(value: string) {
+  const match = String(value || "").match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 ? hour * 60 + minute : null;
+}
+
+function punchMinutes(value: string) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Taipei",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).formatToParts(date);
+  return Number(parts.find((part) => part.type === "hour")?.value || 0) * 60
+    + Number(parts.find((part) => part.type === "minute")?.value || 0);
+}
+
+function nowMinutes() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Taipei",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).formatToParts(new Date());
+  return Number(parts.find((part) => part.type === "hour")?.value || 0) * 60
+    + Number(parts.find((part) => part.type === "minute")?.value || 0);
+}
+
+function locationValue(location: any, key: string) {
+  return location && typeof location === "object" ? String(location[key] || "") : "";
+}
+
+function attendanceIssues(record: any, shift: any, workDate: string, today = taipeiDate()) {
+  const output: string[] = [];
+  const hasIn = Boolean(record?.clock_in_at);
+  const hasOut = Boolean(record?.clock_out_at);
+  if (!shift) {
+    if (hasIn || hasOut) output.push("無排班但有打卡");
+    return output;
+  }
+  const start = shiftMinutes(shift.start_time);
+  const end = shiftMinutes(shift.end_time);
+  if (start === null || end === null) return ["班別缺少完整上下班時間"];
+  const inMinutes = hasIn ? punchMinutes(record.clock_in_at) : null;
+  const outMinutes = hasOut ? punchMinutes(record.clock_out_at) : null;
+  if ((hasIn && inMinutes === null) || (hasOut && outMinutes === null)) output.push("打卡時間不完整或格式異常");
+  const past = workDate < today;
+  const sameDay = workDate === today;
+  const now = nowMinutes();
+  if (!hasIn && (past || (sameDay && now >= start + 1))) output.push("未打上班");
+  if (!hasOut && (past || (sameDay && now >= end + 1))) output.push("未打下班");
+  if (inMinutes !== null && inMinutes >= start + 1) output.push("遲到");
+  if (outMinutes !== null && outMinutes < end) output.push("早退");
+  if (hasIn && hasOut && new Date(record.clock_in_at).getTime() > new Date(record.clock_out_at).getTime()) output.push("上班晚於下班");
+  const inDepartment = locationValue(record?.clock_in_location, "departmentId");
+  const outDepartment = locationValue(record?.clock_out_location, "departmentId");
+  if (hasIn && inDepartment && shift.applicable_department_id && inDepartment !== shift.applicable_department_id) output.push("上班地點不符");
+  if (hasOut && outDepartment && shift.applicable_department_id && outDepartment !== shift.applicable_department_id) output.push("下班地點不符");
+  return output;
+}
+
+function catalogSegment(category: string, item: any) {
+  if (!item) return null;
+  return {
+    category,
+    itemId: item.id || "",
+    code: item.code || "",
+    name: item.name || (category === "overtime" ? "加班" : ""),
+    color: item.color || (category === "overtime" ? "#D85A30" : "#888780"),
+    textColor: item.text_color || "",
+    autoTextColor: item.auto_text_color !== false
+  };
+}
+
+function hoursToMinutes(value: unknown) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const hours = Number(value);
+  if (!Number.isFinite(hours) || hours < 0 || Math.round(hours * 2) !== hours * 2) {
+    throw new Error("工時必須以 0.5 小時為單位");
+  }
+  const minutes = Math.round(hours * 60);
+  if (minutes > 32760) throw new Error("工時超過可輸入範圍");
+  return minutes;
+}
+
+function minutesToHours(value: unknown) {
+  return value === null || value === undefined ? null : Number(value) / 60;
+}
+
+function timeToIso(workDate: string, value: unknown) {
+  const time = String(value || "").trim();
+  if (!time) return null;
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new Error("打卡時間格式錯誤");
+  return new Date(`${workDate}T${time}:00+08:00`).toISOString();
+}
+
+function rowKey(userId: string, workDate: string) {
+  return `${userId}:${workDate}`;
+}
+
+async function getActor(ctx: any) {
+  const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
+  if (!userId) throw new Error("請先登入");
+  const result = await ctx.supabaseAdmin.from("set_employee")
+    .select("id,employee_code,full_name,role,hire_date,leave_date")
+    .eq("id", userId).single();
+  if (result.error) throw result.error;
+  if (!effective(result.data)) throw new Error("此帳號目前不在有效期間");
+  return result.data;
+}
+
+function requireAdmin(actor: any) {
+  if (actor?.role !== "admin") throw new Error("此功能限管理員使用");
+}
+
+async function fetchScheduleContext(ctx: any, fromDate: string, toDate: string, memberIds?: string[]) {
+  let scheduleQuery = ctx.supabaseAdmin.from("schedule_entries")
+    .select("member_id,work_date,shift_type_id,leave_type_id,overtime_type_id")
+    .gte("work_date", fromDate).lte("work_date", toDate);
+  if (memberIds?.length) scheduleQuery = scheduleQuery.in("member_id", memberIds);
+  const scheduleResult = await scheduleQuery;
+  if (scheduleResult.error) throw scheduleResult.error;
+  const scheduleRows = scheduleResult.data || [];
+  const shiftIds = [...new Set(scheduleRows.map((row: any) => row.shift_type_id).filter(Boolean))];
+  const leaveIds = [...new Set(scheduleRows.map((row: any) => row.leave_type_id).filter(Boolean))];
+  const overtimeIds = [...new Set(scheduleRows.map((row: any) => row.overtime_type_id).filter(Boolean))];
+  const [shiftResult, leaveResult, overtimeResult] = await Promise.all([
+    shiftIds.length
+      ? ctx.supabaseAdmin.from("set_shift").select("id,name,start_time,end_time,applicable_department_id,color,text_color,auto_text_color").in("id", shiftIds)
+      : Promise.resolve({ data: [], error: null }),
+    leaveIds.length
+      ? ctx.supabaseAdmin.from("set_leave").select("id,code,name,color,text_color,auto_text_color").in("id", leaveIds)
+      : Promise.resolve({ data: [], error: null }),
+    overtimeIds.length
+      ? ctx.supabaseAdmin.from("set_overtime").select("id,name,color,text_color,auto_text_color").in("id", overtimeIds)
+      : Promise.resolve({ data: [], error: null })
+  ]);
+  for (const result of [shiftResult, leaveResult, overtimeResult]) if (result.error) throw result.error;
+  return {
+    schedules: new Map(scheduleRows.map((row: any) => [rowKey(row.member_id, row.work_date), row])),
+    shifts: new Map((shiftResult.data || []).map((row: any) => [row.id, row])),
+    leaves: new Map((leaveResult.data || []).map((row: any) => [row.id, row])),
+    overtimeTypes: new Map((overtimeResult.data || []).map((row: any) => [row.id, row]))
+  };
+}
+
+function scheduleDisplay(context: any, userId: string, date: string) {
+  const schedule: any = context.schedules.get(rowKey(userId, date)) || null;
+  const shift: any = schedule?.shift_type_id ? context.shifts.get(schedule.shift_type_id) || null : null;
+  const leave: any = schedule?.leave_type_id ? context.leaves.get(schedule.leave_type_id) || null : null;
+  const overtimeType: any = schedule?.overtime_type_id ? context.overtimeTypes.get(schedule.overtime_type_id) || null : null;
+  return {
+    shift,
+    shiftName: shift?.name || "",
+    shiftTime: shift ? `${String(shift.start_time || "").slice(0, 5)}-${String(shift.end_time || "").slice(0, 5)}` : "",
+    scheduleSegments: [catalogSegment("shift", shift), catalogSegment("leave", leave), catalogSegment("overtime", overtimeType)].filter(Boolean)
+  };
+}
+
+async function personalList(ctx: any, body: any, actor: any) {
+  const today = taipeiDate();
+  const toDate = validDate(body?.toDate, today);
+  const fromDate = validDate(body?.fromDate, addDays(today, -49));
+  const page = pageNumber(body?.page);
+  const [attendanceResult, mealResult, scheduleContext, mealSettingResult] = await Promise.all([
+    ctx.supabaseAdmin.from("attendance_days").select("*").eq("user_id", actor.id).gte("work_date", fromDate).lte("work_date", toDate),
+    ctx.supabaseAdmin.from("meal_orders").select("*").eq("user_id", actor.id).gte("order_date", fromDate).lte("order_date", toDate),
+    fetchScheduleContext(ctx, fromDate, toDate, [actor.id]),
+    ctx.supabaseAdmin.from("meal_settings").select("daily_cutoff_time").eq("id", "default").maybeSingle()
+  ]);
+  for (const result of [attendanceResult, mealResult, mealSettingResult]) if (result.error) throw result.error;
+  const attendance = new Map((attendanceResult.data || []).map((row: any) => [row.work_date, row]));
+  const meals = new Map<string, any[]>();
+  for (const row of mealResult.data || []) {
+    const group = meals.get(row.order_date) || [];
+    group.push(row);
+    meals.set(row.order_date, group);
+  }
+  const cutoff = String(mealSettingResult.data?.daily_cutoff_time || "10:30").slice(0, 5);
+  const nowTime = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
+  const records = datesBetween(fromDate, toDate)
+    .filter((date) => employedOn(actor, date))
+    .sort((a, b) => b.localeCompare(a))
+    .map((date) => {
+      const row: any = attendance.get(date) || null;
+      const schedule = scheduleDisplay(scheduleContext, actor.id, date);
+      const mealRows = meals.get(date) || [];
+      return {
+        id: row?.id || "",
+        date,
+        ...schedule,
+        clockIn: row?.clock_in_at || null,
+        clockInLocation: row?.clock_in_location || null,
+        clockOut: row?.clock_out_at || null,
+        clockOutLocation: row?.clock_out_location || null,
+        regularHours: minutesToHours(row?.regular_minutes),
+        overtimeHours: minutesToHours(row?.overtime_minutes),
+        note: row?.note || "",
+        reviewed: Boolean(row?.reviewed_at),
+        reviewedAt: row?.reviewed_at || null,
+        issues: attendanceIssues(row || { work_date: date }, schedule.shift, date, today),
+        editable: date === today && !row?.reviewed_at,
+        mealText: mealRows.map((meal) => `${meal.product_name_snapshot}×${meal.quantity}`).join("、"),
+        mealOrderId: mealRows[0]?.order_id || "",
+        canCancelMeal: Boolean(mealRows.length && date === today && nowTime <= cutoff),
+        mealClockDeletedWarning: Boolean(mealRows.length && !row?.clock_in_at)
+      };
+    });
+  const offset = (page - 1) * PAGE_SIZE;
+  return { ok: true, records: records.slice(offset, offset + PAGE_SIZE), total: records.length, page, pageSize: PAGE_SIZE, fromDate, toDate, serverDate: today };
+}
+
+async function getOrCreateDay(ctx: any, userId: string, workDate: string) {
+  const current = await ctx.supabaseAdmin.from("attendance_days").select("*")
+    .eq("user_id", userId).eq("work_date", workDate).maybeSingle();
+  if (current.error) throw current.error;
+  if (current.data) return current.data;
+  const inserted = await ctx.supabaseAdmin.from("attendance_days")
+    .insert({ user_id: userId, work_date: workDate }).select("*").single();
+  if (inserted.error) throw inserted.error;
+  return inserted.data;
+}
+
+async function writeAudit(ctx: any, rowId: string, action: string, actorId: string, beforeData: any, afterData: any, reason = "") {
+  const result = await ctx.supabaseAdmin.from("attendance_audit_logs").insert({
+    attendance_day_id: rowId,
+    action,
+    changed_by: actorId,
+    before_data: beforeData,
+    after_data: afterData,
+    reason: String(reason || "")
+  });
+  if (result.error) throw result.error;
+}
+
+async function personalSave(ctx: any, body: any, actor: any) {
+  const today = taipeiDate();
+  const workDate = validDate(body?.workDate, "");
+  if (!workDate || workDate !== today) throw new Error("員工只能修改今天的簽到資料");
+  const field = String(body?.field || "");
+  if (!["regularHours", "overtimeHours", "note"].includes(field)) throw new Error("不支援的簽到欄位");
+  const old = await getOrCreateDay(ctx, actor.id, workDate);
+  if (old.reviewed_at) throw new Error("此日簽到紀錄已審，無法修改");
+  const update: any = {};
+  if (field === "regularHours") update.regular_minutes = hoursToMinutes(body?.value);
+  if (field === "overtimeHours") update.overtime_minutes = hoursToMinutes(body?.value);
+  if (field === "note") update.note = String(body?.value || "");
+  const result = await ctx.supabaseAdmin.from("attendance_days").update(update).eq("id", old.id).select("*").single();
+  if (result.error) throw result.error;
+  await writeAudit(ctx, old.id, `employee_${field}`, actor.id, old, result.data);
+  return { ok: true, record: result.data };
+}
+
+async function reviewList(ctx: any, body: any, actor: any) {
+  requireAdmin(actor);
+  const today = taipeiDate();
+  const fromDate = validDate(body?.fromDate, addDays(today, -30));
+  const toDate = validDate(body?.toDate, today);
+  const memberId = String(body?.memberId || "");
+  const status = String(body?.status || "unreviewed");
+  const issueType = String(body?.issueType || "");
+  const page = pageNumber(body?.page);
+  const [memberResult, attendanceResult, scheduleContext] = await Promise.all([
+    ctx.supabaseAdmin.from("set_employee").select("id,employee_code,full_name,role,hire_date,leave_date").order("employee_code", { ascending: true }),
+    ctx.supabaseAdmin.from("attendance_days").select("*").gte("work_date", fromDate).lte("work_date", toDate),
+    fetchScheduleContext(ctx, fromDate, toDate)
+  ]);
+  for (const result of [memberResult, attendanceResult]) if (result.error) throw result.error;
+  const members = memberResult.data || [];
+  const attendance = new Map((attendanceResult.data || []).map((row: any) => [rowKey(row.user_id, row.work_date), row]));
+  const rows: any[] = [];
+  for (const date of datesBetween(fromDate, toDate)) {
+    for (const member of members) {
+      if (memberId && member.id !== memberId) continue;
+      if (!employedOn(member, date)) continue;
+      const current: any = attendance.get(rowKey(member.id, date)) || null;
+      const reviewed = Boolean(current?.reviewed_at);
+      if (status === "reviewed" && !reviewed) continue;
+      if (status === "unreviewed" && reviewed) continue;
+      const schedule = scheduleDisplay(scheduleContext, member.id, date);
+      const currentIssues = attendanceIssues(current || { work_date: date }, schedule.shift, date, today);
+      if (issueType && issueType !== "__all__" && !currentIssues.includes(issueType)) continue;
+      rows.push({
+        id: current?.id || "",
+        user_id: member.id,
+        work_date: date,
+        employee_code: member.employee_code || "",
+        employee_name: member.full_name || "",
+        ...schedule,
+        clock_in_at: current?.clock_in_at || null,
+        clock_in_location: current?.clock_in_location || null,
+        clock_out_at: current?.clock_out_at || null,
+        clock_out_location: current?.clock_out_location || null,
+        regularHours: minutesToHours(current?.regular_minutes),
+        overtimeHours: minutesToHours(current?.overtime_minutes),
+        note: current?.note || "",
+        reviewed,
+        reviewedAt: current?.reviewed_at || null,
+        issues: currentIssues
+      });
+    }
+  }
+  rows.sort((a, b) => String(b.work_date).localeCompare(String(a.work_date)) || String(a.employee_code).localeCompare(String(b.employee_code)));
+  const offset = (page - 1) * PAGE_SIZE;
+  return { ok: true, members, issueTypes: ISSUE_TYPES, rows: rows.slice(offset, offset + PAGE_SIZE), total: rows.length, page, pageSize: PAGE_SIZE };
+}
+
+async function reviewSave(ctx: any, body: any, actor: any) {
+  requireAdmin(actor);
+  const userId = String(body?.userId || "");
+  const workDate = validDate(body?.workDate, "");
+  if (!userId || !workDate) throw new Error("缺少人員或日期");
+  const old = await getOrCreateDay(ctx, userId, workDate);
+  const clockInAt = timeToIso(workDate, body?.clockInTime);
+  const clockOutAt = timeToIso(workDate, body?.clockOutTime);
+  const update: any = {
+    clock_in_at: clockInAt,
+    clock_out_at: clockOutAt,
+    regular_minutes: hoursToMinutes(body?.regularHours),
+    overtime_minutes: hoursToMinutes(body?.overtimeHours),
+    note: String(body?.note || ""),
+    reviewed_at: null,
+    reviewed_by: null
+  };
+  update.clock_in_location = clockInAt
+    ? (old.clock_in_location || { name: "管理員補登", source: "管理員補登" })
+    : null;
+  update.clock_out_location = clockOutAt
+    ? (old.clock_out_location || { name: "管理員補登", source: "管理員補登" })
+    : null;
+  const result = await ctx.supabaseAdmin.from("attendance_days").update(update).eq("id", old.id).select("*").single();
+  if (result.error) throw result.error;
+  await writeAudit(ctx, old.id, "admin_edit", actor.id, old, result.data, body?.reason);
+  return { ok: true, record: result.data };
+}
+
+function parseReviewToken(token: unknown) {
+  const [userId, workDate] = String(token || "").split(":");
+  return { userId, workDate };
+}
+
+async function reviewSet(ctx: any, body: any, actor: any) {
+  requireAdmin(actor);
+  const reviewed = Boolean(body?.reviewed);
+  const tokens = Array.isArray(body?.tokens) ? body.tokens : [body?.token];
+  let changed = 0;
+  for (const token of tokens.filter(Boolean)) {
+    const { userId, workDate } = parseReviewToken(token);
+    if (!userId || !validDate(workDate, "")) continue;
+    const old = await getOrCreateDay(ctx, userId, workDate);
+    const update = reviewed
+      ? { reviewed_at: new Date().toISOString(), reviewed_by: actor.id }
+      : { reviewed_at: null, reviewed_by: null };
+    const result = await ctx.supabaseAdmin.from("attendance_days").update(update).eq("id", old.id).select("*").single();
+    if (result.error) throw result.error;
+    await writeAudit(ctx, old.id, reviewed ? "reviewed" : "returned", actor.id, old, result.data, body?.reason);
+    changed += 1;
+  }
+  return { ok: true, changed };
+}
+
+async function history(ctx: any, body: any, actor: any) {
+  requireAdmin(actor);
+  const recordId = String(body?.recordId || "");
+  if (!recordId) return { ok: true, logs: [] };
+  const result = await ctx.supabaseAdmin.from("attendance_audit_logs")
+    .select("id,action,changed_by,before_data,after_data,reason,created_at,set_employee:changed_by(full_name)")
+    .eq("attendance_day_id", recordId).order("created_at", { ascending: false });
+  if (result.error) throw result.error;
+  return {
+    ok: true,
+    logs: (result.data || []).map((log: any) => ({
+      ...log,
+      operator_name: log.set_employee?.full_name || ""
+    }))
+  };
+}
+
+export default {
+  fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
+    if (req.method !== "POST") return Response.json({ message: "Method Not Allowed" }, { status: 405 });
+    try {
+      const body = await req.json();
+      const actor = await getActor(ctx);
+      if (body?.action === "personal_list") return Response.json(await personalList(ctx, body, actor));
+      if (body?.action === "personal_save") return Response.json(await personalSave(ctx, body, actor));
+      if (body?.action === "review_list") return Response.json(await reviewList(ctx, body, actor));
+      if (body?.action === "review_save") return Response.json(await reviewSave(ctx, body, actor));
+      if (body?.action === "review_set") return Response.json(await reviewSet(ctx, body, actor));
+      if (body?.action === "history") return Response.json(await history(ctx, body, actor));
+      return Response.json({ message: "不支援的簽到簿操作" }, { status: 400 });
+    } catch (error) {
+      return Response.json({ message: error instanceof Error ? error.message : "簽到簿操作失敗" }, { status: 400 });
+    }
+  })
+};
