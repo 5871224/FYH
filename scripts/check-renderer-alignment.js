@@ -12,6 +12,7 @@ function assert(condition, message) {
 const requiredFiles = [
   "supabase/001_current_schema.sql",
   "supabase/002_current_updates.sql",
+  "supabase/003_attendance_ledger.sql",
   "supabase/functions/attendance-clock/index.ts",
   "supabase/functions/attendance-ledger/index.ts",
   "supabase/functions/attendance-ledger-export/index.ts",
@@ -32,7 +33,6 @@ const requiredFiles = [
   "src/renderer/app.js",
   "docs/app.js"
 ];
-
 requiredFiles.forEach((file) => assert(exists(file), `Missing current architecture file: ${file}`));
 
 const retiredEdgeFunctions = [
@@ -65,23 +65,23 @@ assert(!exists("src/renderer/renderer-overtime-employee.js"), "Retired overtime 
 ].forEach((file) => assert(!exists(`src/renderer/${file}`), `Legacy renderer patch remains: ${file}`));
 
 const deployScript = read("scripts/deploy-edge-functions.ps1");
-const deployedFunctions = [
-  "attendance-clock",
-  "attendance-ledger",
-  "attendance-ledger-export",
-  "meal-order"
-];
-deployedFunctions.forEach((name) => {
+for (const name of ["attendance-clock", "attendance-ledger", "attendance-ledger-export", "meal-order"]) {
   assert(deployScript.includes(`"${name}"`), `Deployment list is missing current endpoint: ${name}`);
-});
+}
 retiredEdgeFunctions.forEach((name) => {
   assert(!deployScript.includes(`"${name}"`), `Deployment list still contains retired endpoint: ${name}`);
 });
+assert(deployScript.includes("003_attendance_ledger.sql"), "Deployment instructions are missing the attendance ledger SQL stage");
 
-const schema = `${read("supabase/001_current_schema.sql")}\n${read("supabase/002_current_updates.sql")}`;
+const schema = [
+  "supabase/001_current_schema.sql",
+  "supabase/002_current_updates.sql",
+  "supabase/003_attendance_ledger.sql"
+].map(read).join("\n");
 assert(schema.includes("create table if not exists public.attendance_days"), "Current attendance_days table is missing from database sources");
 assert(schema.includes("create table if not exists public.attendance_audit_logs"), "Current attendance_audit_logs table is missing from database sources");
 assert(schema.includes("insert into public.attendance_days") && schema.includes("from public.attendance_records"), "Legacy attendance history backfill is missing");
+assert(schema.includes("migration_backfill"), "Attendance migration audit marker is missing");
 assert(schema.includes("public.attendance_days%rowtype"), "Clocking or meal transaction RPCs still use the retired attendance row type");
 assert(schema.includes("from public.attendance_days"), "Current attendance table is not used by database RPCs");
 
@@ -99,21 +99,18 @@ for (const [name, source] of [
   assert(!source.includes("attendance_records"), `${name} still uses attendance_records`);
 }
 assert(attendanceClock.includes('rpc("save_attendance_clock"'), "Clock endpoint is not using the atomic clock RPC");
-assert(attendanceLedger.includes('body?.action === "personal_list"'), "Attendance ledger is missing personal records");
-assert(attendanceLedger.includes('body?.action === "personal_save"'), "Attendance ledger is missing employee edits");
-assert(attendanceLedger.includes('body?.action === "review_list"'), "Attendance ledger is missing review list");
-assert(attendanceLedger.includes('body?.action === "review_save"'), "Attendance ledger is missing administrator edits");
-assert(attendanceLedger.includes('body?.action === "review_set"'), "Attendance ledger is missing review state updates");
-assert(attendanceLedger.includes('body?.action === "history"'), "Attendance ledger is missing audit history");
+for (const action of ["personal_list", "personal_save", "review_list", "review_save", "review_set", "history"]) {
+  assert(attendanceLedger.includes(`body?.action === "${action}"`), `Attendance ledger is missing action: ${action}`);
+}
 assert(attendanceExport.includes("attendance_days"), "Attendance export is not based on the current daily ledger");
 assert(mealOrder.includes("clock_in_location") && mealOrder.includes('rpc("save_meal_order"'), "Meal order is not tied to the current clock-in snapshot and transaction RPC");
 
 const sourceWebApi = read("src/renderer/web-api.js");
 assert(sourceWebApi.includes('requestFunction("attendance-ledger"'), "Web API is missing the unified attendance ledger endpoint");
 assert(sourceWebApi.includes('requestFunction("attendance-ledger-export"'), "Web API is missing the attendance export endpoint");
-for (const name of retiredEdgeFunctions) {
+retiredEdgeFunctions.forEach((name) => {
   assert(!sourceWebApi.includes(name), `Web API still calls retired endpoint: ${name}`);
-}
+});
 assert(sourceWebApi.includes("get_my_profile_v2") && sourceWebApi.includes("get_schedule_directory_v2") && sourceWebApi.includes("get_employee_admin_directory_v2"), "Purpose-specific employee RPCs are missing from the web API");
 assert(!sourceWebApi.includes("get_employee_directory_v2"), "Retired mixed-purpose employee RPC is still used by the web API");
 
