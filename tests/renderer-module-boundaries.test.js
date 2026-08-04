@@ -52,14 +52,14 @@ const movedNames = [
   "getItemTextColor",
   "getLeaveLabel",
   "timeValueFromIso",
-  "findAttendanceAdminRow",
-  "openAttendanceEditModal",
-  "saveAttendanceEdit",
+  "findAttendanceReviewRow",
+  "openAttendanceReviewEditModal",
+  "saveAttendanceReviewEdit",
   "openAttendanceHistoryModal",
-  "openOvertimeReviewModal",
-  "reviewOvertime",
-  "openAdminOvertimeCreateModal",
-  "saveAdminOvertimeCreate",
+  "setAttendanceReviewed",
+  "batchReviewAttendance",
+  "openAdminAttendanceCreateModal",
+  "saveAdminAttendanceCreate",
   "readMealAdminProducts",
   "commitMealProductOrderFromDom",
   "saveMealSettingsFromPage",
@@ -98,7 +98,7 @@ const movedNames = [
   "handleSignOut",
   "changeScheduleWindowWeeks",
   "exportSapCsv",
-  "exportOvertime",
+  "exportAttendanceReview",
   "exportLeave"
 ];
 
@@ -139,14 +139,15 @@ test("事件總控應完整註冊所有責任模組", () => {
 
 test("委派事件應保留主要操作入口", () => {
   [
-    "dataset.homeAction", "dataset.clockAction", "dataset.saveTodayMeal", "dataset.recordsTab",
+    "dataset.homeAction", "dataset.personalClockAction", "dataset.saveTodayMeal", "dataset.recordsTab",
+    "dataset.editAttendanceReview", "dataset.toggleAttendanceReview", "dataset.saveAttendanceReview",
     "dataset.deleteCategory", "dataset.saveLeaveAssignment", "dataset.saveOvertimeAssignment",
     "dataset.saveDepartment", "dataset.deleteDepartment", "dataset.saveMember", "dataset.deleteMember"
   ].forEach((marker) => assert.equal(clickEvents.includes(marker), true, "缺少點擊入口：" + marker));
-  ["memberSettingsFilterField", "toggleOvertimePanel", "leaveAssignmentAllDay"].forEach((marker) => {
+  ["memberSettingsFilterField", "leaveAssignmentAllDay"].forEach((marker) => {
     assert.equal(formEvents.includes(marker), true, "缺少表單入口：" + marker);
   });
-  ["mealReportFilter", "overtimeReviewFilter", "attendanceFilter"].forEach((marker) => {
+  ["mealReportFilter", "attendanceReviewFilter", "personalAttendanceField"].forEach((marker) => {
     assert.equal(recordsEvents.includes(marker), true, "缺少記錄篩選入口：" + marker);
   });
   ["data-table-department-id", "data-table-member-id", "data-schedule-shift-option", "data-member-card", "data-meal-product-row", "data-sort-item"].forEach((marker) => {
