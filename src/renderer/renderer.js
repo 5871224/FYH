@@ -20,7 +20,6 @@ let currentMember = null;
 let managerDirectoryLoaded = false;
 let managerDirectoryLoading = null;
 let attendanceState = createAttendanceState();
-let attendanceOvertimeState = createAttendanceOvertimeState();
 let mealOrderState = createMealOrderState();
 let mealOrderLoadSequence = 0;
 let mealPageTab = "order";

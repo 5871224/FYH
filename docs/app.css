@@ -5721,3 +5721,109 @@ body:not(.is-authenticated) .toolbar-card {
 .member-settings-modal .member-table-row > * {
   min-width: 0;
 }
+
+
+/* ===== 簽到簿 ===== */
+.home-action-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.attendance-ledger-table th,
+.attendance-ledger-table td,
+.attendance-review-table th,
+.attendance-review-table td {
+  vertical-align: middle;
+}
+
+.attendance-ledger-table .is-today-row {
+  background: rgba(55, 138, 221, 0.06);
+}
+
+.attendance-clock-stack,
+.attendance-punch-line,
+.attendance-clock-buttons,
+.attendance-review-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.attendance-clock-stack,
+.attendance-punch-line {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.attendance-punch-line small {
+  color: var(--muted-text, #667085);
+  line-height: 1.25;
+}
+
+.attendance-clock-buttons,
+.attendance-review-row-actions {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.attendance-hours-input {
+  width: 78px;
+  min-width: 70px;
+  text-align: center;
+}
+
+.attendance-note-input {
+  width: 180px;
+  min-width: 140px;
+  resize: vertical;
+}
+
+.attendance-review-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.attendance-review-status.is-unreviewed,
+.attendance-review-toggle.is-unreviewed {
+  background: #fff4d6;
+  color: #8a5a00;
+  border: 1px solid #efc66a;
+}
+
+.attendance-review-status.is-reviewed,
+.attendance-review-toggle.is-reviewed {
+  background: #e8f7ef;
+  color: #176b45;
+  border: 1px solid #8bc9aa;
+}
+
+.attendance-review-toggle {
+  min-height: 34px;
+  border-radius: 8px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.attendance-empty-value {
+  color: var(--muted-text, #667085);
+}
+
+@media (max-width: 768px) {
+  .home-action-grid-three {
+    grid-template-columns: 1fr;
+  }
+  .attendance-hours-input {
+    width: 68px;
+  }
+  .attendance-note-input {
+    width: 150px;
+  }
+  .attendance-ledger-table,
+  .attendance-review-table {
+    min-width: 1050px;
+  }
+}

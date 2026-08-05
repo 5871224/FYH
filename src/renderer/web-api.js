@@ -792,58 +792,34 @@
     });
   }
 
-  async function getEmployeeOvertimeDates() {
+  async function getPersonalRecords(filters = {}) {
     ensureSignedIn();
-    return requestFunction("attendance-overtime-employee", { action: "dates" });
+    return requestFunction("attendance-ledger", { action: "personal_list", ...filters });
   }
 
-  async function getAttendanceOvertimeForDate(workDate) {
+  async function savePersonalAttendanceDay(payload = {}) {
     ensureSignedIn();
-    return requestFunction("attendance-overtime-employee", { action: "status", workDate });
+    return requestFunction("attendance-ledger", { action: "personal_save", ...payload });
   }
 
-  async function getTodayAttendanceOvertime() {
-    return getAttendanceOvertimeForDate(taipeiDateString());
-  }
-
-  async function submitAttendanceOvertime(payload = {}) {
-    ensureSignedIn();
-    return requestFunction("attendance-overtime-employee", {
-      action: "submit",
-      workDate: payload.workDate,
-      earlyHours: payload.earlyHours,
-      lateHours: payload.lateHours,
-      note: payload.note || ""
-    });
-  }
-
-  async function deleteAttendanceOvertime(workDate) {
-    ensureSignedIn();
-    return requestFunction("attendance-overtime-employee", { action: "delete", workDate });
-  }
-
-  async function getOvertimeReviewList(filters = {}) {
+  async function getAttendanceReviewList(filters = {}) {
     ensureManager();
-    return requestFunction("attendance-overtime-admin-list", filters);
+    return requestFunction("attendance-ledger", { action: "review_list", ...filters });
   }
 
-  async function getApprovedOvertimeExportRows(filters = {}) {
+  async function saveAttendanceReviewRecord(payload = {}) {
     ensureManager();
-    return requestFunction("attendance-overtime-admin-list", {
-      action: "export_approved",
-      fromDate: filters.fromDate,
-      toDate: filters.toDate
-    });
+    return requestFunction("attendance-ledger", { action: "review_save", ...payload });
   }
 
-  async function reviewOvertimeRequest(payload = {}) {
+  async function setAttendanceReviewed(payload = {}) {
     ensureManager();
-    return requestFunction("attendance-overtime-admin-action", { action: "review", ...payload });
+    return requestFunction("attendance-ledger", { action: "review_set", ...payload });
   }
 
-  async function createAdminOvertimeRequest(payload = {}) {
+  async function getAttendanceHistory(recordId) {
     ensureManager();
-    return requestFunction("attendance-overtime-admin-action", { action: "create", ...payload });
+    return requestFunction("attendance-ledger", { action: "history", recordId });
   }
 
   async function getMemberOrder() {
@@ -872,28 +848,8 @@
     });
   }
 
-  async function getPersonalRecords(filters = {}) {
-    ensureSignedIn();
-    return requestFunction("personal-records-v2", filters);
-  }
-
   async function getMealStatsReport(filters = {}) {
     return getMealReport(filters);
-  }
-
-  async function getAttendanceAdminRecords(filters = {}) {
-    ensureSignedIn();
-    return requestFunction("attendance-admin-list-v2", filters);
-  }
-
-  async function getAttendanceAdminHistory(recordId) {
-    ensureSignedIn();
-    return requestFunction("attendance-admin-action-v2", { action: "history", recordId });
-  }
-
-  async function saveAttendanceAdminRecord(record) {
-    ensureSignedIn();
-    return requestFunction("attendance-admin-action-v2", { action: "save", record });
   }
 
         async function cancelTodayMealOrder() {
@@ -1908,6 +1864,39 @@
     return { canceled: false, filePath: fileName };
   }
 
+  async function exportAttendanceReview(filters = {}) {
+    ensureManager();
+    const result = await requestFunction("attendance-ledger-export", {
+      fromDate: filters.fromDate,
+      toDate: filters.toDate,
+      memberId: filters.memberId || ""
+    });
+    const rows = Array.isArray(result.rows) ? result.rows : [];
+    if (!rows.length) return { canceled: true, empty: true };
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "福圓號";
+    workbook.created = new Date();
+    const sheet = workbook.addWorksheet("已審加班");
+    sheet.addRow(["日期", "員工編號", "員工姓名", "上班時數", "加班時數", "上班打卡", "下班打卡", "備註"]);
+    rows.forEach((row) => sheet.addRow([
+      row.work_date || "",
+      row.employee_code || "",
+      row.employee_name || "",
+      row.regularHours ?? "",
+      row.overtimeHours ?? "",
+      row.clock_in_at ? new Date(row.clock_in_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }) : "",
+      row.clock_out_at ? new Date(row.clock_out_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }) : "",
+      row.note || ""
+    ]));
+    sheet.views = [{ state: "frozen", ySplit: 1 }];
+    sheet.getRow(1).font = { bold: true };
+    sheet.columns = [14, 14, 18, 12, 12, 20, 20, 36].map((width) => ({ width }));
+    const blob = await exporter.workbookToBlob(workbook);
+    const fileName = `已審加班_${filters.fromDate || ""}-${filters.toDate || ""}.xlsx`;
+    downloadBlob(blob, fileName);
+    return { canceled: false, empty: false, filePath: fileName };
+  }
+
   async function exportMembers(payload) {
     const blob = await exporter.workbookToBlob(await exporter.createMemberWorkbook(payload));
     const fileName = "人員資料.xlsx";
@@ -2006,22 +1995,15 @@
     changePassword,
     getTodayAttendance,
     clockAttendance,
-    getEmployeeOvertimeDates,
-    getAttendanceOvertimeForDate,
-    getTodayAttendanceOvertime,
-    submitAttendanceOvertime,
-    deleteAttendanceOvertime,
     getTodayMealOrder,
     saveTodayMealOrder,
     getPersonalRecords,
+    savePersonalAttendanceDay,
+    getAttendanceReviewList,
+    saveAttendanceReviewRecord,
+    setAttendanceReviewed,
+    getAttendanceHistory,
     getMealStatsReport,
-    getAttendanceAdminRecords,
-    getAttendanceAdminHistory,
-    saveAttendanceAdminRecord,
-    getOvertimeReviewList,
-    getApprovedOvertimeExportRows,
-    reviewOvertimeRequest,
-    createAdminOvertimeRequest,
     getMemberOrder,
     saveMemberOrder,
     getMealAdminSettings,
@@ -2046,6 +2028,7 @@
     syncMemberProfile,
     resetMemberPassword,
     exportSapCsv,
+    exportAttendanceReview,
     exportOvertime,
     exportLeave,
     exportMealReport,

@@ -4,23 +4,23 @@ $functions = @(
   "member-auth-admin",
   "catalog-admin",
   "attendance-clock",
+  "attendance-ledger",
+  "attendance-ledger-export",
   "meal-order",
-  "attendance-overtime-employee",
-  "attendance-overtime-admin-list",
-  "attendance-overtime-admin-action",
-  "attendance-admin-list-v2",
-  "attendance-admin-action-v2",
   "department-attendance-v2",
   "member-delete-v2",
   "member-order-v2",
-  "personal-records-v2",
   "meal-report-v2",
   "meal-cancel-v2"
 )
 
 Write-Host "FYH Edge Functions deployment" -ForegroundColor Cyan
 Write-Host "This script does not run SQL migrations." -ForegroundColor Yellow
-Write-Host "Complete supabase/001_current_schema.sql and supabase/002_current_updates.sql before deployment." -ForegroundColor Yellow
+Write-Host "Complete the SQL files in this order before deployment:" -ForegroundColor Yellow
+Write-Host "1. supabase/001_current_schema.sql" -ForegroundColor Yellow
+Write-Host "2. supabase/002_current_updates.sql" -ForegroundColor Yellow
+Write-Host "3. supabase/003_attendance_ledger.sql" -ForegroundColor Yellow
+Write-Host "4. supabase/004_remove_legacy_attendance.sql" -ForegroundColor Yellow
 
 foreach ($functionName in $functions) {
   Write-Host ""

@@ -84,7 +84,7 @@ test("班表外框不再依賴根層後載入修正", () => {
   assert.equal(rootRuleBodies(schedule, ".table-wrap").length, 0);
 });
 
-test("手機打卡與加班欄位規則不再重複", () => {
+test("既有打卡樣式規則不再於 pages 重複", () => {
   const foundation = read("src/renderer/css/foundation.css");
   const responsive = read("src/renderer/css/responsive.css");
   const pages = read("src/renderer/css/pages.css");
@@ -146,7 +146,7 @@ test("手機假別與加班設定表格應使用內部水平捲動", () => {
   assert.doesNotMatch(responsive, /\.catalog-settings-modal \.settings-table-row-shift\s*\{\s*min-width:/s);
 });
 
-test("訂餐與記錄頁使用 Chrome 式共用籤頁", () => {
+test("訂餐與簽到簿使用 Chrome 式共用籤頁", () => {
   const foundation = read("src/renderer/css/foundation.css");
   const components = read("src/renderer/css/components.css");
   const responsive = read("src/renderer/css/responsive.css");
@@ -162,7 +162,7 @@ test("訂餐與記錄頁使用 Chrome 式共用籤頁", () => {
   assert.match(components, /body\.is-records-view \.record-tabs ~ \.records-section,[\s\S]*body\.is-meal-view \.meal-tabs ~ \.records-section \{[^}]*margin-top:\s*0;[^}]*border-top:\s*0;[^}]*border-top-left-radius:\s*0;[^}]*border-top-right-radius:\s*0;/s);
   assert.match(mealPage, /class="meal-tabs" role="tablist" aria-label="訂餐頁分頁"/);
   assert.match(mealPage, /class="ghost-btn page-tab-btn/);
-  assert.match(recordsView, /class="record-tabs" role="tablist" aria-label="記錄頁分頁"/);
+  assert.match(recordsView, /class="record-tabs" role="tablist" aria-label="簽到簿分頁"/);
   assert.match(recordsView, /role="tab" aria-selected=/);
 });
 

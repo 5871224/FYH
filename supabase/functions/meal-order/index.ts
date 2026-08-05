@@ -75,7 +75,7 @@ async function getMealSettings(ctx: any) {
 async function getTodayContext(ctx: any, profile: any) {
   const orderDate = taipeiDateString();
   const [{ data: attendance, error: attendanceError }, { data: orders, error: ordersError }, settings] = await Promise.all([
-    ctx.supabaseAdmin.from("attendance_records").select("*").eq("user_id", profile.id).eq("work_date", orderDate).maybeSingle(),
+    ctx.supabaseAdmin.from("attendance_days").select("*").eq("user_id", profile.id).eq("work_date", orderDate).maybeSingle(),
     ctx.supabaseAdmin.from("meal_orders").select("*").eq("user_id", profile.id).eq("order_date", orderDate),
     getMealSettings(ctx)
   ]);
@@ -175,7 +175,8 @@ function buildEffectiveItems(context: any, incoming: NormalizedMealItem[]) {
 async function saveOrder(ctx: any, body: any) {
   const profile = await getProfile(ctx);
   const context = await getTodayContext(ctx, profile);
-  if (!context.attendance?.clock_in_at || !context.attendance?.clock_in_department_id) {
+  const departmentId = String(context.attendance?.clock_in_location?.departmentId || "");
+  if (!context.attendance?.clock_in_at || !departmentId) {
     throw new Error("請先完成上班打卡後再訂餐");
   }
   if (!context.orderingOpen) throw new Error(`今日訂餐已於 ${context.cutoffTime} 截止`);

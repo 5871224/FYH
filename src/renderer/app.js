@@ -2030,58 +2030,34 @@
     });
   }
 
-  async function getEmployeeOvertimeDates() {
+  async function getPersonalRecords(filters = {}) {
     ensureSignedIn();
-    return requestFunction("attendance-overtime-employee", { action: "dates" });
+    return requestFunction("attendance-ledger", { action: "personal_list", ...filters });
   }
 
-  async function getAttendanceOvertimeForDate(workDate) {
+  async function savePersonalAttendanceDay(payload = {}) {
     ensureSignedIn();
-    return requestFunction("attendance-overtime-employee", { action: "status", workDate });
+    return requestFunction("attendance-ledger", { action: "personal_save", ...payload });
   }
 
-  async function getTodayAttendanceOvertime() {
-    return getAttendanceOvertimeForDate(taipeiDateString());
-  }
-
-  async function submitAttendanceOvertime(payload = {}) {
-    ensureSignedIn();
-    return requestFunction("attendance-overtime-employee", {
-      action: "submit",
-      workDate: payload.workDate,
-      earlyHours: payload.earlyHours,
-      lateHours: payload.lateHours,
-      note: payload.note || ""
-    });
-  }
-
-  async function deleteAttendanceOvertime(workDate) {
-    ensureSignedIn();
-    return requestFunction("attendance-overtime-employee", { action: "delete", workDate });
-  }
-
-  async function getOvertimeReviewList(filters = {}) {
+  async function getAttendanceReviewList(filters = {}) {
     ensureManager();
-    return requestFunction("attendance-overtime-admin-list", filters);
+    return requestFunction("attendance-ledger", { action: "review_list", ...filters });
   }
 
-  async function getApprovedOvertimeExportRows(filters = {}) {
+  async function saveAttendanceReviewRecord(payload = {}) {
     ensureManager();
-    return requestFunction("attendance-overtime-admin-list", {
-      action: "export_approved",
-      fromDate: filters.fromDate,
-      toDate: filters.toDate
-    });
+    return requestFunction("attendance-ledger", { action: "review_save", ...payload });
   }
 
-  async function reviewOvertimeRequest(payload = {}) {
+  async function setAttendanceReviewed(payload = {}) {
     ensureManager();
-    return requestFunction("attendance-overtime-admin-action", { action: "review", ...payload });
+    return requestFunction("attendance-ledger", { action: "review_set", ...payload });
   }
 
-  async function createAdminOvertimeRequest(payload = {}) {
+  async function getAttendanceHistory(recordId) {
     ensureManager();
-    return requestFunction("attendance-overtime-admin-action", { action: "create", ...payload });
+    return requestFunction("attendance-ledger", { action: "history", recordId });
   }
 
   async function getMemberOrder() {
@@ -2110,28 +2086,8 @@
     });
   }
 
-  async function getPersonalRecords(filters = {}) {
-    ensureSignedIn();
-    return requestFunction("personal-records-v2", filters);
-  }
-
   async function getMealStatsReport(filters = {}) {
     return getMealReport(filters);
-  }
-
-  async function getAttendanceAdminRecords(filters = {}) {
-    ensureSignedIn();
-    return requestFunction("attendance-admin-list-v2", filters);
-  }
-
-  async function getAttendanceAdminHistory(recordId) {
-    ensureSignedIn();
-    return requestFunction("attendance-admin-action-v2", { action: "history", recordId });
-  }
-
-  async function saveAttendanceAdminRecord(record) {
-    ensureSignedIn();
-    return requestFunction("attendance-admin-action-v2", { action: "save", record });
   }
 
         async function cancelTodayMealOrder() {
@@ -3146,6 +3102,39 @@
     return { canceled: false, filePath: fileName };
   }
 
+  async function exportAttendanceReview(filters = {}) {
+    ensureManager();
+    const result = await requestFunction("attendance-ledger-export", {
+      fromDate: filters.fromDate,
+      toDate: filters.toDate,
+      memberId: filters.memberId || ""
+    });
+    const rows = Array.isArray(result.rows) ? result.rows : [];
+    if (!rows.length) return { canceled: true, empty: true };
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "福圓號";
+    workbook.created = new Date();
+    const sheet = workbook.addWorksheet("已審加班");
+    sheet.addRow(["日期", "員工編號", "員工姓名", "上班時數", "加班時數", "上班打卡", "下班打卡", "備註"]);
+    rows.forEach((row) => sheet.addRow([
+      row.work_date || "",
+      row.employee_code || "",
+      row.employee_name || "",
+      row.regularHours ?? "",
+      row.overtimeHours ?? "",
+      row.clock_in_at ? new Date(row.clock_in_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }) : "",
+      row.clock_out_at ? new Date(row.clock_out_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }) : "",
+      row.note || ""
+    ]));
+    sheet.views = [{ state: "frozen", ySplit: 1 }];
+    sheet.getRow(1).font = { bold: true };
+    sheet.columns = [14, 14, 18, 12, 12, 20, 20, 36].map((width) => ({ width }));
+    const blob = await exporter.workbookToBlob(workbook);
+    const fileName = `已審加班_${filters.fromDate || ""}-${filters.toDate || ""}.xlsx`;
+    downloadBlob(blob, fileName);
+    return { canceled: false, empty: false, filePath: fileName };
+  }
+
   async function exportMembers(payload) {
     const blob = await exporter.workbookToBlob(await exporter.createMemberWorkbook(payload));
     const fileName = "人員資料.xlsx";
@@ -3244,22 +3233,15 @@
     changePassword,
     getTodayAttendance,
     clockAttendance,
-    getEmployeeOvertimeDates,
-    getAttendanceOvertimeForDate,
-    getTodayAttendanceOvertime,
-    submitAttendanceOvertime,
-    deleteAttendanceOvertime,
     getTodayMealOrder,
     saveTodayMealOrder,
     getPersonalRecords,
+    savePersonalAttendanceDay,
+    getAttendanceReviewList,
+    saveAttendanceReviewRecord,
+    setAttendanceReviewed,
+    getAttendanceHistory,
     getMealStatsReport,
-    getAttendanceAdminRecords,
-    getAttendanceAdminHistory,
-    saveAttendanceAdminRecord,
-    getOvertimeReviewList,
-    getApprovedOvertimeExportRows,
-    reviewOvertimeRequest,
-    createAdminOvertimeRequest,
     getMemberOrder,
     saveMemberOrder,
     getMealAdminSettings,
@@ -3284,6 +3266,7 @@
     syncMemberProfile,
     resetMemberPassword,
     exportSapCsv,
+    exportAttendanceReview,
     exportOvertime,
     exportLeave,
     exportMealReport,
@@ -3444,11 +3427,7 @@ const REST_WEEKDAY_OPTIONS = [
 const SCHEDULE_HISTORY_LIMIT = 20;
 
 function createAttendanceState() {
-  return { loading: false, saving: false, record: null, serverDate: "", error: "" };
-}
-
-function createAttendanceOvertimeState() {
-  return { loading: false, expanded: false, status: null, error: "" };
+  return { saving: false, error: "" };
 }
 
 function createMealOrderState() {
@@ -3458,7 +3437,6 @@ function createMealOrderState() {
 function resetLoadedUserRuntimeState() {
   currentMember = null;
   attendanceState = createAttendanceState();
-  attendanceOvertimeState = createAttendanceOvertimeState();
   mealOrderState = createMealOrderState();
   recordsState = createRecordsState();
   appInfo = null;
@@ -3470,10 +3448,29 @@ function createRecordsState() {
     loading: false,
     activeTab: "personal",
     personal: [],
+    personalFilters: { fromDate: addDaysToDateString(today, -49), toDate: today },
+    personalPage: 1,
+    personalTotal: 0,
+    personalPageSize: 50,
     mealStats: null,
     mealFilters: { fromDate: today, toDate: today, departmentId: "", memberId: "" },
-    overtimeReview: { loading: false, requests: [], members: [], filters: { status: "pending", fromDate: addDaysToDateString(today, -30), toDate: today }, error: "" },
-    attendanceAdmin: { loading: false, rows: [], members: [], issueTypes: [], total: 0, page: 1, filters: { fromDate: today, toDate: today, memberId: "", abnormalOnly: true, issueType: "" }, error: "" },
+    attendanceReview: {
+      loading: false,
+      rows: [],
+      members: [],
+      issueTypes: [],
+      total: 0,
+      page: 1,
+      pageSize: 50,
+      filters: {
+        status: "unreviewed",
+        fromDate: addDaysToDateString(today, -30),
+        toDate: today,
+        memberId: "",
+        issueType: ""
+      },
+      error: ""
+    },
     mealAdmin: { loading: false, products: [], settings: { daily_cutoff_time: "10:30" }, error: "" },
     error: ""
   };
@@ -7883,188 +7880,6 @@ async function resetMemberPasswordFromModal(employeeCode) {
 }
 ;
 
-/* ===== renderer-overtime-employee.js ===== */
-function getSelectedOvertimeDate() {
-  return attendanceOvertimeState.selectedWorkDate || getTodayDateString();
-}
-
-function formatOvertimeShiftTime(value) {
-  const match = String(value || "").match(/^(\d{1,2}):(\d{2})/);
-  return match ? `${String(Number(match[1])).padStart(2, "0")}:${match[2]}` : "--:--";
-}
-
-function formatOvertimeAttendanceTime(value) {
-  if (!value) return "--:--";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "--:--";
-  return new Intl.DateTimeFormat("zh-TW", {
-    timeZone: "Asia/Taipei",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23"
-  }).format(date);
-}
-
-function formatOvertimeHours(value) {
-  const number = Number(value || 0);
-  return Number.isFinite(number) ? String(number) : "0";
-}
-
-function renderOvertimeEstimate(stateValue, eligibility) {
-  const shiftName = stateValue?.shift?.name || "未排班";
-  const shiftStart = formatOvertimeShiftTime(stateValue?.shift?.start_time);
-  const shiftEnd = formatOvertimeShiftTime(stateValue?.shift?.end_time);
-  const clockIn = formatOvertimeAttendanceTime(stateValue?.attendance?.clock_in_at);
-  const clockOut = formatOvertimeAttendanceTime(stateValue?.attendance?.clock_out_at);
-  const earlyHours = formatOvertimeHours(eligibility?.earlyHours);
-  const lateHours = formatOvertimeHours(eligibility?.lateHours);
-  const totalHours = formatOvertimeHours(eligibility?.totalHours);
-  return `${escapeHtml(shiftName)}：${escapeHtml(shiftStart)} ~ ${escapeHtml(shiftEnd)}　打卡：${escapeHtml(clockIn)} ~ ${escapeHtml(clockOut)}<br>提早 ${escapeHtml(earlyHours)} 小時 + 延後 ${escapeHtml(lateHours)} 小時 = 估算 ${escapeHtml(totalHours)} 小時`;
-}
-
-function formatClockButtonStatus(record, kind) {
-  const at = kind === "in" ? record.clock_in_at : record.clock_out_at;
-  if (!at) return "尚未打卡";
-  const departmentName = kind === "in"
-    ? record.clock_in_department_name_snapshot
-    : record.clock_out_department_name_snapshot;
-  const source = kind === "in" ? record.clock_in_source : record.clock_out_source;
-  return `${formatClockTime(at)} 在【${departmentName || "未設定"}】打卡${source ? ` (${source})` : ""}`;
-}
-
-async function loadTodayAttendanceOvertime(shouldRender = true) {
-  if (!isLoggedIn()) return null;
-  const workDate = getSelectedOvertimeDate();
-  attendanceOvertimeState = { ...attendanceOvertimeState, loading: true, error: "", selectedWorkDate: workDate };
-  if (shouldRender) renderAll();
-  let status = null;
-  try {
-    const [dateResult, result] = await Promise.all([
-      window.schedulerApi.getEmployeeOvertimeDates(),
-      window.schedulerApi.getAttendanceOvertimeForDate(workDate)
-    ]);
-    status = result;
-    attendanceOvertimeState = {
-      ...attendanceOvertimeState,
-      loading: false,
-      status,
-      dates: dateResult.dates || [],
-      selectedWorkDate: workDate,
-      error: ""
-    };
-  } catch (error) {
-    attendanceOvertimeState = {
-      ...attendanceOvertimeState,
-      loading: false,
-      status: null,
-      selectedWorkDate: workDate,
-      error: error.message || "讀取加班申請狀態失敗"
-    };
-  }
-  if (shouldRender) renderAll();
-  return status;
-}
-
-async function submitTodayOvertimeRequest() {
-  if (attendanceOvertimeState.loading) return;
-  const workDate = getSelectedOvertimeDate();
-  const earlyHours = Number(document.getElementById("overtimeEarlyHours")?.value || 0);
-  const lateHours = Number(document.getElementById("overtimeLateHours")?.value || 0);
-  const note = document.getElementById("overtimeEmployeeNote")?.value || "";
-  attendanceOvertimeState = { ...attendanceOvertimeState, loading: true, error: "" };
-  renderAll();
-  try {
-    await window.schedulerApi.submitAttendanceOvertime({ workDate, earlyHours, lateHours, note });
-    await loadTodayAttendanceOvertime(false);
-    showInfoMessage(`${workDate} 加班申請已送出`);
-  } catch (error) {
-    attendanceOvertimeState = { ...attendanceOvertimeState, loading: false, error: error.message || "送出加班申請失敗" };
-  }
-  renderAll();
-}
-
-async function deleteTodayOvertimeRequest() {
-  const workDate = getSelectedOvertimeDate();
-  const confirmed = await confirmAction(`確定要刪除 ${workDate} 的加班申請嗎？`);
-  if (!confirmed) return;
-  attendanceOvertimeState = { ...attendanceOvertimeState, loading: true, error: "" };
-  renderAll();
-  try {
-    await window.schedulerApi.deleteAttendanceOvertime(workDate);
-    await loadTodayAttendanceOvertime(false);
-    showInfoMessage("加班申請已刪除");
-  } catch (error) {
-    attendanceOvertimeState = { ...attendanceOvertimeState, loading: false, error: error.message || "刪除加班申請失敗" };
-  }
-  renderAll();
-}
-
-function renderTodayOvertimePanel() {
-  const checked = Boolean(attendanceOvertimeState.expanded);
-  const toggle = `<label class="overtime-use-label"><input type="checkbox" data-toggle-overtime-panel="true" ${checked ? "checked" : ""}> 加班申請</label>`;
-  if (!checked) {
-    return `<section class="overtime-request-panel overtime-request-toggle-only">${toggle}</section>`;
-  }
-
-  const stateValue = attendanceOvertimeState.status;
-  const eligibility = stateValue?.eligibility || null;
-  const request = stateValue?.request || null;
-  const workDate = getSelectedOvertimeDate();
-  const dateRows = attendanceOvertimeState.dates || [];
-  const dateValues = [...new Set([workDate, ...dateRows.map((row) => row.workDate).filter(Boolean)])]
-    .sort((left, right) => String(right).localeCompare(String(left)));
-  const selector = `<div class="form-row overtime-date-row"><label for="overtimeWorkDate">申請日期</label><select id="overtimeWorkDate">${dateValues.map((date) => `<option value="${escapeHtml(date)}" ${date === workDate ? "selected" : ""}>${escapeHtml(date)}</option>`).join("")}</select></div>`;
-
-  if (attendanceOvertimeState.loading) {
-    return `<section class="overtime-request-panel">${toggle}${selector}<p class="clock-loading">讀取加班狀態...</p></section>`;
-  }
-  if (attendanceOvertimeState.error) {
-    return `<section class="overtime-request-panel">${toggle}${selector}<div class="auth-error">${escapeHtml(attendanceOvertimeState.error)}</div></section>`;
-  }
-  if (!stateValue) {
-    return `<section class="overtime-request-panel">${toggle}${selector}</section>`;
-  }
-
-  if (request) {
-    const canDelete = request.status === "pending" || request.status === "returned";
-    return `<section class="overtime-request-panel">
-      ${toggle}
-      ${selector}
-      <div class="overtime-request-status-row">
-        <p class="home-subtitle overtime-request-status">${getOvertimeStatusLabel(request.status)}，合計 ${Number(request.total_overtime_hours || 0)} 小時</p>
-        ${canDelete ? '<button class="ghost-btn" type="button" data-delete-today-overtime="true">刪除申請</button>' : ""}
-      </div>
-      ${request.attendance_changed_warning ? '<div class="auth-error">打卡時間已異動，需重新審核</div>' : ""}
-      <div class="clock-status-grid overtime-hours-summary"><div><span>提早上班</span><strong>${Number(request.early_overtime_hours || 0)} 小時</strong></div><div><span>延後下班</span><strong>${Number(request.late_overtime_hours || 0)} 小時</strong></div></div>
-    </section>`;
-  }
-
-  if (!eligibility?.eligible) {
-    return `<section class="overtime-request-panel">${toggle}${selector}<p class="home-subtitle">${escapeHtml(eligibility?.reasons?.[0] || "目前不可申請加班")}</p></section>`;
-  }
-
-  return `<section class="overtime-request-panel">
-    ${toggle}
-    ${selector}
-    <p class="home-subtitle overtime-estimate-text">${renderOvertimeEstimate(stateValue, eligibility)}</p>
-    <div class="form-grid two-col overtime-hours-grid">
-      <div class="form-row"><label for="overtimeEarlyHours">提早上班時數</label><input id="overtimeEarlyHours" type="number" min="0" step="0.5" value="${Number(eligibility.earlyHours || 0)}"></div>
-      <div class="form-row"><label for="overtimeLateHours">延後下班時數</label><input id="overtimeLateHours" type="number" min="0" step="0.5" value="${Number(eligibility.lateHours || 0)}"></div>
-      <div class="form-row form-row-wide"><label for="overtimeEmployeeNote">加班備註</label><input id="overtimeEmployeeNote" type="text" placeholder="可填寫加班原因或補充說明"></div>
-    </div>
-    <button class="btn-primary overtime-submit-btn" type="button" data-submit-today-overtime="true">送出加班申請</button>
-  </section>`;
-}
-
-document.addEventListener("change", (event) => {
-  const target = event.target;
-  if (target instanceof HTMLSelectElement && target.id === "overtimeWorkDate") {
-    attendanceOvertimeState = { ...attendanceOvertimeState, selectedWorkDate: target.value };
-    void loadTodayAttendanceOvertime();
-  }
-});
-;
-
 /* ===== renderer-auth-context.js ===== */
 /* 登入狀態、權限判斷、工具列外殼與密碼修改。
  * 由固定建置清單載入。
@@ -8474,15 +8289,13 @@ function showScheduleTooltip(memberId, day, category, anchorRect) {
 ;
 
 /* ===== renderer-main-pages.js ===== */
-/* 首頁、打卡頁與今日訂餐頁渲染。
+/* 首頁與今日訂餐頁渲染。
  * 由 renderer.js 拆分；不變更畫面內容或操作規則。
  */
 
 function renderHomeDashboard() {
   const homeCard = document.getElementById("homeCard");
-  if (!homeCard) {
-    return;
-  }
+  if (!homeCard) return;
   if (!isLoggedIn()) {
     homeCard.innerHTML = "";
     return;
@@ -8498,10 +8311,7 @@ function renderHomeDashboard() {
         <button class="ghost-btn home-signout-btn" type="button" id="homeSignOutButton">登出</button>
       </div>
     </div>
-    <div class="home-action-grid">
-      <button class="home-action-card" type="button" data-home-action="clock">
-        <span class="home-action-title">打卡</span>
-      </button>
+    <div class="home-action-grid home-action-grid-three">
       <button class="home-action-card" type="button" data-home-action="schedule">
         <span class="home-action-title">班表</span>
       </button>
@@ -8509,56 +8319,10 @@ function renderHomeDashboard() {
         <span class="home-action-title">訂餐</span>
       </button>
       <button class="home-action-card" type="button" data-home-action="records">
-        <span class="home-action-title">記錄</span>
+        <span class="home-action-title">簽到簿</span>
       </button>
     </div>
   `;
-}
-
-function renderClockPage() {
-  const clockCard = document.getElementById("clockCard");
-  if (!clockCard) {
-    return;
-  }
-  if (!isLoggedIn()) {
-    clockCard.innerHTML = "";
-    return;
-  }
-  const record = attendanceState.record || {};
-  const clockInDone = Boolean(record.clock_in_at);
-  const clockOutDone = Boolean(record.clock_out_at);
-  const disableClockIn = attendanceState.saving || clockInDone || clockOutDone;
-  const disableClockOut = attendanceState.saving || clockOutDone;
-  clockCard.innerHTML = `
-    <div class="clock-page-header">
-      <div>
-        <p class="home-eyebrow">打卡</p>
-        <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
-        <p class="home-subtitle clock-today-line"><span>今日日期：${escapeHtml(attendanceState.serverDate || getTodayDateString())}</span><span>${escapeHtml(getTodayShiftSummary())}</span></p>
-      </div>
-      ${renderHomeIconButton()}
-    </div>
-    ${attendanceState.error ? `<div class="auth-error clock-error">${escapeHtml(attendanceState.error)}</div>` : ""}
-    <div class="clock-action-grid">
-      <button class="clock-action-btn clock-in-btn" type="button" data-clock-action="clock_in" ${disableClockIn ? "disabled" : ""}>
-        <span>上班打卡</span>
-        <strong>${formatClockButtonStatus(record, "in")}</strong>
-      </button>
-      <button class="clock-action-btn clock-out-btn" type="button" data-clock-action="clock_out" ${disableClockOut ? "disabled" : ""}>
-        <span>下班打卡</span>
-        <strong>${formatClockButtonStatus(record, "out")}</strong>
-      </button>
-    </div>
-    ${renderTodayOvertimePanel()}
-    ${attendanceState.loading && !attendanceState.saving ? '<p class="clock-loading">讀取資料中...</p>' : ""}
-  `;
-}
-
-function getOvertimeStatusLabel(status) {
-  if (!status) return "-";
-  if (status === "approved") return "已核准";
-  if (status === "returned") return "退回";
-  return "待審";
 }
 
 function renderMealPage() {
@@ -8638,7 +8402,7 @@ function renderMealPage() {
 ;
 
 /* ===== renderer-records-views.js ===== */
-/* 個人記錄、訂餐統計、加班審核、打卡管理與訂餐設定畫面。
+/* 個人記錄、簽到審核、訂餐統計與訂餐設定畫面。
  * 每種畫面只保留一份正式實作。
  */
 
@@ -8651,14 +8415,13 @@ function renderHomeIconButton() {
 }
 
 function renderRecordsTabs() {
-    const tabs = [
-      ["personal", "個人記錄", true],
-      ["overtime", "加班審核", isAdmin()],
-      ["attendance", "打卡管理", isAdmin()]
-    ].filter((tab) => tab[2]);
-    if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
-    return `<div class="record-tabs" role="tablist" aria-label="記錄頁分頁">${tabs.map(([id, label]) => `<button class="ghost-btn page-tab-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" role="tab" aria-selected="${recordsState.activeTab === id ? "true" : "false"}" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
-  }
+  const tabs = [
+    ["personal", "個人記錄", true],
+    ["review", "簽到審核", isAdmin()]
+  ].filter((tab) => tab[2]);
+  if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
+  return `<div class="record-tabs" role="tablist" aria-label="簽到簿分頁">${tabs.map(([id, label]) => `<button class="ghost-btn page-tab-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" role="tab" aria-selected="${recordsState.activeTab === id ? "true" : "false"}" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
+}
 
 function memberOptions(selectedValue, members = state.members) {
   return `<option value="">全部人員</option>${(members || []).map((member) => `<option value="${escapeHtml(member.id)}" ${selectedValue === member.id ? "selected" : ""}>${escapeHtml(member.full_name || member.name || member.employee_code || member.code || "")}</option>`).join("")}`;
@@ -8710,43 +8473,76 @@ function renderScheduleIcon(record) {
     }).join("")}</div>`;
   }
 
-function punchLine(value, department) {
-    if (!value) return "-";
-    return `${formatRecordDateTime(value)}${department ? ` ${escapeHtml(department)}` : ""}`;
-  }
+function attendanceLocationName(location) {
+  if (!location || typeof location !== "object") return "";
+  return location.name || location.address || location.source || "";
+}
+
+function renderPunchLine(label, value, location) {
+  if (!value) return "";
+  const place = attendanceLocationName(location);
+  return `<div class="attendance-punch-line"><span>${escapeHtml(label)} ${escapeHtml(formatRecordDateTime(value))}</span>${place ? `<small>${escapeHtml(place)}</small>` : ""}</div>`;
+}
+
+function renderPersonalClockCell(record) {
+  const today = record.date === getTodayDateString();
+  const editable = today && record.editable !== false && !record.reviewed;
+  const lines = [
+    renderPunchLine("上班", record.clockIn, record.clockInLocation),
+    renderPunchLine("下班", record.clockOut, record.clockOutLocation)
+  ].filter(Boolean);
+  const buttons = editable ? `<div class="attendance-clock-buttons">
+    ${record.clockIn ? "" : `<button class="ghost-btn compact-btn" type="button" data-personal-clock-action="clock_in" data-personal-clock-date="${escapeHtml(record.date)}">上班打卡</button>`}
+    ${record.clockOut ? "" : `<button class="ghost-btn compact-btn" type="button" data-personal-clock-action="clock_out" data-personal-clock-date="${escapeHtml(record.date)}">下班打卡</button>`}
+  </div>` : "";
+  return `<div class="attendance-clock-stack">${lines.join("") || '<span class="attendance-empty-value">-</span>'}${buttons}</div>`;
+}
+
+function renderPersonalHoursInput(record, field) {
+  const value = record[field];
+  const editable = record.editable !== false && !record.reviewed;
+  return `<input class="attendance-hours-input" type="number" min="0" step="0.5" inputmode="decimal" value="${value === null || value === undefined ? "" : escapeHtml(String(value))}" data-personal-attendance-field="${field}" data-personal-attendance-date="${escapeHtml(record.date)}" ${editable ? "" : "disabled"}>`;
+}
+
+function renderReviewStatus(reviewed) {
+  return `<span class="attendance-review-status ${reviewed ? "is-reviewed" : "is-unreviewed"}">${reviewed ? "已審" : "未審"}</span>`;
+}
 
 function renderPersonalRecordsSection() {
-    ensureRecordsState();
-    const filters = recordsState.personalFilters;
-    const page = Number(recordsState.personalPage || 1);
-    const pageSize = Number(recordsState.personalPageSize || 50);
-    const total = Number(recordsState.personalTotal || 0);
-    const pages = Math.max(1, Math.ceil(total / pageSize));
+  ensureRecordsState();
+  const filters = recordsState.personalFilters;
+  const page = Number(recordsState.personalPage || 1);
+  const pageSize = Number(recordsState.personalPageSize || 50);
+  const total = Number(recordsState.personalTotal || 0);
+  const pages = Math.max(1, Math.ceil(total / pageSize));
 
-    return `<section class="records-section">
-      <div class="records-admin-toolbar personal-record-toolbar">
-        <div class="records-admin-filters personal-record-filters">
-          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-personal-record-filter="fromDate"></label>
-          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-personal-record-filter="toDate"></label>
-        </div>
+  return `<section class="records-section">
+    <div class="records-admin-toolbar personal-record-toolbar">
+      <div class="records-admin-filters personal-record-filters">
+        <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-personal-record-filter="fromDate"></label>
+        <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-personal-record-filter="toDate"></label>
       </div>
-      <div class="records-table-wrap"><table class="records-table personal-record-table">
-        <thead><tr><th>日期</th><th class="personal-schedule-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>異常</th><th>加班</th><th>打卡備註</th><th>加班備註</th><th>訂餐</th></tr></thead>
-        <tbody>${(recordsState.personal || []).map((record) => `<tr>
-          <td>${escapeHtml(record.date || "")}</td>
-          <td class="personal-schedule-icon-col">${renderScheduleIcon(record)}</td>
-          <td>${escapeHtml(record.shiftName || "-")}<br><span>${escapeHtml(record.shiftTime || "")}</span></td>
-          <td class="personal-punch-stack"><div>${punchLine(record.clockIn, record.clockInDepartment)}</div><div>${punchLine(record.clockOut, record.clockOutDepartment)}</div></td>
-          <td>${escapeHtml((record.issues || []).join("、") || "正常")}</td>
-          <td>${escapeHtml(getOvertimeStatusLabel(record.overtimeStatus || ""))}<br><span>${Number(record.overtimeHours || 0)} 小時</span></td>
-          <td>${escapeHtml(record.attendanceNote || "")}</td>
-          <td>${escapeHtml(record.overtimeNote || "")}</td>
-          <td><span class="meal-record-text">${escapeHtml(record.mealText || "-")}</span>${record.mealClockDeletedWarning ? '<br><span class="auth-error-inline">所依據的上班打卡已被刪除</span>' : ""}</td>
-        </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
-      </table></div>
-      <div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>
-    </section>`;
-  }
+    </div>
+    ${attendanceState.error ? `<div class="auth-error">${escapeHtml(attendanceState.error)}</div>` : ""}
+    <div class="records-table-wrap"><table class="records-table personal-record-table attendance-ledger-table">
+      <thead><tr><th>日期</th><th class="personal-schedule-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>上班時數</th><th>加班時數</th><th>備註</th><th>訂餐</th><th>審核</th></tr></thead>
+      <tbody>${(recordsState.personal || []).map((record) => `<tr class="${record.date === getTodayDateString() ? "is-today-row" : ""}">
+        <td>${escapeHtml(record.date || "")}</td>
+        <td class="personal-schedule-icon-col">${renderScheduleIcon(record)}</td>
+        <td>${escapeHtml(record.shiftName || "-")}<br><span>${escapeHtml(record.shiftTime || "")}</span></td>
+        <td>${renderPersonalClockCell(record)}</td>
+        <td>${renderPersonalHoursInput(record, "regularHours")}</td>
+        <td>${renderPersonalHoursInput(record, "overtimeHours")}</td>
+        <td>${record.editable !== false && !record.reviewed
+          ? `<textarea class="attendance-note-input" rows="2" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}">${escapeHtml(record.note || "")}</textarea>`
+          : escapeHtml(record.note || "")}</td>
+        <td><span class="meal-record-text">${escapeHtml(record.mealText || "-")}</span>${record.mealClockDeletedWarning ? '<br><span class="auth-error-inline">所依據的上班打卡已被刪除</span>' : ""}</td>
+        <td>${renderReviewStatus(record.reviewed)}</td>
+      </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
+    </table></div>
+    <div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>
+  </section>`;
+}
 
 function renderMealReportSection() {
     ensureRecordsState();
@@ -8826,108 +8622,72 @@ function formatPunchTime(value) {
     return value ? formatClockTime(value) : "-";
   }
 
-function renderOvertimeReviewPagination(review) {
-    const page = Number(review.page || 1);
-    const pageSize = Number(review.pageSize || 20);
-    const total = Number(review.total || 0);
-    const pages = Math.max(1, Math.ceil(total / pageSize));
-    return `<div class="records-filter-row records-pagination">
-      <button class="ghost-btn compact-btn" type="button" data-overtime-review-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
-      <span>共 ${total} 筆，第 ${page} / ${pages} 頁</span>
-      <button class="ghost-btn compact-btn" type="button" data-overtime-review-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
-    </div>`;
-  }
+function renderAttendanceReviewPagination(review) {
+  const page = Number(review.page || 1);
+  const pageSize = Number(review.pageSize || 50);
+  const total = Number(review.total || 0);
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  return `<div class="records-filter-row records-pagination">
+    <button class="ghost-btn compact-btn" type="button" data-attendance-review-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
+    <span>共 ${total} 筆，第 ${page} / ${pages} 頁</span>
+    <button class="ghost-btn compact-btn" type="button" data-attendance-review-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
+  </div>`;
+}
 
-function renderOvertimeReviewSection() {
-    const review = ensureOvertimeReviewState();
-    const filters = review.filters;
-    const rows = review.requests || [];
-    return `<section class="records-section">
-      <div class="records-admin-toolbar overtime-review-toolbar">
-        <div class="records-admin-filters overtime-review-filters">
-          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-overtime-review-filter="fromDate"></label>
-          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-overtime-review-filter="toDate"></label>
-          <label class="records-admin-field"><span>人員</span><select data-overtime-review-filter="memberId">${memberOptions(filters.memberId, review.members)}</select></label>
-          <label class="records-admin-field"><span>狀態</span><select data-overtime-review-filter="status">
-            <option value="pending" ${filters.status === "pending" ? "selected" : ""}>待審</option>
-            <option value="approved" ${filters.status === "approved" ? "selected" : ""}>核准</option>
-            <option value="returned" ${filters.status === "returned" ? "selected" : ""}>退回</option>
-            <option value="all" ${filters.status === "all" ? "selected" : ""}>全部</option>
-          </select></label>
-        </div>
-        <div class="records-admin-actions overtime-review-actions">
-          <button class="ghost-btn compact-btn" type="button" data-open-admin-overtime-create="true">代為申請</button>
-          <button class="ghost-btn compact-btn" type="button" data-export-approved-overtime="true">匯出加班</button>
-          <button class="primary-btn compact-btn" type="button" data-overtime-review-batch="approved">批次核准</button>
-          <button class="ghost-btn compact-btn" type="button" data-overtime-review-batch="returned">批次退回</button>
-        </div>
+function renderAttendanceReviewSection() {
+  const review = ensureAttendanceReviewState();
+  const filters = review.filters;
+  const rows = review.rows || [];
+  return `<section class="records-section">
+    <div class="records-admin-toolbar overtime-review-toolbar attendance-review-toolbar">
+      <div class="records-admin-filters overtime-review-filters attendance-review-filters">
+        <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-attendance-review-filter="fromDate"></label>
+        <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-attendance-review-filter="toDate"></label>
+        <label class="records-admin-field"><span>人員</span><select data-attendance-review-filter="memberId">${memberOptions(filters.memberId, review.members)}</select></label>
+        <label class="records-admin-field"><span>異常</span><select data-attendance-review-filter="issueType"><option value="" ${!filters.issueType ? "selected" : ""}>全部顯示</option>${(review.issueTypes || []).map((type) => `<option value="${escapeHtml(type)}" ${filters.issueType === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
+        <label class="records-admin-field"><span>狀態</span><select data-attendance-review-filter="status">
+          <option value="unreviewed" ${filters.status === "unreviewed" ? "selected" : ""}>未審</option>
+          <option value="reviewed" ${filters.status === "reviewed" ? "selected" : ""}>已審</option>
+          <option value="all" ${filters.status === "all" ? "selected" : ""}>全部</option>
+        </select></label>
       </div>
-      ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
-      <div class="records-table-wrap">
-        <table class="records-table overtime-review-table">
-          <thead><tr><th class="overtime-review-check-col"><input type="checkbox" data-overtime-review-check-all></th><th class="overtime-review-date-col">日期</th><th>員工</th><th>班別</th><th>打卡時間</th><th>加班時數</th><th>備註</th><th class="overtime-review-status-col">狀態</th><th class="overtime-review-action-col">操作</th></tr></thead>
-          <tbody>${rows.map((row) => `<tr>
-            <td class="overtime-review-check-col"><input type="checkbox" data-overtime-review-check="${escapeHtml(row.id)}"></td>
-            <td class="overtime-review-date-col">${escapeHtml(row.work_date || "")}${row.attendance_changed_warning ? '<br><span class="auth-error-inline">打卡時間已異動</span>' : ""}</td>
-            <td>${escapeHtml(row.employee?.full_name || "")}</td>
-            <td>${escapeHtml(row.shift?.name || "-")}<br><span>${escapeHtml(`${String(row.shift?.start_time || "").slice(0, 5)}-${String(row.shift?.end_time || "").slice(0, 5)}`)}</span></td>
-            <td>上班 ${formatPunchTime(row.attendance?.clock_in_at)}<br>下班 ${formatPunchTime(row.attendance?.clock_out_at)}</td>
-            <td>${formatHours(row.early_overtime_hours)}＋${formatHours(row.late_overtime_hours)}=${formatHours(row.total_overtime_hours)}</td>
-            <td>${escapeHtml(row.employee_note || "")}</td>
-            <td class="overtime-review-status-col">${escapeHtml(getOvertimeStatusLabel(row.status || ""))}</td>
-            <td class="overtime-review-action-col"><div class="overtime-review-action-buttons">
-              <button class="settings-icon-btn" type="button" data-open-overtime-review="${escapeHtml(row.id)}" aria-label="調整" title="調整"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
-              <button class="settings-icon-btn overtime-review-approve-btn" type="button" data-approve-overtime="${escapeHtml(row.id)}" aria-label="核准" title="核准"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h4"></path><path d="M9 14l2 2 4-4"></path></svg></button>
-              <button class="settings-icon-btn overtime-review-return-btn" type="button" data-return-overtime="${escapeHtml(row.id)}" aria-label="退回" title="退回"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h4"></path><path d="M10 12l4 4"></path><path d="M14 12l-4 4"></path></svg></button>
+      <div class="records-admin-actions overtime-review-actions attendance-review-actions">
+        <button class="ghost-btn compact-btn" type="button" data-open-admin-attendance-create="true">代為申請</button>
+        <button class="ghost-btn compact-btn" type="button" data-export-attendance-review="true">匯出加班</button>
+        <button class="primary-btn compact-btn" type="button" data-attendance-review-batch="reviewed">批次審核</button>
+        <button class="ghost-btn compact-btn" type="button" data-attendance-review-batch="returned">批次退回</button>
+      </div>
+    </div>
+    ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
+    <div class="records-table-wrap">
+      <table class="records-table attendance-review-table">
+        <thead><tr><th class="overtime-review-check-col"><input type="checkbox" data-attendance-review-check-all></th><th>日期</th><th>員工</th><th class="attendance-schedule-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>上班時數</th><th>加班時數</th><th>備註</th><th>異常</th><th>狀態</th><th>操作</th></tr></thead>
+        <tbody>${rows.map((row) => {
+          const token = `${row.user_id}:${row.work_date}`;
+          return `<tr>
+            <td class="overtime-review-check-col"><input type="checkbox" data-attendance-review-check="${escapeHtml(token)}"></td>
+            <td>${escapeHtml(row.work_date || "")}</td>
+            <td>${escapeHtml(row.employee_name || "")}<br><span>${escapeHtml(row.employee_code || "")}</span></td>
+            <td class="attendance-schedule-icon-col">${renderScheduleIcon(row)}</td>
+            <td>${escapeHtml(row.shiftName || "-")}<br><span>${escapeHtml(row.shiftTime || "")}</span></td>
+            <td>${renderPunchLine("上班", row.clock_in_at, row.clock_in_location) || "-"}${renderPunchLine("下班", row.clock_out_at, row.clock_out_location)}</td>
+            <td>${row.regularHours === null || row.regularHours === undefined ? "" : escapeHtml(String(row.regularHours))}</td>
+            <td>${row.overtimeHours === null || row.overtimeHours === undefined ? "" : escapeHtml(String(row.overtimeHours))}</td>
+            <td>${escapeHtml(row.note || "")}</td>
+            <td>${escapeHtml((row.issues || []).join("、") || "正常")}</td>
+            <td>${renderReviewStatus(row.reviewed)}</td>
+            <td><div class="attendance-review-row-actions">
+              <button class="ghost-btn compact-btn" type="button" data-edit-attendance-review="${escapeHtml(token)}">編輯</button>
+              <button class="compact-btn attendance-review-toggle ${row.reviewed ? "is-reviewed" : "is-unreviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}">${row.reviewed ? "已審" : "未審"}</button>
+              ${row.id ? `<button class="settings-icon-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}
             </div></td>
-          </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
-        </table>
-      </div>
-      ${renderOvertimeReviewPagination(review)}
-    </section>`;
-  }
-
-function renderAttendanceAdminSection() {
-    const admin = recordsState.attendanceAdmin;
-    const filters = admin.filters;
-    const page = Number(admin.page || 1);
-    const pageSize = Number(admin.pageSize || 50);
-    const total = Number(admin.total || 0);
-    const pages = Math.max(1, Math.ceil(total / pageSize));
-    return `<section class="records-section">
-      <div class="records-admin-toolbar attendance-admin-toolbar">
-        <div class="records-admin-filters attendance-admin-filters">
-          <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate)}" data-attendance-filter="fromDate"></label>
-          <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate)}" data-attendance-filter="toDate"></label>
-          <label class="records-admin-field"><span>人員</span><select data-attendance-filter="memberId">${memberOptions(filters.memberId, admin.members)}</select></label>
-          <label class="records-admin-field"><span>顯示項目</span><select data-attendance-filter="issueType"><option value="__all__" ${filters.abnormalOnly ? "" : "selected"}>全部顯示</option><option value="" ${filters.abnormalOnly && !filters.issueType ? "selected" : ""}>全部異常</option>${admin.issueTypes.map((type) => `<option value="${escapeHtml(type)}" ${filters.issueType === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
-        </div>
-      </div>
-      ${admin.error ? `<div class="auth-error">${escapeHtml(admin.error)}</div>` : ""}
-      <div class="records-table-wrap"><table class="records-table attendance-admin-table">
-        <thead><tr><th>日期</th><th>員工</th><th class="attendance-schedule-icon-col">圖示</th><th>班別</th><th>上班</th><th>下班</th><th>異常</th><th>備註</th><th class="attendance-admin-action-col">操作</th></tr></thead>
-        <tbody>${admin.rows.map((row) => `<tr>
-          <td>${escapeHtml(row.work_date || "")}</td>
-          <td>${escapeHtml(row.employee_name_snapshot || "")}<br><span>${escapeHtml(row.employee_code_snapshot || "")}</span></td>
-          <td class="attendance-schedule-icon-col">${renderScheduleIcon(row)}</td>
-          <td>${escapeHtml(row.shift_name || "-")}<br><span>${escapeHtml(`${String(row.shift_start_time || "").slice(0, 5)}-${String(row.shift_end_time || "").slice(0, 5)}`)}</span></td>
-          <td>${formatRecordDateTime(row.clock_in_at)}<br><span>${escapeHtml(row.clock_in_department_name_snapshot || "")}</span></td>
-          <td>${formatRecordDateTime(row.clock_out_at)}<br><span>${escapeHtml(row.clock_out_department_name_snapshot || "")}</span></td>
-          <td>${escapeHtml((row.issues || []).join("、") || "正常")}</td>
-          <td>${escapeHtml(row.attendance_note || "")}</td>
-          <td class="attendance-admin-action-col"><div class="attendance-admin-actions">
-            <button class="settings-icon-btn" type="button" data-edit-attendance="${escapeHtml(row.user_id)}:${escapeHtml(row.work_date)}:${escapeHtml(row.id || "")}" aria-label="編輯" title="編輯"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
-            ${row.id ? `<button class="settings-icon-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}
-          </div></td>
-        </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
-      </table></div>
-      <div class="records-filter-row records-pagination">
-        <button class="ghost-btn compact-btn" type="button" data-attendance-admin-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
-        <span>共 ${total} 筆，第 ${page} / ${pages} 頁</span>
-        <button class="ghost-btn compact-btn" type="button" data-attendance-admin-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
-      </div>
-    </section>`;
-  }
+          </tr>`;
+        }).join("") || '<tr><td colspan="12">沒有資料</td></tr>'}</tbody>
+      </table>
+    </div>
+    ${renderAttendanceReviewPagination(review)}
+  </section>`;
+}
 
 function renderMealSettingsSection() {
     const mealAdmin = recordsState.mealAdmin;
@@ -9329,14 +9089,10 @@ function hasLeaveRows() {
 ;
 
 /* ===== renderer-attendance-page.js ===== */
-/* 打卡頁資料讀取與打卡控制。
- * 由 renderer.js 拆分；維持既有全域 bundle 執行方式。
- */
+/* 簽到簿表格內的定位與上、下班打卡控制。 */
 
 function formatClockTime(value) {
-  if (!value) {
-    return "--:--";
-  }
+  if (!value) return "--:--";
   return new Intl.DateTimeFormat("zh-TW", {
     hour: "2-digit",
     minute: "2-digit",
@@ -9345,26 +9101,16 @@ function formatClockTime(value) {
   }).format(new Date(value));
 }
 
-function getTodayShiftSummary() {
-  const member = currentMember || resolveCurrentMember();
-  const dateString = attendanceState.serverDate || getTodayDateString();
-  const shift = getItem("shift", getSlot(member?.id || "", dateString)?.shift);
-  if (!shift) {
-    return "今日未排班";
-  }
-  return `${shift.name || "班別"}：${shift.startTime || "--:--"} ~ ${shift.endTime || "--:--"}`;
-}
-
 function getBrowserPosition() {
   const userAgent = navigator.userAgent || "";
   const isTablet = /iPad|Tablet|Silk/i.test(userAgent)
     || (/Android/i.test(userAgent) && !/Mobile|Mobi/i.test(userAgent));
   const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
-  const narrowTouch = !isTablet && coarsePointer && navigator.maxTouchPoints > 0 && Math.min(window.screen?.width || window.innerWidth, window.screen?.height || window.innerHeight) <= 820;
-  const isPhone = Boolean(navigator.userAgentData?.mobile || narrowTouch || (!isTablet && /Android|iPhone|iPod|Windows Phone|Mobi|Mobile/i.test(userAgent)));
-  if (!isPhone || !navigator.geolocation) {
-    return Promise.resolve({});
-  }
+  const narrowTouch = !isTablet && coarsePointer && navigator.maxTouchPoints > 0
+    && Math.min(window.screen?.width || window.innerWidth, window.screen?.height || window.innerHeight) <= 820;
+  const isPhone = Boolean(navigator.userAgentData?.mobile || narrowTouch
+    || (!isTablet && /Android|iPhone|iPod|Windows Phone|Mobi|Mobile/i.test(userAgent)));
+  if (!isPhone || !navigator.geolocation) return Promise.resolve({});
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (position) => resolve({
@@ -9385,75 +9131,32 @@ function getBrowserPosition() {
   });
 }
 
-async function loadTodayAttendance() {
-  if (!isLoggedIn()) {
-    return;
-  }
-  attendanceState = { ...attendanceState, loading: true, error: "" };
-  renderAll();
-  try {
-    const result = await window.schedulerApi.getTodayAttendance();
-    attendanceState = {
-      loading: false,
-      saving: false,
-      record: result.record || null,
-      serverDate: result.serverDate || getTodayDateString(),
-      error: ""
-    };
-  } catch (error) {
-    attendanceState = {
-      loading: false,
-      saving: false,
-      record: null,
-      serverDate: getTodayDateString(),
-      error: error.message || "讀取打卡狀態失敗"
-    };
-  }
-  renderAll();
-}
-
-async function maybePromptOvertimeAfterClockOut() {
-  return false;
-}
-
-async function submitAttendanceClock(action) {
+async function submitAttendanceClock(action, workDate) {
   if (!isLoggedIn()) {
     openSignInDialog();
     return;
   }
-  if (attendanceState.saving) {
+  if (workDate !== getTodayDateString()) {
+    showInfoMessage("只能在今天的紀錄列打卡");
     return;
   }
-  const confirmed = await confirmAction(action === "clock_in" ? "確定要上班打卡嗎？" : "確定要下班打卡嗎？");
-  if (!confirmed) {
-    return;
-  }
-  attendanceState = { ...attendanceState, saving: true, error: "" };
+  if (attendanceState.saving) return;
+  const label = action === "clock_in" ? "上班" : "下班";
+  const confirmed = await confirmAction(`確定要${label}打卡嗎？`);
+  if (!confirmed) return;
+  attendanceState = { saving: true, error: "" };
   renderAll();
   try {
     const position = await getBrowserPosition();
-    const result = await window.schedulerApi.clockAttendance(action, position);
-    attendanceState = {
-      loading: false,
-      saving: false,
-      record: result.record || null,
-      serverDate: result.serverDate || getTodayDateString(),
-      error: ""
-    };
-    const overtimeStatus = action === "clock_out" ? await loadTodayAttendanceOvertime(false) : null;
-    const promptedOvertime = action === "clock_out" ? await maybePromptOvertimeAfterClockOut(overtimeStatus) : false;
-    if (!promptedOvertime) {
-      showInfoMessage(action === "clock_in" ? "上班打卡完成" : "下班打卡完成");
-    }
+    await window.schedulerApi.clockAttendance(action, position);
+    attendanceState = { saving: false, error: "" };
+    await loadRecordsPage();
+    showInfoMessage(`${label}打卡完成`);
   } catch (error) {
-    attendanceState = {
-      ...attendanceState,
-      loading: false,
-      saving: false,
-      error: error.message || "打卡失敗"
-    };
+    attendanceState = { saving: false, error: error.message || "打卡失敗" };
+    showInfoMessage(attendanceState.error);
+    renderAll();
   }
-  renderAll();
 }
 ;
 
@@ -9600,156 +9303,130 @@ async function saveTodayMealOrder() {
 ;
 
 /* ===== renderer-records-page.js ===== */
-/* 記錄頁、管理報表及分頁資料讀取控制。
- * 所有記錄功能使用正式 API 與單一狀態初始化來源。
- */
+/* 簽到簿、訂餐統計及訂餐設定資料讀取控制。 */
 
 function ensureRecordsState() {
-    const today = getTodayDateString();
-    recordsState.personalFilters = recordsState.personalFilters || {
-      fromDate: addDaysToDateString(today, -49),
-      toDate: today
-    };
-    recordsState.personalPage = Number(recordsState.personalPage || 1);
-    recordsState.personalTotal = Number(recordsState.personalTotal || 0);
-    recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
-    recordsState.mealPage = Number(recordsState.mealPage || 1);
-    recordsState.mealReportView = recordsState.mealReportView || "detail";
-    return recordsState;
-  }
+  const today = getTodayDateString();
+  recordsState.personalFilters = recordsState.personalFilters || {
+    fromDate: addDaysToDateString(today, -49),
+    toDate: today
+  };
+  recordsState.personalPage = Number(recordsState.personalPage || 1);
+  recordsState.personalTotal = Number(recordsState.personalTotal || 0);
+  recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
+  recordsState.mealPage = Number(recordsState.mealPage || 1);
+  recordsState.mealReportView = recordsState.mealReportView || "detail";
+  recordsState.attendanceReview = recordsState.attendanceReview || createRecordsState().attendanceReview;
+  return recordsState;
+}
 
-function ensureOvertimeReviewState() {
-    const current = recordsState.overtimeReview || {};
-    const filters = current.filters || {};
-    recordsState.overtimeReview = {
-      loading: Boolean(current.loading),
-      requests: current.requests || [],
-      members: current.members || [],
-      total: Number(current.total || 0),
-      page: Number(current.page || 1),
-      pageSize: Number(current.pageSize || 20),
-      filters: {
-        status: filters.status || "pending",
-        fromDate: filters.fromDate || addDaysToDateString(getTodayDateString(), -30),
-        toDate: filters.toDate || getTodayDateString(),
-        memberId: filters.memberId || ""
-      },
-      error: current.error || ""
-    };
-    return recordsState.overtimeReview;
-  }
+function ensureAttendanceReviewState() {
+  ensureRecordsState();
+  const current = recordsState.attendanceReview || {};
+  const filters = current.filters || {};
+  recordsState.attendanceReview = {
+    loading: Boolean(current.loading),
+    rows: current.rows || [],
+    members: current.members || [],
+    issueTypes: current.issueTypes || [],
+    total: Number(current.total || 0),
+    page: Number(current.page || 1),
+    pageSize: Number(current.pageSize || 50),
+    filters: {
+      status: filters.status || "unreviewed",
+      fromDate: filters.fromDate || addDaysToDateString(getTodayDateString(), -30),
+      toDate: filters.toDate || getTodayDateString(),
+      memberId: filters.memberId || "",
+      issueType: filters.issueType || ""
+    },
+    error: current.error || ""
+  };
+  return recordsState.attendanceReview;
+}
 
 async function loadRecordsPage() {
-    if (!isLoggedIn()) return;
-    ensureRecordsState();
-    recordsState = { ...recordsState, loading: true, error: "" };
-    renderAll();
-    try {
-      const result = await window.schedulerApi.getPersonalRecords({
-        ...recordsState.personalFilters,
-        page: recordsState.personalPage
-      });
-      recordsState = {
-        ...recordsState,
-        loading: false,
-        personal: result.records || [],
-        personalTotal: Number(result.total || 0),
-        personalPage: Number(result.page || 1),
-        personalPageSize: Number(result.pageSize || 50),
-        error: ""
-      };
-      if (isAdmin()) await Promise.all([loadOvertimeReview(false), loadAttendanceAdmin(false)]);
-    } catch (error) {
-      recordsState = { ...recordsState, loading: false, personal: [], error: error.message || "讀取記錄失敗" };
-    }
-    renderAll();
-  }
-
-async function loadMealReport(shouldRender = true) {
-    if (!isManager()) return;
-    ensureRecordsState();
-    recordsState = { ...recordsState, mealStats: { ...(recordsState.mealStats || {}), loading: true, error: "" } };
-    if (shouldRender) renderAll();
-    try {
-      const result = await window.schedulerApi.getMealReport({
-        ...recordsState.mealFilters,
-        page: recordsState.mealPage
-      });
-      recordsState = { ...recordsState, mealStats: result, mealPage: Number(result.page || 1) };
-    } catch (error) {
-      recordsState = { ...recordsState, mealStats: { error: error.message || "讀取訂餐統計失敗" } };
-    }
-    if (shouldRender) renderAll();
-  }
-
-async function loadOvertimeReview(shouldRender = true) {
-    if (!isAdmin()) return;
-    const review = ensureOvertimeReviewState();
+  if (!isLoggedIn()) return;
+  ensureRecordsState();
+  recordsState = { ...recordsState, loading: true, error: "" };
+  renderAll();
+  try {
+    const result = await window.schedulerApi.getPersonalRecords({
+      ...recordsState.personalFilters,
+      page: recordsState.personalPage
+    });
     recordsState = {
       ...recordsState,
-      overtimeReview: { ...review, loading: true, error: "" }
+      loading: false,
+      personal: result.records || [],
+      personalTotal: Number(result.total || 0),
+      personalPage: Number(result.page || 1),
+      personalPageSize: Number(result.pageSize || 50),
+      error: ""
     };
-    if (shouldRender) renderAll();
-    try {
-      const result = await window.schedulerApi.getOvertimeReviewList({
-        ...recordsState.overtimeReview.filters,
-        page: recordsState.overtimeReview.page
-      });
-      recordsState = {
-        ...recordsState,
-        overtimeReview: {
-          ...recordsState.overtimeReview,
-          loading: false,
-          requests: result.requests || [],
-          members: result.members || [],
-          total: Number(result.total || 0),
-          page: Number(result.page || 1),
-          pageSize: Number(result.pageSize || 20),
-          error: ""
-        }
-      };
-    } catch (error) {
-      recordsState = {
-        ...recordsState,
-        overtimeReview: {
-          ...recordsState.overtimeReview,
-          loading: false,
-          requests: [],
-          error: error.message || "讀取加班審核失敗"
-        }
-      };
-    }
-    if (shouldRender) renderAll();
+    if (isAdmin()) await loadAttendanceReview(false);
+  } catch (error) {
+    recordsState = { ...recordsState, loading: false, personal: [], error: error.message || "讀取簽到簿失敗" };
   }
+  renderAll();
+}
 
-async function loadAttendanceAdmin(shouldRender = true) {
-    if (!isAdmin()) return;
-    recordsState = { ...recordsState, attendanceAdmin: { ...recordsState.attendanceAdmin, loading: true, error: "" } };
-    if (shouldRender) renderAll();
-    try {
-      const result = await window.schedulerApi.getAttendanceAdminRecords({
-        ...recordsState.attendanceAdmin.filters,
-        page: recordsState.attendanceAdmin.page
-      });
-      recordsState = {
-        ...recordsState,
-        attendanceAdmin: {
-          ...recordsState.attendanceAdmin,
-          loading: false,
-          rows: result.rows || [],
-          members: result.members || [],
-          issueTypes: result.issueTypes || [],
-          total: Number(result.total || 0),
-          page: Number(result.page || 1),
-          pageSize: Number(result.pageSize || 50),
-          error: ""
-        }
-      };
-    } catch (error) {
-      recordsState = { ...recordsState, attendanceAdmin: { ...recordsState.attendanceAdmin, loading: false, rows: [], error: error.message || "讀取打卡管理失敗" } };
-    }
-    if (shouldRender) renderAll();
+async function loadAttendanceReview(shouldRender = true) {
+  if (!isAdmin()) return;
+  const review = ensureAttendanceReviewState();
+  recordsState = {
+    ...recordsState,
+    attendanceReview: { ...review, loading: true, error: "" }
+  };
+  if (shouldRender) renderAll();
+  try {
+    const result = await window.schedulerApi.getAttendanceReviewList({
+      ...recordsState.attendanceReview.filters,
+      page: recordsState.attendanceReview.page
+    });
+    recordsState = {
+      ...recordsState,
+      attendanceReview: {
+        ...recordsState.attendanceReview,
+        loading: false,
+        rows: result.rows || [],
+        members: result.members || [],
+        issueTypes: result.issueTypes || [],
+        total: Number(result.total || 0),
+        page: Number(result.page || 1),
+        pageSize: Number(result.pageSize || 50),
+        error: ""
+      }
+    };
+  } catch (error) {
+    recordsState = {
+      ...recordsState,
+      attendanceReview: {
+        ...recordsState.attendanceReview,
+        loading: false,
+        rows: [],
+        error: error.message || "讀取簽到審核失敗"
+      }
+    };
   }
+  if (shouldRender) renderAll();
+}
+
+async function loadMealReport(shouldRender = true) {
+  if (!isManager()) return;
+  ensureRecordsState();
+  recordsState = { ...recordsState, mealStats: { ...(recordsState.mealStats || {}), loading: true, error: "" } };
+  if (shouldRender) renderAll();
+  try {
+    const result = await window.schedulerApi.getMealReport({
+      ...recordsState.mealFilters,
+      page: recordsState.mealPage
+    });
+    recordsState = { ...recordsState, mealStats: result, mealPage: Number(result.page || 1) };
+  } catch (error) {
+    recordsState = { ...recordsState, mealStats: { error: error.message || "讀取訂餐統計失敗" } };
+  }
+  if (shouldRender) renderAll();
+}
 
 async function loadMealAdminSettings(shouldRender = true) {
   if (!isManager()) return;
@@ -9775,7 +9452,7 @@ async function loadMealAdminSettings(shouldRender = true) {
 ;
 
 /* ===== renderer-records-events.js ===== */
-/* 記錄頁篩選、分頁、批次審核與個人操作事件。 */
+/* 簽到簿篩選、分頁、員工填寫與批次審核事件。 */
 
 const recordsReloadTimers = new Map();
 
@@ -9791,8 +9468,12 @@ function scheduleRecordsReload(key, callback) {
 function bindRecordsEvents() {
   document.addEventListener("change", (event) => {
     const target = event.target;
-    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return;
 
+    if (target.dataset.personalAttendanceField !== undefined) {
+      void savePersonalAttendanceInput(target);
+      return;
+    }
     if (target.dataset.personalRecordFilter !== undefined) {
       ensureRecordsState().personalFilters[target.dataset.personalRecordFilter] = target.value;
       recordsState.personalPage = 1;
@@ -9810,27 +9491,14 @@ function bindRecordsEvents() {
       renderAll();
       return;
     }
-    if (target.dataset.overtimeReviewFilter !== undefined) {
-      ensureOvertimeReviewState().filters[target.dataset.overtimeReviewFilter] = target.value || "";
-      recordsState.overtimeReview.page = 1;
-      scheduleRecordsReload("overtime", loadOvertimeReview);
+    if (target.dataset.attendanceReviewFilter !== undefined) {
+      ensureAttendanceReviewState().filters[target.dataset.attendanceReviewFilter] = target.value || "";
+      recordsState.attendanceReview.page = 1;
+      scheduleRecordsReload("attendance-review", loadAttendanceReview);
       return;
     }
-    if (target.dataset.attendanceFilter !== undefined) {
-      const field = target.dataset.attendanceFilter;
-      if (field === "issueType") {
-        const showAll = target.value === "__all__";
-        recordsState.attendanceAdmin.filters.abnormalOnly = !showAll;
-        recordsState.attendanceAdmin.filters.issueType = showAll ? "" : target.value || "";
-      } else {
-        recordsState.attendanceAdmin.filters[field] = target.value || "";
-      }
-      recordsState.attendanceAdmin.page = 1;
-      scheduleRecordsReload("attendance", loadAttendanceAdmin);
-      return;
-    }
-    if (target instanceof HTMLInputElement && target.dataset.overtimeReviewCheckAll !== undefined) {
-      document.querySelectorAll("[data-overtime-review-check]").forEach((input) => { input.checked = target.checked; });
+    if (target instanceof HTMLInputElement && target.dataset.attendanceReviewCheckAll !== undefined) {
+      document.querySelectorAll("[data-attendance-review-check]").forEach((input) => { input.checked = target.checked; });
     }
   });
 
@@ -9847,20 +9515,13 @@ function bindRecordsEvents() {
       if (page > 0) { recordsState.mealPage = page; void loadMealReport(); }
       return;
     }
-    if (target.dataset.overtimeReviewPage) {
-      const page = Number(target.dataset.overtimeReviewPage || 1);
-      if (page > 0) { ensureOvertimeReviewState().page = page; void loadOvertimeReview(); }
+    if (target.dataset.attendanceReviewPage) {
+      const page = Number(target.dataset.attendanceReviewPage || 1);
+      if (page > 0) { ensureAttendanceReviewState().page = page; void loadAttendanceReview(); }
       return;
     }
-    if (target.dataset.attendanceAdminPage) {
-      const page = Number(target.dataset.attendanceAdminPage || 1);
-      if (page > 0) { recordsState.attendanceAdmin.page = page; void loadAttendanceAdmin(); }
-      return;
-    }
-    if (target.dataset.exportApprovedOvertime !== undefined) { void exportApprovedOvertimeReview(); return; }
-    if (target.dataset.overtimeReviewBatch) { void batchReviewOvertime(target.dataset.overtimeReviewBatch); return; }
-    if (target.dataset.adminOvertimeCreate) { void createAdminOvertimeForEmployee(target.dataset.adminOvertimeCreate); return; }
-    if (target.dataset.deleteRecordOvertime) { void deleteRecordOvertime(target.dataset.deleteRecordOvertime); return; }
+    if (target.dataset.exportAttendanceReview !== undefined) { void exportAttendanceReview(); return; }
+    if (target.dataset.attendanceReviewBatch) { void batchReviewAttendance(target.dataset.attendanceReviewBatch); return; }
     if (target.dataset.cancelRecordMeal) { void cancelMealFromRecords(); }
   });
 }
@@ -9971,201 +9632,183 @@ function getLeaveLabel(leave) {
 ;
 
 /* ===== renderer-records-actions.js ===== */
-/* 打卡管理、加班審核、個人記錄與訂餐設定操作。
- * 後載入覆蓋已整合為唯一正式函式。
- */
+/* 簽到簿、簽到審核與訂餐設定操作。 */
 
 function timeValueFromIso(value) {
   return value ? formatClockTime(value) : "";
 }
 
-function findAttendanceAdminRow(userId, workDate, recordId) {
-  return recordsState.attendanceAdmin.rows.find((row) => (
-    row.user_id === userId
-    && row.work_date === workDate
-    && (!recordId || row.id === recordId)
-  )) || null;
+function findAttendanceReviewRow(token) {
+  const [userId, workDate] = String(token || "").split(":");
+  return ensureAttendanceReviewState().rows.find((row) => row.user_id === userId && row.work_date === workDate)
+    || { user_id: userId, work_date: workDate };
 }
 
-function openAttendanceEditModal(token) {
-    const [userId, workDate, recordId] = String(token || "").split(":");
-    const row = findAttendanceAdminRow(userId, workDate, recordId) || { user_id: userId, work_date: workDate };
-    openEntityListModal({
-      title: "編輯打卡",
-      hideFooterClose: true,
-      body: `<div class="form-grid two-col">
-        <div class="form-row"><label>上班時間</label><input id="adminClockInTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_in_at))}"></div>
-        <div class="form-row"><label>上班單位</label><select id="adminClockInDepartment"><option value="">未指定</option>${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${row.clock_in_department_id === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}</select></div>
-        <div class="form-row"><label>下班時間</label><input id="adminClockOutTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_out_at))}"></div>
-        <div class="form-row"><label>下班單位</label><select id="adminClockOutDepartment"><option value="">未指定</option>${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${row.clock_out_department_id === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}</select></div>
-        <div class="form-row form-row-wide"><label>每日打卡備註</label><textarea id="adminAttendanceNote" rows="3">${escapeHtml(row.attendance_note || "")}</textarea></div>
-        <div class="form-row form-row-wide"><label>本次異動原因</label><textarea id="adminAttendanceReason" rows="2" placeholder="選填，會保存於修改歷程"></textarea></div>
-      </div>`,
-      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-attendance-edit="${escapeHtml(userId)}:${escapeHtml(workDate)}:${escapeHtml(row.id || "")}">儲存</button>`
-    });
-  }
+function openAttendanceReviewEditModal(token) {
+  const row = findAttendanceReviewRow(token);
+  openEntityListModal({
+    title: "編輯簽到紀錄",
+    hideFooterClose: true,
+    body: `<div class="form-grid two-col">
+      <div class="form-row"><label>上班時間</label><input id="reviewClockInTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_in_at))}"></div>
+      <div class="form-row"><label>下班時間</label><input id="reviewClockOutTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_out_at))}"></div>
+      <div class="form-row"><label>上班時數</label><input id="reviewRegularHours" type="number" min="0" step="0.5" value="${row.regularHours === null || row.regularHours === undefined ? "" : escapeHtml(String(row.regularHours))}"></div>
+      <div class="form-row"><label>加班時數</label><input id="reviewOvertimeHours" type="number" min="0" step="0.5" value="${row.overtimeHours === null || row.overtimeHours === undefined ? "" : escapeHtml(String(row.overtimeHours))}"></div>
+      <div class="form-row form-row-wide"><label>備註</label><textarea id="reviewAttendanceNote" rows="4">${escapeHtml(row.note || "")}</textarea></div>
+      <div class="form-row form-row-wide"><label>本次異動原因</label><textarea id="reviewAttendanceReason" rows="2" placeholder="選填，會保存於修改歷程"></textarea></div>
+    </div>`,
+    footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-attendance-review="${escapeHtml(token)}">儲存</button>`
+  });
+}
 
-async function saveAttendanceEdit(token) {
-    const [userId, workDate, recordId] = String(token || "").split(":");
-    const reason = document.getElementById("adminAttendanceReason")?.value.trim() || "";
-    try {
-      await window.schedulerApi.saveAttendanceAdminRecord({
-        id: recordId || "",
-        userId,
-        workDate,
-        clockInTime: document.getElementById("adminClockInTime")?.value || "",
-        clockInDepartmentId: document.getElementById("adminClockInDepartment")?.value || "",
-        clockOutTime: document.getElementById("adminClockOutTime")?.value || "",
-        clockOutDepartmentId: document.getElementById("adminClockOutDepartment")?.value || "",
-        attendanceNote: document.getElementById("adminAttendanceNote")?.value || "",
-        reason
-      });
-      closeModal();
-      await loadAttendanceAdmin();
-      await loadOvertimeReview(false);
-      showInfoMessage("打卡資料已更新");
-    } catch (error) {
-      setSaveStatus(`儲存打卡失敗：${error.message}`);
-    }
-  }
-
-async function openAttendanceHistoryModal(recordId) {
-    try {
-      const result = await window.schedulerApi.getAttendanceAdminHistory(recordId);
-      openEntityListModal({
-        title: "打卡修改歷程",
-        body: `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>時間</th><th>欄位</th><th>原值</th><th>新值</th><th>原因</th><th>操作人</th></tr></thead><tbody>${(result.logs || []).map((log) => `<tr><td>${formatRecordDateTime(log.created_at)}</td><td>${escapeHtml(log.field_name || log.action_type || "")}</td><td>${escapeHtml(log.old_value || "")}</td><td>${escapeHtml(log.new_value || "")}</td><td>${escapeHtml(log.reason || "")}</td><td>${escapeHtml(log.operator_name_snapshot || "")}</td></tr>`).join("") || '<tr><td colspan="6">沒有歷程</td></tr>'}</tbody></table></div>`
-      });
-    } catch (error) {
-      setSaveStatus(`讀取歷程失敗：${error.message}`);
-    }
-  }
-
-function openOvertimeReviewModal(id) {
-    const row = ensureOvertimeReviewState().requests.find((item) => item.id === id);
-    if (!row) return;
-    openEntityListModal({
-      title: "調整加班",
-      hideFooterClose: true,
-      body: `<div class="form-grid two-col">
-        <div class="form-row"><label>提早上班</label><input id="reviewEarlyHours" type="number" min="0" step="0.5" value="${Number(row.early_overtime_hours || 0)}"></div>
-        <div class="form-row"><label>延後下班</label><input id="reviewLateHours" type="number" min="0" step="0.5" value="${Number(row.late_overtime_hours || 0)}"></div>
-        <div class="form-row form-row-wide"><label>備註</label><textarea id="reviewEmployeeNote" rows="4">${escapeHtml(row.employee_note || "")}</textarea></div>
-      </div>`,
-      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-overtime-review="${escapeHtml(id)}">儲存為待審</button>`
-    });
-  }
-
-async function reviewOvertime(id, status, readHours = false) {
-    try {
-      await window.schedulerApi.reviewOvertimeRequest({
-        id,
-        status,
-        earlyHours: readHours ? document.getElementById("reviewEarlyHours")?.value : undefined,
-        lateHours: readHours ? document.getElementById("reviewLateHours")?.value : undefined,
-        employeeNote: readHours ? document.getElementById("reviewEmployeeNote")?.value || "" : undefined
-      });
-      closeModal();
-      await loadOvertimeReview();
-      showInfoMessage("加班審核已更新");
-    } catch (error) {
-      setSaveStatus(`加班審核失敗：${error.message}`);
-    }
-  }
-
-function openAdminOvertimeCreateModal() {
-    const review = ensureOvertimeReviewState();
-    openEntityListModal({
-      title: "代為申請加班",
-      hideFooterClose: true,
-      body: `<div class="form-grid two-col">
-        <div class="form-row"><label>人員</label><select id="adminOvertimeUser">${memberOptions("", review.members)}</select></div>
-        <div class="form-row"><label>日期</label><input id="adminOvertimeDate" type="date" value="${escapeHtml(getTodayDateString())}"></div>
-        <div class="form-row"><label>提早上班</label><input id="adminOvertimeEarly" type="number" min="0" step="0.5" value="0"></div>
-        <div class="form-row"><label>延後下班</label><input id="adminOvertimeLate" type="number" min="0" step="0.5" value="0"></div>
-        <div class="form-row form-row-wide"><label>備註</label><textarea id="adminOvertimeNote" rows="3"></textarea></div>
-      </div>`,
-      footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="ghost-btn" type="button" data-admin-overtime-create="pending">建立待審</button><button class="btn-primary" type="button" data-admin-overtime-create="approved">建立並核准</button>`
-    });
-  }
-
-async function createAdminOvertimeForEmployee(status) {
-    try {
-      await window.schedulerApi.createAdminOvertimeRequest({
-        userId: document.getElementById("adminOvertimeUser")?.value || "",
-        workDate: document.getElementById("adminOvertimeDate")?.value || getTodayDateString(),
-        earlyHours: document.getElementById("adminOvertimeEarly")?.value || 0,
-        lateHours: document.getElementById("adminOvertimeLate")?.value || 0,
-        note: document.getElementById("adminOvertimeNote")?.value || "",
-        status,
-        approve: status === "approved"
-      });
-      closeModal();
-      await loadOvertimeReview();
-      showInfoMessage(status === "approved" ? "已建立並核准" : "已建立待審申請");
-    } catch (error) {
-      setSaveStatus(`建立代申請失敗：${error.message}`);
-    }
-  }
-
-async function batchReviewOvertime(status) {
-    const ids = Array.from(document.querySelectorAll("[data-overtime-review-check]:checked")).map((item) => item.dataset.overtimeReviewCheck).filter(Boolean);
-    if (!ids.length) {
-      showInfoMessage("請先勾選加班申請");
-      return;
-    }
-    const confirmed = await confirmAction(`確定要將 ${ids.length} 筆申請${status === "approved" ? "核准" : "退回"}嗎？`);
-    if (!confirmed) return;
-    try {
-      await window.schedulerApi.reviewOvertimeRequest({ ids, status });
-      await loadOvertimeReview();
-      showInfoMessage("批次審核已完成");
-    } catch (error) {
-      showInfoMessage(error.message || "批次審核失敗");
-    }
-  }
-
-async function exportApprovedOvertimeReview() {
-    const filters = ensureOvertimeReviewState().filters;
-    try {
-      setSaveStatus("正在準備已核准加班資料...", true);
-      const result = await window.schedulerApi.getApprovedOvertimeExportRows({
-        fromDate: filters.fromDate,
-        toDate: filters.toDate
-      });
-      const exported = await window.schedulerApi.exportOvertime({
-        state,
-        startDate: filters.fromDate,
-        endDate: filters.toDate,
-        approvedOvertimeRows: result.rows || []
-      });
-      if (exported.empty) showInfoMessage("所選期間沒有已核准的加班資料");
-      setSaveStatus("");
-    } catch (error) {
-      setSaveStatus(`匯出加班失敗：${error.message || error}`);
-    }
-  }
-
-async function cancelMealFromRecords() {
-    const confirmed = await confirmAction("確定要取消今日整張訂單嗎？");
-    if (!confirmed) return;
-    try {
-      await window.schedulerApi.cancelTodayMealOrder();
-      await loadRecordsPage();
-      showInfoMessage("今日訂餐已取消");
-    } catch (error) {
-      showInfoMessage(error.message || "取消訂餐失敗");
-    }
-  }
-
-async function deleteRecordOvertime(workDate) {
-  const confirmed = await confirmAction(`確定刪除 ${workDate} 的加班申請嗎？`);
-  if (!confirmed) return;
+async function saveAttendanceReviewEdit(token) {
+  const row = findAttendanceReviewRow(token);
   try {
-    await window.schedulerApi.deleteAttendanceOvertime(workDate);
+    await window.schedulerApi.saveAttendanceReviewRecord({
+      userId: row.user_id,
+      workDate: row.work_date,
+      clockInTime: document.getElementById("reviewClockInTime")?.value || "",
+      clockOutTime: document.getElementById("reviewClockOutTime")?.value || "",
+      regularHours: document.getElementById("reviewRegularHours")?.value ?? "",
+      overtimeHours: document.getElementById("reviewOvertimeHours")?.value ?? "",
+      note: document.getElementById("reviewAttendanceNote")?.value || "",
+      reason: document.getElementById("reviewAttendanceReason")?.value || ""
+    });
+    closeModal();
+    await Promise.all([loadAttendanceReview(false), loadRecordsPage()]);
+    renderAll();
+    showInfoMessage("簽到資料已更新，狀態已回到未審");
+  } catch (error) {
+    setSaveStatus(`儲存簽到資料失敗：${error.message}`);
+  }
+}
+
+async function savePersonalAttendanceInput(input) {
+  if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) return;
+  const field = input.dataset.personalAttendanceField || "";
+  const workDate = input.dataset.personalAttendanceDate || "";
+  input.disabled = true;
+  try {
+    await window.schedulerApi.savePersonalAttendanceDay({ field, workDate, value: input.value });
     await loadRecordsPage();
   } catch (error) {
-    showInfoMessage(error.message || "刪除加班申請失敗");
+    input.disabled = false;
+    showInfoMessage(error.message || "儲存簽到資料失敗");
+  }
+}
+
+async function setAttendanceReviewed(token, reviewed) {
+  try {
+    await window.schedulerApi.setAttendanceReviewed({ token, reviewed });
+    await Promise.all([loadAttendanceReview(false), loadRecordsPage()]);
+    renderAll();
+    showInfoMessage(reviewed ? "已設為已審" : "已退回未審");
+  } catch (error) {
+    showInfoMessage(error.message || "審核操作失敗");
+  }
+}
+
+async function batchReviewAttendance(mode) {
+  const tokens = Array.from(document.querySelectorAll("[data-attendance-review-check]:checked"))
+    .map((item) => item.dataset.attendanceReviewCheck)
+    .filter(Boolean);
+  if (!tokens.length) {
+    showInfoMessage("請先勾選簽到紀錄");
+    return;
+  }
+  const reviewed = mode === "reviewed";
+  const confirmed = await confirmAction(`確定要將 ${tokens.length} 筆紀錄${reviewed ? "設為已審" : "退回未審"}嗎？`);
+  if (!confirmed) return;
+  try {
+    await window.schedulerApi.setAttendanceReviewed({ tokens, reviewed });
+    await Promise.all([loadAttendanceReview(false), loadRecordsPage()]);
+    renderAll();
+    showInfoMessage(reviewed ? "批次審核已完成" : "批次退回已完成");
+  } catch (error) {
+    showInfoMessage(error.message || "批次審核失敗");
+  }
+}
+
+function openAdminAttendanceCreateModal() {
+  const review = ensureAttendanceReviewState();
+  openEntityListModal({
+    title: "代為填寫簽到資料",
+    hideFooterClose: true,
+    body: `<div class="form-grid two-col">
+      <div class="form-row"><label>人員</label><select id="adminAttendanceUser">${memberOptions("", review.members)}</select></div>
+      <div class="form-row"><label>日期</label><input id="adminAttendanceDate" type="date" value="${escapeHtml(getTodayDateString())}"></div>
+      <div class="form-row"><label>上班時間</label><input id="adminAttendanceClockIn" type="time"></div>
+      <div class="form-row"><label>下班時間</label><input id="adminAttendanceClockOut" type="time"></div>
+      <div class="form-row"><label>上班時數</label><input id="adminAttendanceRegular" type="number" min="0" step="0.5"></div>
+      <div class="form-row"><label>加班時數</label><input id="adminAttendanceOvertime" type="number" min="0" step="0.5"></div>
+      <div class="form-row form-row-wide"><label>備註</label><textarea id="adminAttendanceNote" rows="3"></textarea></div>
+    </div>`,
+    footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-admin-attendance-create="true">儲存為未審</button>`
+  });
+}
+
+async function saveAdminAttendanceCreate() {
+  const userId = document.getElementById("adminAttendanceUser")?.value || "";
+  const workDate = document.getElementById("adminAttendanceDate")?.value || "";
+  if (!userId || !workDate) {
+    showInfoMessage("請選擇人員與日期");
+    return;
+  }
+  try {
+    await window.schedulerApi.saveAttendanceReviewRecord({
+      userId,
+      workDate,
+      clockInTime: document.getElementById("adminAttendanceClockIn")?.value || "",
+      clockOutTime: document.getElementById("adminAttendanceClockOut")?.value || "",
+      regularHours: document.getElementById("adminAttendanceRegular")?.value ?? "",
+      overtimeHours: document.getElementById("adminAttendanceOvertime")?.value ?? "",
+      note: document.getElementById("adminAttendanceNote")?.value || ""
+    });
+    closeModal();
+    await loadAttendanceReview();
+    showInfoMessage("簽到資料已建立");
+  } catch (error) {
+    showInfoMessage(error.message || "建立簽到資料失敗");
+  }
+}
+
+async function openAttendanceHistoryModal(recordId) {
+  try {
+    const result = await window.schedulerApi.getAttendanceHistory(recordId);
+    openEntityListModal({
+      title: "簽到修改歷程",
+      body: `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>時間</th><th>操作</th><th>原因</th><th>操作人</th></tr></thead><tbody>${(result.logs || []).map((log) => `<tr><td>${formatRecordDateTime(log.created_at)}</td><td>${escapeHtml(log.action || "")}</td><td>${escapeHtml(log.reason || "")}</td><td>${escapeHtml(log.operator_name || "")}</td></tr>`).join("") || '<tr><td colspan="4">沒有歷程</td></tr>'}</tbody></table></div>`
+    });
+  } catch (error) {
+    setSaveStatus(`讀取歷程失敗：${error.message}`);
+  }
+}
+
+async function exportAttendanceReview() {
+  const filters = ensureAttendanceReviewState().filters;
+  try {
+    setSaveStatus("正在準備已審加班資料...", true);
+    const result = await window.schedulerApi.exportAttendanceReview({
+      fromDate: filters.fromDate,
+      toDate: filters.toDate,
+      memberId: filters.memberId
+    });
+    if (result.empty) showInfoMessage("所選期間沒有已審資料");
+    setSaveStatus("");
+  } catch (error) {
+    setSaveStatus(`匯出加班失敗：${error.message || error}`);
+  }
+}
+
+async function cancelMealFromRecords() {
+  const confirmed = await confirmAction("確定要取消今日整張訂單嗎？");
+  if (!confirmed) return;
+  try {
+    await window.schedulerApi.cancelTodayMealOrder();
+    await loadRecordsPage();
+    showInfoMessage("今日訂餐已取消");
+  } catch (error) {
+    showInfoMessage(error.message || "取消訂餐失敗");
   }
 }
 
@@ -10232,28 +9875,22 @@ async function saveMealSettingsFromPage() {
 ;
 
 /* ===== renderer-app-shell.js ===== */
-/* 記錄頁、主視圖切換與全畫面渲染協調。
- * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
- */
+/* 簽到簿、主視圖切換與全畫面渲染協調。 */
 
 function renderRecordsPage() {
   const recordsCard = document.getElementById("recordsCard");
-  if (!recordsCard) {
-    return;
-  }
+  if (!recordsCard) return;
   if (!isLoggedIn()) {
     recordsCard.innerHTML = "";
     return;
   }
-  const activeSection = recordsState.activeTab === "overtime"
-      ? renderOvertimeReviewSection()
-      : recordsState.activeTab === "attendance"
-        ? renderAttendanceAdminSection()
-        : renderPersonalRecordsSection();
+  const activeSection = recordsState.activeTab === "review"
+    ? renderAttendanceReviewSection()
+    : renderPersonalRecordsSection();
   recordsCard.innerHTML = `
     <div class="clock-page-header">
       <div>
-        <p class="home-eyebrow">記錄</p>
+        <p class="home-eyebrow">簽到簿</p>
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
       </div>
       ${renderHomeIconButton()}
@@ -10268,34 +9905,19 @@ function renderRecordsPage() {
 function syncAppView() {
   const loggedIn = isLoggedIn();
   const homeCard = document.getElementById("homeCard");
-  const clockCard = document.getElementById("clockCard");
   const mealCard = document.getElementById("mealCard");
   const recordsCard = document.getElementById("recordsCard");
   const scheduleCard = document.getElementById("scheduleCard");
   const toolbarCard = document.querySelector(".toolbar-card");
   const showSchedule = loggedIn && appView === "schedule";
   const showToolbar = showSchedule && isManager();
-  if (homeCard) {
-    homeCard.hidden = !loggedIn || appView !== "home";
-  }
-  if (clockCard) {
-    clockCard.hidden = !loggedIn || appView !== "clock";
-  }
-  if (mealCard) {
-    mealCard.hidden = !loggedIn || appView !== "meal";
-  }
-  if (recordsCard) {
-    recordsCard.hidden = !loggedIn || appView !== "records";
-  }
-  if (scheduleCard) {
-    scheduleCard.hidden = !showSchedule;
-  }
-  if (toolbarCard) {
-    toolbarCard.hidden = !showToolbar;
-  }
+  if (homeCard) homeCard.hidden = !loggedIn || appView !== "home";
+  if (mealCard) mealCard.hidden = !loggedIn || appView !== "meal";
+  if (recordsCard) recordsCard.hidden = !loggedIn || appView !== "records";
+  if (scheduleCard) scheduleCard.hidden = !showSchedule;
+  if (toolbarCard) toolbarCard.hidden = !showToolbar;
   document.body.classList.toggle("is-authenticated", loggedIn);
   document.body.classList.toggle("is-home-view", loggedIn && appView === "home");
-  document.body.classList.toggle("is-clock-view", loggedIn && appView === "clock");
   document.body.classList.toggle("is-meal-view", loggedIn && appView === "meal");
   document.body.classList.toggle("is-records-view", loggedIn && appView === "records");
   document.body.classList.toggle("is-schedule-view", showSchedule);
@@ -10305,7 +9927,6 @@ function renderAll() {
   renderHeader();
   renderToolbar();
   renderHomeDashboard();
-  renderClockPage();
   renderMealPage();
   renderRecordsPage();
   renderTable();
@@ -11764,8 +11385,7 @@ function bindScheduleSessionEvents() {
     currentMember = null;
     managerDirectoryLoaded = false;
     managerDirectoryLoading = null;
-    attendanceState = { loading: false, saving: false, record: null, serverDate: "", error: "" };
-    attendanceOvertimeState = { loading: false, expanded: false, status: null, error: "" };
+    attendanceState = createAttendanceState();
     mealOrderState = { loading: false, status: null, error: "" };
     recordsState = createRecordsState();
     state = createEmptyState();
@@ -11817,11 +11437,6 @@ function bindDelegatedClickEvents() {
         renderAll();
         return;
       }
-      if (target.dataset.homeAction === "clock") {
-        appView = "clock";
-        await loadTodayAttendance();
-        return;
-      }
       if (target.dataset.homeAction === "schedule") {
         try {
           await ensureManagerDirectoryLoaded();
@@ -11849,16 +11464,8 @@ function bindDelegatedClickEvents() {
       showInfoMessage(comingSoon[target.dataset.homeAction] || "此功能尚未開放");
       return;
     }
-    if (target.dataset.clockAction) {
-      await submitAttendanceClock(target.dataset.clockAction);
-      return;
-    }
-    if (target.dataset.submitTodayOvertime) {
-      await submitTodayOvertimeRequest();
-      return;
-    }
-    if (target.dataset.deleteTodayOvertime) {
-      await deleteTodayOvertimeRequest();
+    if (target.dataset.personalClockAction) {
+      await submitAttendanceClock(target.dataset.personalClockAction, target.dataset.personalClockDate || "");
       return;
     }
     if (target.dataset.saveTodayMeal) {
@@ -11892,45 +11499,24 @@ function bindDelegatedClickEvents() {
       if (result.empty) showInfoMessage("目前沒有可匯出的訂餐資料");
       return;
     }
-    if (target.dataset.loadOvertimeReview) {
-      await loadOvertimeReview();
+    if (target.dataset.editAttendanceReview) {
+      openAttendanceReviewEditModal(target.dataset.editAttendanceReview);
       return;
     }
-    if (target.dataset.openOvertimeReview) {
-      openOvertimeReviewModal(target.dataset.openOvertimeReview);
+    if (target.dataset.saveAttendanceReview) {
+      await saveAttendanceReviewEdit(target.dataset.saveAttendanceReview);
       return;
     }
-    if (target.dataset.approveOvertime) {
-      await reviewOvertime(target.dataset.approveOvertime, "approved");
+    if (target.dataset.toggleAttendanceReview) {
+      await setAttendanceReviewed(target.dataset.toggleAttendanceReview, target.dataset.reviewed !== "true");
       return;
     }
-    if (target.dataset.returnOvertime) {
-      await reviewOvertime(target.dataset.returnOvertime, "returned");
+    if (target.dataset.openAdminAttendanceCreate) {
+      openAdminAttendanceCreateModal();
       return;
     }
-    if (target.dataset.saveOvertimeReview) {
-      await reviewOvertime(target.dataset.saveOvertimeReview, "pending", true);
-      return;
-    }
-    if (target.dataset.openAdminOvertimeCreate) {
-      openAdminOvertimeCreateModal();
-      return;
-    }
-    if (target.dataset.saveAdminOvertimeCreate) {
-      await saveAdminOvertimeCreate();
-      return;
-    }
-    if (target.dataset.loadAttendanceAdmin) {
-      recordsState.attendanceAdmin.page = 1;
-      await loadAttendanceAdmin();
-      return;
-    }
-    if (target.dataset.editAttendance) {
-      openAttendanceEditModal(target.dataset.editAttendance);
-      return;
-    }
-    if (target.dataset.saveAttendanceEdit) {
-      await saveAttendanceEdit(target.dataset.saveAttendanceEdit);
+    if (target.dataset.saveAdminAttendanceCreate !== undefined) {
+      await saveAdminAttendanceCreate();
       return;
     }
     if (target.dataset.viewAttendanceHistory) {
@@ -12257,15 +11843,6 @@ function bindDelegatedFormEvents() {
       const field = target.dataset.memberSettingsFilterField;
       memberSettingsFilters[field] = target.value || (field === "employment" ? "active" : "all");
       openMemberSettings();
-      return;
-    }
-    if (target instanceof HTMLInputElement && target.dataset.toggleOvertimePanel) {
-      attendanceOvertimeState = { ...attendanceOvertimeState, expanded: target.checked };
-      if (target.checked && !attendanceOvertimeState.status && !attendanceOvertimeState.loading) {
-        void loadTodayAttendanceOvertime();
-      } else {
-        renderAll();
-      }
       return;
     }
     if (!(target instanceof HTMLInputElement)) {
@@ -12714,7 +12291,6 @@ let currentMember = null;
 let managerDirectoryLoaded = false;
 let managerDirectoryLoading = null;
 let attendanceState = createAttendanceState();
-let attendanceOvertimeState = createAttendanceOvertimeState();
 let mealOrderState = createMealOrderState();
 let mealOrderLoadSequence = 0;
 let mealPageTab = "order";

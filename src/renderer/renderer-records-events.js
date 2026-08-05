@@ -1,4 +1,4 @@
-/* 記錄頁篩選、分頁、批次審核與個人操作事件。 */
+/* 簽到簿篩選、分頁、員工填寫與批次審核事件。 */
 
 const recordsReloadTimers = new Map();
 
@@ -14,8 +14,12 @@ function scheduleRecordsReload(key, callback) {
 function bindRecordsEvents() {
   document.addEventListener("change", (event) => {
     const target = event.target;
-    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return;
 
+    if (target.dataset.personalAttendanceField !== undefined) {
+      void savePersonalAttendanceInput(target);
+      return;
+    }
     if (target.dataset.personalRecordFilter !== undefined) {
       ensureRecordsState().personalFilters[target.dataset.personalRecordFilter] = target.value;
       recordsState.personalPage = 1;
@@ -33,27 +37,14 @@ function bindRecordsEvents() {
       renderAll();
       return;
     }
-    if (target.dataset.overtimeReviewFilter !== undefined) {
-      ensureOvertimeReviewState().filters[target.dataset.overtimeReviewFilter] = target.value || "";
-      recordsState.overtimeReview.page = 1;
-      scheduleRecordsReload("overtime", loadOvertimeReview);
+    if (target.dataset.attendanceReviewFilter !== undefined) {
+      ensureAttendanceReviewState().filters[target.dataset.attendanceReviewFilter] = target.value || "";
+      recordsState.attendanceReview.page = 1;
+      scheduleRecordsReload("attendance-review", loadAttendanceReview);
       return;
     }
-    if (target.dataset.attendanceFilter !== undefined) {
-      const field = target.dataset.attendanceFilter;
-      if (field === "issueType") {
-        const showAll = target.value === "__all__";
-        recordsState.attendanceAdmin.filters.abnormalOnly = !showAll;
-        recordsState.attendanceAdmin.filters.issueType = showAll ? "" : target.value || "";
-      } else {
-        recordsState.attendanceAdmin.filters[field] = target.value || "";
-      }
-      recordsState.attendanceAdmin.page = 1;
-      scheduleRecordsReload("attendance", loadAttendanceAdmin);
-      return;
-    }
-    if (target instanceof HTMLInputElement && target.dataset.overtimeReviewCheckAll !== undefined) {
-      document.querySelectorAll("[data-overtime-review-check]").forEach((input) => { input.checked = target.checked; });
+    if (target instanceof HTMLInputElement && target.dataset.attendanceReviewCheckAll !== undefined) {
+      document.querySelectorAll("[data-attendance-review-check]").forEach((input) => { input.checked = target.checked; });
     }
   });
 
@@ -70,20 +61,13 @@ function bindRecordsEvents() {
       if (page > 0) { recordsState.mealPage = page; void loadMealReport(); }
       return;
     }
-    if (target.dataset.overtimeReviewPage) {
-      const page = Number(target.dataset.overtimeReviewPage || 1);
-      if (page > 0) { ensureOvertimeReviewState().page = page; void loadOvertimeReview(); }
+    if (target.dataset.attendanceReviewPage) {
+      const page = Number(target.dataset.attendanceReviewPage || 1);
+      if (page > 0) { ensureAttendanceReviewState().page = page; void loadAttendanceReview(); }
       return;
     }
-    if (target.dataset.attendanceAdminPage) {
-      const page = Number(target.dataset.attendanceAdminPage || 1);
-      if (page > 0) { recordsState.attendanceAdmin.page = page; void loadAttendanceAdmin(); }
-      return;
-    }
-    if (target.dataset.exportApprovedOvertime !== undefined) { void exportApprovedOvertimeReview(); return; }
-    if (target.dataset.overtimeReviewBatch) { void batchReviewOvertime(target.dataset.overtimeReviewBatch); return; }
-    if (target.dataset.adminOvertimeCreate) { void createAdminOvertimeForEmployee(target.dataset.adminOvertimeCreate); return; }
-    if (target.dataset.deleteRecordOvertime) { void deleteRecordOvertime(target.dataset.deleteRecordOvertime); return; }
+    if (target.dataset.exportAttendanceReview !== undefined) { void exportAttendanceReview(); return; }
+    if (target.dataset.attendanceReviewBatch) { void batchReviewAttendance(target.dataset.attendanceReviewBatch); return; }
     if (target.dataset.cancelRecordMeal) { void cancelMealFromRecords(); }
   });
 }

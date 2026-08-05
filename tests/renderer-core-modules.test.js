@@ -11,13 +11,13 @@ function evaluateModule(fileName, exportExpression, context = {}) {
   return vm.runInNewContext(`${source}\n;${exportExpression}`, context);
 }
 
-test("renderer foundation 應保留目錄與預設狀態", () => {
+test("renderer foundation 應保留目錄與每日簽到預設狀態", () => {
   const foundation = evaluateModule(
     "renderer-foundation.js",
     "({ COLORS, LEAVE_CATALOG, DEFAULT_STATE, ROLE_OPTIONS, createRecordsState })",
     {
       getTodayDateString: () => "2026-07-12",
-      addDaysToDateString: (value, days) => days === -30 ? "2026-06-12" : value
+      addDaysToDateString: (value, days) => days === -30 ? "2026-06-12" : days === -49 ? "2026-05-24" : value
     }
   );
 
@@ -28,8 +28,12 @@ test("renderer foundation 應保留目錄與預設狀態", () => {
 
   const records = foundation.createRecordsState();
   assert.equal(records.mealFilters.fromDate, "2026-07-12");
-  assert.equal(records.overtimeReview.filters.fromDate, "2026-06-12");
-  assert.equal(records.attendanceAdmin.filters.abnormalOnly, true);
+  assert.equal(records.personalFilters.fromDate, "2026-05-24");
+  assert.equal(records.attendanceReview.filters.fromDate, "2026-06-12");
+  assert.equal(records.attendanceReview.filters.status, "unreviewed");
+  assert.equal(records.attendanceReview.rows.length, 0);
+  assert.equal(Object.hasOwn(records, "overtimeReview"), false);
+  assert.equal(Object.hasOwn(records, "attendanceAdmin"), false);
 });
 
 test("日期與時間工具應正確處理格式及區間", () => {

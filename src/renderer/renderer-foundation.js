@@ -131,11 +131,7 @@ const REST_WEEKDAY_OPTIONS = [
 const SCHEDULE_HISTORY_LIMIT = 20;
 
 function createAttendanceState() {
-  return { loading: false, saving: false, record: null, serverDate: "", error: "" };
-}
-
-function createAttendanceOvertimeState() {
-  return { loading: false, expanded: false, status: null, error: "" };
+  return { saving: false, error: "" };
 }
 
 function createMealOrderState() {
@@ -145,7 +141,6 @@ function createMealOrderState() {
 function resetLoadedUserRuntimeState() {
   currentMember = null;
   attendanceState = createAttendanceState();
-  attendanceOvertimeState = createAttendanceOvertimeState();
   mealOrderState = createMealOrderState();
   recordsState = createRecordsState();
   appInfo = null;
@@ -157,10 +152,29 @@ function createRecordsState() {
     loading: false,
     activeTab: "personal",
     personal: [],
+    personalFilters: { fromDate: addDaysToDateString(today, -49), toDate: today },
+    personalPage: 1,
+    personalTotal: 0,
+    personalPageSize: 50,
     mealStats: null,
     mealFilters: { fromDate: today, toDate: today, departmentId: "", memberId: "" },
-    overtimeReview: { loading: false, requests: [], members: [], filters: { status: "pending", fromDate: addDaysToDateString(today, -30), toDate: today }, error: "" },
-    attendanceAdmin: { loading: false, rows: [], members: [], issueTypes: [], total: 0, page: 1, filters: { fromDate: today, toDate: today, memberId: "", abnormalOnly: true, issueType: "" }, error: "" },
+    attendanceReview: {
+      loading: false,
+      rows: [],
+      members: [],
+      issueTypes: [],
+      total: 0,
+      page: 1,
+      pageSize: 50,
+      filters: {
+        status: "unreviewed",
+        fromDate: addDaysToDateString(today, -30),
+        toDate: today,
+        memberId: "",
+        issueType: ""
+      },
+      error: ""
+    },
     mealAdmin: { loading: false, products: [], settings: { daily_cutoff_time: "10:30" }, error: "" },
     error: ""
   };
