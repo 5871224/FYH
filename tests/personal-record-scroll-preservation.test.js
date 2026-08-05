@@ -23,3 +23,5 @@ test("個人記錄重繪會保存並還原視窗及表格捲動位置", () => {
   assert.match(actions, /const scrollSnapshot = captureRecordsScrollPosition\(\);\s*renderAll\(\);\s*restoreRecordsScrollPosition\(scrollSnapshot\);/);
   assert.match(spec, /必須保留視窗垂直位置及表格水平／垂直捲動位置/);
 });
+
+// 同時驗證規格文件與正式來源保持一致。
