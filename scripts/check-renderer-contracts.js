@@ -37,7 +37,6 @@ const foundation = read("src/renderer/renderer-foundation.js");
 const shell = read("src/renderer/renderer-app-shell.js");
 const mainPages = read("src/renderer/renderer-main-pages.js");
 const webApi = read("src/renderer/web-api.js");
-const css = read("src/renderer/app.css");
 const build = read("scripts/build-js.js");
 const coreSource = read("scripts/renderer-core-source.js");
 const deployment = read("scripts/deploy-edge-functions.ps1");
@@ -45,7 +44,9 @@ const attendanceClock = read("supabase/functions/attendance-clock/index.ts");
 const attendanceLedger = read("supabase/functions/attendance-ledger/index.ts");
 const attendanceExport = read("supabase/functions/attendance-ledger-export/index.ts");
 const mealOrder = read("supabase/functions/meal-order/index.ts");
-const schema = read("supabase/001_current_schema.sql") + "\n" + read("supabase/002_current_updates.sql") + "\n" + read("supabase/003_attendance_ledger.sql") + "\n" + read("supabase/004_remove_legacy_attendance.sql");
+const ledgerSql = read("supabase/003_attendance_ledger.sql");
+const cleanupSql = read("supabase/004_remove_legacy_attendance.sql");
+const schema = read("supabase/001_current_schema.sql") + "\n" + read("supabase/002_current_updates.sql") + "\n" + ledgerSql + "\n" + cleanupSql;
 
 for (const file of [
   "renderer-foundation.js",
@@ -76,10 +77,10 @@ for (const oldEndpoint of ["personal-records-v2", "attendance-admin-list-v2", "a
   assert(!webApi.includes(oldEndpoint), `web-api 仍引用舊端點：${oldEndpoint}`);
 }
 
-assert(schema.includes("create table if not exists public.attendance_days"), "SQL 缺少 attendance_days");
-assert(schema.includes("create table if not exists public.attendance_audit_logs"), "SQL 缺少 attendance_audit_logs");
-assert(schema.includes("drop table if exists public.attendance_records"), "SQL 未移除舊 attendance_records");
-assert(schema.includes("drop table if exists public.attendance_overtime_requests"), "SQL 未移除舊加班申請表");
+assert(ledgerSql.includes("create table if not exists public.attendance_days"), "SQL 缺少 attendance_days");
+assert(ledgerSql.includes("create table if not exists public.attendance_audit_logs"), "SQL 缺少 attendance_audit_logs");
+assert(cleanupSql.includes("drop table if exists public.attendance_records"), "清理 SQL 未移除舊 attendance_records");
+assert(cleanupSql.includes("drop table if exists public.attendance_overtime_requests"), "清理 SQL 未移除舊加班申請表");
 assert(schema.includes("public.attendance_days") && schema.includes("public.attendance_audit_logs"), "SQL 未使用新版每日簽到模型");
 
 for (const name of ["attendance-clock", "attendance-ledger", "attendance-ledger-export", "meal-order"]) assert(deployment.includes(`\"${name}\"`), `部署清單缺少：${name}`);
