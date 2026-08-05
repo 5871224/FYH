@@ -8495,13 +8495,15 @@ function renderPersonalClockCell(record) {
     ${record.clockIn ? "" : `<button class="ghost-btn compact-btn" type="button" data-personal-clock-action="clock_in" data-personal-clock-date="${escapeHtml(record.date)}">上班打卡</button>`}
     ${record.clockOut ? "" : `<button class="ghost-btn compact-btn" type="button" data-personal-clock-action="clock_out" data-personal-clock-date="${escapeHtml(record.date)}">下班打卡</button>`}
   </div>` : "";
-  return `<div class="attendance-clock-stack">${lines.join("") || '<span class="attendance-empty-value">-</span>'}${buttons}</div>`;
+  return `<div class="attendance-clock-stack">${lines.join("")}${buttons}</div>`;
 }
 
 function renderPersonalHoursInput(record, field) {
   const value = record[field];
   const editable = record.editable !== false && !record.reviewed;
-  return `<input class="attendance-hours-input" type="number" min="0" step="0.5" inputmode="decimal" value="${value === null || value === undefined ? "" : escapeHtml(String(value))}" data-personal-attendance-field="${field}" data-personal-attendance-date="${escapeHtml(record.date)}" ${editable ? "" : "disabled"}>`;
+  const displayValue = value === null || value === undefined ? "" : escapeHtml(String(value));
+  if (!editable) return `<span class="attendance-hours-value">${displayValue}</span>`;
+  return `<input class="attendance-hours-input" type="number" min="0" step="0.5" inputmode="decimal" value="${displayValue}" data-personal-attendance-field="${field}" data-personal-attendance-date="${escapeHtml(record.date)}">`;
 }
 
 function renderReviewStatus(reviewed) {
@@ -8525,19 +8527,19 @@ function renderPersonalRecordsSection() {
     </div>
     ${attendanceState.error ? `<div class="auth-error">${escapeHtml(attendanceState.error)}</div>` : ""}
     <div class="records-table-wrap"><table class="records-table personal-record-table attendance-ledger-table">
-      <thead><tr><th>日期</th><th class="personal-schedule-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>上班時數</th><th>加班時數</th><th>備註</th><th>訂餐</th><th>審核</th></tr></thead>
+      <thead><tr><th class="personal-record-date-col">日期</th><th class="personal-schedule-icon-col">圖示</th><th class="personal-record-shift-col">班別</th><th class="personal-record-clock-col">打卡時間</th><th class="personal-record-hours-col">上班時數</th><th class="personal-record-hours-col">加班時數</th><th class="personal-record-note-col">備註</th><th class="personal-record-meal-col">訂餐</th><th class="personal-record-review-col">審核</th></tr></thead>
       <tbody>${(recordsState.personal || []).map((record) => `<tr class="${record.date === getTodayDateString() ? "is-today-row" : ""}">
-        <td>${escapeHtml(record.date || "")}</td>
+        <td class="personal-record-date-col">${escapeHtml(record.date || "")}</td>
         <td class="personal-schedule-icon-col">${renderScheduleIcon(record)}</td>
-        <td>${escapeHtml(record.shiftName || "-")}<br><span>${escapeHtml(record.shiftTime || "")}</span></td>
-        <td>${renderPersonalClockCell(record)}</td>
-        <td>${renderPersonalHoursInput(record, "regularHours")}</td>
-        <td>${renderPersonalHoursInput(record, "overtimeHours")}</td>
-        <td>${record.editable !== false && !record.reviewed
-          ? `<textarea class="attendance-note-input" rows="2" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}">${escapeHtml(record.note || "")}</textarea>`
+        <td class="personal-record-shift-col">${escapeHtml(record.shiftName || "-")}<br><span>${escapeHtml(record.shiftTime || "")}</span></td>
+        <td class="personal-record-clock-col">${renderPersonalClockCell(record)}</td>
+        <td class="personal-record-hours-col">${renderPersonalHoursInput(record, "regularHours")}</td>
+        <td class="personal-record-hours-col">${renderPersonalHoursInput(record, "overtimeHours")}</td>
+        <td class="personal-record-note-col">${record.editable !== false && !record.reviewed
+          ? `<input class="attendance-note-input" type="text" value="${escapeHtml(record.note || "")}" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}">`
           : escapeHtml(record.note || "")}</td>
-        <td><span class="meal-record-text">${escapeHtml(record.mealText || "-")}</span>${record.mealClockDeletedWarning ? '<br><span class="auth-error-inline">所依據的上班打卡已被刪除</span>' : ""}</td>
-        <td>${renderReviewStatus(record.reviewed)}</td>
+        <td class="personal-record-meal-col"><span class="meal-record-text">${escapeHtml(record.mealText || "-")}</span>${record.mealClockDeletedWarning ? '<br><span class="auth-error-inline">所依據的上班打卡已被刪除</span>' : ""}</td>
+        <td class="personal-record-review-col">${renderReviewStatus(record.reviewed)}</td>
       </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
     </table></div>
     <div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>
