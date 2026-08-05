@@ -29,7 +29,9 @@ jobs:
       - run: npm ci
       - name: Apply attendance review and stability changes
         run: |
-          base64 -d scripts/attendance-review-page-stability.py.gz.b64 | gzip -d | python -
+          base64 -d scripts/attendance-review-page-stability.py.gz.b64 | gzip -d > scripts/one-shot-attendance-review-page-stability.py
+          python scripts/one-shot-attendance-review-page-stability.py
+          rm -f scripts/one-shot-attendance-review-page-stability.py
           rm -f scripts/attendance-review-page-stability.py.gz.b64
           rm -f .github/workflows/run-attendance-review-page-stability.yml
           npm run web:publish
