@@ -95,7 +95,7 @@ function renderPersonalClockCell(record) {
 }
 
 function renderPersonalHoursInput(record, field) {
-  const value = record[field];
+  const value = getPersonalAttendanceValue(record, field);
   const editable = record.editable !== false && !record.reviewed;
   const displayValue = value === null || value === undefined ? "" : escapeHtml(String(value));
   if (!editable) return `<span class="attendance-hours-value">${displayValue}</span>`;
@@ -132,7 +132,7 @@ function renderPersonalRecordsSection() {
         <td class="personal-record-hours-col">${renderPersonalHoursInput(record, "regularHours")}</td>
         <td class="personal-record-hours-col">${renderPersonalHoursInput(record, "overtimeHours")}</td>
         <td class="personal-record-note-col">${record.editable !== false && !record.reviewed
-          ? `<input class="attendance-note-input" type="text" value="${escapeHtml(record.note || "")}" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}">`
+          ? `<input class="attendance-note-input" type="text" value="${escapeHtml(String(getPersonalAttendanceValue(record, "note") ?? ""))}" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}">`
           : escapeHtml(record.note || "")}</td>
         <td class="personal-record-meal-col"><span class="meal-record-text">${escapeHtml(record.mealText || "-")}</span>${record.mealClockDeletedWarning ? '<br><span class="auth-error-inline">所依據的上班打卡已被刪除</span>' : ""}</td>
         <td class="personal-record-review-col">${renderReviewStatus(record.reviewed)}</td>
@@ -250,7 +250,6 @@ function renderAttendanceReviewSection() {
         </select></label>
       </div>
       <div class="records-admin-actions overtime-review-actions attendance-review-actions">
-        <button class="ghost-btn compact-btn" type="button" data-open-admin-attendance-create="true">代為申請</button>
         <button class="ghost-btn compact-btn" type="button" data-export-attendance-review="true">匯出加班</button>
         <button class="primary-btn compact-btn" type="button" data-attendance-review-batch="reviewed">批次審核</button>
         <button class="ghost-btn compact-btn" type="button" data-attendance-review-batch="returned">批次退回</button>
@@ -259,25 +258,25 @@ function renderAttendanceReviewSection() {
     ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
     <div class="records-table-wrap">
       <table class="records-table attendance-review-table">
-        <thead><tr><th class="overtime-review-check-col"><input type="checkbox" data-attendance-review-check-all></th><th>日期</th><th>員工</th><th class="attendance-schedule-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>上班時數</th><th>加班時數</th><th>備註</th><th>異常</th><th>狀態</th><th>操作</th></tr></thead>
+        <thead><tr><th class="attendance-review-check-col"><input type="checkbox" data-attendance-review-check-all></th><th class="attendance-review-date-col">日期</th><th class="attendance-review-employee-col">員工</th><th class="attendance-schedule-icon-col">圖示</th><th class="attendance-review-shift-col">班別</th><th class="attendance-review-clock-col">打卡時間</th><th class="attendance-review-hours-col">上班時數</th><th class="attendance-review-hours-col">加班時數</th><th class="attendance-review-note-col">備註</th><th class="attendance-review-issue-col">異常</th><th class="attendance-review-status-col">狀態</th><th class="attendance-review-operation-col">操作</th></tr></thead>
         <tbody>${rows.map((row) => {
           const token = `${row.user_id}:${row.work_date}`;
           return `<tr>
-            <td class="overtime-review-check-col"><input type="checkbox" data-attendance-review-check="${escapeHtml(token)}"></td>
-            <td>${escapeHtml(row.work_date || "")}</td>
-            <td>${escapeHtml(row.employee_name || "")}<br><span>${escapeHtml(row.employee_code || "")}</span></td>
+            <td class="attendance-review-check-col"><input type="checkbox" data-attendance-review-check="${escapeHtml(token)}"></td>
+            <td class="attendance-review-date-col">${escapeHtml(row.work_date || "")}</td>
+            <td class="attendance-review-employee-col">${escapeHtml(row.employee_name || "")}</td>
             <td class="attendance-schedule-icon-col">${renderScheduleIcon(row)}</td>
-            <td>${escapeHtml(row.shiftName || "-")}<br><span>${escapeHtml(row.shiftTime || "")}</span></td>
-            <td>${renderPunchLine("上班", row.clock_in_at, row.clock_in_location) || "-"}${renderPunchLine("下班", row.clock_out_at, row.clock_out_location)}</td>
-            <td>${row.regularHours === null || row.regularHours === undefined ? "" : escapeHtml(String(row.regularHours))}</td>
-            <td>${row.overtimeHours === null || row.overtimeHours === undefined ? "" : escapeHtml(String(row.overtimeHours))}</td>
-            <td>${escapeHtml(row.note || "")}</td>
-            <td>${escapeHtml((row.issues || []).join("、") || "正常")}</td>
-            <td>${renderReviewStatus(row.reviewed)}</td>
-            <td><div class="attendance-review-row-actions">
-              <button class="ghost-btn compact-btn" type="button" data-edit-attendance-review="${escapeHtml(token)}">編輯</button>
-              <button class="compact-btn attendance-review-toggle ${row.reviewed ? "is-reviewed" : "is-unreviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}">${row.reviewed ? "已審" : "未審"}</button>
-              ${row.id ? `<button class="settings-icon-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}
+            <td class="attendance-review-shift-col">${escapeHtml(row.shiftName || "-")}<br><span>${escapeHtml(row.shiftTime || "")}</span></td>
+            <td class="attendance-review-clock-col">${renderPunchLine("上班", row.clock_in_at, row.clock_in_location) || "-"}${renderPunchLine("下班", row.clock_out_at, row.clock_out_location)}</td>
+            <td class="attendance-review-hours-col">${row.regularHours === null || row.regularHours === undefined ? "" : escapeHtml(String(row.regularHours))}</td>
+            <td class="attendance-review-hours-col">${row.overtimeHours === null || row.overtimeHours === undefined ? "" : escapeHtml(String(row.overtimeHours))}</td>
+            <td class="attendance-review-note-col">${escapeHtml(row.note || "")}</td>
+            <td class="attendance-review-issue-col">${escapeHtml((row.issues || []).join("、") || "正常")}</td>
+            <td class="attendance-review-status-col">${renderReviewStatus(row.reviewed)}</td>
+            <td class="attendance-review-operation-col"><div class="attendance-review-row-actions">
+              <button class="settings-icon-btn attendance-review-action-btn" type="button" data-edit-attendance-review="${escapeHtml(token)}" aria-label="編輯" title="編輯"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
+              <button class="settings-icon-btn attendance-review-action-btn attendance-review-toggle ${row.reviewed ? "is-reviewed" : "is-unreviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}" aria-label="${row.reviewed ? "取消審核" : "審核"}" title="${row.reviewed ? "取消審核" : "審核"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l1 2h3v15H5V6h3l1-2z"></path><path d="m9 13 2 2 4-5"></path></svg></button>
+              ${row.id ? `<button class="settings-icon-btn attendance-review-action-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}
             </div></td>
           </tr>`;
         }).join("") || '<tr><td colspan="12">沒有資料</td></tr>'}</tbody>

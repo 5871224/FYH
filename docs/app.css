@@ -5780,6 +5780,82 @@ body:not(.is-authenticated) .toolbar-card {
   text-align: center;
 }
 
+.attendance-review-table {
+  table-layout: fixed;
+  min-width: 1020px;
+}
+
+.attendance-review-table .attendance-review-check-col {
+  width: 32px;
+  padding-right: 4px;
+  padding-left: 4px;
+  text-align: center;
+}
+
+.attendance-review-table .attendance-review-date-col {
+  width: 92px;
+  white-space: nowrap;
+}
+
+.attendance-review-table .attendance-review-employee-col {
+  width: 94px;
+}
+
+.attendance-review-table .attendance-schedule-icon-col {
+  width: var(--day-col-width);
+  min-width: var(--day-col-width);
+  max-width: var(--day-col-width);
+  padding: 2px;
+  text-align: center;
+}
+
+.attendance-review-table th.attendance-schedule-icon-col {
+  padding-right: 2px;
+  padding-left: 2px;
+}
+
+.attendance-review-table .personal-record-schedule-cell {
+  width: 100%;
+  min-height: 36px;
+}
+
+.attendance-review-table .personal-record-schedule-cell .seg-label {
+  color: inherit;
+  font-size: inherit;
+}
+
+.attendance-review-table .attendance-review-shift-col {
+  width: 94px;
+}
+
+.attendance-review-table .attendance-review-clock-col {
+  width: 136px;
+}
+
+.attendance-review-table .attendance-review-hours-col {
+  width: 70px;
+  text-align: center;
+}
+
+.attendance-review-table .attendance-review-note-col {
+  width: 112px;
+}
+
+.attendance-review-table .attendance-review-issue-col {
+  width: 76px;
+}
+
+.attendance-review-table .attendance-review-status-col {
+  width: 58px;
+  text-align: center;
+}
+
+.attendance-review-table .attendance-review-operation-col {
+  width: 108px;
+  padding-right: 4px;
+  padding-left: 4px;
+}
+
 .attendance-ledger-table td {
   overflow: hidden;
 }
@@ -5820,6 +5896,22 @@ body:not(.is-authenticated) .toolbar-card {
 .attendance-review-row-actions {
   align-items: center;
   flex-wrap: wrap;
+}
+
+.attendance-review-row-actions {
+  min-width: 0;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.attendance-review-row-actions .attendance-review-action-btn {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  flex: 0 0 30px;
 }
 
 .attendance-clock-buttons [data-personal-clock-action] {
@@ -5882,8 +5974,8 @@ body:not(.is-authenticated) .toolbar-card {
 }
 
 .attendance-review-toggle {
-  min-height: 34px;
-  border-radius: 8px;
+  padding: 0;
+  border-radius: 999px;
   font-weight: 800;
   cursor: pointer;
 }

@@ -41,7 +41,7 @@ async function saveAttendanceReviewEdit(token) {
       reason: document.getElementById("reviewAttendanceReason")?.value || ""
     });
     closeModal();
-    await Promise.all([loadAttendanceReview(false), loadRecordsPage()]);
+    await Promise.all([loadAttendanceReview(false), loadRecordsPage(false)]);
     renderAll();
     showInfoMessage("簽到資料已更新，狀態已回到未審");
   } catch (error) {
@@ -53,12 +53,14 @@ async function savePersonalAttendanceInput(input) {
   if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) return;
   const field = input.dataset.personalAttendanceField || "";
   const workDate = input.dataset.personalAttendanceDate || "";
-  input.disabled = true;
+  const submittedValue = input.value;
+  setPersonalAttendanceDraft(workDate, field, submittedValue);
   try {
-    await window.schedulerApi.savePersonalAttendanceDay({ field, workDate, value: input.value });
-    await loadRecordsPage();
+    await window.schedulerApi.savePersonalAttendanceDay({ field, workDate, value: submittedValue });
+    await loadRecordsPage(false);
+    clearPersonalAttendanceDraft(workDate, field, submittedValue);
+    renderAll();
   } catch (error) {
-    input.disabled = false;
     showInfoMessage(error.message || "儲存簽到資料失敗");
   }
 }
@@ -66,7 +68,7 @@ async function savePersonalAttendanceInput(input) {
 async function setAttendanceReviewed(token, reviewed) {
   try {
     await window.schedulerApi.setAttendanceReviewed({ token, reviewed });
-    await Promise.all([loadAttendanceReview(false), loadRecordsPage()]);
+    await Promise.all([loadAttendanceReview(false), loadRecordsPage(false)]);
     renderAll();
     showInfoMessage(reviewed ? "已設為已審" : "已退回未審");
   } catch (error) {
@@ -87,7 +89,7 @@ async function batchReviewAttendance(mode) {
   if (!confirmed) return;
   try {
     await window.schedulerApi.setAttendanceReviewed({ tokens, reviewed });
-    await Promise.all([loadAttendanceReview(false), loadRecordsPage()]);
+    await Promise.all([loadAttendanceReview(false), loadRecordsPage(false)]);
     renderAll();
     showInfoMessage(reviewed ? "批次審核已完成" : "批次退回已完成");
   } catch (error) {
@@ -95,48 +97,6 @@ async function batchReviewAttendance(mode) {
   }
 }
 
-function openAdminAttendanceCreateModal() {
-  const review = ensureAttendanceReviewState();
-  openEntityListModal({
-    title: "代為填寫簽到資料",
-    hideFooterClose: true,
-    body: `<div class="form-grid two-col">
-      <div class="form-row"><label>人員</label><select id="adminAttendanceUser">${memberOptions("", review.members)}</select></div>
-      <div class="form-row"><label>日期</label><input id="adminAttendanceDate" type="date" value="${escapeHtml(getTodayDateString())}"></div>
-      <div class="form-row"><label>上班時間</label><input id="adminAttendanceClockIn" type="time"></div>
-      <div class="form-row"><label>下班時間</label><input id="adminAttendanceClockOut" type="time"></div>
-      <div class="form-row"><label>上班時數</label><input id="adminAttendanceRegular" type="number" min="0" step="0.5"></div>
-      <div class="form-row"><label>加班時數</label><input id="adminAttendanceOvertime" type="number" min="0" step="0.5"></div>
-      <div class="form-row form-row-wide"><label>備註</label><textarea id="adminAttendanceNote" rows="3"></textarea></div>
-    </div>`,
-    footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-admin-attendance-create="true">儲存為未審</button>`
-  });
-}
-
-async function saveAdminAttendanceCreate() {
-  const userId = document.getElementById("adminAttendanceUser")?.value || "";
-  const workDate = document.getElementById("adminAttendanceDate")?.value || "";
-  if (!userId || !workDate) {
-    showInfoMessage("請選擇人員與日期");
-    return;
-  }
-  try {
-    await window.schedulerApi.saveAttendanceReviewRecord({
-      userId,
-      workDate,
-      clockInTime: document.getElementById("adminAttendanceClockIn")?.value || "",
-      clockOutTime: document.getElementById("adminAttendanceClockOut")?.value || "",
-      regularHours: document.getElementById("adminAttendanceRegular")?.value ?? "",
-      overtimeHours: document.getElementById("adminAttendanceOvertime")?.value ?? "",
-      note: document.getElementById("adminAttendanceNote")?.value || ""
-    });
-    closeModal();
-    await loadAttendanceReview();
-    showInfoMessage("簽到資料已建立");
-  } catch (error) {
-    showInfoMessage(error.message || "建立簽到資料失敗");
-  }
-}
 
 async function openAttendanceHistoryModal(recordId) {
   try {

@@ -9,10 +9,37 @@ function ensureRecordsState() {
   recordsState.personalPage = Number(recordsState.personalPage || 1);
   recordsState.personalTotal = Number(recordsState.personalTotal || 0);
   recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
+  recordsState.personalDrafts = recordsState.personalDrafts || {};
   recordsState.mealPage = Number(recordsState.mealPage || 1);
   recordsState.mealReportView = recordsState.mealReportView || "detail";
   recordsState.attendanceReview = recordsState.attendanceReview || createRecordsState().attendanceReview;
   return recordsState;
+}
+
+function personalAttendanceDraftKey(workDate, field) {
+  return `${workDate}|${field}`;
+}
+
+function setPersonalAttendanceDraft(workDate, field, value) {
+  if (!workDate || !field) return;
+  const current = ensureRecordsState();
+  current.personalDrafts[personalAttendanceDraftKey(workDate, field)] = value;
+}
+
+function getPersonalAttendanceValue(record, field) {
+  const current = ensureRecordsState();
+  const key = personalAttendanceDraftKey(record?.date || "", field);
+  return Object.prototype.hasOwnProperty.call(current.personalDrafts, key)
+    ? current.personalDrafts[key]
+    : record?.[field];
+}
+
+function clearPersonalAttendanceDraft(workDate, field, expectedValue) {
+  const current = ensureRecordsState();
+  const key = personalAttendanceDraftKey(workDate, field);
+  if (!Object.prototype.hasOwnProperty.call(current.personalDrafts, key)) return;
+  if (arguments.length >= 3 && current.personalDrafts[key] !== expectedValue) return;
+  delete current.personalDrafts[key];
 }
 
 function ensureAttendanceReviewState() {
@@ -39,11 +66,11 @@ function ensureAttendanceReviewState() {
   return recordsState.attendanceReview;
 }
 
-async function loadRecordsPage() {
+async function loadRecordsPage(shouldRender = true) {
   if (!isLoggedIn()) return;
   ensureRecordsState();
   recordsState = { ...recordsState, loading: true, error: "" };
-  renderAll();
+  if (shouldRender) renderAll();
   try {
     const result = await window.schedulerApi.getPersonalRecords({
       ...recordsState.personalFilters,
@@ -62,7 +89,7 @@ async function loadRecordsPage() {
   } catch (error) {
     recordsState = { ...recordsState, loading: false, personal: [], error: error.message || "讀取簽到簿失敗" };
   }
-  renderAll();
+  if (shouldRender) renderAll();
 }
 
 async function loadAttendanceReview(shouldRender = true) {
