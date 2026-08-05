@@ -142,4 +142,19 @@ drop table if exists public.attendance_overtime_requests cascade;
 drop table if exists public.attendance_action_logs cascade;
 drop table if exists public.attendance_records cascade;
 
+do $$
+begin
+  if to_regclass('public.attendance_days') is null
+    or to_regclass('public.attendance_audit_logs') is null then
+    raise exception '新版每日簽到資料表不存在';
+  end if;
+
+  if to_regclass('public.attendance_records') is not null
+    or to_regclass('public.attendance_action_logs') is not null
+    or to_regclass('public.attendance_overtime_requests') is not null
+    or to_regclass('public.overtime_review_logs') is not null then
+    raise exception '舊出勤資料表仍未完整移除';
+  end if;
+end $$;
+
 commit;
