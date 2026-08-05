@@ -33,6 +33,13 @@ jobs:
             exit 0
           fi
           python scripts/one-shot-personal-record-layout.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/personal-record-table-layout.test.js')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('assert.equal(source.includes("attendance-empty-value">-"), false);', 'assert.equal(source.includes("attendance-empty-value"), false);')
+          path.write_text(text, encoding='utf-8')
+          PY
           npm run web:publish
           npm test
           npm run ci:check
