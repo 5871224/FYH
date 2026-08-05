@@ -59,7 +59,9 @@ async function savePersonalAttendanceInput(input) {
     await window.schedulerApi.savePersonalAttendanceDay({ field, workDate, value: submittedValue });
     await loadRecordsPage(false);
     clearPersonalAttendanceDraft(workDate, field, submittedValue);
+    const scrollSnapshot = captureRecordsScrollPosition();
     renderAll();
+    restoreRecordsScrollPosition(scrollSnapshot);
   } catch (error) {
     showInfoMessage(error.message || "儲存簽到資料失敗");
   }
