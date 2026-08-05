@@ -42,6 +42,35 @@ function clearPersonalAttendanceDraft(workDate, field, expectedValue) {
   delete current.personalDrafts[key];
 }
 
+function captureRecordsScrollPosition() {
+  return {
+    windowX: window.scrollX,
+    windowY: window.scrollY,
+    tableWraps: Array.from(document.querySelectorAll("#recordsCard .records-table-wrap"))
+      .filter((element) => element instanceof HTMLElement)
+      .map((element, index) => ({
+        index,
+        top: element.scrollTop,
+        left: element.scrollLeft
+      }))
+  };
+}
+
+function restoreRecordsScrollPosition(snapshot) {
+  if (!snapshot) return;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    window.scrollTo(snapshot.windowX, snapshot.windowY);
+    const tableWraps = Array.from(document.querySelectorAll("#recordsCard .records-table-wrap"))
+      .filter((element) => element instanceof HTMLElement);
+    snapshot.tableWraps.forEach((entry) => {
+      const element = tableWraps[entry.index];
+      if (!element) return;
+      element.scrollTop = entry.top;
+      element.scrollLeft = entry.left;
+    });
+  }));
+}
+
 function ensureAttendanceReviewState() {
   ensureRecordsState();
   const current = recordsState.attendanceReview || {};
