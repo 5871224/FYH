@@ -111,14 +111,6 @@ function bindDelegatedClickEvents() {
       await setAttendanceReviewed(target.dataset.toggleAttendanceReview, target.dataset.reviewed !== "true");
       return;
     }
-    if (target.dataset.openAdminAttendanceCreate) {
-      openAdminAttendanceCreateModal();
-      return;
-    }
-    if (target.dataset.saveAdminAttendanceCreate !== undefined) {
-      await saveAdminAttendanceCreate();
-      return;
-    }
     if (target.dataset.viewAttendanceHistory) {
       await openAttendanceHistoryModal(target.dataset.viewAttendanceHistory);
       return;

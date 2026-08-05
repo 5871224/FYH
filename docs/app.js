@@ -3448,6 +3448,7 @@ function createRecordsState() {
     loading: false,
     activeTab: "personal",
     personal: [],
+    personalDrafts: {},
     personalFilters: { fromDate: addDaysToDateString(today, -49), toDate: today },
     personalPage: 1,
     personalTotal: 0,
@@ -8499,7 +8500,7 @@ function renderPersonalClockCell(record) {
 }
 
 function renderPersonalHoursInput(record, field) {
-  const value = record[field];
+  const value = getPersonalAttendanceValue(record, field);
   const editable = record.editable !== false && !record.reviewed;
   const displayValue = value === null || value === undefined ? "" : escapeHtml(String(value));
   if (!editable) return `<span class="attendance-hours-value">${displayValue}</span>`;
@@ -8536,7 +8537,7 @@ function renderPersonalRecordsSection() {
         <td class="personal-record-hours-col">${renderPersonalHoursInput(record, "regularHours")}</td>
         <td class="personal-record-hours-col">${renderPersonalHoursInput(record, "overtimeHours")}</td>
         <td class="personal-record-note-col">${record.editable !== false && !record.reviewed
-          ? `<input class="attendance-note-input" type="text" value="${escapeHtml(record.note || "")}" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}">`
+          ? `<input class="attendance-note-input" type="text" value="${escapeHtml(String(getPersonalAttendanceValue(record, "note") ?? ""))}" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}">`
           : escapeHtml(record.note || "")}</td>
         <td class="personal-record-meal-col"><span class="meal-record-text">${escapeHtml(record.mealText || "-")}</span>${record.mealClockDeletedWarning ? '<br><span class="auth-error-inline">所依據的上班打卡已被刪除</span>' : ""}</td>
         <td class="personal-record-review-col">${renderReviewStatus(record.reviewed)}</td>
@@ -8654,7 +8655,6 @@ function renderAttendanceReviewSection() {
         </select></label>
       </div>
       <div class="records-admin-actions overtime-review-actions attendance-review-actions">
-        <button class="ghost-btn compact-btn" type="button" data-open-admin-attendance-create="true">代為申請</button>
         <button class="ghost-btn compact-btn" type="button" data-export-attendance-review="true">匯出加班</button>
         <button class="primary-btn compact-btn" type="button" data-attendance-review-batch="reviewed">批次審核</button>
         <button class="ghost-btn compact-btn" type="button" data-attendance-review-batch="returned">批次退回</button>
@@ -8663,25 +8663,25 @@ function renderAttendanceReviewSection() {
     ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
     <div class="records-table-wrap">
       <table class="records-table attendance-review-table">
-        <thead><tr><th class="overtime-review-check-col"><input type="checkbox" data-attendance-review-check-all></th><th>日期</th><th>員工</th><th class="attendance-schedule-icon-col">圖示</th><th>班別</th><th>打卡時間</th><th>上班時數</th><th>加班時數</th><th>備註</th><th>異常</th><th>狀態</th><th>操作</th></tr></thead>
+        <thead><tr><th class="attendance-review-check-col"><input type="checkbox" data-attendance-review-check-all></th><th class="attendance-review-date-col">日期</th><th class="attendance-review-employee-col">員工</th><th class="attendance-schedule-icon-col">圖示</th><th class="attendance-review-shift-col">班別</th><th class="attendance-review-clock-col">打卡時間</th><th class="attendance-review-hours-col">上班時數</th><th class="attendance-review-hours-col">加班時數</th><th class="attendance-review-note-col">備註</th><th class="attendance-review-issue-col">異常</th><th class="attendance-review-status-col">狀態</th><th class="attendance-review-operation-col">操作</th></tr></thead>
         <tbody>${rows.map((row) => {
           const token = `${row.user_id}:${row.work_date}`;
           return `<tr>
-            <td class="overtime-review-check-col"><input type="checkbox" data-attendance-review-check="${escapeHtml(token)}"></td>
-            <td>${escapeHtml(row.work_date || "")}</td>
-            <td>${escapeHtml(row.employee_name || "")}<br><span>${escapeHtml(row.employee_code || "")}</span></td>
+            <td class="attendance-review-check-col"><input type="checkbox" data-attendance-review-check="${escapeHtml(token)}"></td>
+            <td class="attendance-review-date-col">${escapeHtml(row.work_date || "")}</td>
+            <td class="attendance-review-employee-col">${escapeHtml(row.employee_name || "")}</td>
             <td class="attendance-schedule-icon-col">${renderScheduleIcon(row)}</td>
-            <td>${escapeHtml(row.shiftName || "-")}<br><span>${escapeHtml(row.shiftTime || "")}</span></td>
-            <td>${renderPunchLine("上班", row.clock_in_at, row.clock_in_location) || "-"}${renderPunchLine("下班", row.clock_out_at, row.clock_out_location)}</td>
-            <td>${row.regularHours === null || row.regularHours === undefined ? "" : escapeHtml(String(row.regularHours))}</td>
-            <td>${row.overtimeHours === null || row.overtimeHours === undefined ? "" : escapeHtml(String(row.overtimeHours))}</td>
-            <td>${escapeHtml(row.note || "")}</td>
-            <td>${escapeHtml((row.issues || []).join("、") || "正常")}</td>
-            <td>${renderReviewStatus(row.reviewed)}</td>
-            <td><div class="attendance-review-row-actions">
-              <button class="ghost-btn compact-btn" type="button" data-edit-attendance-review="${escapeHtml(token)}">編輯</button>
-              <button class="compact-btn attendance-review-toggle ${row.reviewed ? "is-reviewed" : "is-unreviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}">${row.reviewed ? "已審" : "未審"}</button>
-              ${row.id ? `<button class="settings-icon-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}
+            <td class="attendance-review-shift-col">${escapeHtml(row.shiftName || "-")}<br><span>${escapeHtml(row.shiftTime || "")}</span></td>
+            <td class="attendance-review-clock-col">${renderPunchLine("上班", row.clock_in_at, row.clock_in_location) || "-"}${renderPunchLine("下班", row.clock_out_at, row.clock_out_location)}</td>
+            <td class="attendance-review-hours-col">${row.regularHours === null || row.regularHours === undefined ? "" : escapeHtml(String(row.regularHours))}</td>
+            <td class="attendance-review-hours-col">${row.overtimeHours === null || row.overtimeHours === undefined ? "" : escapeHtml(String(row.overtimeHours))}</td>
+            <td class="attendance-review-note-col">${escapeHtml(row.note || "")}</td>
+            <td class="attendance-review-issue-col">${escapeHtml((row.issues || []).join("、") || "正常")}</td>
+            <td class="attendance-review-status-col">${renderReviewStatus(row.reviewed)}</td>
+            <td class="attendance-review-operation-col"><div class="attendance-review-row-actions">
+              <button class="settings-icon-btn attendance-review-action-btn" type="button" data-edit-attendance-review="${escapeHtml(token)}" aria-label="編輯" title="編輯"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
+              <button class="settings-icon-btn attendance-review-action-btn attendance-review-toggle ${row.reviewed ? "is-reviewed" : "is-unreviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}" aria-label="${row.reviewed ? "取消審核" : "審核"}" title="${row.reviewed ? "取消審核" : "審核"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l1 2h3v15H5V6h3l1-2z"></path><path d="m9 13 2 2 4-5"></path></svg></button>
+              ${row.id ? `<button class="settings-icon-btn attendance-review-action-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}
             </div></td>
           </tr>`;
         }).join("") || '<tr><td colspan="12">沒有資料</td></tr>'}</tbody>
@@ -9316,10 +9316,37 @@ function ensureRecordsState() {
   recordsState.personalPage = Number(recordsState.personalPage || 1);
   recordsState.personalTotal = Number(recordsState.personalTotal || 0);
   recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
+  recordsState.personalDrafts = recordsState.personalDrafts || {};
   recordsState.mealPage = Number(recordsState.mealPage || 1);
   recordsState.mealReportView = recordsState.mealReportView || "detail";
   recordsState.attendanceReview = recordsState.attendanceReview || createRecordsState().attendanceReview;
   return recordsState;
+}
+
+function personalAttendanceDraftKey(workDate, field) {
+  return `${workDate}|${field}`;
+}
+
+function setPersonalAttendanceDraft(workDate, field, value) {
+  if (!workDate || !field) return;
+  const current = ensureRecordsState();
+  current.personalDrafts[personalAttendanceDraftKey(workDate, field)] = value;
+}
+
+function getPersonalAttendanceValue(record, field) {
+  const current = ensureRecordsState();
+  const key = personalAttendanceDraftKey(record?.date || "", field);
+  return Object.prototype.hasOwnProperty.call(current.personalDrafts, key)
+    ? current.personalDrafts[key]
+    : record?.[field];
+}
+
+function clearPersonalAttendanceDraft(workDate, field, expectedValue) {
+  const current = ensureRecordsState();
+  const key = personalAttendanceDraftKey(workDate, field);
+  if (!Object.prototype.hasOwnProperty.call(current.personalDrafts, key)) return;
+  if (arguments.length >= 3 && current.personalDrafts[key] !== expectedValue) return;
+  delete current.personalDrafts[key];
 }
 
 function ensureAttendanceReviewState() {
@@ -9346,11 +9373,11 @@ function ensureAttendanceReviewState() {
   return recordsState.attendanceReview;
 }
 
-async function loadRecordsPage() {
+async function loadRecordsPage(shouldRender = true) {
   if (!isLoggedIn()) return;
   ensureRecordsState();
   recordsState = { ...recordsState, loading: true, error: "" };
-  renderAll();
+  if (shouldRender) renderAll();
   try {
     const result = await window.schedulerApi.getPersonalRecords({
       ...recordsState.personalFilters,
@@ -9369,7 +9396,7 @@ async function loadRecordsPage() {
   } catch (error) {
     recordsState = { ...recordsState, loading: false, personal: [], error: error.message || "讀取簽到簿失敗" };
   }
-  renderAll();
+  if (shouldRender) renderAll();
 }
 
 async function loadAttendanceReview(shouldRender = true) {
@@ -9468,6 +9495,17 @@ function scheduleRecordsReload(key, callback) {
 }
 
 function bindRecordsEvents() {
+  document.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+    if (target.dataset.personalAttendanceField === undefined) return;
+    setPersonalAttendanceDraft(
+      target.dataset.personalAttendanceDate || "",
+      target.dataset.personalAttendanceField || "",
+      target.value
+    );
+  });
+
   document.addEventListener("change", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return;
@@ -9677,7 +9715,7 @@ async function saveAttendanceReviewEdit(token) {
       reason: document.getElementById("reviewAttendanceReason")?.value || ""
     });
     closeModal();
-    await Promise.all([loadAttendanceReview(false), loadRecordsPage()]);
+    await Promise.all([loadAttendanceReview(false), loadRecordsPage(false)]);
     renderAll();
     showInfoMessage("簽到資料已更新，狀態已回到未審");
   } catch (error) {
@@ -9689,12 +9727,14 @@ async function savePersonalAttendanceInput(input) {
   if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) return;
   const field = input.dataset.personalAttendanceField || "";
   const workDate = input.dataset.personalAttendanceDate || "";
-  input.disabled = true;
+  const submittedValue = input.value;
+  setPersonalAttendanceDraft(workDate, field, submittedValue);
   try {
-    await window.schedulerApi.savePersonalAttendanceDay({ field, workDate, value: input.value });
-    await loadRecordsPage();
+    await window.schedulerApi.savePersonalAttendanceDay({ field, workDate, value: submittedValue });
+    await loadRecordsPage(false);
+    clearPersonalAttendanceDraft(workDate, field, submittedValue);
+    renderAll();
   } catch (error) {
-    input.disabled = false;
     showInfoMessage(error.message || "儲存簽到資料失敗");
   }
 }
@@ -9702,7 +9742,7 @@ async function savePersonalAttendanceInput(input) {
 async function setAttendanceReviewed(token, reviewed) {
   try {
     await window.schedulerApi.setAttendanceReviewed({ token, reviewed });
-    await Promise.all([loadAttendanceReview(false), loadRecordsPage()]);
+    await Promise.all([loadAttendanceReview(false), loadRecordsPage(false)]);
     renderAll();
     showInfoMessage(reviewed ? "已設為已審" : "已退回未審");
   } catch (error) {
@@ -9723,7 +9763,7 @@ async function batchReviewAttendance(mode) {
   if (!confirmed) return;
   try {
     await window.schedulerApi.setAttendanceReviewed({ tokens, reviewed });
-    await Promise.all([loadAttendanceReview(false), loadRecordsPage()]);
+    await Promise.all([loadAttendanceReview(false), loadRecordsPage(false)]);
     renderAll();
     showInfoMessage(reviewed ? "批次審核已完成" : "批次退回已完成");
   } catch (error) {
@@ -9731,48 +9771,6 @@ async function batchReviewAttendance(mode) {
   }
 }
 
-function openAdminAttendanceCreateModal() {
-  const review = ensureAttendanceReviewState();
-  openEntityListModal({
-    title: "代為填寫簽到資料",
-    hideFooterClose: true,
-    body: `<div class="form-grid two-col">
-      <div class="form-row"><label>人員</label><select id="adminAttendanceUser">${memberOptions("", review.members)}</select></div>
-      <div class="form-row"><label>日期</label><input id="adminAttendanceDate" type="date" value="${escapeHtml(getTodayDateString())}"></div>
-      <div class="form-row"><label>上班時間</label><input id="adminAttendanceClockIn" type="time"></div>
-      <div class="form-row"><label>下班時間</label><input id="adminAttendanceClockOut" type="time"></div>
-      <div class="form-row"><label>上班時數</label><input id="adminAttendanceRegular" type="number" min="0" step="0.5"></div>
-      <div class="form-row"><label>加班時數</label><input id="adminAttendanceOvertime" type="number" min="0" step="0.5"></div>
-      <div class="form-row form-row-wide"><label>備註</label><textarea id="adminAttendanceNote" rows="3"></textarea></div>
-    </div>`,
-    footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-admin-attendance-create="true">儲存為未審</button>`
-  });
-}
-
-async function saveAdminAttendanceCreate() {
-  const userId = document.getElementById("adminAttendanceUser")?.value || "";
-  const workDate = document.getElementById("adminAttendanceDate")?.value || "";
-  if (!userId || !workDate) {
-    showInfoMessage("請選擇人員與日期");
-    return;
-  }
-  try {
-    await window.schedulerApi.saveAttendanceReviewRecord({
-      userId,
-      workDate,
-      clockInTime: document.getElementById("adminAttendanceClockIn")?.value || "",
-      clockOutTime: document.getElementById("adminAttendanceClockOut")?.value || "",
-      regularHours: document.getElementById("adminAttendanceRegular")?.value ?? "",
-      overtimeHours: document.getElementById("adminAttendanceOvertime")?.value ?? "",
-      note: document.getElementById("adminAttendanceNote")?.value || ""
-    });
-    closeModal();
-    await loadAttendanceReview();
-    showInfoMessage("簽到資料已建立");
-  } catch (error) {
-    showInfoMessage(error.message || "建立簽到資料失敗");
-  }
-}
 
 async function openAttendanceHistoryModal(recordId) {
   try {
@@ -11513,14 +11511,6 @@ function bindDelegatedClickEvents() {
       await setAttendanceReviewed(target.dataset.toggleAttendanceReview, target.dataset.reviewed !== "true");
       return;
     }
-    if (target.dataset.openAdminAttendanceCreate) {
-      openAdminAttendanceCreateModal();
-      return;
-    }
-    if (target.dataset.saveAdminAttendanceCreate !== undefined) {
-      await saveAdminAttendanceCreate();
-      return;
-    }
     if (target.dataset.viewAttendanceHistory) {
       await openAttendanceHistoryModal(target.dataset.viewAttendanceHistory);
       return;
@@ -12352,7 +12342,6 @@ async function loadApp() {
     resetScheduleWindowToToday();
     await ensureVisibleScheduleLoaded();
     currentMember = resolveCurrentMember();
-    appView = "home";
   } catch (error) {
     setSaveStatus(`載入失敗：${error.message}`);
     authErrorMessage = error.message || "載入失敗";

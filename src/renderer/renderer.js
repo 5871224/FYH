@@ -79,7 +79,6 @@ async function loadApp() {
     resetScheduleWindowToToday();
     await ensureVisibleScheduleLoaded();
     currentMember = resolveCurrentMember();
-    appView = "home";
   } catch (error) {
     setSaveStatus(`載入失敗：${error.message}`);
     authErrorMessage = error.message || "載入失敗";

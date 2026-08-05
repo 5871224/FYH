@@ -152,6 +152,7 @@ function createRecordsState() {
     loading: false,
     activeTab: "personal",
     personal: [],
+    personalDrafts: {},
     personalFilters: { fromDate: addDaysToDateString(today, -49), toDate: today },
     personalPage: 1,
     personalTotal: 0,

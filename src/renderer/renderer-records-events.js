@@ -12,6 +12,17 @@ function scheduleRecordsReload(key, callback) {
 }
 
 function bindRecordsEvents() {
+  document.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+    if (target.dataset.personalAttendanceField === undefined) return;
+    setPersonalAttendanceDraft(
+      target.dataset.personalAttendanceDate || "",
+      target.dataset.personalAttendanceField || "",
+      target.value
+    );
+  });
+
   document.addEventListener("change", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return;
