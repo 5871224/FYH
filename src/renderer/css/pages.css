@@ -394,11 +394,11 @@
 
 .attendance-ledger-table {
   table-layout: fixed;
-  min-width: 1010px;
+  min-width: 916px;
 }
 
 .attendance-ledger-table .personal-record-date-col {
-  width: 112px;
+  width: 98px;
 }
 
 .attendance-ledger-table .personal-schedule-icon-col {
@@ -406,28 +406,28 @@
 }
 
 .attendance-ledger-table .personal-record-shift-col {
-  width: 112px;
+  width: 104px;
 }
 
 .attendance-ledger-table .personal-record-clock-col {
-  width: 150px;
+  width: 128px;
 }
 
 .attendance-ledger-table .personal-record-hours-col {
-  width: 102px;
+  width: 88px;
   text-align: center;
 }
 
 .attendance-ledger-table .personal-record-note-col {
-  width: 190px;
+  width: 170px;
 }
 
 .attendance-ledger-table .personal-record-meal-col {
-  width: 132px;
+  width: 124px;
 }
 
 .attendance-ledger-table .personal-record-review-col {
-  width: 64px;
+  width: 68px;
   padding-right: 6px;
   padding-left: 6px;
   text-align: center;
@@ -473,6 +473,27 @@
 .attendance-review-row-actions {
   align-items: center;
   flex-wrap: wrap;
+}
+
+.attendance-clock-buttons [data-personal-clock-action] {
+  border: none;
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 4px 10px rgba(72, 52, 31, 0.16);
+}
+
+.attendance-clock-buttons [data-personal-clock-action="clock_in"] {
+  background: linear-gradient(135deg, #c9832f 0%, #9b5c17 100%);
+}
+
+.attendance-clock-buttons [data-personal-clock-action="clock_out"] {
+  background: linear-gradient(135deg, #3f8b63 0%, #286346 100%);
+}
+
+.attendance-clock-buttons [data-personal-clock-action]:hover {
+  color: #fff;
+  filter: brightness(1.06);
+  transform: translateY(-1px);
 }
 
 .attendance-hours-input {

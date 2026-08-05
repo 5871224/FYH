@@ -28,6 +28,6 @@ test("備註使用單行輸入框並限制在欄內", () => {
   assert.equal(source.includes('<input class="attendance-note-input" type="text"'), true);
   assert.equal(css.includes(".personal-record-note-col"), true);
   assert.equal(css.includes(".personal-record-review-col"), true);
-  assert.equal(css.includes("width: 64px;"), true);
+  assert.equal(css.includes("width: 68px;"), true);
   assert.equal(css.includes("width: 100%;"), true);
 });
