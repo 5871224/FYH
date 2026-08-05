@@ -4,6 +4,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CSS = ROOT / "src/renderer/css/pages.css"
 SPEC = ROOT / "規格書.md"
 TEST = ROOT / "tests/personal-record-clock-layout.test.js"
+LEGACY_TEST = ROOT / "tests/personal-record-table-layout.test.js"
 
 
 def read(path: Path) -> str:
@@ -17,7 +18,7 @@ def write(path: Path, text: str) -> None:
 css = read(CSS)
 
 width_replacements = {
-    "  min-width: 1010px;": "  min-width: 920px;",
+    "  min-width: 1010px;": "  min-width: 916px;",
     "  width: 112px;\n}\n\n.attendance-ledger-table .personal-schedule-icon-col": "  width: 98px;\n}\n\n.attendance-ledger-table .personal-schedule-icon-col",
     "  width: 112px;\n}\n\n.attendance-ledger-table .personal-record-clock-col": "  width: 104px;\n}\n\n.attendance-ledger-table .personal-record-clock-col",
     "  width: 150px;": "  width: 128px;",
@@ -84,6 +85,13 @@ if marker not in spec:
 '''
 write(SPEC, spec)
 
+legacy_test = read(LEGACY_TEST)
+old_expectation = '  assert.equal(css.includes("width: 64px;"), true);'
+new_expectation = '  assert.equal(css.includes("width: 68px;"), true);'
+if old_expectation not in legacy_test:
+    raise RuntimeError("找不到舊審核欄寬測試")
+write(LEGACY_TEST, legacy_test.replace(old_expectation, new_expectation, 1))
+
 TEST.write_text('''const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -93,7 +101,7 @@ const root = path.resolve(__dirname, "..");
 const css = fs.readFileSync(path.join(root, "src/renderer/css/pages.css"), "utf8");
 
 test("個人記錄表格縮窄打卡欄並保留完整審核欄", () => {
-  assert.match(css, /\\.attendance-ledger-table \\{[\\s\\S]*?min-width: 920px;/);
+  assert.match(css, /\\.attendance-ledger-table \\{[\\s\\S]*?min-width: 916px;/);
   assert.match(css, /\\.personal-record-clock-col \\{\\s*width: 128px;/);
   assert.match(css, /\\.personal-record-review-col \\{\\s*width: 68px;/);
   assert.equal(css.includes("min-width: 1010px;"), false);
