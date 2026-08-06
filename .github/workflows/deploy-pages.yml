@@ -33,13 +33,16 @@ jobs:
         run: npm ci
 
       - name: Consolidate canonical implementation
-        run: python .github/canonical-cleanup.py
+        run: |
+          python .github/canonical-cleanup.py
+          python .github/canonical-cleanup-fixes.py
 
-      - name: Restore permanent workflow and remove task script
+      - name: Restore permanent workflow and remove task scripts
         run: |
           git fetch origin main
           git show origin/main:.github/workflows/deploy-pages.yml > .github/workflows/deploy-pages.yml
           rm -f .github/canonical-cleanup.py
+          rm -f .github/canonical-cleanup-fixes.py
 
       - name: Build static web
         run: npm run web:publish
