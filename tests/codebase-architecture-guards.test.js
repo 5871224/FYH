@@ -60,10 +60,25 @@ test("正式目錄不得保留一次性遷移腳本、失效檢查與未部署�
     "scripts/check-rest-compliance.js",
     "scripts/check-unused-supabase-tables.js",
     "supabase/functions/attendance-overtime/index.ts",
-    "supabase/functions/member-auth-admin-v2/index.ts"
+    "supabase/functions/member-auth-admin-v2/index.ts",
+    "src/renderer/renderer-period-exports.js",
+    "src/renderer/renderer-export-availability.js",
+    "supabase/003_attendance_ledger.sql",
+    "supabase/004_remove_legacy_attendance.sql"
   ].filter((file) => fs.existsSync(path.join(root, file)));
   assert.deepEqual(obsolete, []);
   const invalidTests = fs.readdirSync(path.join(root, "tests"))
     .filter((name) => /phase\d+|(?:^|-)v2(?:-|\.)|patch|overrides|data-fixes/i.test(name));
   assert.deepEqual(invalidTests, []);
+});
+
+test("匯出流程不得由後載入模組覆寫正式 API 或匯出器", () => {
+  const rendererDir = path.join(root, "src", "renderer");
+  const offenders = fs.readdirSync(rendererDir)
+    .filter((name) => name.endsWith(".js") && !["app.js", "browser-exporter.js", "web-api.js"].includes(name))
+    .filter((name) => /(?:schedulerBrowserExporter|schedulerApi)\.[A-Za-z0-9_]+\s*=/.test(read(`src/renderer/${name}`)));
+  assert.deepEqual(offenders, []);
+  const exporter = read("src/renderer/browser-exporter.js");
+  const webApi = read("src/renderer/web-api.js");
+  assert.doesNotMatch(exporter + webApi, /approvedOvertimeRows|hasOfficialScheduleExportRows|originalExporters/);
 });

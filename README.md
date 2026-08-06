@@ -21,13 +21,22 @@ Supabase PostgreSQL
 - PostgreSQL、RLS、限制與 RPC 負責正式資料、權限與交易一致性。
 - `supabase/functions/` 只保存目前正式 Edge Function；資料夾清單必須與 `scripts/deploy-edge-functions.ps1` 一致。
 
+## 單一正式版本原則
+
+本系統尚未正式上線，因此程式庫只維護目前正式資料模型與 API 契約：
+
+- 不保留舊資料表、舊欄位、舊端點、舊 payload 或雙軌讀寫。
+- 不以 `try/catch` 靜默退回舊流程；必要正式服務不可用時直接回報錯誤。
+- 不以後載入模組覆寫既有函式，不新增 `fix`、`patch`、`override` 或相容代理模組。
+- 格式調整直接修改正式匯出器、正式 API 與正式事件處理器。
+
 ## 主要頁面
 
 - **首頁：** 登入者姓名、角色、簽到簿、班表、訂餐、修改密碼與登出。
 - **簽到簿：**
   - 個人記錄：班表、上下班打卡、上班時數、加班時數、備註與訂餐。
-  - 簽到審核：管理員補登／修改、批次審核、批次退回與歷程。
-  - 今日列直接提供上班及下班打卡，不再保留獨立打卡頁、加班申請頁、加班審核頁或打卡管理頁。
+  - 簽到審核：管理員補登／修改、批次審核、批次退回、歷程與正式加班匯出。
+  - 今日列直接提供上班及下班打卡。
 - **班表：** 八週班表、班別／假別／班表加班、排班工具與各項設定。
 - **訂餐：** 今日訂餐、訂餐統計與訂餐設定。
 
@@ -43,10 +52,8 @@ FYH/
 │  └─ renderer/                       # 前端唯一正式原始碼
 │     └─ css/                         # CSS 模組原始碼
 ├─ supabase/
-│  ├─ 001_current_schema.sql
-│  ├─ 002_current_updates.sql
-│  ├─ 003_attendance_ledger.sql
-│  ├─ 004_remove_legacy_attendance.sql
+│  ├─ 001_current_schema.sql          # 全新環境完整結構
+│  ├─ 002_current_updates.sql         # 仍有效的冪等更新
 │  └─ functions/                      # 正式 Edge Function 原始碼
 ├─ tests/
 ├─ AGENTS.md
@@ -58,23 +65,14 @@ FYH/
 
 ## 資料庫建置順序
 
-全新資料庫或重建環境固定依序執行：
+全新資料庫固定依序執行：
 
 ```text
 1. supabase/001_current_schema.sql
 2. supabase/002_current_updates.sql
-3. supabase/003_attendance_ledger.sql
-4. supabase/004_remove_legacy_attendance.sql
 ```
 
-用途：
-
-1. `001_current_schema.sql`：建立基準資料表、索引、RLS、限制、Trigger 與核心 RPC。
-2. `002_current_updates.sql`：套用目前仍有效的班表、訂餐、人員、權限與安全更新。
-3. `003_attendance_ledger.sql`：建立 `attendance_days`、`attendance_audit_logs`、簽到 RPC 與簽到簿資料契約。
-4. `004_remove_legacy_attendance.sql`：移除舊 `attendance_records`、`attendance_action_logs`、`attendance_overtime_requests`、`overtime_review_logs` 與舊 RPC。
-
-本系統尚未正式上線，舊出勤測試資料不保留；正式資料模型只剩每日簽到簿。Edge Function 部署不會自動執行 SQL。
+`001_current_schema.sql` 必須直接建立目前正式資料表、索引、RLS、限制、Trigger 與核心 RPC；不得先建立已淘汰結構再刪除。`002_current_updates.sql` 只保存仍有效且可重複執行的正式更新。Edge Function 部署不會自動執行 SQL。
 
 ## 正式 Edge Functions
 
@@ -92,7 +90,7 @@ FYH/
 - `meal-report-v2`
 - `meal-cancel-v2`
 
-已淘汰的打卡、加班與記錄端點不得重新加入部署清單。平台若暫時無法實體刪除舊端點，只能回傳 HTTP 410，不得執行舊業務或寫入資料。
+未列入部署清單的端點不得保留原始碼、代理包裝或呼叫分支。
 
 ## 本機執行
 
@@ -146,4 +144,4 @@ npm run ci:check
 7. GitHub Pages 由內建 `pages-build-deployment` 發布 `main/docs`。
 8. 以員工、主管與管理員測試登入、簽到簿、班表、訂餐與主要管理入口。
 
-`.github/workflows/deploy-pages.yml` 是唯一正式 GitHub Actions 驗證流程；不得新增重複監聽 `main` 或重複部署 Pages 的 workflow。
+`.github/workflows/deploy-pages.yml` 是唯一正式 GitHub Actions 驗證流程；不得新增重複監聽或自動改寫程式碼的 workflow。

@@ -146,17 +146,20 @@
     return true;
   }
 
-  function hasOfficialScheduleExportRows(payload) {
-    return Array.isArray(payload?.exportRows);
+  function requireExportRows(payload) {
+    if (!Array.isArray(payload?.exportRows)) {
+      throw new Error("匯出資料必須由正式 API 提供 exportRows");
+    }
+    return payload.exportRows;
   }
 
   function compactIsoDate(value) {
     return String(value || "").replaceAll("-", "");
   }
 
-  function getOfficialSapLeaveRows(payload) {
+  function getSapLeaveRowsFromExport(payload) {
     const sapCodeMap = new Map([["0036", "OFF"], ["0047", "REST"], ["休息日", "REST"], ["休假", "REST"], ["例假", "OFF"]]);
-    return (payload.exportRows || []).flatMap((row) => {
+    return requireExportRows(payload).flatMap((row) => {
       if (row.pay_by_day || !row.leave_type_id) return [];
       const sapCode = sapCodeMap.get(row.leave_code) || sapCodeMap.get(row.leave_name);
       if (!sapCode) return [];
@@ -165,48 +168,30 @@
     });
   }
 
-  function getOfficialOvertimeRows(payload) {
-    return (payload.exportRows || []).flatMap((row) => {
+  function getOvertimeRowsFromExport(payload) {
+    return requireExportRows(payload).flatMap((row) => {
       if (!row.overtime_type_id) return [];
       return [[
         row.employee_code || "",
         compactIsoDate(row.work_date),
         formatCompactTime(row.overtime_start_time),
         formatCompactTime(row.overtime_end_time),
-        0,
-        1,
+        Number(row.overtime_previous_day || 0),
+        Number(row.overtime_subsidy_type || 1),
         row.overtime_use_rest_1 ? formatCompactTime(row.overtime_rest_1_start_time) : "",
         row.overtime_use_rest_1 ? formatCompactTime(row.overtime_rest_1_end_time) : "",
-        row.overtime_use_rest_1 ? 0 : "",
+        row.overtime_use_rest_1 ? Number(row.overtime_rest_1_paid || 0) : "",
         row.overtime_use_rest_2 ? formatCompactTime(row.overtime_rest_2_start_time) : "",
         row.overtime_use_rest_2 ? formatCompactTime(row.overtime_rest_2_end_time) : "",
-        row.overtime_use_rest_2 ? 0 : ""
+        row.overtime_use_rest_2 ? Number(row.overtime_rest_2_paid || 0) : ""
       ]];
     });
   }
 
-  function formatApprovedOvertimeDuration(value) {
-    const totalMinutes = Math.round(Number(value) * 60);
-    if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return "";
-    return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}${String(totalMinutes % 60).padStart(2, "0")}`;
-  }
-
-  function getApprovedOvertimeRows(payload) {
-    return (payload.approvedOvertimeRows || []).map((row) => [
-      row.employee_code || "",
-      compactIsoDate(row.work_date),
-      "0000",
-      formatApprovedOvertimeDuration(row.total_overtime_hours),
-      0,
-      1,
-      "", "", "", "", "", ""
-    ]);
-  }
-
-  function getOfficialLeaveRows(payload) {
+  function getLeaveRowsFromExport(payload) {
     const excludedLeaveCodes = new Set(["0036", "0047"]);
     const hiddenDepartmentIds = new Set((payload.state?.departments || []).filter((department) => department?.hiddenFromSchedule).map((department) => department.id));
-    return (payload.exportRows || []).flatMap((row) => {
+    return requireExportRows(payload).flatMap((row) => {
       if (!row.leave_type_id || excludedLeaveCodes.has(row.leave_code) || hiddenDepartmentIds.has(row.home_department_id)) return [];
       const date = compactIsoDate(row.work_date);
       const allDay = row.leave_all_day !== false;
@@ -248,40 +233,7 @@
   }
 
   function getSapLeaveExportRows(payload) {
-    if (hasOfficialScheduleExportRows(payload)) {
-      return getOfficialSapLeaveRows(payload);
-    }
-    const { state, year, month } = payload;
-    const leaveMap = getItemMap(state.leaves);
-    const sapCodeMap = new Map([
-      ["0036", "OFF"],
-      ["0047", "REST"],
-      ["休息日", "REST"],
-      ["休假", "REST"],
-      ["例假", "OFF"]
-    ]);
-    const rows = [];
-
-    for (const member of state.members) {
-      if (member.payByDay) {
-        continue;
-      }
-      for (let day = 1; day <= daysInMonth(year, month); day += 1) {
-        if (!isMemberActiveOnDate(member, year, month, day)) {
-          continue;
-        }
-        const slot = state.schedule[getScheduleKey(member.id, year, month, day)];
-        const leave = leaveMap.get(slot?.leave);
-        const sapCode = sapCodeMap.get(leave?.code) || sapCodeMap.get(leave?.name);
-        if (!sapCode) {
-          continue;
-        }
-        const date = formatYmd(year, month, day);
-        rows.push([member.name, member.code, date, date, sapCode]);
-      }
-    }
-
-    return rows;
+    return getSapLeaveRowsFromExport(payload);
   }
 
   function buildSapLeaveCsvContent(payload) {
@@ -291,88 +243,11 @@
   }
 
   function getOvertimeExportRows(payload) {
-    if (Array.isArray(payload?.approvedOvertimeRows)) {
-      return getApprovedOvertimeRows(payload);
-    }
-    if (hasOfficialScheduleExportRows(payload)) {
-      return getOfficialOvertimeRows(payload);
-    }
-    const { state, year, month } = payload;
-    const overtimeMap = getItemMap(state.overtime);
-    const rows = [];
-
-    for (const member of state.members) {
-      for (let day = 1; day <= daysInMonth(year, month); day += 1) {
-        if (!isMemberActiveOnDate(member, year, month, day)) {
-          continue;
-        }
-        const slot = state.schedule[getScheduleKey(member.id, year, month, day)];
-        const overtime = slot?.overtimeMeta || overtimeMap.get(slot?.overtime);
-        if (!overtime) {
-          continue;
-        }
-        rows.push([
-          member.code,
-          formatYmd(year, month, day),
-          formatCompactTime(overtime.startTime),
-          formatCompactTime(overtime.endTime),
-          0,
-          1,
-          overtime.useRest1 ? formatCompactTime(overtime.rest1StartTime) : "",
-          overtime.useRest1 ? formatCompactTime(overtime.rest1EndTime) : "",
-          overtime.useRest1 ? 0 : "",
-          overtime.useRest2 ? formatCompactTime(overtime.rest2StartTime) : "",
-          overtime.useRest2 ? formatCompactTime(overtime.rest2EndTime) : "",
-          overtime.useRest2 ? 0 : ""
-        ]);
-      }
-    }
-
-    return rows;
+    return getOvertimeRowsFromExport(payload);
   }
 
   function getLeaveExportRows(payload) {
-    if (hasOfficialScheduleExportRows(payload)) {
-      return getOfficialLeaveRows(payload);
-    }
-    const { state, year, month } = payload;
-    const leaveMap = getItemMap(state.leaves);
-    const excludedLeaveCodes = new Set(["0036", "0047"]);
-    const rows = [];
-    const hiddenDepartmentIds = new Set(
-      (state.departments || [])
-        .filter((department) => department?.hiddenFromSchedule)
-        .map((department) => department.id)
-    );
-
-    for (const member of state.members) {
-      if (hiddenDepartmentIds.has(member.deptId)) {
-        continue;
-      }
-      for (let day = 1; day <= daysInMonth(year, month); day += 1) {
-        if (!isMemberActiveOnDate(member, year, month, day)) {
-          continue;
-        }
-        const slot = state.schedule[getScheduleKey(member.id, year, month, day)];
-        const leave = leaveMap.get(slot?.leave);
-        if (!leave || excludedLeaveCodes.has(leave.code)) {
-          continue;
-        }
-        const leaveMeta = slot?.leaveMeta || null;
-        const allDay = leaveMeta?.allDay !== false;
-        rows.push([
-          member.code,
-          formatYmd(year, month, day),
-          formatYmd(year, month, day),
-          allDay ? "" : formatCompactTime(leaveMeta?.startTime || ""),
-          allDay ? "" : formatCompactTime(leaveMeta?.endTime || ""),
-          leave.code || "",
-          leaveMeta?.reason || leave.name || ""
-        ]);
-      }
-    }
-
-    return rows;
+    return getLeaveRowsFromExport(payload);
   }
 
   function applySheetBorder(sheet) {
@@ -916,45 +791,47 @@
   }
 
   function runSelfCheck() {
-    const csv = buildSapLeaveCsvContent({
-      year: 2026,
-      month: 4,
-      state: {
-        members: [{ id: "self-check-member", name: "Self Check", code: "SELF_CHECK", hireDate: "", leaveDate: "", payByDay: false }],
-        leaves: [{ id: "self-check-rest", name: "休息日" }, { id: "self-check-off", name: "例假" }],
-        schedule: {
-          [getScheduleKey("self-check-member", 2026, 4, 3)]: { leave: "self-check-rest" },
-          [getScheduleKey("self-check-member", 2026, 4, 4)]: { leave: "self-check-off" }
+    const payload = {
+      state: { departments: [] },
+      exportRows: [
+        {
+          employee_code: "SELF_CHECK",
+          employee_name: "Self Check",
+          home_department_id: null,
+          pay_by_day: false,
+          work_date: "2026-07-17",
+          leave_type_id: "leave-rest",
+          leave_code: "0047",
+          leave_name: "休息日",
+          leave_all_day: true,
+          overtime_type_id: "overtime-id",
+          overtime_start_time: "18:00:00",
+          overtime_end_time: "20:00:00",
+          overtime_use_rest_1: false,
+          overtime_use_rest_2: false
+        },
+        {
+          employee_code: "SELF_CHECK",
+          employee_name: "Self Check",
+          home_department_id: null,
+          pay_by_day: false,
+          work_date: "2026-07-18",
+          leave_type_id: "leave-off",
+          leave_code: "0036",
+          leave_name: "例假",
+          leave_all_day: true
         }
-      }
-    });
+      ]
+    };
+    const csv = buildSapLeaveCsvContent(payload);
     if (!csv.includes("REST") || !csv.includes("OFF")) {
       throw new Error("browser exporter self-check failed");
     }
     if (normalizeImportedDate("2025/01/02") !== "2025-01-02") {
       throw new Error("browser exporter date self-check failed");
     }
-    const officialPayload = {
-      state: { departments: [] },
-      exportRows: [{
-        employee_code: "SELF_CHECK",
-        employee_name: "Self Check",
-        home_department_id: null,
-        pay_by_day: false,
-        work_date: "2026-07-17",
-        leave_type_id: "leave-id",
-        leave_code: "0010",
-        leave_name: "事假",
-        leave_all_day: true,
-        overtime_type_id: "overtime-id",
-        overtime_start_time: "18:00:00",
-        overtime_end_time: "20:00:00",
-        overtime_use_rest_1: false,
-        overtime_use_rest_2: false
-      }]
-    };
-    if (getLeaveExportRows(officialPayload).length !== 1 || getOvertimeExportRows(officialPayload).length !== 1) {
-      throw new Error("browser exporter official rows self-check failed");
+    if (getOvertimeExportRows(payload).length !== 1) {
+      throw new Error("browser exporter overtime rows self-check failed");
     }
   }
 

@@ -64,3 +64,13 @@ test("舊出勤 Edge Function 原始碼已移除", () => {
     assert.equal(fs.existsSync(path.join(root, "supabase", "functions", folder)), false, `仍有舊函式：${folder}`);
   }
 });
+
+test("正式 SQL 不保留舊出勤結構或遷移檔", () => {
+  const schema = read("supabase/001_current_schema.sql");
+  const updates = read("supabase/002_current_updates.sql");
+  for (const oldName of ["attendance_records", "attendance_action_logs", "attendance_overtime_requests", "overtime_review_logs"]) {
+    assert.equal((schema + updates).includes(oldName), false, `仍有舊 SQL 結構：${oldName}`);
+  }
+  assert.equal(fs.existsSync(path.join(root, "supabase", "003_attendance_ledger.sql")), false);
+  assert.equal(fs.existsSync(path.join(root, "supabase", "004_remove_legacy_attendance.sql")), false);
+});

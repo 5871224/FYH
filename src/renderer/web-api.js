@@ -32,8 +32,18 @@
     return normalizeRole(role) === "admin";
   }
 
-  function makeFileName(prefix, payload, extension) {
-    return `${prefix}_${payload.year}_${String(payload.month + 1).padStart(2, "0")}.${extension}`;
+  function compactExportDate(value) {
+    return String(value || "").replace(/[^0-9]/g, "").slice(0, 8);
+  }
+
+  function makeRangeExportFileName(prefix, payload, extension) {
+    return `${prefix}_${compactExportDate(payload.startDate)}-${compactExportDate(payload.endDate)}.${extension}`;
+  }
+
+  function formatOvertimeHoursAsTime(value) {
+    const totalMinutes = Math.round(Number(value) * 60);
+    if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) return "";
+    return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
   }
 
   function downloadBlob(blob, fileName) {
@@ -1179,12 +1189,8 @@
 
       let members = mapMemberDirectoryRows(profileRows);
       if (currentSession?.access_token) {
-        try {
-          const result = await requestFunction("member-order-v2", { action: "list" });
-          members = applyMemberOrder(members, result.memberIds);
-        } catch {
-          // Keep database sort order until member-order-v2 is available.
-        }
+        const result = await requestFunction("member-order-v2", { action: "list" });
+        members = applyMemberOrder(members, result.memberIds);
       }
       const schedule = mapScheduleRows(scheduleEntryRows, members);
 
@@ -1767,9 +1773,9 @@
       [exporter.buildSapLeaveCsvContent(payload)],
       { type: "text/csv;charset=utf-8" }
     );
-    const fileName = makeFileName("sap請假", payload, "csv");
+    const fileName = makeRangeExportFileName("sap請假", payload, "csv");
     downloadBlob(blob, fileName);
-    return { canceled: false, filePath: fileName };
+    return { canceled: false, empty: false, filePath: fileName };
   }
 
   async function exportOvertime(payload) {
@@ -1777,9 +1783,9 @@
       return { canceled: true, empty: true };
     }
     const blob = await exporter.workbookToBlob(await exporter.createOvertimeWorkbook(payload));
-    const fileName = makeFileName("匯出加班", payload, "xlsx");
+    const fileName = makeRangeExportFileName("匯出加班", payload, "xlsx");
     downloadBlob(blob, fileName);
-    return { canceled: false, filePath: fileName };
+    return { canceled: false, empty: false, filePath: fileName };
   }
 
   async function exportLeave(payload) {
@@ -1787,9 +1793,9 @@
       return { canceled: true, empty: true };
     }
     const blob = await exporter.workbookToBlob(await exporter.createLeaveWorkbook(payload));
-    const fileName = makeFileName("匯出請假", payload, "xlsx");
+    const fileName = makeRangeExportFileName("匯出請假", payload, "xlsx");
     downloadBlob(blob, fileName);
-    return { canceled: false, filePath: fileName };
+    return { canceled: false, empty: false, filePath: fileName };
   }
 
   function compactMealExportDate(value) {
@@ -1871,21 +1877,24 @@
       toDate: filters.toDate,
       memberId: filters.memberId || ""
     });
-    const overtimeRows = (Array.isArray(result.rows) ? result.rows : [])
+    const exportRows = (Array.isArray(result.rows) ? result.rows : [])
       .filter((row) => Number(row.overtimeHours) > 0)
       .map((row) => ({
         employee_code: row.employee_code || "",
         work_date: row.work_date || "",
-        total_overtime_hours: Number(row.overtimeHours)
+        overtime_type_id: "attendance-ledger",
+        overtime_start_time: "00:00",
+        overtime_end_time: formatOvertimeHoursAsTime(row.overtimeHours),
+        overtime_previous_day: 0,
+        overtime_subsidy_type: 1,
+        overtime_use_rest_1: false,
+        overtime_use_rest_2: false
       }));
-    if (!overtimeRows.length) return { canceled: true, empty: true };
-    const workbook = await exporter.createOvertimeWorkbook({
-      approvedOvertimeRows: overtimeRows
+    return exportOvertime({
+      startDate: filters.fromDate,
+      endDate: filters.toDate,
+      exportRows
     });
-    const blob = await exporter.workbookToBlob(workbook);
-    const fileName = `匯出加班_${filters.fromDate || ""}-${filters.toDate || ""}.xlsx`;
-    downloadBlob(blob, fileName);
-    return { canceled: false, empty: false, filePath: fileName };
   }
 
   async function exportMembers(payload) {
