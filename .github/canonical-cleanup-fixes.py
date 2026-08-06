@@ -148,3 +148,112 @@ state_test = replace_once(
     "state export module test",
 )
 write(state_test_path, state_test)
+
+# 部署說明只保留全新環境的兩個正式 SQL 檔。
+deploy_path = "scripts/deploy-edge-functions.ps1"
+deploy = read(deploy_path)
+deploy = replace_once(
+    deploy,
+    '''Write-Host "1. supabase/001_current_schema.sql" -ForegroundColor Yellow
+Write-Host "2. supabase/002_current_updates.sql" -ForegroundColor Yellow
+Write-Host "3. supabase/003_attendance_ledger.sql" -ForegroundColor Yellow
+Write-Host "4. supabase/004_remove_legacy_attendance.sql" -ForegroundColor Yellow''',
+    '''Write-Host "1. supabase/001_current_schema.sql" -ForegroundColor Yellow
+Write-Host "2. supabase/002_current_updates.sql" -ForegroundColor Yellow''',
+    "canonical SQL deployment instructions",
+)
+write(deploy_path, deploy)
+
+# 對齊檢查不得再要求遷移或清理檔，也不得驗證舊資料回填。
+alignment_path = "scripts/check-renderer-alignment.js"
+alignment = read(alignment_path)
+alignment = replace_once(
+    alignment,
+    '  "supabase/003_attendance_ledger.sql",\n',
+    "",
+    "remove third SQL from alignment required files",
+)
+alignment = replace_once(
+    alignment,
+    'assert(deployScript.includes("003_attendance_ledger.sql"), "Deployment instructions are missing the attendance ledger SQL stage");',
+    '''assert(deployScript.includes("001_current_schema.sql") && deployScript.includes("002_current_updates.sql"), "Deployment instructions are missing the canonical SQL stages");
+assert(!deployScript.includes("003_attendance_ledger.sql") && !deployScript.includes("004_remove_legacy_attendance.sql"), "Deployment instructions still contain retired SQL stages");''',
+    "canonical deployment alignment assertion",
+)
+alignment = replace_once(
+    alignment,
+    '''const schema = [
+  "supabase/001_current_schema.sql",
+  "supabase/002_current_updates.sql",
+  "supabase/003_attendance_ledger.sql"
+].map(read).join("\\n");''',
+    '''const schema = [
+  "supabase/001_current_schema.sql",
+  "supabase/002_current_updates.sql"
+].map(read).join("\\n");''',
+    "canonical alignment schema sources",
+)
+alignment = replace_once(
+    alignment,
+    '''assert(schema.includes("insert into public.attendance_days") && schema.includes("from public.attendance_records"), "Legacy attendance history backfill is missing");
+assert(schema.includes("migration_backfill"), "Attendance migration audit marker is missing");''',
+    '''for (const retiredName of ["attendance_records", "attendance_action_logs", "attendance_overtime_requests", "overtime_review_logs"]) {
+  assert(!schema.includes(retiredName), `Canonical database sources still contain retired structure: ${retiredName}`);
+}''',
+    "remove legacy backfill alignment assertions",
+)
+write(alignment_path, alignment)
+
+# 正式契約檢查改驗證 001/002 已直接包含唯一資料模型。
+contracts_path = "scripts/check-renderer-contracts.js"
+contracts = read(contracts_path)
+contracts = replace_once(
+    contracts,
+    '''  "supabase/003_attendance_ledger.sql",
+  "supabase/004_remove_legacy_attendance.sql",''',
+    '''  "supabase/001_current_schema.sql",
+  "supabase/002_current_updates.sql",''',
+    "canonical contract required SQL files",
+)
+contracts = replace_once(
+    contracts,
+    '''const ledgerSql = read("supabase/003_attendance_ledger.sql");
+const cleanupSql = read("supabase/004_remove_legacy_attendance.sql");''',
+    '''const schemaSql = read("supabase/001_current_schema.sql");
+const updatesSql = read("supabase/002_current_updates.sql");
+const databaseSql = `${schemaSql}\n${updatesSql}`;''',
+    "canonical contract SQL variables",
+)
+contracts = replace_once(
+    contracts,
+    '''assert(ledgerSql.includes("create table if not exists public.attendance_days"), "SQL 缺少 attendance_days");
+assert(ledgerSql.includes("create table if not exists public.attendance_audit_logs"), "SQL 缺少 attendance_audit_logs");
+for (const oldTable of ["attendance_records", "attendance_action_logs", "attendance_overtime_requests", "overtime_review_logs"]) {
+  assert(cleanupSql.includes(`drop table if exists public.${oldTable}`), `清理 SQL 未移除：${oldTable}`);
+}
+assert(cleanupSql.includes("舊出勤資料表仍未完整移除"), "清理 SQL 缺少移除後驗證");''',
+    '''assert(databaseSql.includes("create table if not exists public.attendance_days"), "SQL 缺少 attendance_days");
+assert(databaseSql.includes("create table if not exists public.attendance_audit_logs"), "SQL 缺少 attendance_audit_logs");
+for (const oldTable of ["attendance_records", "attendance_action_logs", "attendance_overtime_requests", "overtime_review_logs"]) {
+  assert(!databaseSql.includes(oldTable), `正式 SQL 仍包含淘汰結構：${oldTable}`);
+}''',
+    "canonical contract database assertions",
+)
+contracts = replace_once(
+    contracts,
+    '''for (const sqlFile of ["001_current_schema.sql", "002_current_updates.sql", "003_attendance_ledger.sql", "004_remove_legacy_attendance.sql"]) {
+  assert(readme.includes(sqlFile), `README 未說明 SQL：${sqlFile}`);
+}''',
+    '''for (const sqlFile of ["001_current_schema.sql", "002_current_updates.sql"]) {
+  assert(readme.includes(sqlFile), `README 未說明 SQL：${sqlFile}`);
+}
+assert(!readme.includes("003_attendance_ledger.sql") && !readme.includes("004_remove_legacy_attendance.sql"), "README 仍描述淘汰 SQL 階段");''',
+    "canonical README SQL assertions",
+)
+contracts = replace_once(
+    contracts,
+    'assert(spec.includes("尚未正式上線") && spec.includes("舊出勤資料不保留"), "規格書缺少舊資料清理決策");',
+    'assert(spec.includes("唯一正式資料結構") && spec.includes("不進行資料遷移"), "規格書缺少單一正式資料結構決策");',
+    "canonical spec architecture assertion",
+)
+write(contracts_path, contracts)
