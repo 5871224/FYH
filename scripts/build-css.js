@@ -14,8 +14,7 @@ const modules = [
   ["schedule.css", "Schedule-specific layout"],
   ["components.css", "Shared design system and components"],
   ["responsive.css", "Cross-page responsive rules"],
-  ["pages.css", "Final page-specific rules"],
-  ["groups.css", "Groups, permissions, and archive rules"]
+  ["pages.css", "Final page-specific rules"]
 ];
 
 function normalizeText(text) {

@@ -63,7 +63,6 @@ const modules = [
   "renderer-drag-scroll-preserve.js",
   "renderer-events.js",
   "renderer.js",
-  "renderer-groups-permissions-archive.js",
 ];
 
 function normalizeText(text) {
