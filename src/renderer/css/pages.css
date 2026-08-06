@@ -433,25 +433,60 @@
   text-align: center;
 }
 
+.attendance-review-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.attendance-review-filters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  align-items: end;
+}
+
+.attendance-review-filters .records-admin-field {
+  min-width: 0;
+}
+
+.attendance-review-filters :is(input, select) {
+  width: 100%;
+  min-width: 0;
+}
+
+.attendance-review-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
 .attendance-review-table {
   table-layout: fixed;
-  min-width: 1020px;
+  min-width: 1000px;
 }
 
 .attendance-review-table .attendance-review-check-col {
-  width: 32px;
+  width: 30px;
   padding-right: 4px;
   padding-left: 4px;
   text-align: center;
 }
 
 .attendance-review-table .attendance-review-date-col {
-  width: 92px;
+  width: 90px;
   white-space: nowrap;
 }
 
 .attendance-review-table .attendance-review-employee-col {
-  width: 94px;
+  width: 86px;
 }
 
 .attendance-review-table .attendance-schedule-icon-col {
@@ -478,35 +513,71 @@
 }
 
 .attendance-review-table .attendance-review-shift-col {
-  width: 94px;
+  width: 90px;
 }
 
 .attendance-review-table .attendance-review-clock-col {
-  width: 136px;
+  width: 126px;
 }
 
 .attendance-review-table .attendance-review-hours-col {
-  width: 70px;
+  width: 64px;
   text-align: center;
 }
 
 .attendance-review-table .attendance-review-note-col {
-  width: 112px;
+  width: 104px;
 }
 
 .attendance-review-table .attendance-review-issue-col {
-  width: 76px;
+  width: 74px;
 }
 
 .attendance-review-table .attendance-review-status-col {
-  width: 58px;
+  width: 56px;
   text-align: center;
 }
 
 .attendance-review-table .attendance-review-operation-col {
-  width: 108px;
+  width: 112px;
   padding-right: 4px;
   padding-left: 4px;
+  white-space: nowrap;
+}
+
+
+.attendance-review-row-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.attendance-review-row-actions .attendance-review-action-btn {
+  flex: 0 0 30px;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+}
+
+@media (max-width: 980px) {
+  .attendance-review-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .attendance-review-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .attendance-review-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
 }
 
 .attendance-ledger-table td {
