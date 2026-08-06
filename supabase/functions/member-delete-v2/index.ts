@@ -19,8 +19,12 @@ function addDays(value: string, count: number) {
 
 function effective(profile: any, today = dateText()) {
   const end = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
-  return Boolean((!profile.hire_date || today >= profile.hire_date)
-    && (!end || today <= end));
+  return Boolean(
+    profile
+    && !profile.deleted_at
+    && (!profile.hire_date || today >= profile.hire_date)
+    && (!end || today <= end)
+  );
 }
 
 function normalizeCode(value: unknown) {
@@ -37,16 +41,38 @@ function loginEmail(employeeCode: string) {
   return `${normalized}@local.invalid`;
 }
 
+async function hasPermission(ctx: any, userId: string, permission: string) {
+  const result = await ctx.supabaseAdmin.rpc("has_access_permission", {
+    p_user_id: userId,
+    p_permission: permission
+  });
+  if (result.error) throw result.error;
+  return Boolean(result.data);
+}
+
+async function canAccessGroup(ctx: any, userId: string, groupId: string, permission: string) {
+  if (!groupId) return false;
+  const result = await ctx.supabaseAdmin.rpc("can_access_group", {
+    p_user_id: userId,
+    p_group_id: groupId,
+    p_permission: permission
+  });
+  if (result.error) throw result.error;
+  return Boolean(result.data);
+}
+
 async function actorProfile(ctx: any) {
   const actorId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!actorId) throw new Error("請先登入");
   const result = await ctx.supabaseAdmin.from("set_employee")
-    .select("id,employee_code,full_name,role,hire_date,leave_date")
-    .eq("id", actorId).single();
+    .select("id,employee_code,full_name,role,group_id,access_role_id,hire_date,leave_date,deleted_at")
+    .eq("id", actorId)
+    .is("deleted_at", null)
+    .single();
   if (result.error) throw result.error;
   if (!effective(result.data)) throw new Error("此帳號目前不在有效期間");
-  if (!["manager", "admin"].includes(result.data.role)) {
-    throw new Error("員工沒有刪除帳號權限");
+  if (!await hasPermission(ctx, actorId, "member_settings")) {
+    throw new Error("沒有刪除人員的權限");
   }
   return result.data;
 }
@@ -64,19 +90,42 @@ async function verifyPassword(employeeCode: string, password: string) {
   if (!response.ok) throw new Error("目前密碼不正確");
 }
 
-async function effectiveAdminCount(ctx: any) {
-  const result = await ctx.supabaseAdmin.from("set_employee")
-    .select("id,role,hire_date,leave_date").eq("role", "admin");
-  if (result.error) throw result.error;
-  return (result.data || []).filter((row: any) => effective(row)).length;
+async function effectivePermissionAdminCount(ctx: any) {
+  const [employeesResult, rolesResult] = await Promise.all([
+    ctx.supabaseAdmin.from("set_employee")
+      .select("id,access_role_id,hire_date,leave_date,deleted_at")
+      .is("deleted_at", null),
+    ctx.supabaseAdmin.from("access_roles").select("id,permissions")
+  ]);
+  if (employeesResult.error) throw employeesResult.error;
+  if (rolesResult.error) throw rolesResult.error;
+  const permissionRoleIds = new Set(
+    (rolesResult.data || [])
+      .filter((role: any) => Array.isArray(role.permissions) && role.permissions.includes("permission_settings"))
+      .map((role: any) => role.id)
+  );
+  return (employeesResult.data || []).filter((row: any) => (
+    permissionRoleIds.has(row.access_role_id) && effective(row)
+  )).length;
 }
 
 async function findTarget(ctx: any, employeeCode: string) {
   const key = normalizeCode(employeeCode);
   const result = await ctx.supabaseAdmin.from("set_employee")
-    .select("id,employee_code,full_name,role,hire_date,leave_date");
+    .select("id,employee_code,full_name,role,group_id,access_role_id,hire_date,leave_date,deleted_at")
+    .is("deleted_at", null);
   if (result.error) throw result.error;
   return (result.data || []).find((row: any) => normalizeCode(row.employee_code) === key) || null;
+}
+
+async function roleHasPermission(ctx: any, roleId: string, permission: string) {
+  if (!roleId) return false;
+  const result = await ctx.supabaseAdmin.from("access_roles")
+    .select("permissions")
+    .eq("id", roleId)
+    .maybeSingle();
+  if (result.error) throw result.error;
+  return Boolean(Array.isArray(result.data?.permissions) && result.data.permissions.includes(permission));
 }
 
 async function removeMember(ctx: any, body: any) {
@@ -86,14 +135,20 @@ async function removeMember(ctx: any, body: any) {
 
   const target = await findTarget(ctx, employeeCode);
   if (!target) return { ok: true, deleted: false, softDeleted: false };
+  if (!target.group_id || !await canAccessGroup(ctx, actor.id, target.group_id, "member_settings")) {
+    throw new Error("此角色不可管理該人員所屬群組");
+  }
 
   const selfDelete = target.id === actor.id;
-  if (actor.role === "manager" && target.role === "admin") {
-    throw new Error("主管不可刪除管理員帳號");
-  }
   if (selfDelete) await verifyPassword(target.employee_code, String(body?.currentPassword || ""));
-  if (target.role === "admin" && await effectiveAdminCount(ctx) <= 1) {
-    throw new Error("系統必須保留至少一個有效管理員");
+
+  const targetCanManagePermissions = await roleHasPermission(
+    ctx,
+    target.access_role_id,
+    "permission_settings"
+  );
+  if (targetCanManagePermissions && await effectivePermissionAdminCount(ctx) <= 1) {
+    throw new Error("系統必須保留至少一個具有權限設定能力的有效帳號");
   }
 
   const result = await ctx.supabaseAdmin.rpc("delete_member_account_v4", {
