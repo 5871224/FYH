@@ -1871,28 +1871,19 @@
       toDate: filters.toDate,
       memberId: filters.memberId || ""
     });
-    const rows = Array.isArray(result.rows) ? result.rows : [];
-    if (!rows.length) return { canceled: true, empty: true };
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = "福圓號";
-    workbook.created = new Date();
-    const sheet = workbook.addWorksheet("已審加班");
-    sheet.addRow(["日期", "員工編號", "員工姓名", "上班時數", "加班時數", "上班打卡", "下班打卡", "備註"]);
-    rows.forEach((row) => sheet.addRow([
-      row.work_date || "",
-      row.employee_code || "",
-      row.employee_name || "",
-      row.regularHours ?? "",
-      row.overtimeHours ?? "",
-      row.clock_in_at ? new Date(row.clock_in_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }) : "",
-      row.clock_out_at ? new Date(row.clock_out_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }) : "",
-      row.note || ""
-    ]));
-    sheet.views = [{ state: "frozen", ySplit: 1 }];
-    sheet.getRow(1).font = { bold: true };
-    sheet.columns = [14, 14, 18, 12, 12, 20, 20, 36].map((width) => ({ width }));
+    const overtimeRows = (Array.isArray(result.rows) ? result.rows : [])
+      .filter((row) => Number(row.overtimeHours) > 0)
+      .map((row) => ({
+        employee_code: row.employee_code || "",
+        work_date: row.work_date || "",
+        total_overtime_hours: Number(row.overtimeHours)
+      }));
+    if (!overtimeRows.length) return { canceled: true, empty: true };
+    const workbook = await exporter.createOvertimeWorkbook({
+      approvedOvertimeRows: overtimeRows
+    });
     const blob = await exporter.workbookToBlob(workbook);
-    const fileName = `已審加班_${filters.fromDate || ""}-${filters.toDate || ""}.xlsx`;
+    const fileName = `匯出加班_${filters.fromDate || ""}-${filters.toDate || ""}.xlsx`;
     downloadBlob(blob, fileName);
     return { canceled: false, empty: false, filePath: fileName };
   }
