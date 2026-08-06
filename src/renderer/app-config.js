@@ -10,6 +10,7 @@ if (typeof document !== "undefined" && typeof document.write === "function") {
   document.write('<script src="./app-config-base.mjs?v=20260730-toolbar-compact"><\/script>');
   document.write('<script src="./toolbar-compact.mjs?v=20260730-toolbar-compact"><\/script>');
   document.write('<script defer src="./renderer-groups-permissions-archive.mjs?v=20260806-groups-permissions-archive"><\/script>');
+  document.write('<script defer src="./renderer-group-backend-bridges.mjs?v=20260806-group-backend-bridges"><\/script>');
 }
 
 document.addEventListener("DOMContentLoaded", () => {
