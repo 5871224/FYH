@@ -1,6 +1,6 @@
 # 福圓號排班系統
 
-福圓號排班系統是手機優先的瀏覽器應用程式，涵蓋班表、簽到簿、訂餐、個人記錄、簽到審核與管理設定。前端由 GitHub Pages 發布；登入、資料庫、RPC 與伺服器端 API 由 Supabase 提供。
+福圓號排班系統是手機優先的瀏覽器應用程式，涵蓋多群組班表、簽到簿、訂餐、個人記錄、簽到審核、角色權限與班表封存。前端由 GitHub Pages 發布；登入、資料庫、RPC 與伺服器端 API 由 Supabase 提供。
 
 詳細功能、資料、安全、介面與驗收規格以 [`規格書.md`](規格書.md) 為唯一正式依據。
 
@@ -10,7 +10,7 @@
 瀏覽器前端（GitHub Pages）
   ↓ Supabase Auth Token
 Supabase Edge Functions／REST／RPC
-  ↓ 身分、角色、伺服器時間、位置與交易驗證
+  ↓ 身分、角色、適用群組、伺服器時間、位置與交易驗證
 Supabase PostgreSQL
 ```
 
@@ -18,7 +18,7 @@ Supabase PostgreSQL
 - 前端正式原始碼位於 `src/renderer/`。
 - `src/renderer/app.css`、`src/renderer/app.js` 與 `docs/` 都是自動產生檔，不直接修改。
 - Supabase Auth 負責登入身分。
-- PostgreSQL、RLS、限制與 RPC 負責正式資料、權限與交易一致性。
+- PostgreSQL、RLS、限制與 RPC 負責正式資料、群組權限、班表封存與交易一致性。
 - `supabase/functions/` 只保存目前正式 Edge Function；資料夾清單必須與 `scripts/deploy-edge-functions.ps1` 一致。
 
 ## 單一正式版本原則
@@ -32,13 +32,13 @@ Supabase PostgreSQL
 
 ## 主要頁面
 
-- **首頁：** 登入者姓名、角色、簽到簿、班表、訂餐、修改密碼與登出。
+- **首頁：** 登入者姓名、角色、簽到簿、班表、依所屬群組開關顯示的訂餐、修改密碼與登出。
 - **簽到簿：**
   - 個人記錄：班表、上下班打卡、上班時數、加班時數、備註與訂餐。
-  - 簽到審核：管理員補登／修改、批次審核、批次退回、歷程與正式加班匯出。
+  - 簽到審核：依角色適用群組篩選、補登／修改、批次審核、批次退回、歷程與正式加班匯出。
   - 今日列直接提供上班及下班打卡。
-- **班表：** 八週班表、班別／假別／班表加班、排班工具與各項設定。
-- **訂餐：** 今日訂餐、訂餐統計與訂餐設定。
+- **班表：** 群組切換、八週班表、班別／假別／班表加班、排班工具、群組設定、角色權限與班表封存。
+- **訂餐：** 今日訂餐、訂餐統計與訂餐設定；首頁訂餐入口依人員所屬群組的「可否訂餐」設定顯示。
 
 ## 專案結構
 
@@ -72,7 +72,7 @@ FYH/
 2. supabase/002_current_updates.sql
 ```
 
-`001_current_schema.sql` 必須直接建立目前正式資料表、索引、RLS、限制、Trigger 與核心 RPC；不得先建立已淘汰結構再刪除。`002_current_updates.sql` 只保存仍有效且可重複執行的正式更新。Edge Function 部署不會自動執行 SQL。
+`001_current_schema.sql` 必須直接建立目前正式資料表、索引、RLS、限制、Trigger 與核心 RPC；不得先建立已淘汰結構再刪除。`002_current_updates.sql` 只保存仍有效且可重複執行的正式更新，包含群組、角色權限及班表封存的資料模型與安全規則。Edge Function 部署不會自動執行 SQL。
 
 ## 正式 Edge Functions
 
@@ -83,6 +83,7 @@ FYH/
 - `attendance-clock`
 - `attendance-ledger`
 - `attendance-ledger-export`
+- `attendance-review-groups`
 - `meal-order`
 - `department-attendance-v2`
 - `member-delete-v2`
@@ -142,6 +143,6 @@ npm run ci:check
 5. 部署正式 Edge Functions。
 6. 合併至 `main`。
 7. GitHub Pages 由內建 `pages-build-deployment` 發布 `main/docs`。
-8. 以員工、主管與管理員測試登入、簽到簿、班表、訂餐與主要管理入口。
+8. 以員工、主管與管理員測試登入、簽到簿、群組班表、封存、訂餐與主要管理入口。
 
 `.github/workflows/deploy-pages.yml` 是唯一正式 GitHub Actions 驗證流程；不得新增重複監聽或自動改寫程式碼的 workflow。
