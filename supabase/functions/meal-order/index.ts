@@ -19,7 +19,12 @@ function addDaysToDateString(dateString: string, count: number) {
 
 function isProfileEffective(profile: any, today = taipeiDateString()) {
   const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
-  return Boolean((!profile.hire_date || today >= profile.hire_date) && (!effectiveEndDate || today <= effectiveEndDate));
+  return Boolean(
+    profile
+    && !profile.deleted_at
+    && (!profile.hire_date || today >= profile.hire_date)
+    && (!effectiveEndDate || today <= effectiveEndDate)
+  );
 }
 
 function taipeiTimeString(date = new Date()) {
@@ -36,25 +41,45 @@ function positiveInteger(value: unknown, fallback = 55) {
   return Number.isInteger(number) && number > 0 ? number : fallback;
 }
 
+async function hasPermission(ctx: any, userId: string, permission: string) {
+  const result = await ctx.supabaseAdmin.rpc("has_access_permission", {
+    p_user_id: userId,
+    p_permission: permission
+  });
+  if (result.error) throw result.error;
+  return Boolean(result.data);
+}
+
 async function getProfile(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!userId) throw new Error("請先登入");
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id, employee_code, full_name, role, hire_date, leave_date")
+    .select("id,employee_code,full_name,role,group_id,access_role_id,home_department_id,hire_date,leave_date,deleted_at")
     .eq("id", userId)
+    .is("deleted_at", null)
     .single();
   if (error) throw error;
   if (!isProfileEffective(data)) throw new Error("帳號不在有效任職期間，無法訂餐");
   return data;
 }
 
-function isManagerRole(role: string) {
-  return role === "admin" || role === "manager";
+async function getGroup(ctx: any, groupId: string) {
+  if (!groupId) return null;
+  const result = await ctx.supabaseAdmin
+    .from("schedule_groups")
+    .select("id,code,name,meal_enabled,status,deleted_at")
+    .eq("id", groupId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (result.error) throw result.error;
+  return result.data || null;
 }
 
-function requireManager(profile: any) {
-  if (!isManagerRole(profile?.role)) throw new Error("此功能限主管或管理員使用");
+async function requireMealAdmin(ctx: any, profile: any) {
+  if (!await hasPermission(ctx, profile.id, "meal_admin")) {
+    throw new Error("沒有訂餐管理權限");
+  }
 }
 
 async function getMealSettings(ctx: any) {
@@ -74,10 +99,11 @@ async function getMealSettings(ctx: any) {
 
 async function getTodayContext(ctx: any, profile: any) {
   const orderDate = taipeiDateString();
-  const [{ data: attendance, error: attendanceError }, { data: orders, error: ordersError }, settings] = await Promise.all([
+  const [{ data: attendance, error: attendanceError }, { data: orders, error: ordersError }, settings, group] = await Promise.all([
     ctx.supabaseAdmin.from("attendance_days").select("*").eq("user_id", profile.id).eq("work_date", orderDate).maybeSingle(),
     ctx.supabaseAdmin.from("meal_orders").select("*").eq("user_id", profile.id).eq("order_date", orderDate),
-    getMealSettings(ctx)
+    getMealSettings(ctx),
+    getGroup(ctx, profile.group_id)
   ]);
   if (attendanceError) throw attendanceError;
   if (ordersError) throw ordersError;
@@ -95,12 +121,15 @@ async function getTodayContext(ctx: any, profile: any) {
 
   const nowTime = taipeiTimeString();
   const cutoffTime = String(settings.daily_cutoff_time || "10:30").slice(0, 5);
+  const mealEnabled = Boolean(group && group.status === "active" && group.meal_enabled);
   return {
     orderDate,
     nowTime,
     cutoffTime,
     companySubsidy: positiveInteger(settings.company_subsidy, 55),
-    orderingOpen: nowTime <= cutoffTime,
+    orderingOpen: mealEnabled && nowTime <= cutoffTime,
+    mealEnabled,
+    group: group ? { id: group.id, code: group.code, name: group.name } : null,
     attendance: attendance || null,
     products: products || [],
     orders: orders || []
@@ -172,9 +201,26 @@ function buildEffectiveItems(context: any, incoming: NormalizedMealItem[]) {
   return [...effective.values()];
 }
 
+async function stampMealGroup(ctx: any, profile: any, context: any) {
+  if (!context.group?.id) return;
+  const [ordersResult, attendanceResult] = await Promise.all([
+    ctx.supabaseAdmin.from("meal_orders").update({
+      group_id: context.group.id,
+      group_name_snapshot: context.group.name
+    }).eq("user_id", profile.id).eq("order_date", context.orderDate),
+    ctx.supabaseAdmin.from("attendance_days").update({
+      group_id: context.group.id,
+      group_name_snapshot: context.group.name
+    }).eq("user_id", profile.id).eq("work_date", context.orderDate)
+  ]);
+  if (ordersResult.error) throw ordersResult.error;
+  if (attendanceResult.error) throw attendanceResult.error;
+}
+
 async function saveOrder(ctx: any, body: any) {
   const profile = await getProfile(ctx);
   const context = await getTodayContext(ctx, profile);
+  if (!context.mealEnabled) throw new Error("此群組未開放訂餐");
   const departmentId = String(context.attendance?.clock_in_location?.departmentId || "");
   if (!context.attendance?.clock_in_at || !departmentId) {
     throw new Error("請先完成上班打卡後再訂餐");
@@ -192,12 +238,13 @@ async function saveOrder(ctx: any, body: any) {
     p_note: ""
   });
   if (error) throw error;
+  await stampMealGroup(ctx, profile, context);
   return todayStatus(ctx);
 }
 
 async function adminSettings(ctx: any) {
   const profile = await getProfile(ctx);
-  requireManager(profile);
+  await requireMealAdmin(ctx, profile);
   const [settings, productsResult] = await Promise.all([
     getMealSettings(ctx),
     ctx.supabaseAdmin.from("meal_products").select("*").order("sort_order", { ascending: true }).order("name", { ascending: true })
@@ -208,7 +255,7 @@ async function adminSettings(ctx: any) {
 
 async function saveAdminSettings(ctx: any, body: any) {
   const profile = await getProfile(ctx);
-  requireManager(profile);
+  await requireMealAdmin(ctx, profile);
   const companySubsidy = Number(body?.companySubsidy);
   if (!Number.isInteger(companySubsidy) || companySubsidy <= 0) {
     throw new Error("公司補助只能輸入正整數");
@@ -225,7 +272,7 @@ async function saveAdminSettings(ctx: any, body: any) {
 
 async function deleteAdminProduct(ctx: any, body: any) {
   const profile = await getProfile(ctx);
-  requireManager(profile);
+  await requireMealAdmin(ctx, profile);
   const productId = String(body?.productId || "").trim();
   if (!productId) throw new Error("缺少品項ID");
   const { data, error } = await ctx.supabaseAdmin.rpc("delete_meal_product_v2", {
