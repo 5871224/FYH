@@ -12,7 +12,6 @@ function assert(condition, message) {
 const requiredFiles = [
   "supabase/001_current_schema.sql",
   "supabase/002_current_updates.sql",
-  "supabase/003_attendance_ledger.sql",
   "supabase/functions/attendance-clock/index.ts",
   "supabase/functions/attendance-ledger/index.ts",
   "supabase/functions/attendance-ledger-export/index.ts",
@@ -71,17 +70,18 @@ for (const name of ["attendance-clock", "attendance-ledger", "attendance-ledger-
 retiredEdgeFunctions.forEach((name) => {
   assert(!deployScript.includes(`"${name}"`), `Deployment list still contains retired endpoint: ${name}`);
 });
-assert(deployScript.includes("003_attendance_ledger.sql"), "Deployment instructions are missing the attendance ledger SQL stage");
+assert(deployScript.includes("001_current_schema.sql") && deployScript.includes("002_current_updates.sql"), "Deployment instructions are missing the canonical SQL stages");
+assert(!deployScript.includes("003_attendance_ledger.sql") && !deployScript.includes("004_remove_legacy_attendance.sql"), "Deployment instructions still contain retired SQL stages");
 
 const schema = [
   "supabase/001_current_schema.sql",
-  "supabase/002_current_updates.sql",
-  "supabase/003_attendance_ledger.sql"
+  "supabase/002_current_updates.sql"
 ].map(read).join("\n");
 assert(schema.includes("create table if not exists public.attendance_days"), "Current attendance_days table is missing from database sources");
 assert(schema.includes("create table if not exists public.attendance_audit_logs"), "Current attendance_audit_logs table is missing from database sources");
-assert(schema.includes("insert into public.attendance_days") && schema.includes("from public.attendance_records"), "Legacy attendance history backfill is missing");
-assert(schema.includes("migration_backfill"), "Attendance migration audit marker is missing");
+for (const retiredName of ["attendance_records", "attendance_action_logs", "attendance_overtime_requests", "overtime_review_logs"]) {
+  assert(!schema.includes(retiredName), `Canonical database sources still contain retired structure: ${retiredName}`);
+}
 assert(schema.includes("public.attendance_days%rowtype"), "Clocking or meal transaction RPCs still use the retired attendance row type");
 assert(schema.includes("from public.attendance_days"), "Current attendance table is not used by database RPCs");
 

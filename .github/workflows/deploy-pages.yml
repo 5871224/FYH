@@ -1,67 +1,71 @@
-name: Canonical cleanup validation
+name: Validate Web App
+run-name: "${{ github.event_name == 'pull_request' && format('PR #{0} 驗證', github.event.pull_request.number) || github.event_name == 'push' && 'main 驗證' || '手動驗證' }}"
 
 on:
   push:
     branches:
-      - canonical-export-cleanup
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: canonical-export-cleanup
+  group: web-validate-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  canonicalize:
+  validate:
+    name: Validate
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: canonical-export-cleanup
           fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: "22"
-          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Consolidate canonical implementation
-        run: |
-          python .github/canonical-cleanup.py
-          python .github/canonical-cleanup-fixes.py
-
-      - name: Restore permanent workflow and remove task scripts
-        run: |
-          git fetch origin main
-          git show origin/main:.github/workflows/deploy-pages.yml > .github/workflows/deploy-pages.yml
-          rm -f .github/canonical-cleanup.py
-          rm -f .github/canonical-cleanup-fixes.py
+      - name: Check declared change scope
+        if: github.event_name == 'pull_request'
+        run: npm run scope:check
 
       - name: Build static web
         run: npm run web:publish
 
-      - name: Run full validation
-        run: |
-          npm test
-          npm run web:check
-          node scripts/check-normalized-storage.js
-          node scripts/check-expansion-acceptance.js
-          node scripts/check-settings-lists.js
-          npm run renderer:check
-          npm run css:architecture
-          npm run js:architecture
+      - name: Check reproducible static publish
+        run: git diff --exit-code -- docs
 
-      - name: Commit canonical sources
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "移除舊版相容與補丁式匯出流程"
-          git push origin HEAD:canonical-export-cleanup
+      - name: Check workflow hygiene
+        run: node --test tests/github-actions-hygiene.test.js
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Check public Supabase settings
+        run: npm run web:check
+
+      - name: Check normalized storage
+        run: node scripts/check-normalized-storage.js
+
+      - name: Check expansion acceptance
+        run: node scripts/check-expansion-acceptance.js
+
+      - name: Check settings lists
+        run: node scripts/check-settings-lists.js
+
+      - name: Check renderer bundles
+        run: npm run renderer:check
+
+      - name: Check CSS architecture
+        run: npm run css:architecture
+
+      - name: Check JavaScript architecture
+        run: npm run js:architecture

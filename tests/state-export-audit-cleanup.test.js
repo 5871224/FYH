@@ -18,10 +18,12 @@ test("個人記錄畫面使用正式狀態初始化來源", () => {
   assert.doesNotMatch(block, /personalPageSize = Number/);
 });
 
-test("期間匯出使用共用月份天數函式", () => {
-  const source = read("src/renderer/renderer-period-exports.js");
+test("正式期間匯出直接整合於操作模組並使用共用月份天數函式", () => {
+  const source = read("src/renderer/renderer-export-actions.js");
   assert.equal((source.match(/function daysInMonth\s*\(/g) || []).length, 0);
   assert.match(source, /Math\.min\(startDay, daysInMonth\(year, month\)\)/);
+  assert.match(source, /async function runPeriodExport/);
+  assert.equal(fs.existsSync(path.join(root, "src/renderer/renderer-period-exports.js")), false);
 });
 
 test("架構檢查模式不得產生稽核報告檔", () => {

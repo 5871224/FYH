@@ -99,6 +99,10 @@ function bindDelegatedClickEvents() {
       if (result.empty) showInfoMessage("目前沒有可匯出的訂餐資料");
       return;
     }
+    if (target.dataset.runPeriodExport) {
+      await runPeriodExport(target.dataset.runPeriodExport);
+      return;
+    }
     if (target.dataset.editAttendanceReview) {
       openAttendanceReviewEditModal(target.dataset.editAttendanceReview);
       return;

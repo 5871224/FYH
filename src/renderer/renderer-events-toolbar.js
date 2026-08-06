@@ -33,15 +33,15 @@ function bindStaticToolbarEvents() {
   bindClick("tableNextWeekButton", async () => changeScheduleWindowWeeks(1));
   bindClick("exportSapButton", () => {
     closeCoreActionsMenu();
-    exportSapCsv();
+    openExportPeriodDialog("sap");
   });
   bindClick("exportOvertimeButton", () => {
     closeCoreActionsMenu();
-    exportOvertime();
+    openExportPeriodDialog("overtime");
   });
   bindClick("exportLeaveButton", () => {
     closeCoreActionsMenu();
-    exportLeave();
+    openExportPeriodDialog("leave");
   });
   bindClick("deptSettingsButton", openDepartmentSettings);
   bindClick("shiftSettingsButton", () => openListSettings("shift"));

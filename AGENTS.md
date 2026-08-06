@@ -113,11 +113,11 @@ npm run js:architecture
    - `supabase/002_current_updates.sql`
 2. 全新資料庫依序執行 `001_current_schema.sql`、`002_current_updates.sql`。
 3. 新增資料庫異動時，將具備冪等性的完整區段附加至 `002_current_updates.sql`；若影響全新環境，也同步更新 `001_current_schema.sql`。
-4. 不新增零散的一次性 SQL、migration 子檔或額外 SQL 順序文件。
+4. 不新增零散的一次性 SQL、migration 子檔或額外 SQL 順序文件；全新環境不得先建立淘汰結構再執行清理。
 5. Edge Function 正式部署清單以 `scripts/deploy-edge-functions.ps1` 為準。
 6. 新增、移除或改名正式 Edge Function 時，同步更新部署腳本、README 與規格書。
 7. 權限必須由 RPC、RLS 或 Edge Function 實作，不得以純前端限制作為安全邊界。
-8. 新增或重構 API 時，需定義穩定錯誤碼、角色、Request／Response、切換與回滾方式；正式程式不得永久保留舊端點、雙軌欄位、代理包裝或只供測試使用的出口。
+8. 新增或重構 API 時，需直接更新唯一正式的錯誤碼、角色與 Request／Response 契約；本系統尚未上線，不保留切換期雙軌、舊端點、舊欄位、相容代理或回滾分支。
 9. SQL Editor 發生錯誤時立即停止，不可略過後續區段。
 
 ## 文件維護原則

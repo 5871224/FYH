@@ -19,8 +19,6 @@ Write-Host "This script does not run SQL migrations." -ForegroundColor Yellow
 Write-Host "Complete the SQL files in this order before deployment:" -ForegroundColor Yellow
 Write-Host "1. supabase/001_current_schema.sql" -ForegroundColor Yellow
 Write-Host "2. supabase/002_current_updates.sql" -ForegroundColor Yellow
-Write-Host "3. supabase/003_attendance_ledger.sql" -ForegroundColor Yellow
-Write-Host "4. supabase/004_remove_legacy_attendance.sql" -ForegroundColor Yellow
 
 foreach ($functionName in $functions) {
   Write-Host ""

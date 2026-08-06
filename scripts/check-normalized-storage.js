@@ -115,14 +115,11 @@ assert(schema.includes("requires_time boolean not null default false"), "schema 
 assert(schema.includes("requires_reason boolean not null default false"), "schema should store leave reason requirement flags");
 assert(schema.includes("hidden_from_schedule") && !schema.includes("hidden_from_leave"), "department hidden flag should be schedule-named");
 assert(schema.includes("address text") && schema.includes("attendance_enabled boolean not null default false"), "departments should store attendance location settings");
-assert(schema.includes("create table if not exists public.attendance_records"), "schema should create attendance records");
-assert(schema.includes("create table if not exists public.attendance_action_logs"), "schema should create attendance action logs");
-assert(schema.includes("employee_code_snapshot text") && schema.includes("employee_name_snapshot text"), "attendance records should snapshot employee identity");
-assert(schema.includes("public_ip text"), "departments should store fixed public IP settings");
-assert(!schema.includes("create table if not exists public.department_attendance_settings"), "department IP settings should stay on set_departments");
-assert(schema.includes("create table if not exists public.attendance_overtime_requests"), "schema should create independent attendance overtime requests");
-assert(schema.includes("is_deleted_by_employee boolean not null default false"), "overtime deletes should be soft deletes");
-assert(schema.includes("create table if not exists public.overtime_review_logs"), "schema should create overtime review logs");
+assert(schema.includes("create table if not exists public.attendance_days"), "schema should create daily attendance rows");
+assert(schema.includes("create table if not exists public.attendance_audit_logs"), "schema should create attendance audit logs");
+assert(schema.includes("regular_minutes smallint") && schema.includes("overtime_minutes smallint"), "attendance days should store half-hour work totals");
+assert(!schema.includes("attendance_records") && !schema.includes("attendance_action_logs"), "schema should not create retired attendance tables");
+assert(!schema.includes("attendance_overtime_requests") && !schema.includes("overtime_review_logs"), "schema should not create retired overtime review tables");
 assert(schema.includes("create table if not exists public.meal_products"), "schema should create meal products");
 assert(schema.includes("create table if not exists public.meal_settings"), "schema should create meal settings");
 assert(schema.includes("create table if not exists public.meal_orders"), "schema should create meal order item rows");
@@ -191,3 +188,8 @@ assert.equal(
 );
 
 console.log("normalized storage checks passed");
+
+assert(!fs.existsSync(path.join(rootDir, "supabase", "003_attendance_ledger.sql")), "canonical schema should not keep a third attendance migration file");
+assert(!fs.existsSync(path.join(rootDir, "supabase", "004_remove_legacy_attendance.sql")), "canonical schema should not keep a legacy cleanup file");
+assert(!webApi.includes("approvedOvertimeRows"), "attendance export should use the canonical exportRows contract");
+assert(!fs.existsSync(path.join(rootDir, "src", "renderer", "renderer-period-exports.js")), "period export runtime override module still exists");
