@@ -1,0 +1,25 @@
+/* 群組、角色權限與班表封存 */
+#scheduleGroupSelect { min-width: 7.5rem; }
+.schedule-archive-banner { margin: .5rem 0 0; padding: .55rem .8rem; border: 1px solid var(--border-color, #d6d2ca); border-radius: .65rem; background: color-mix(in srgb, var(--surface-color, #fff) 88%, #d8c68b 12%); font-size: .88rem; }
+#mainTable .archived-schedule-cell { cursor: not-allowed; background-image: repeating-linear-gradient(-45deg, transparent, transparent 7px, rgba(100,94,82,.05) 7px, rgba(100,94,82,.05) 14px); }
+.group-settings-table .group-drag-col, .group-settings-table .group-meal-col { width: 3.2rem; text-align: center; }
+.group-settings-row.is-dragging { opacity: .45; }
+.group-drag-handle { display: inline-flex; align-items: center; justify-content: center; width: 1.8rem; height: 1.8rem; cursor: grab; font-size: 1.25rem; user-select: none; }
+.group-units-cell, .permission-summary-cell { max-width: 24rem; white-space: normal; line-height: 1.45; }
+.group-actions-cell { display: flex; align-items: center; justify-content: center; gap: .35rem; white-space: nowrap; }
+.group-status { display: inline-flex; justify-content: center; min-width: 3.4rem; padding: .18rem .5rem; border-radius: 999px; font-size: .82rem; }
+.group-status.is-active { background: rgba(54,137,92,.14); }
+.group-status.is-inactive { background: rgba(113,107,96,.14); }
+.role-group-fieldset, .role-permission-fieldset { margin: 1rem 0 0; padding: .9rem; border: 1px solid var(--border-color, #d6d2ca); border-radius: .75rem; }
+.role-group-grid, .role-permission-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .65rem 1rem; }
+.role-group-grid label, .permission-check, .schedule-permission-row label { display: inline-flex; align-items: center; gap: .4rem; }
+.schedule-permission-row { display: flex; align-items: center; gap: 1.25rem; margin-bottom: .9rem; padding-bottom: .75rem; border-bottom: 1px solid var(--border-color, #d6d2ca); }
+.schedule-permission-row > span { min-width: 4rem; font-weight: 700; }
+.archive-create-row { display: grid; grid-template-columns: minmax(8rem,1fr) minmax(10rem,1fr) minmax(10rem,1fr) auto; align-items: end; gap: .75rem; margin-bottom: 1rem; }
+.archive-detail-table td span { font-size: .82rem; opacity: .75; }
+@media (max-width: 760px) {
+  #scheduleGroupSelect { min-width: 6.5rem; }
+  .archive-create-row { grid-template-columns: 1fr 1fr; }
+  .archive-create-row .btn-primary { width: 100%; }
+  .group-actions-cell { flex-wrap: wrap; }
+}
