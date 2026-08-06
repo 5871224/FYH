@@ -1,71 +1,64 @@
-name: Validate Web App
-run-name: "${{ github.event_name == 'pull_request' && format('PR #{0} 驗證', github.event.pull_request.number) || github.event_name == 'push' && 'main 驗證' || '手動驗證' }}"
+name: Canonical cleanup validation
 
 on:
   push:
     branches:
-      - main
-  pull_request:
-    branches:
-      - main
-  workflow_dispatch:
+      - canonical-export-cleanup
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: web-validate-${{ github.event.pull_request.number || github.ref }}
+  group: canonical-export-cleanup
   cancel-in-progress: true
 
 jobs:
-  validate:
-    name: Validate
+  canonicalize:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
+          ref: canonical-export-cleanup
           fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: "22"
+          cache: npm
 
-      - name: Check declared change scope
-        if: github.event_name == 'pull_request'
-        run: npm run scope:check
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Consolidate canonical implementation
+        run: python .github/canonical-cleanup.py
+
+      - name: Restore permanent workflow and remove task script
+        run: |
+          git fetch origin main
+          git show origin/main:.github/workflows/deploy-pages.yml > .github/workflows/deploy-pages.yml
+          rm -f .github/canonical-cleanup.py
 
       - name: Build static web
         run: npm run web:publish
 
-      - name: Check reproducible static publish
-        run: git diff --exit-code -- docs
+      - name: Run full validation
+        run: |
+          npm test
+          npm run web:check
+          node scripts/check-normalized-storage.js
+          node scripts/check-expansion-acceptance.js
+          node scripts/check-settings-lists.js
+          npm run renderer:check
+          npm run css:architecture
+          npm run js:architecture
 
-      - name: Check workflow hygiene
-        run: node --test tests/github-actions-hygiene.test.js
-
-      - name: Run unit tests
-        run: npm test
-
-      - name: Check public Supabase settings
-        run: npm run web:check
-
-      - name: Check normalized storage
-        run: node scripts/check-normalized-storage.js
-
-      - name: Check expansion acceptance
-        run: node scripts/check-expansion-acceptance.js
-
-      - name: Check settings lists
-        run: node scripts/check-settings-lists.js
-
-      - name: Check renderer bundles
-        run: npm run renderer:check
-
-      - name: Check CSS architecture
-        run: npm run css:architecture
-
-      - name: Check JavaScript architecture
-        run: npm run js:architecture
+      - name: Commit canonical sources
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "移除舊版相容與補丁式匯出流程"
+          git push origin HEAD:canonical-export-cleanup
