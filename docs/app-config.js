@@ -11,27 +11,27 @@ if (typeof document !== "undefined" && typeof document.write === "function") {
   document.write('<script src="./toolbar-compact.mjs?v=20260730-toolbar-compact"><\/script>');
   document.write('<script defer src="./renderer-groups-permissions-archive.mjs?v=20260806-groups-permissions-archive"><\/script>');
   document.write('<script defer src="./renderer-group-backend-bridges.mjs?v=20260806-group-backend-bridges"><\/script>');
-}
 
-document.addEventListener("DOMContentLoaded", () => {
-  let attempts = 0;
-  const ensureGroupFeatureInitialized = async () => {
-    if (
-      typeof groupFeatureState === "object"
-      && typeof reloadGroupApplicationState === "function"
-      && window.schedulerApi?.getAuthContext?.()?.session
-    ) {
-      if (!groupFeatureState.initialized) {
-        try {
-          await reloadGroupApplicationState();
-        } catch (error) {
-          console.error("群組功能初始化失敗", error);
+  document.addEventListener("DOMContentLoaded", () => {
+    let attempts = 0;
+    const ensureGroupFeatureInitialized = async () => {
+      if (
+        typeof groupFeatureState === "object"
+        && typeof reloadGroupApplicationState === "function"
+        && window.schedulerApi?.getAuthContext?.()?.session
+      ) {
+        if (!groupFeatureState.initialized) {
+          try {
+            await reloadGroupApplicationState();
+          } catch (error) {
+            console.error("群組功能初始化失敗", error);
+          }
         }
+        return;
       }
-      return;
-    }
-    attempts += 1;
-    if (attempts < 40) setTimeout(ensureGroupFeatureInitialized, 250);
-  };
-  void ensureGroupFeatureInitialized();
-});
+      attempts += 1;
+      if (attempts < 40) setTimeout(ensureGroupFeatureInitialized, 250);
+    };
+    void ensureGroupFeatureInitialized();
+  });
+}
