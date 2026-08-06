@@ -6,6 +6,7 @@ $functions = @(
   "attendance-clock",
   "attendance-ledger",
   "attendance-ledger-export",
+  "attendance-review-groups",
   "meal-order",
   "department-attendance-v2",
   "member-delete-v2",
