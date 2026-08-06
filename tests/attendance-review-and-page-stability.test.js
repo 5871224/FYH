@@ -30,7 +30,7 @@ test("簽到審核使用一致班表圖示與三個單行 SVG 操作", () => {
   assert.match(css, /\.attendance-review-table \.attendance-schedule-icon-col[\s\S]*?width: var\(--day-col-width\)/);
   assert.match(css, /\.attendance-review-table \.personal-record-schedule-cell \.seg-label[\s\S]*?color: inherit/);
   assert.match(css, /\.attendance-review-row-actions[\s\S]*?flex-wrap: nowrap/);
-  assert.match(css, /\.attendance-review-table \.attendance-review-check-col[\s\S]*?width: 32px/);
+  assert.match(css, /\.attendance-review-table \.attendance-review-check-col[\s\S]*?width: 30px/);
   assert.match(css, /\.attendance-review-table \.attendance-review-date-col[\s\S]*?white-space: nowrap/);
 });
 
