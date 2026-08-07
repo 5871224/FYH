@@ -90,7 +90,29 @@ jobs:
 
       - name: Run unit tests
         if: steps.changes.outputs.docs_only != 'true'
-        run: npm test
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee /tmp/npm-test.log
+          test_status=${PIPESTATUS[0]}
+          set -e
+
+          if (( test_status != 0 )); then
+            {
+              echo "### Unit test failure"
+              echo
+              echo '```text'
+              tail -n 120 /tmp/npm-test.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+
+            failure_tail="$(tail -n 80 /tmp/npm-test.log)"
+            failure_tail="${failure_tail//'%'/'%25'}"
+            failure_tail="${failure_tail//$'\r'/'%0D'}"
+            failure_tail="${failure_tail//$'\n'/'%0A'}"
+            echo "::error title=Unit tests failed::$failure_tail"
+            exit "$test_status"
+          fi
 
       - name: Check public Supabase settings
         if: steps.changes.outputs.docs_only != 'true'
