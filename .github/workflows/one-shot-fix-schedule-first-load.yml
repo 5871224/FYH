@@ -24,11 +24,14 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Apply canonical schedule first-load fix
-        run: python .github/fix-schedule-first-load.py
+        run: |
+          python .github/fix-schedule-first-load.py
+          python .github/fix-schedule-first-load-tests.py
       - name: Remove one-shot files
         run: |
           rm -f .github/workflows/one-shot-fix-schedule-first-load.yml
           rm -f .github/fix-schedule-first-load.py
+          rm -f .github/fix-schedule-first-load-tests.py
           rm -f .github/fix-schedule-first-load-trigger.txt
       - name: Build and validate
         run: |
