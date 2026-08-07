@@ -24,7 +24,8 @@ test("正式 workflow 只驗證，不重複部署 GitHub Pages", () => {
   const workflow = read(workflowPath);
 
   assert.match(workflow, /^name: Validate Web App/m);
-  assert.match(workflow, /^run-name: .*PR #\{0\} 驗證.*main 驗證/m);
+  assert.equal(workflow.includes("format('PR #{0} 驗證'"), true);
+  assert.equal(workflow.includes("&& 'main 驗證'"), true);
   assert.match(workflow, /^  push:\n    branches:\n      - main/m);
   assert.match(workflow, /^  pull_request:\n    branches:\n      - main/m);
   assert.match(workflow, /^  cancel-in-progress: true/m);
