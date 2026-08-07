@@ -69,18 +69,18 @@
 
     .attendance-review-table .attendance-schedule-icon-col {
       box-sizing: border-box;
-      width: var(--day-col-width) !important;
-      min-width: var(--day-col-width) !important;
-      max-width: var(--day-col-width) !important;
+      width: 48px !important;
+      min-width: 48px !important;
+      max-width: 48px !important;
       padding-right: 2px !important;
       padding-left: 2px !important;
     }
 
     .attendance-review-table .attendance-schedule-icon-col .personal-record-schedule-cell {
       box-sizing: border-box;
-      width: calc(var(--day-col-width) - 4px);
-      min-width: calc(var(--day-col-width) - 4px);
-      max-width: calc(var(--day-col-width) - 4px);
+      width: 44px;
+      min-width: 44px;
+      max-width: 44px;
       margin-right: auto;
       margin-left: auto;
     }
@@ -244,6 +244,19 @@
         });
       }
 
+      function syncAttendanceReviewIconColumn() {
+        const table = document.querySelector(".attendance-review-table");
+        if (!table || table.querySelector('colgroup[data-attendance-review-fixed-columns="true"]')) return;
+        const colgroup = document.createElement("colgroup");
+        colgroup.dataset.attendanceReviewFixedColumns = "true";
+        for (let index = 0; index < 12; index += 1) {
+          const col = document.createElement("col");
+          if (index === 3) col.style.width = "48px";
+          colgroup.appendChild(col);
+        }
+        table.prepend(colgroup);
+      }
+
       const baseRenderToolbar = renderToolbar;
       renderToolbar = function renderToolbarWithSelectedPreview(...args) {
         const result = baseRenderToolbar.apply(this, args);
@@ -274,8 +287,14 @@
         }
       });
 
+      const recordsCard = document.getElementById("recordsCard");
+      if (recordsCard) {
+        new MutationObserver(syncAttendanceReviewIconColumn).observe(recordsCard, { childList: true, subtree: true });
+      }
+
       enhanceToolbarChips();
       syncSelectedToolbarPreview();
+      syncAttendanceReviewIconColumn();
     })();
   </script>
 </body>
