@@ -1,4 +1,4 @@
-/* 群組化簽到審核 API 與現有頁面的橋接。 */
+/* 群組化簽到審核 API 與頁面按需讀取。 */
 
 async function requestGroupEdgeFunction(functionName, payload = {}) {
   const config = window.SCHEDULER_CONFIG || {};
@@ -125,10 +125,51 @@ function overtimeHoursToTime(value) {
     if (shouldRender) renderAll();
   };
 
-  const baseLoadRecordsPage = loadRecordsPage;
-  loadRecordsPage = async function loadRecordsPageWithReview(shouldRender = true) {
-    await baseLoadRecordsPage(false);
-    if (hasPermission("attendance_review")) await loadAttendanceReview(false);
+  async function loadPersonalRecordsOnly(shouldRender = true) {
+    if (!isLoggedIn()) return;
+    ensureRecordsState();
+    recordsState = { ...recordsState, loading: true, error: "" };
     if (shouldRender) renderAll();
+    try {
+      const result = await window.schedulerApi.getPersonalRecords({
+        ...recordsState.personalFilters,
+        page: recordsState.personalPage
+      });
+      recordsState = {
+        ...recordsState,
+        loading: false,
+        personal: result.records || [],
+        personalTotal: Number(result.total || 0),
+        personalPage: Number(result.page || 1),
+        personalPageSize: Number(result.pageSize || 50),
+        error: ""
+      };
+    } catch (error) {
+      recordsState = {
+        ...recordsState,
+        loading: false,
+        personal: [],
+        error: error.message || "讀取簽到簿失敗"
+      };
+    }
+    if (shouldRender) renderAll();
+  }
+
+  loadRecordsPage = async function loadVisibleRecordsTab(shouldRender = true) {
+    ensureRecordsState();
+    if (recordsState.activeTab === "review" && hasPermission("attendance_review")) {
+      await loadAttendanceReview(shouldRender);
+      return;
+    }
+    await loadPersonalRecordsOnly(shouldRender);
   };
+
+  document.body.addEventListener("click", (event) => {
+    const tab = event.target.closest?.("button[data-records-tab]");
+    if (!tab) return;
+    queueMicrotask(() => {
+      if (appView !== "records") return;
+      void loadRecordsPage();
+    });
+  });
 })();
