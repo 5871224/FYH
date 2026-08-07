@@ -78,7 +78,9 @@ jobs:
 
       - name: Run documentation guards
         if: steps.changes.outputs.docs_only == 'true'
-        run: node --test tests/canonical-schema.test.js tests/github-actions-hygiene.test.js
+        run: |
+          node --test tests/canonical-schema.test.js tests/github-actions-hygiene.test.js
+          npm test
 
       - name: Build static web
         if: steps.changes.outputs.docs_only != 'true'
