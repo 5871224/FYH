@@ -49,6 +49,43 @@ test("正式 workflow 只驗證，不重複部署 GitHub Pages", () => {
   assert.equal(workflow.includes("id-token: write"), false);
 });
 
+test("純文件變更只跑輕量守門測試，其他異動跑完整驗證", () => {
+  const workflow = read(workflowPath);
+
+  assert.match(workflow, /- name: Determine change scope\n\s+id: changes/);
+  assert.match(workflow, /if \[\[ "\$file" != \*\.md \]\]/);
+  assert.match(
+    workflow,
+    /- name: Run documentation guards\n\s+if: steps\.changes\.outputs\.docs_only == 'true'/
+  );
+  assert.match(
+    workflow,
+    /node --test tests\/canonical-schema\.test\.js tests\/github-actions-hygiene\.test\.js/
+  );
+
+  const fullValidationSteps = [
+    "Build static web",
+    "Check reproducible static publish",
+    "Run unit tests",
+    "Check public Supabase settings",
+    "Check normalized storage",
+    "Check expansion acceptance",
+    "Check settings lists",
+    "Check renderer bundles",
+    "Check CSS architecture",
+    "Check JavaScript architecture"
+  ];
+
+  fullValidationSteps.forEach((stepName) => {
+    const pattern = new RegExp(
+      `- name: ${stepName}\\n\\s+if: steps\\.changes\\.outputs\\.docs_only != 'true'`
+    );
+    assert.match(workflow, pattern);
+  });
+
+  assert.equal(workflow.includes("- name: Check workflow hygiene"), false);
+});
+
 test("正式 workflow 不得自動修改或推送 PR 分支", () => {
   const workflow = read(workflowPath);
 
