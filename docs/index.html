@@ -67,6 +67,24 @@
       grid-template-rows: repeat(4, auto);
     }
 
+    .attendance-review-table .attendance-schedule-icon-col {
+      box-sizing: border-box;
+      width: var(--day-col-width) !important;
+      min-width: var(--day-col-width) !important;
+      max-width: var(--day-col-width) !important;
+      padding-right: 2px !important;
+      padding-left: 2px !important;
+    }
+
+    .attendance-review-table .attendance-schedule-icon-col .personal-record-schedule-cell {
+      box-sizing: border-box;
+      width: calc(var(--day-col-width) - 4px);
+      min-width: calc(var(--day-col-width) - 4px);
+      max-width: calc(var(--day-col-width) - 4px);
+      margin-right: auto;
+      margin-left: auto;
+    }
+
     @media (max-width: 768px) {
       .toolbar-floating-card > #toolbarSelectedPreview {
         width: 42px;
