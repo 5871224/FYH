@@ -542,7 +542,7 @@ begin
   if tg_op='UPDATE' and old.group_id is not null and not public.role_applies_to_group(auth.uid(),old.group_id) then raise exception '此角色不可管理人員原群組' using errcode='42501'; end if;
   if new.group_id is null or not public.role_applies_to_group(auth.uid(),new.group_id) then raise exception '此角色不可管理人員所屬群組' using errcode='42501'; end if;
   if new.home_department_id is null or not exists(select 1 from public.set_departments where id=new.home_department_id and group_id=new.group_id and deleted_at is null) then raise exception '所屬單位不在所選群組'; end if;
-  if exists(select 1 from unnest(coalesce(new.schedule_shift_ids,'{}'::uuid[])) shift_id where not exists(select 1 from public.set_shift where id=shift_id and group_id=new.group_id and deleted_at is null)) then raise exception '排班班別不在所選群組'; end if;
+  if exists(select 1 from unnest(coalesce(new.schedule_shift_ids,'{}'::uuid[])) shift_id where not exists(select 1 from public.set_shift where id=shift_id and group_id=new.group_id and deleted_at is null)) then raise exception '排班班別不在人員所屬群組'; end if;
   if tg_op='UPDATE' and new.group_id is distinct from old.group_id then perform public.validate_member_group_change_v1(old.employee_code,new.group_id); end if;
   select * into v_role from public.access_roles where id=new.access_role_id; if not found then raise exception '找不到權限角色'; end if;
   v_has_permission:=public.has_access_permission(auth.uid(),'permission_settings');
@@ -615,7 +615,7 @@ begin
   delete from public.access_role_groups where role_id=v_id and group_id in(select id from public.schedule_groups where deleted_at is null);
   insert into public.access_role_groups(role_id,group_id) select v_id,unnest(v_group_ids) on conflict do nothing;
   update public.set_employee set role=v_legacy,updated_at=now() where access_role_id=v_id;
-  return jsonb_build_object('ok',true,'role',jsonb_build_object('id',v_role.id,'code',v_role.code,'name',v_role.name,'permissions',v_role.permissions,'legacyRole',v_role.legacy_role,'groupIds',v_group_ids));
+  return jsonb_build_object('ok',true,'role',jsonb_build_object('id',v_role.id,'code',v_role.code,'name',v_role.name,'permissions',v_role.permissions,'legacyRole',v_role.legacy_role,'isSystem',v_role.is_system,'groupIds',v_group_ids));
 end $$;
 
 create or replace function public.delete_access_role_v1(p_role_id uuid)
@@ -704,12 +704,18 @@ language sql stable security definer set search_path=public,pg_catalog as $$
  where deleted_at is null and public.is_effective_user(auth.uid()) and public.role_applies_to_group(auth.uid(),group_id) order by sort_order,name,id
 $$;
 
-create or replace function public.get_schedule_directory_v2()
-returns table(id uuid,full_name text,home_department_id uuid,hire_date date,leave_date date,pay_by_day boolean,sort_order integer)
+drop function if exists public.get_schedule_directory_v2();
+create function public.get_schedule_directory_v2()
+returns table(id uuid,employee_code text,full_name text,home_department_id uuid,hire_date date,leave_date date,pay_by_day boolean,sort_order integer)
 language sql stable security definer set search_path=public,pg_catalog as $$
- select id,full_name,home_department_id,hire_date,leave_date,pay_by_day,sort_order from public.set_employee
+ select id,
+        case when public.has_access_permission(auth.uid(),'member_settings') then employee_code else null::text end,
+        full_name,home_department_id,hire_date,leave_date,pay_by_day,sort_order
+ from public.set_employee
  where deleted_at is null and public.is_effective_user(auth.uid()) and public.role_applies_to_group(auth.uid(),group_id) order by sort_order,full_name,id
 $$;
+revoke all on function public.get_schedule_directory_v2() from public,anon,authenticated;
+grant execute on function public.get_schedule_directory_v2() to authenticated,service_role;
 
 create or replace function public.get_employee_admin_directory_v2()
 returns table(id uuid,employee_code text,full_name text,role text,home_department_id uuid,position_name text,hire_date date,leave_date date,pay_by_day boolean,created_at timestamptz,updated_at timestamptz,schedule_department_ids text[],monthly_rest_days integer,fixed_rest_weekday integer,schedule_shift_ids uuid[],sort_order integer)
