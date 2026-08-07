@@ -6,16 +6,17 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
-test("首頁訂餐資格應先快速載入，再等待完整群組班表初始化", () => {
+test("首頁只讀最小群組資格，不在登入後預載完整班表", () => {
   const source = read("src/renderer/app-config.js");
   const published = read("docs/app-config.js");
+  const lazySource = read("src/renderer/page-lazy-data.mjs");
+  const lazyPublished = read("docs/page-lazy-data.mjs");
 
   assert.equal(published, source, "發布設定載入器必須與來源一致");
-  assert.match(source, /async \(\) => \{[\s\S]*loadGroupAccessData\(\)[\s\S]*syncPermissionUi\(\)/, "首頁應獨立載入群組資格並立即同步按鈕");
-
-  const quickAccessIndex = source.indexOf("await loadGroupAccessForHome()");
-  const fullReloadIndex = source.indexOf("await reloadGroupApplicationState()");
-  assert.ok(quickAccessIndex >= 0, "缺少首頁群組資格快速載入");
-  assert.ok(fullReloadIndex > quickAccessIndex, "首頁訂餐資格必須早於完整班表重新載入完成");
-  assert.match(source, /retryGroupFeatureInitialization\(\)/, "快速資格載入失敗時必須可重試");
+  assert.equal(lazyPublished, lazySource, "發布頁面懶載入模組必須與來源一致");
+  assert.match(source, /page-lazy-data\.mjs\?v=20260807-page-lazy-data/);
+  assert.doesNotMatch(source, /DOMContentLoaded|reloadGroupApplicationState/);
+  assert.match(lazySource, /get_group_access_bundle_v1/, "登入階段只需取得角色、適用群組與群組訂餐資格");
+  assert.match(lazySource, /groupEntitiesLoaded = false/, "登入階段不得把完整群組實體資料標記為已載入");
+  assert.match(lazySource, /await reloadGroupApplicationState\(\)/, "完整班表只在進入班表時載入");
 });
