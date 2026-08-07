@@ -24,10 +24,16 @@
     loadGroupAccessData = async function loadGroupAccessDataOnDemand() {
       const pageData = getPageDataState();
       if (!pageData.bootstrapActive) {
-        const result = await fullLoadGroupAccessData();
+        const entityMap = await groupRpc("get_group_entity_map_v1");
+        groupFeatureState.entityMap = entityMap && typeof entityMap === "object"
+          ? entityMap
+          : { departments: [], members: [], shifts: [], archiveRanges: [] };
         pageData.groupBundleLoaded = Boolean(groupFeatureState?.bundle?.actor);
         pageData.groupEntitiesLoaded = true;
-        return result;
+        return {
+          bundle: groupFeatureState.bundle,
+          entityMap: groupFeatureState.entityMap
+        };
       }
 
       const bundle = await groupRpc("get_group_access_bundle_v1");
@@ -56,9 +62,6 @@
     pageData.scheduleLoading = (async () => {
       try {
         await reloadGroupApplicationState();
-        if (typeof ensureVisibleScheduleLoaded === "function") {
-          await ensureVisibleScheduleLoaded();
-        }
         pageData.scheduleLoaded = true;
         pageData.groupBundleLoaded = true;
         pageData.groupEntitiesLoaded = true;

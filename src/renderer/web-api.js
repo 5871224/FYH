@@ -783,6 +783,12 @@
     });
   }
 
+  async function getDepartmentAttendanceSettings() {
+    ensureSignedIn();
+    const result = await requestFunction("department-attendance-v2", {});
+    return Array.isArray(result?.settings) ? result.settings : [];
+  }
+
   async function getTodayAttendance() {
     ensureSignedIn();
     return requestFunction("attendance-clock", {
@@ -1143,66 +1149,59 @@
   async function loadState() {
     const auth = Boolean(currentSession?.access_token);
     try {
+      const settingsRows = await restSelect("scheduler_settings", {
+        select: "*",
+        filters: { id: `eq.${documentId}` },
+        limit: "1",
+        auth
+      });
+      const settings = settingsRows?.[0] || {};
+      const scheduleRange = getScheduleLoadRange(settings);
+      const visibleStartDate = addDaysToDateString(scheduleRange.startDate, 7) || taipeiDateString();
+      const visibleStart = toDateObject(visibleStartDate);
+      const memberOrderPromise = currentSession?.access_token
+        ? requestFunction("member-order-v2", { action: "list" })
+        : Promise.resolve({ memberIds: [] });
+
       const [
-        settingsRows,
         departmentRows,
         profileRows,
         shiftRows,
         leaveRows,
         overtimeRows,
-        holidayRows
+        holidayRows,
+        scheduleEntryRows,
+        memberOrderResult
       ] = await Promise.all([
-        restSelect("scheduler_settings", { select: "*", filters: { id: `eq.${documentId}` }, limit: "1", auth }),
         getDepartmentDirectoryRows(),
         getScheduleDirectoryRows(),
         restSelect("set_shift", { select: "*", order: "sort_order.asc,name.asc", auth }),
         restSelect("set_leave", { select: "*", order: "sort_order.asc,code.asc", auth }),
         restSelect("set_overtime", { select: "*", order: "sort_order.asc,name.asc", auth }),
-        restSelect("holidays", { select: "*", order: "sort_order.asc,holiday_date.asc", auth })
+        restSelect("holidays", { select: "*", order: "sort_order.asc,holiday_date.asc", auth }),
+        restSelect("schedule_entries", {
+          select: "*",
+          filters: getScheduleEntryFilters(scheduleRange),
+          order: "work_date.asc",
+          auth
+        }),
+        memberOrderPromise
       ]);
 
-      const settings = settingsRows?.[0] || {};
-      const scheduleRange = getScheduleLoadRange(settings);
-      const scheduleEntryRows = await restSelect("schedule_entries", {
-        select: "*",
-        filters: getScheduleEntryFilters(scheduleRange),
-        order: "work_date.asc",
-        auth
-      });
-
-      let departments = mapDepartmentRows(departmentRows);
-      if (currentProfile?.role === "admin") {
-        const result = await requestFunction("department-attendance-v2", {});
-        const byDepartment = new Map((result.settings || []).map((row) => [row.departmentId, row]));
-        departments = departments.map((department) => {
-          const attendance = byDepartment.get(department.id);
-          return attendance ? {
-            ...department,
-            address: attendance.address || "",
-            latitude: attendance.latitude ?? "",
-            longitude: attendance.longitude ?? "",
-            publicIp: attendance.publicIp || "",
-            attendanceEnabled: Boolean(attendance.attendanceEnabled)
-          } : department;
-        });
-      }
-
+      const departments = mapDepartmentRows(departmentRows);
       let members = mapMemberDirectoryRows(profileRows);
-      if (currentSession?.access_token) {
-        const result = await requestFunction("member-order-v2", { action: "list" });
-        members = applyMemberOrder(members, result.memberIds);
-      }
+      members = applyMemberOrder(members, memberOrderResult?.memberIds || []);
       const schedule = mapScheduleRows(scheduleEntryRows, members);
 
       return {
-        year: Number(settings.current_year) || new Date().getFullYear(),
-        month: clampInteger(settings.current_month, 0, 11, new Date().getMonth()),
+        year: visibleStart?.getFullYear() || new Date().getFullYear(),
+        month: visibleStart?.getMonth() ?? new Date().getMonth(),
         selected: { type: null, id: null },
-        deptFilter: settings.dept_filter || "all",
+        deptFilter: "all",
         tableView: settings.table_view === "shift" ? "shift" : "member",
-        tableDeptScopeFilter: settings.table_dept_scope_filter || "all",
+        tableDeptScopeFilter: "all",
         tableStatsVisible: settings.table_stats_visible !== false,
-        scheduleStartDate: settings.schedule_start_date || "",
+        scheduleStartDate: visibleStartDate,
         departments,
         members,
         shifts: mapShiftRows(shiftRows),
@@ -1993,6 +1992,7 @@
     signIn,
     signOut,
     changePassword,
+    getDepartmentAttendanceSettings,
     getTodayAttendance,
     clockAttendance,
     getTodayMealOrder,

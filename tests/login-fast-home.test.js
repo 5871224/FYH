@@ -43,7 +43,7 @@ test("登入快速首頁模組同步發布並由 app-config 載入", () => {
 
   assert.equal(docsLoader, loader, "發布設定載入器必須與來源一致");
   assert.equal(docsSource, source, "發布登入快速首頁模組必須與來源一致");
-  assert.match(loader, /login-fast-home\.mjs\?v=20260807-page-lazy-data/);
+  assert.match(loader, /login-fast-home\.mjs\?v=20260807-schedule-first-load/);
   assert.doesNotThrow(() => new Function(source), "登入快速首頁模組必須可解析");
 });
 

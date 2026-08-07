@@ -220,14 +220,12 @@ function mergeFullStateForSave(scopedState) {
 
 async function reloadGroupApplicationState() {
   const previousGroupId = groupFeatureState.currentGroupId;
-  const previousStartDate = state?.scheduleStartDate || "";
   const payload = await window.schedulerApi.loadState();
   state = normalizeState(payload);
   if (previousGroupId && getSelectableGroups().some((group) => group.id === previousGroupId)) {
     groupFeatureState.currentGroupId = previousGroupId;
     applyCurrentGroupScope(state);
   }
-  if (previousStartDate) state.scheduleStartDate = previousStartDate;
   currentMember = resolveCurrentMember();
   managerDirectoryLoaded = false;
   managerDirectoryLoading = null;

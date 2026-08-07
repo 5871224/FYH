@@ -14,7 +14,7 @@ test("首頁初始化只載入最小權限資料，完整班表延後到進入�
 
   assert.equal(config, docsConfig);
   assert.equal(lazy, docsLazy);
-  assert.match(config, /page-lazy-data\.mjs\?v=20260807-page-lazy-data/);
+  assert.match(config, /page-lazy-data\.mjs\?v=20260807-schedule-first-load/);
   assert.doesNotMatch(config, /DOMContentLoaded|reloadGroupApplicationState/);
   assert.match(lazy, /get_group_access_bundle_v1/);
   assert.match(lazy, /if \(!pageData\.bootstrapActive\)/);

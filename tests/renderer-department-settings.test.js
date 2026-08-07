@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-// 固定補丁整併前使用者實際看到的六欄單位設定畫面。
+// 驗證正式七欄單位設定畫面與管理資料延後載入。
 const root = path.resolve(__dirname, "..");
 
 test("單位設定最終畫面應直接由正式模組提供七欄", async () => {
@@ -18,6 +18,7 @@ test("單位設定最終畫面應直接由正式模組提供七欄", async () =>
     departmentSettingsView: "",
     modalContext: {},
     ensureManagerDirectoryLoaded: async () => {},
+    isAdmin: () => false,
     showInfoMessage: () => {},
     isMemberCurrentlyActive: (member) => member.active,
     getMemberHomeDeptId: (member) => member.deptId,

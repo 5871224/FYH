@@ -1,6 +1,29 @@
+let departmentAttendanceSettingsUserId = "";
+
+async function ensureDepartmentAttendanceSettingsLoaded() {
+  if (!isAdmin()) return;
+  const userId = currentProfile?.id || "";
+  if (userId && departmentAttendanceSettingsUserId === userId) return;
+  const settings = await window.schedulerApi.getDepartmentAttendanceSettings();
+  const byDepartment = new Map((settings || []).map((row) => [row.departmentId, row]));
+  state.departments = state.departments.map((department) => {
+    const attendance = byDepartment.get(department.id);
+    return attendance ? {
+      ...department,
+      address: attendance.address || "",
+      latitude: attendance.latitude ?? "",
+      longitude: attendance.longitude ?? "",
+      publicIp: attendance.publicIp || "",
+      attendanceEnabled: Boolean(attendance.attendanceEnabled)
+    } : department;
+  });
+  departmentAttendanceSettingsUserId = userId;
+}
+
 async function openDepartmentSettings() {
   try {
     await ensureManagerDirectoryLoaded();
+    await ensureDepartmentAttendanceSettingsLoaded();
   } catch (error) {
     showInfoMessage(`讀取管理資料失敗：${error.message || error}`);
     return;
