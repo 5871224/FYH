@@ -98,19 +98,30 @@ jobs:
           set -e
 
           if (( test_status != 0 )); then
+            failure_details="$(awk '
+              /^not ok [0-9]+ - / { capture = 1; remaining = 35 }
+              capture { print; remaining -= 1; if (remaining <= 0) capture = 0 }
+            ' /tmp/npm-test.log)"
+
+            if [[ -z "$failure_details" ]]; then
+              failure_details="$(tail -n 120 /tmp/npm-test.log)"
+            fi
+
+            test_summary="$(tail -n 12 /tmp/npm-test.log)"
+            failure_message="${failure_details}"$'\n\n'"${test_summary}"
+
             {
               echo "### Unit test failure"
               echo
               echo '```text'
-              tail -n 120 /tmp/npm-test.log
+              printf '%s\n' "$failure_message"
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
 
-            failure_tail="$(tail -n 80 /tmp/npm-test.log)"
-            failure_tail="${failure_tail//'%'/'%25'}"
-            failure_tail="${failure_tail//$'\r'/'%0D'}"
-            failure_tail="${failure_tail//$'\n'/'%0A'}"
-            echo "::error title=Unit tests failed::$failure_tail"
+            failure_message="${failure_message//'%'/'%25'}"
+            failure_message="${failure_message//$'\r'/'%0D'}"
+            failure_message="${failure_message//$'\n'/'%0A'}"
+            echo "::error title=Unit tests failed::$failure_message"
             exit "$test_status"
           fi
 
