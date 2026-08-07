@@ -22,7 +22,8 @@ function createRuntime(authContext) {
     renderAll: () => {
       renderCalls += 1;
     },
-    syncCoreActionsMenu: () => {}
+    syncCoreActionsMenu: () => {},
+    addEventListener: () => {}
   };
   runtime.window = runtime;
   vm.createContext(runtime);
@@ -42,7 +43,7 @@ test("登入快速首頁模組同步發布並由 app-config 載入", () => {
 
   assert.equal(docsLoader, loader, "發布設定載入器必須與來源一致");
   assert.equal(docsSource, source, "發布登入快速首頁模組必須與來源一致");
-  assert.match(loader, /login-fast-home\.mjs\?v=20260731-login-fast-home/);
+  assert.match(loader, /login-fast-home\.mjs\?v=20260807-page-lazy-data/);
   assert.doesNotThrow(() => new Function(source), "登入快速首頁模組必須可解析");
 });
 
@@ -99,6 +100,55 @@ test("既有登入狀態仍執行正常初始化並先顯示首頁", async () =>
   assert.equal(runtime.currentSession, authContext.session);
 });
 
+test("登入階段略過班表完整資料與設定同步，進班表後才啟用", async () => {
+  const authContext = {
+    session: { user: { id: "user-lazy" } },
+    profile: { id: "user-lazy", name: "懶載入測試" }
+  };
+  const { runtime } = createRuntime(authContext);
+  let loadStateCalls = 0;
+  let loadScheduleCalls = 0;
+  let syncCatalogCalls = 0;
+
+  runtime.schedulerApi = {
+    initializeAuth: async () => authContext,
+    loadState: async () => {
+      loadStateCalls += 1;
+      return { loaded: true };
+    },
+    loadScheduleEntries: async () => {
+      loadScheduleCalls += 1;
+      return { schedule: { loaded: true }, scheduleLoadedRanges: [] };
+    },
+    syncCatalogs: async () => {
+      syncCatalogCalls += 1;
+      return { ok: true };
+    }
+  };
+
+  await runtime.schedulerApi.initializeAuth();
+  assert.deepEqual(await runtime.schedulerApi.loadState(), { empty: true });
+  const skippedSchedule = await runtime.schedulerApi.loadScheduleEntries({ startDate: "2026-08-01", endDate: "2026-08-31" });
+  assert.equal(Object.keys(skippedSchedule.schedule).length, 0);
+  assert.equal(skippedSchedule.scheduleLoadedRanges.length, 1);
+  assert.equal(skippedSchedule.scheduleLoadedRanges[0].startDate, "2026-08-01");
+  assert.equal(skippedSchedule.scheduleLoadedRanges[0].endDate, "2026-08-31");
+  const skippedSync = await runtime.schedulerApi.syncCatalogs({});
+  assert.equal(skippedSync.ok, true);
+  assert.equal(skippedSync.skipped, true);
+  assert.equal(loadStateCalls, 0);
+  assert.equal(loadScheduleCalls, 0);
+  assert.equal(syncCatalogCalls, 0);
+
+  runtime.__FYH_PAGE_DATA_STATE__.bootstrapActive = false;
+  assert.deepEqual(await runtime.schedulerApi.loadState(), { loaded: true });
+  await runtime.schedulerApi.loadScheduleEntries({ startDate: "2026-08-01", endDate: "2026-08-31" });
+  await runtime.schedulerApi.syncCatalogs({});
+  assert.equal(loadStateCalls, 1);
+  assert.equal(loadScheduleCalls, 1);
+  assert.equal(syncCatalogCalls, 1);
+});
+
 test("登出會清除尚未使用的登入身分快取", async () => {
   const authContext = {
     session: { user: { id: "user-3" } },
@@ -121,4 +171,6 @@ test("登出會清除尚未使用的登入身分快取", async () => {
   await runtime.schedulerApi.initializeAuth();
 
   assert.equal(initializeCalls, 1, "登出後不得沿用先前登入身分");
+  assert.equal(runtime.__FYH_PAGE_DATA_STATE__.userId, "");
+  assert.equal(runtime.__FYH_PAGE_DATA_STATE__.scheduleLoaded, false);
 });
