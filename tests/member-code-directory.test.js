@@ -21,5 +21,10 @@ test("具有人員設定權限的班表目錄應回傳工號", () => {
 
 test("前端人員資料映射應保留 RPC 回傳的工號", () => {
   const webApi = read("src/renderer/web-api.js");
-  assert.match(webApi, /code:\s*String\(row\?\.employee_code\s*\|\|\s*""\)/);
+  const start = webApi.indexOf("function mapMemberDirectoryRows");
+  const end = webApi.indexOf("async function loadEmployeeAdminDirectory", start);
+  const block = webApi.slice(start, end);
+
+  assert.ok(start >= 0 && end > start, "缺少人員資料映射函式");
+  assert.match(block, /code:\s*row\.employee_code\s*\|\|\s*""/);
 });
