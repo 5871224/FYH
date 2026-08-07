@@ -419,6 +419,11 @@ async function saveGroupOrder() {
 }
 
 function permissionSummary(role) { return (role.permissions || []).map((permission) => GROUP_PERMISSION_LABELS[permission]).filter(Boolean).join("、") || "-"; }
+function renderPermissionSummaryTags(role) {
+  const labels = (role.permissions || []).map((permission) => GROUP_PERMISSION_LABELS[permission]).filter(Boolean);
+  if (!labels.length) return '<span class="group-unit-empty">-</span>';
+  return `<div class="permission-summary-tags">${labels.map((label) => `<span class="group-unit-tag permission-summary-tag">${escapeHtml(label)}</span>`).join("")}</div>`;
+}
 function roleGroupSummary(role) {
   const names = (role.groupIds || []).map((groupId) => getAllGroups().find((group) => group.id === groupId)?.name).filter(Boolean);
   return names.length ? names.join("、") : "未設定";
@@ -430,7 +435,7 @@ function openPermissionSettings() {
   openEntityListModal({
     title: "權限設定",
     modalClass: "modal modal-wide permission-settings-modal settings-list-modal",
-    body: `<div class="records-table-wrap"><table class="records-table permission-settings-table"><thead><tr><th>角色名稱</th><th>適用群組</th><th>權限項目</th><th>操作</th></tr></thead><tbody>${getAllRoles().map((role) => `<tr><td>${escapeHtml(role.name)}</td><td>${escapeHtml(roleGroupSummary(role))}</td><td class="permission-summary-cell">${escapeHtml(permissionSummary(role))}</td><td><button class="settings-icon-btn" type="button" data-edit-access-role="${escapeHtml(role.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-access-role="${escapeHtml(role.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td></tr>`).join("")}</tbody></table></div>`,
+    body: `<div class="records-table-wrap"><table class="records-table permission-settings-table"><thead><tr><th class="permission-role-col">角色名稱</th><th class="permission-group-col">適用群組</th><th class="permission-items-col">權限項目</th><th class="permission-actions-col">操作</th></tr></thead><tbody>${getAllRoles().map((role) => `<tr><td class="permission-role-col">${escapeHtml(role.name)}</td><td class="permission-group-col">${escapeHtml(roleGroupSummary(role))}</td><td class="permission-summary-cell permission-items-col">${renderPermissionSummaryTags(role)}</td><td class="permission-actions-col"><button class="settings-icon-btn" type="button" data-edit-access-role="${escapeHtml(role.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-access-role="${escapeHtml(role.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td></tr>`).join("")}</tbody></table></div>`,
     headerButtons: '<button class="btn-primary" type="button" data-add-access-role="true">新增</button>',
     hideFooterClose: true
   });

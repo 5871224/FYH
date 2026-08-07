@@ -2,6 +2,12 @@
 #scheduleGroupSelect { min-width: 7.5rem; }
 .schedule-archive-banner { margin: .5rem 0 0; padding: .55rem .8rem; border: 1px solid var(--border-color, #d6d2ca); border-radius: .65rem; background: color-mix(in srgb, var(--surface-color, #fff) 88%, #d8c68b 12%); font-size: .88rem; }
 #mainTable .archived-schedule-cell { cursor: not-allowed; background-image: repeating-linear-gradient(-45deg, transparent, transparent 7px, rgba(100,94,82,.05) 7px, rgba(100,94,82,.05) 14px); }
+.schedule-page-loading { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: rgba(255,253,248,.72); }
+.schedule-page-loading[hidden] { display: none; }
+.schedule-page-loading-indicator { display: flex; align-items: center; justify-content: center; width: 3.25rem; height: 3.25rem; border-radius: 999px; background: rgba(255,255,255,.94); box-shadow: 0 8px 24px rgba(72,52,31,.14); }
+.schedule-page-loading-spinner { width: 2rem; height: 2rem; box-sizing: border-box; border: .24rem solid rgba(156,107,47,.22); border-top-color: var(--ui-accent, #9c6b2f); border-radius: 50%; animation: schedule-page-loading-spin .75s linear infinite; }
+@keyframes schedule-page-loading-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .schedule-page-loading-spinner { animation-duration: 1.5s; } }
 .group-settings-modal { width: min(96vw, 1180px); max-width: 1180px; }
 .group-settings-table { width: 100%; min-width: 760px; table-layout: fixed; }
 .group-settings-table .group-drag-col { width: 2.5rem; text-align: center; }
@@ -17,7 +23,14 @@
 .group-unit-tags { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .35rem; min-width: 0; }
 .group-unit-tag { display: inline-flex; align-items: center; max-width: 100%; padding: .1rem .48rem; border: 1px solid #9dbbea; border-radius: 999px; background: #fff; color: #2f5f9d; font-size: .78rem; line-height: 1.35; white-space: nowrap; }
 .group-unit-empty { color: var(--ui-text-muted, #77716a); }
-.permission-summary-cell { max-width: 24rem; white-space: normal; line-height: 1.45; }
+.permission-settings-modal { width: min(96vw, 1040px); max-width: 1040px; }
+.permission-settings-table { width: 100%; min-width: 920px; table-layout: fixed; }
+.permission-settings-table .permission-role-col { width: 8.5rem; }
+.permission-settings-table .permission-group-col { width: 8.5rem; }
+.permission-settings-table .permission-items-col { width: auto; }
+.permission-settings-table .permission-actions-col { width: 5.75rem; text-align: center; white-space: nowrap; }
+.permission-summary-cell { max-width: none; white-space: normal; line-height: 1.45; }
+.permission-summary-tags { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .35rem; min-width: 0; }
 .group-actions-cell { display: flex; align-items: center; justify-content: center; gap: .35rem; white-space: nowrap; }
 .group-status { display: inline-flex; justify-content: center; min-width: 3.4rem; padding: .18rem .5rem; border-radius: 999px; font-size: .82rem; }
 .group-status.is-active { background: rgba(54,137,92,.14); }

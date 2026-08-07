@@ -16,6 +16,32 @@
     return window.__FYH_PAGE_DATA_STATE__;
   }
 
+  function getScheduleLoadingIndicator() {
+    let overlay = document.getElementById("schedulePageLoading");
+    if (overlay) return overlay;
+    overlay = document.createElement("div");
+    overlay.id = "schedulePageLoading";
+    overlay.className = "schedule-page-loading";
+    overlay.hidden = true;
+    overlay.setAttribute("role", "status");
+    overlay.setAttribute("aria-live", "polite");
+    overlay.setAttribute("aria-label", "班表載入中");
+    overlay.innerHTML = '<div class="schedule-page-loading-indicator" aria-hidden="true"><span class="schedule-page-loading-spinner"></span></div>';
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  async function showScheduleLoadingIndicator() {
+    const overlay = getScheduleLoadingIndicator();
+    overlay.hidden = false;
+    await new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
+  }
+
+  function hideScheduleLoadingIndicator() {
+    const overlay = document.getElementById("schedulePageLoading");
+    if (overlay) overlay.hidden = true;
+  }
+
   const fullLoadGroupAccessData = typeof loadGroupAccessData === "function"
     ? loadGroupAccessData
     : null;
@@ -89,8 +115,11 @@
       return;
     }
 
+    const pageData = getPageDataState();
+    const shouldShowLoading = !pageData.scheduleLoaded;
     button.disabled = true;
     button.setAttribute("aria-busy", "true");
+    if (shouldShowLoading) await showScheduleLoadingIndicator();
     try {
       await ensureSchedulePageData();
       appView = "schedule";
@@ -98,6 +127,7 @@
     } catch (error) {
       showInfoMessage?.(`讀取班表失敗：${error?.message || error}`);
     } finally {
+      if (shouldShowLoading) hideScheduleLoadingIndicator();
       button.disabled = false;
       button.removeAttribute("aria-busy");
     }
@@ -110,5 +140,6 @@
     pageData.scheduleLoading = null;
     pageData.groupBundleLoaded = false;
     pageData.groupEntitiesLoaded = false;
+    hideScheduleLoadingIndicator();
   });
 })();
