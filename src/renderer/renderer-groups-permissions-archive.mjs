@@ -337,6 +337,11 @@ function syncPermissionUi() {
 }
 
 function groupUnitNames(group) { return Array.isArray(group?.unitNames) && group.unitNames.length ? group.unitNames.join("、") : "-"; }
+function renderGroupUnitTags(group) {
+  const unitNames = Array.isArray(group?.unitNames) ? group.unitNames.filter(Boolean) : [];
+  if (!unitNames.length) return '<span class="group-unit-empty">-</span>';
+  return `<div class="group-unit-tags">${unitNames.map((name) => `<span class="group-unit-tag">${escapeHtml(name)}</span>`).join("")}</div>`;
+}
 function actionIcon(name) {
   const paths = name === "edit"
     ? '<path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path>'
@@ -348,11 +353,11 @@ function renderGroupSettingsRows() {
   return getAllGroups().map((group) => `
     <tr class="group-settings-row" draggable="true" data-group-row="${escapeHtml(group.id)}">
       <td class="group-drag-col"><span class="group-drag-handle" title="拖曳排序">≡</span></td>
-      <td>${escapeHtml(group.code || "")}</td><td>${escapeHtml(group.name || "")}</td>
-      <td class="group-units-cell" title="${escapeHtml(groupUnitNames(group))}">${escapeHtml(groupUnitNames(group))}</td>
+      <td class="group-code-col">${escapeHtml(group.code || "")}</td><td class="group-name-col">${escapeHtml(group.name || "")}</td>
+      <td class="group-units-cell" title="${escapeHtml(groupUnitNames(group))}">${renderGroupUnitTags(group)}</td>
       <td class="group-meal-col"><input type="checkbox" ${group.mealEnabled ? "checked" : ""} disabled aria-label="可否訂餐"></td>
-      <td><span class="group-status ${group.status === "active" ? "is-active" : "is-inactive"}">${group.status === "active" ? "啟用" : "停用"}</span></td>
-      <td class="group-actions-cell"><button class="settings-icon-btn" type="button" data-edit-schedule-group="${escapeHtml(group.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="ghost-btn compact-btn" type="button" data-toggle-schedule-group="${escapeHtml(group.id)}">${group.status === "active" ? "停用" : "啟用"}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-schedule-group="${escapeHtml(group.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td>
+      <td class="group-status-col"><span class="group-status ${group.status === "active" ? "is-active" : "is-inactive"}">${group.status === "active" ? "啟用" : "停用"}</span></td>
+      <td class="group-actions-cell group-actions-col"><button class="settings-icon-btn" type="button" data-edit-schedule-group="${escapeHtml(group.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="ghost-btn compact-btn" type="button" data-toggle-schedule-group="${escapeHtml(group.id)}">${group.status === "active" ? "停用" : "啟用"}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-schedule-group="${escapeHtml(group.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td>
     </tr>`).join("");
 }
 
@@ -362,7 +367,7 @@ function openGroupSettings() {
   openEntityListModal({
     title: "群組設定",
     modalClass: "modal modal-wide group-settings-modal settings-list-modal",
-    body: `<div class="records-table-wrap"><table class="records-table group-settings-table"><thead><tr><th class="group-drag-col"></th><th>群組代碼</th><th>群組名稱</th><th>單位</th><th>可否訂餐</th><th>狀態</th><th>操作</th></tr></thead><tbody id="groupSettingsRows">${renderGroupSettingsRows()}</tbody></table></div>`,
+    body: `<div class="records-table-wrap"><table class="records-table group-settings-table"><thead><tr><th class="group-drag-col"></th><th class="group-code-col">群組代碼</th><th class="group-name-col">群組名稱</th><th class="group-units-col">單位</th><th class="group-meal-col">可否訂餐</th><th class="group-status-col">狀態</th><th class="group-actions-col">操作</th></tr></thead><tbody id="groupSettingsRows">${renderGroupSettingsRows()}</tbody></table></div>`,
     headerButtons: '<button class="btn-primary" type="button" data-add-schedule-group="true">新增</button>',
     hideFooterClose: true
   });

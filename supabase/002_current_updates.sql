@@ -706,11 +706,9 @@ $$;
 
 drop function if exists public.get_schedule_directory_v2();
 create function public.get_schedule_directory_v2()
-returns table(id uuid,employee_code text,full_name text,home_department_id uuid,hire_date date,leave_date date,pay_by_day boolean,sort_order integer)
+returns table(id uuid,employee_code text,full_name text,home_department_id uuid,hire_date date,leave_date date,pay_by_day boolean,schedule_shift_ids uuid[],sort_order integer)
 language sql stable security definer set search_path=public,pg_catalog as $$
- select id,
-        case when public.has_access_permission(auth.uid(),'member_settings') then employee_code else null::text end,
-        full_name,home_department_id,hire_date,leave_date,pay_by_day,sort_order
+ select id,employee_code,full_name,home_department_id,hire_date,leave_date,pay_by_day,coalesce(schedule_shift_ids,'{}'::uuid[]),sort_order
  from public.set_employee
  where deleted_at is null and public.is_effective_user(auth.uid()) and public.role_applies_to_group(auth.uid(),group_id) order by sort_order,full_name,id
 $$;
