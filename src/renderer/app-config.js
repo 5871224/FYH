@@ -14,23 +14,46 @@ if (typeof document !== "undefined" && typeof document.write === "function") {
 
   document.addEventListener("DOMContentLoaded", () => {
     let attempts = 0;
+    let groupAccessLoadPromise = null;
+
+    const loadGroupAccessForHome = async () => {
+      if (typeof loadGroupAccessData !== "function") return;
+      const actor = typeof getAccessActor === "function" ? getAccessActor() : {};
+      if (!actor?.groupId) {
+        if (!groupAccessLoadPromise) {
+          groupAccessLoadPromise = loadGroupAccessData().finally(() => {
+            groupAccessLoadPromise = null;
+          });
+        }
+        await groupAccessLoadPromise;
+      }
+      if (typeof syncPermissionUi === "function") syncPermissionUi();
+    };
+
+    const retryGroupFeatureInitialization = () => {
+      attempts += 1;
+      if (attempts < 40) setTimeout(ensureGroupFeatureInitialized, 250);
+    };
+
     const ensureGroupFeatureInitialized = async () => {
       if (
         typeof groupFeatureState === "object"
+        && typeof loadGroupAccessData === "function"
         && typeof reloadGroupApplicationState === "function"
         && window.schedulerApi?.getAuthContext?.()?.session
       ) {
-        if (!groupFeatureState.initialized) {
-          try {
+        try {
+          await loadGroupAccessForHome();
+          if (!groupFeatureState.initialized) {
             await reloadGroupApplicationState();
-          } catch (error) {
-            console.error("群組功能初始化失敗", error);
           }
+        } catch (error) {
+          console.error("群組功能初始化失敗", error);
+          retryGroupFeatureInitialization();
         }
         return;
       }
-      attempts += 1;
-      if (attempts < 40) setTimeout(ensureGroupFeatureInitialized, 250);
+      retryGroupFeatureInitialization();
     };
     void ensureGroupFeatureInitialized();
   });
