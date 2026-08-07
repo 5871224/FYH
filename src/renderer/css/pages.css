@@ -402,7 +402,7 @@
 }
 
 .attendance-ledger-table .personal-schedule-icon-col {
-  width: 48px;
+  width: var(--day-col-width);
 }
 
 .attendance-ledger-table .personal-record-shift-col {
