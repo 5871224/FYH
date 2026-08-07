@@ -33,39 +33,89 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Determine change scope
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base_sha="${{ github.event.pull_request.base.sha }}"
+          else
+            base_sha="${{ github.event.before }}"
+          fi
+
+          if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]]; then
+            base_sha="$(git rev-parse HEAD^ 2>/dev/null || true)"
+          fi
+
+          if [[ -z "$base_sha" ]]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          mapfile -t changed_files < <(git diff --name-only "$base_sha" "$GITHUB_SHA")
+          printf 'Changed files:\n'
+          printf '  %s\n' "${changed_files[@]}"
+
+          docs_only=true
+          if (( ${#changed_files[@]} == 0 )); then
+            docs_only=false
+          fi
+
+          for file in "${changed_files[@]}"; do
+            if [[ "$file" != *.md ]]; then
+              docs_only=false
+              break
+            fi
+          done
+
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+
       - name: Check declared change scope
         if: github.event_name == 'pull_request'
         run: npm run scope:check
 
+      - name: Run documentation guards
+        if: steps.changes.outputs.docs_only == 'true'
+        run: node --test tests/canonical-schema.test.js tests/github-actions-hygiene.test.js
+
       - name: Build static web
+        if: steps.changes.outputs.docs_only != 'true'
         run: npm run web:publish
 
       - name: Check reproducible static publish
+        if: steps.changes.outputs.docs_only != 'true'
         run: git diff --exit-code -- docs
 
-      - name: Check workflow hygiene
-        run: node --test tests/github-actions-hygiene.test.js
-
       - name: Run unit tests
+        if: steps.changes.outputs.docs_only != 'true'
         run: npm test
 
       - name: Check public Supabase settings
+        if: steps.changes.outputs.docs_only != 'true'
         run: npm run web:check
 
       - name: Check normalized storage
+        if: steps.changes.outputs.docs_only != 'true'
         run: node scripts/check-normalized-storage.js
 
       - name: Check expansion acceptance
+        if: steps.changes.outputs.docs_only != 'true'
         run: node scripts/check-expansion-acceptance.js
 
       - name: Check settings lists
+        if: steps.changes.outputs.docs_only != 'true'
         run: node scripts/check-settings-lists.js
 
       - name: Check renderer bundles
+        if: steps.changes.outputs.docs_only != 'true'
         run: npm run renderer:check
 
       - name: Check CSS architecture
+        if: steps.changes.outputs.docs_only != 'true'
         run: npm run css:architecture
 
       - name: Check JavaScript architecture
+        if: steps.changes.outputs.docs_only != 'true'
         run: npm run js:architecture
