@@ -81,6 +81,7 @@ jobs:
         run: |
           node --test tests/canonical-schema.test.js tests/github-actions-hygiene.test.js
           npm test
+          node scripts/check-renderer-contracts.js
 
       - name: Build static web
         if: steps.changes.outputs.docs_only != 'true'
