@@ -262,6 +262,14 @@
           min-height: 30px;
         }
 
+        .toolbar-category-group > .toolbar-section-combined {
+          flex-wrap: wrap !important;
+        }
+
+        .toolbar-category-group > .toolbar-section-combined > #shiftChips {
+          display: contents !important;
+        }
+
         .toolbar-category-group > .toolbar-section-combined,
         .toolbar-category-group > .toolbar-section-leave {
           gap: 4px !important;
