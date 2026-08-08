@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   refactor:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -33,10 +34,27 @@ jobs:
         run: node scripts/perf-refactor-temp.cjs
       - name: Build static web
         run: npm run web:publish
-      - name: Run complete CI
-        run: npm run ci:check
-      - name: Remove temporary refactor tooling
-        run: git rm scripts/perf-refactor-temp.cjs .github/workflows/perf-refactor-temp.yml
+      - name: Run complete CI and preserve diagnostics on failure
+        shell: bash
+        run: |
+          set +e
+          npm run ci:check 2>&1 | tee /tmp/perf-ci.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/perf-ci.log PERF_CI_FAILURE.log
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add PERF_CI_FAILURE.log
+            git commit -m "chore: preserve performance CI diagnostics" || true
+            git push origin HEAD:perf-optimization-pass-20260808
+            exit "$status"
+          fi
+      - name: Remove temporary refactor tooling and diagnostics
+        shell: bash
+        run: |
+          rm -f PERF_CI_FAILURE.log
+          git rm scripts/perf-refactor-temp.cjs .github/workflows/perf-refactor-temp.yml
       - name: Commit finalized source and generated artifacts
         shell: bash
         run: |
