@@ -17,27 +17,22 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Apply refactor
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('.github/refactor-access-architecture.py')
-          s=p.read_text()
-          s=s.replace("        raise RuntimeError(f'legacy browser data access remains in web-api.js: {forbidden}')", "        print(f'LEGACY_REMAINS: {forbidden}')")
-          p.write_text(s)
-          PY
-          python3 .github/refactor-access-architecture.py
-          echo '--- legacy browser references ---'
-          grep -nE 'restSelect\(|restInsert\(|restUpdate\(|restDelete\(' src/renderer/web-api.js || true
-          sed -n '1040,1085p' src/renderer/web-api.js
+      - name: Apply cleanup
+        run: python3 .github/refactor-access-cleanup.py
       - name: Install
         run: npm ci
-      - name: Build
-        run: npm run web:publish
-      - name: Commit intermediate refactor
+      - name: Build and syntax check
+        run: |
+          npm run web:publish
+          node --check src/renderer/web-api.js
+          node --check src/renderer/renderer-groups-permissions-archive.js
+          node --check src/renderer/app.js
+      - name: Commit cleaned refactor
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "WIP 權限存取架構重構"
+          git commit -m "清理權限存取架構重構"
           git push origin refactor/access-architecture-v3
+      - name: Run unit tests
+        run: npm test
