@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 test("權限設定的權限項目使用可換行膠囊標籤並取得主要寬度", () => {
-  const renderer = read("src/renderer/renderer-groups-permissions-archive.mjs");
+  const renderer = read("src/renderer/renderer-groups-permissions-archive.js");
   const css = read("src/renderer/groups.css");
   const spec = read("規格書.md");
 

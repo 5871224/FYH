@@ -1795,36 +1795,20 @@
     return requestFunction("attendance-review-groups", { action: "review_list", ...filters });
   }
 
-) {
-    ensureManager();
-    return requestFunction("attendance-ledger", { action: "review_list", ...filters });
-  }
-
-    async function saveAttendanceReviewRecord(payload = {}) {
+  async function saveAttendanceReviewRecord(payload = {}) {
     ensureSignedIn();
     return requestFunction("attendance-review-groups", { action: "review_save", ...payload });
   }
 
-) {
-    ensureManager();
-    return requestFunction("attendance-ledger", { action: "review_save", ...payload });
-  }
-
-    async function setAttendanceReviewed(payload = {}) {
+  async function setAttendanceReviewed(payload = {}) {
     ensureSignedIn();
     return requestFunction("attendance-review-groups", { action: "review_set", ...payload });
   }
 
-) {
-    ensureManager();
-    return requestFunction("attendance-ledger", { action: "review_set", ...payload });
-  }
-
-    async function getAttendanceHistory(recordId) {
+  async function getAttendanceHistory(recordId) {
     ensureSignedIn();
     return requestFunction("attendance-review-groups", { action: "history", recordId });
   }
-
 
   async function getMemberOrder() {
     ensureSignedIn();
@@ -2165,29 +2149,7 @@
     };
   }
 
-) {
-    const startDate = toDateObject(range.startDate) ? range.startDate : "";
-    const endDate = toDateObject(range.endDate) ? range.endDate : "";
-    if (!startDate || !endDate) {
-      throw new Error("schedule range is required");
-    }
-    const auth = Boolean(currentSession?.access_token);
-    const rows = await restSelect("schedule_entries", {
-      select: "*",
-      filters: getScheduleEntryFilters({ startDate, endDate }),
-      order: "work_date.asc",
-      auth
-    });
-    const members = Array.isArray(range.members) ? range.members : [];
-    return {
-      schedule: mapScheduleRows(rows, members),
-      scheduleLoadedRanges: [{ startDate, endDate }]
-    };
-  }
-
-  
-  
-    async function saveDepartmentItem(department, sortOrder = 0) {
+  async function saveDepartmentItem(department, sortOrder = 0) {
     ensureSignedIn();
     return await callRpc("save_department_v3", {
       p_department: { ...department, sortOrder }
@@ -7127,25 +7089,6 @@ const groupFeatureState = {
   dragGroupId: ""
 };
 
-
-) {
-  const { url, anonKey } = groupApiConfig();
-  const token = window.schedulerApi?.getAuthContext?.()?.session?.access_token || "";
-  if (!url || !anonKey || !token) throw new Error("尚未完成登入驗證");
-  const response = await fetch(`${url}/rest/v1/rpc/${functionName}`, {
-    method: "POST",
-    headers: { apikey: anonKey, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(payload || {})
-  });
-  const text = await response.text();
-  let data = null;
-  if (text) {
-    try { data = JSON.parse(text); } catch (_error) { data = text; }
-  }
-  if (!response.ok) throw new Error(data?.message || data?.hint || data?.details || data?.error || text || `RPC ${functionName} 失敗`);
-  return data;
-}
-
 async function loadGroupAccessData(payload = {}) {
   groupFeatureState.bundle = payload.accessBundle && typeof payload.accessBundle === "object"
     ? payload.accessBundle
@@ -7329,24 +7272,11 @@ async function switchScheduleGroup(groupId) {
   renderAll();
 }
 
-function mergeFullStateForSave(scopedState) {
-  syncCurrentScopeIntoAll();
-  return {
-    ...scopedState,
-    departments: deepClone(groupFeatureState.allDepartments),
-    members: deepClone(groupFeatureState.allMembers).map((member) => ({
-      ...member,
-      role: getRoleById(member.roleId || member.role)?.legacyRole || normalizeLegacyRoleValue(member.role)
-    })),
-    shifts: deepClone(groupFeatureState.allShifts),
-    schedule: deepClone(groupFeatureState.allSchedule)
-  };
-}
-
 async function reloadGroupApplicationState() {
   const previousGroupId = groupFeatureState.currentGroupId;
   const payload = await window.schedulerApi.loadState();
-  state = normalizeState(payload);
+  await loadGroupAccessData(payload);
+  state = initializeGroupPermissionState(payload);
   if (previousGroupId && getSelectableGroups().some((group) => group.id === previousGroupId)) {
     groupFeatureState.currentGroupId = previousGroupId;
     applyCurrentGroupScope(state);
@@ -7517,7 +7447,7 @@ async function saveScheduleGroupFromForm() {
   const name = document.getElementById("groupName")?.value.trim() || "";
   if (!code || !name) { reportValidationError("請填寫群組代碼與群組名稱"); return; }
   const existing = getAllGroups().find((item) => item.id === modalContext.targetId) || null;
-  await window.schedulerApi.saveScheduleGroup({ id: existing?.id || "", code, name, mealEnabled: Boolean(document.getElementById("groupMealEnabled")?.checked), status: document.getElementById("groupStatus")?.value || "active", sortOrder: existing?.sortOrder ?? getAllGroups().length);
+  await window.schedulerApi.saveScheduleGroup({ id: existing?.id || "", code, name, mealEnabled: Boolean(document.getElementById("groupMealEnabled")?.checked), status: document.getElementById("groupStatus")?.value || "active", sortOrder: existing?.sortOrder ?? getAllGroups().length });
   await reloadGroupApplicationState();
   openGroupSettings();
 }
@@ -7525,7 +7455,7 @@ async function saveScheduleGroupFromForm() {
 async function toggleScheduleGroup(groupId) {
   const group = getAllGroups().find((item) => item.id === groupId);
   if (!group) return;
-  await window.schedulerApi.saveScheduleGroup({ id: group.id, code: group.code, name: group.name, mealEnabled: group.mealEnabled, status: group.status === "active" ? "inactive" : "active", sortOrder: group.sortOrder);
+  await window.schedulerApi.saveScheduleGroup({ id: group.id, code: group.code, name: group.name, mealEnabled: group.mealEnabled, status: group.status === "active" ? "inactive" : "active", sortOrder: group.sortOrder });
   await reloadGroupApplicationState();
   openGroupSettings();
 }
@@ -7844,17 +7774,19 @@ function isLoggedIn() {
 }
 
 function resolveCurrentMember() {
+  const allMembers = typeof groupFeatureState !== "undefined" && Array.isArray(groupFeatureState.allMembers)
+    ? groupFeatureState.allMembers
+    : state.members;
   if (currentProfile?.id) {
-    const byId = (groupFeatureState.allMembers || []).find((member) => member.id === currentProfile.id)
+    const byId = allMembers.find((member) => member.id === currentProfile.id)
       || state.members.find((member) => member.id === currentProfile.id);
     if (byId) return byId;
   }
   if (!currentProfile?.employee_code) return null;
-  return (groupFeatureState.allMembers || []).find((member) => member.code === currentProfile.employee_code)
+  return allMembers.find((member) => member.code === currentProfile.employee_code)
     || state.members.find((member) => member.code === currentProfile.employee_code)
     || null;
 }
-
 
 function normalizeRole(role) {
   return role === "admin" || role === "manager" ? role : "employee";
@@ -9943,8 +9875,6 @@ function clearOvertimeFromSlot(slot) {
 async function applySelectionToCell(memberId, day) {
   const dateString = normalizeScheduleDateInput(day);
   if (isArchivedDate(dateString) || isDeletedScheduleMember(memberId)) return;
-
-  const dateString = normalizeScheduleDateInput(day);
   if (!canEditSchedule()) {
     return;
   }

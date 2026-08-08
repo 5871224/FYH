@@ -680,36 +680,20 @@
     return requestFunction("attendance-review-groups", { action: "review_list", ...filters });
   }
 
-) {
-    ensureManager();
-    return requestFunction("attendance-ledger", { action: "review_list", ...filters });
-  }
-
-    async function saveAttendanceReviewRecord(payload = {}) {
+  async function saveAttendanceReviewRecord(payload = {}) {
     ensureSignedIn();
     return requestFunction("attendance-review-groups", { action: "review_save", ...payload });
   }
 
-) {
-    ensureManager();
-    return requestFunction("attendance-ledger", { action: "review_save", ...payload });
-  }
-
-    async function setAttendanceReviewed(payload = {}) {
+  async function setAttendanceReviewed(payload = {}) {
     ensureSignedIn();
     return requestFunction("attendance-review-groups", { action: "review_set", ...payload });
   }
 
-) {
-    ensureManager();
-    return requestFunction("attendance-ledger", { action: "review_set", ...payload });
-  }
-
-    async function getAttendanceHistory(recordId) {
+  async function getAttendanceHistory(recordId) {
     ensureSignedIn();
     return requestFunction("attendance-review-groups", { action: "history", recordId });
   }
-
 
   async function getMemberOrder() {
     ensureSignedIn();
@@ -1050,29 +1034,7 @@
     };
   }
 
-) {
-    const startDate = toDateObject(range.startDate) ? range.startDate : "";
-    const endDate = toDateObject(range.endDate) ? range.endDate : "";
-    if (!startDate || !endDate) {
-      throw new Error("schedule range is required");
-    }
-    const auth = Boolean(currentSession?.access_token);
-    const rows = await restSelect("schedule_entries", {
-      select: "*",
-      filters: getScheduleEntryFilters({ startDate, endDate }),
-      order: "work_date.asc",
-      auth
-    });
-    const members = Array.isArray(range.members) ? range.members : [];
-    return {
-      schedule: mapScheduleRows(rows, members),
-      scheduleLoadedRanges: [{ startDate, endDate }]
-    };
-  }
-
-  
-  
-    async function saveDepartmentItem(department, sortOrder = 0) {
+  async function saveDepartmentItem(department, sortOrder = 0) {
     ensureSignedIn();
     return await callRpc("save_department_v3", {
       p_department: { ...department, sortOrder }

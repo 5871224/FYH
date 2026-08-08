@@ -26,25 +26,6 @@ const groupFeatureState = {
   dragGroupId: ""
 };
 
-
-) {
-  const { url, anonKey } = groupApiConfig();
-  const token = window.schedulerApi?.getAuthContext?.()?.session?.access_token || "";
-  if (!url || !anonKey || !token) throw new Error("尚未完成登入驗證");
-  const response = await fetch(`${url}/rest/v1/rpc/${functionName}`, {
-    method: "POST",
-    headers: { apikey: anonKey, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(payload || {})
-  });
-  const text = await response.text();
-  let data = null;
-  if (text) {
-    try { data = JSON.parse(text); } catch (_error) { data = text; }
-  }
-  if (!response.ok) throw new Error(data?.message || data?.hint || data?.details || data?.error || text || `RPC ${functionName} 失敗`);
-  return data;
-}
-
 async function loadGroupAccessData(payload = {}) {
   groupFeatureState.bundle = payload.accessBundle && typeof payload.accessBundle === "object"
     ? payload.accessBundle
@@ -228,24 +209,11 @@ async function switchScheduleGroup(groupId) {
   renderAll();
 }
 
-function mergeFullStateForSave(scopedState) {
-  syncCurrentScopeIntoAll();
-  return {
-    ...scopedState,
-    departments: deepClone(groupFeatureState.allDepartments),
-    members: deepClone(groupFeatureState.allMembers).map((member) => ({
-      ...member,
-      role: getRoleById(member.roleId || member.role)?.legacyRole || normalizeLegacyRoleValue(member.role)
-    })),
-    shifts: deepClone(groupFeatureState.allShifts),
-    schedule: deepClone(groupFeatureState.allSchedule)
-  };
-}
-
 async function reloadGroupApplicationState() {
   const previousGroupId = groupFeatureState.currentGroupId;
   const payload = await window.schedulerApi.loadState();
-  state = normalizeState(payload);
+  await loadGroupAccessData(payload);
+  state = initializeGroupPermissionState(payload);
   if (previousGroupId && getSelectableGroups().some((group) => group.id === previousGroupId)) {
     groupFeatureState.currentGroupId = previousGroupId;
     applyCurrentGroupScope(state);
@@ -416,7 +384,7 @@ async function saveScheduleGroupFromForm() {
   const name = document.getElementById("groupName")?.value.trim() || "";
   if (!code || !name) { reportValidationError("請填寫群組代碼與群組名稱"); return; }
   const existing = getAllGroups().find((item) => item.id === modalContext.targetId) || null;
-  await window.schedulerApi.saveScheduleGroup({ id: existing?.id || "", code, name, mealEnabled: Boolean(document.getElementById("groupMealEnabled")?.checked), status: document.getElementById("groupStatus")?.value || "active", sortOrder: existing?.sortOrder ?? getAllGroups().length);
+  await window.schedulerApi.saveScheduleGroup({ id: existing?.id || "", code, name, mealEnabled: Boolean(document.getElementById("groupMealEnabled")?.checked), status: document.getElementById("groupStatus")?.value || "active", sortOrder: existing?.sortOrder ?? getAllGroups().length });
   await reloadGroupApplicationState();
   openGroupSettings();
 }
@@ -424,7 +392,7 @@ async function saveScheduleGroupFromForm() {
 async function toggleScheduleGroup(groupId) {
   const group = getAllGroups().find((item) => item.id === groupId);
   if (!group) return;
-  await window.schedulerApi.saveScheduleGroup({ id: group.id, code: group.code, name: group.name, mealEnabled: group.mealEnabled, status: group.status === "active" ? "inactive" : "active", sortOrder: group.sortOrder);
+  await window.schedulerApi.saveScheduleGroup({ id: group.id, code: group.code, name: group.name, mealEnabled: group.mealEnabled, status: group.status === "active" ? "inactive" : "active", sortOrder: group.sortOrder });
   await reloadGroupApplicationState();
   openGroupSettings();
 }

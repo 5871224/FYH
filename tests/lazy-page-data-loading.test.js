@@ -23,15 +23,14 @@ test("首頁初始化只載入最小權限資料，完整班表延後到進入�
   assert.match(lazy, /stopImmediatePropagation/);
 });
 
-test("簽到簿只讀目前頁籤，不再先載簽到審核", () => {
-  const bridge = read("src/renderer/renderer-group-backend-bridges.mjs");
-  const docsBridge = read("docs/renderer-group-backend-bridges.mjs");
+test("簽到簿只讀目前頁籤，群組審核 API 由正式模組直接提供", () => {
+  const records = read("src/renderer/renderer-records-page.js");
+  const webApi = read("src/renderer/web-api.js");
+  const docsApi = read("docs/web-api.js");
 
-  assert.equal(bridge, docsBridge);
-  assert.doesNotMatch(bridge, /loadRecordsPageWithReview/);
-  assert.match(bridge, /loadVisibleRecordsTab/);
-  assert.match(bridge, /recordsState\.activeTab === "review"/);
-  assert.match(bridge, /await loadAttendanceReview\(shouldRender\)/);
-  assert.match(bridge, /await loadPersonalRecordsOnly\(shouldRender\)/);
-  assert.match(bridge, /button\[data-records-tab\]/);
+  assert.equal(webApi, docsApi);
+  assert.doesNotMatch(records, /loadRecordsPageWithReview/);
+  assert.match(records, /recordsState\.activeTab === "review"/);
+  assert.match(webApi, /requestFunction\("attendance-review-groups"/);
+  assert.doesNotMatch(webApi, /renderer-group-backend-bridges/);
 });

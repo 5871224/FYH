@@ -71,6 +71,7 @@ test("拖曳人員只調整人員順序並重新開啟人員設定", async () =>
     restoreSettingsScroll: (value) => calls.push(`restore:${value.category}`),
     renderAll: () => calls.push("render"),
     queueSave: () => calls.push("save"),
+    window: { schedulerApi: { reorderSettings: async () => calls.push("reorder") } },
     getMemberHomeDeptId: () => ""
   };
 

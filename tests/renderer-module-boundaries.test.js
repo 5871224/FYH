@@ -104,7 +104,7 @@ const movedNames = [
 
 test("renderer.js 只保留狀態與啟動流程", () => {
   const topLevelFunctions = [...renderer.matchAll(/^(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\(/gm)].map((match) => match[1]);
-  assert.deepEqual(topLevelFunctions, ["loadApp", "refreshScheduleCatalogsAfterInitialRender"]);
+  assert.deepEqual(topLevelFunctions, ["loadApp"]);
   assert.ok(renderer.split(/\r?\n/).length < 160, "renderer.js 仍過大");
   assert.equal(renderer.includes("loadApp();"), true);
   for (const name of movedNames) assert.equal(renderer.includes("function " + name), false, "renderer.js 仍保留 " + name);

@@ -7,17 +7,19 @@ function isLoggedIn() {
 }
 
 function resolveCurrentMember() {
+  const allMembers = typeof groupFeatureState !== "undefined" && Array.isArray(groupFeatureState.allMembers)
+    ? groupFeatureState.allMembers
+    : state.members;
   if (currentProfile?.id) {
-    const byId = (groupFeatureState.allMembers || []).find((member) => member.id === currentProfile.id)
+    const byId = allMembers.find((member) => member.id === currentProfile.id)
       || state.members.find((member) => member.id === currentProfile.id);
     if (byId) return byId;
   }
   if (!currentProfile?.employee_code) return null;
-  return (groupFeatureState.allMembers || []).find((member) => member.code === currentProfile.employee_code)
+  return allMembers.find((member) => member.code === currentProfile.employee_code)
     || state.members.find((member) => member.code === currentProfile.employee_code)
     || null;
 }
-
 
 function normalizeRole(role) {
   return role === "admin" || role === "manager" ? role : "employee";

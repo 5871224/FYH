@@ -23,6 +23,7 @@ const RENDERER_CORE_FILES = [
   "renderer-settings-department.js",
   "renderer-settings-ordering.js",
   "renderer-settings-member.js",
+  "renderer-groups-permissions-archive.js",
   "renderer-auth-context.js",
   "renderer-schedule-tooltip.js",
   "renderer-main-pages.js",

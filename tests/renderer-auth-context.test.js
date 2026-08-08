@@ -26,19 +26,28 @@ test("目前人員應優先依 profile id，再依工號解析", () => {
   assert.equal(api.resolveCurrentMember().id, "M1");
 });
 
-test("管理權限應只允許管理員與主管", () => {
+test("管理能力應完全由權限項目與適用群組決定", () => {
   const start = authContext.indexOf("function normalizeRole");
   const end = authContext.indexOf("async function ensureManagerDirectoryLoaded", start);
-  const context = { currentProfile: { role: "employee" }, currentSession: { user: { id: "U1" } } };
+  let permissions = [];
+  const context = {
+    currentProfile: { role: "employee" },
+    currentSession: { user: { id: "U1" } },
+    groupFeatureState: { currentGroupId: "G1" },
+    getAccessPermissions: () => permissions,
+    hasPermission: (permission) => permissions.includes(permission),
+    roleAppliesToGroup: (groupId) => groupId === "G1",
+    getRoleById: () => null,
+    getRoleByLegacyRole: () => null
+  };
   const api = vm.runInNewContext(authContext.slice(start, end) + "\n;({ normalizeRole, isAdmin, isManager, canEditSchedule })", context);
-  assert.equal(api.normalizeRole("unknown"), "employee");
   assert.equal(api.isManager(), false);
-  context.currentProfile.role = "manager";
+  permissions = ["schedule_view", "schedule_manage"];
   assert.equal(api.isManager(), true);
   assert.equal(api.isAdmin(), false);
-  context.currentProfile.role = "admin";
-  assert.equal(api.isAdmin(), true);
   assert.equal(api.canEditSchedule(), true);
+  permissions.push("permission_settings");
+  assert.equal(api.isAdmin(), true);
 });
 
 test("假別明細與設定輔助應位於對應責任模組", () => {

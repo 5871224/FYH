@@ -58,10 +58,13 @@ test("安全目錄 API 與人員同步應由正式 web-api 提供", () => {
   const webApi = fs.readFileSync(path.join(root, "src", "renderer", "web-api.js"), "utf8");
   const build = fs.readFileSync(path.join(root, "scripts", "build-js.js"), "utf8");
   assert.equal(webApi.includes('async function deleteCatalogItem(category, itemId)'), true);
-  assert.equal(webApi.includes('requestFunction("catalog-admin"'), true);
-  assert.equal(webApi.includes('itemId: String(itemId || "")'), true);
+  assert.equal(webApi.includes('callRpc("delete_catalog_item_v3"'), true);
+  assert.equal(webApi.includes('p_item_id: String(itemId || "")'), true);
+  assert.equal(webApi.includes('requestFunction("catalog-admin"'), false);
   assert.equal(webApi.includes("    deleteCatalogItem,"), true);
   assert.equal(webApi.includes('previousEmployeeCode: String(previousEmployeeCode || "").trim()'), true);
+  assert.equal(webApi.includes('groupId: member?.groupId || ""'), true);
+  assert.equal(webApi.includes('accessRoleId: member?.roleId || member?.role || ""'), true);
   assert.equal(webApi.includes('previousEmployeeCode: String(previousEmployeeCode || member?.code'), false);
   assert.equal(fs.existsSync(path.join(root, "src", "renderer", "v2-admin-data-fixes.js")), false);
   assert.equal(build.includes("v2-admin-data-fixes.js"), false);
