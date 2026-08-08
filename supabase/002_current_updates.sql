@@ -1837,3 +1837,30 @@ drop policy if exists update_set_overtime on public.set_overtime;
 drop policy if exists insert_set_shift_group on public.set_shift;
 drop policy if exists update_set_shift_group on public.set_shift;
 commit;
+
+
+-- Performance Advisor: remaining public RLS auth context uses init-plan evaluation.
+-- Browser writes remain RPC-only; this keeps the RLS second line of defense efficient.
+do $$
+declare
+  p record;
+  q text;
+  c text;
+  stmt text;
+begin
+  for p in
+    select schemaname,tablename,policyname,qual,with_check
+    from pg_policies
+    where schemaname='public'
+  loop
+    q:=p.qual; c:=p.with_check;
+    if q is not null then q:=replace(replace(q,'auth.uid()','(select auth.uid())'),'auth.role()','(select auth.role())'); end if;
+    if c is not null then c:=replace(replace(c,'auth.uid()','(select auth.uid())'),'auth.role()','(select auth.role())'); end if;
+    if q is distinct from p.qual or c is distinct from p.with_check then
+      stmt:=format('alter policy %I on %I.%I',p.policyname,p.schemaname,p.tablename);
+      if q is not null then stmt:=stmt||' using ('||q||')'; end if;
+      if c is not null then stmt:=stmt||' with check ('||c||')'; end if;
+      execute stmt;
+    end if;
+  end loop;
+end $$;
