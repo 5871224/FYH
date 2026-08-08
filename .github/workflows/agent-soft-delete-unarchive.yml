@@ -29,6 +29,7 @@ jobs:
           python3 .github/agent-soft-delete-unarchive/part2.txt
           python3 .github/agent-soft-delete-unarchive/part3.txt
           python3 .github/agent-soft-delete-unarchive/part4.txt
+          python3 .github/agent-soft-delete-unarchive/part5.txt
           rm -rf .github/agent-soft-delete-unarchive
           rm .github/workflows/agent-soft-delete-unarchive.yml
 
