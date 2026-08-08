@@ -66,7 +66,8 @@ assert(renderer.includes("<div>到職日<br>離職日</div>"), "member settings 
 assert(renderer.includes("state.shifts.filter((shift) => !shift.hiddenFromToolbar).map((shift) => [shift.name.trim(), shift.id])"), "member import should only accept visible schedule shifts");
 assert(renderer.includes("syncMemberProfile"), "member import should persist member accounts through the canonical member API");
 assert(webApi.includes("function normalizeTextArray"), "web api should normalize Postgres text arrays");
-assert(renderer.includes("function renderMemberRoleOptions") && renderer.includes("function getAllRoles()") && renderer.includes("groupFeatureState.bundle?.roles"), "member settings should render configured access roles instead of fixed legacy role choices");
+assert(renderer.includes("function getAllRoles()") && renderer.includes("groupFeatureState.bundle?.roles") && renderer.includes("getAllRoles().map((role) =>"), "member settings should render configured access roles instead of fixed legacy role choices");
+assert(!renderer.includes("function renderMemberRoleOptions"), "member settings should not keep the retired duplicate role renderer");
 assert(renderer.includes("function canEditMemberAccount") && renderer.includes('hasPermission("member_settings")'), "member editing capability should derive from member_settings");
 assert(browserExporter.includes("roleName: roleText") && browserExporter.includes("roleNameById") && !browserExporter.includes("parseRoleLabel"), "member import/export should map configured role names without legacy role values");
 assert(webApi.includes("scheduleShiftIds"), "member schedule shifts should stay on uuid-backed scheduleShiftIds");
