@@ -15,6 +15,26 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: canonical-cleanup-20260808
+      - name: Patch cleanup transformer
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/canonical-cleanup.py')
+          text = path.read_text(encoding='utf-8')
+          marker = 'def replace_once(text, old, new, label):\n'
+          replacement = marker + '    if label == "unarchive archive range refresh":\n        return text.replace(old, new)\n'
+          if replacement not in text:
+              text = text.replace(marker, replacement, 1)
+          group_write = 'write("src/renderer/renderer-groups-permissions-archive.js", groups)'
+          group_cleanup = '''groups = re.sub(r"\\nfunction refreshGroupEntityMap\\(entityMap\\) \\{[\\s\\S]*?\\n\\}\\n?", "\\n", groups, count=1)\n''' + group_write
+          if group_cleanup not in text:
+              text = text.replace(group_write, group_cleanup, 1)
+          append_marker = 'updates = updates.rstrip() + canonical_sql\n'
+          canonical_strip = append_marker + '''for _legacy_line in [\n    "drop function if exists public.get_my_profile_v2();\\n",\n    "drop function if exists public.get_group_entity_map_v1();\\n",\n    "drop function if exists public.access_role_legacy_role(text[]);\\n",\n    "drop function if exists public.is_admin(uuid);\\n",\n    "drop function if exists public.is_manager(uuid);\\n",\n    "alter table public.set_employee drop column if exists role;\\n",\n    "alter table public.access_roles drop column if exists legacy_role;\\n",\n]:\n    updates = updates.replace(_legacy_line, "")\n'''
+          if canonical_strip not in text:
+              text = text.replace(append_marker, canonical_strip, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
       - name: Apply cleanup transformer
         run: python .github/canonical-cleanup.py
       - name: Report forbidden SQL residues
