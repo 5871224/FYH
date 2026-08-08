@@ -34,10 +34,12 @@ jobs:
               if marker not in text:
                   raise SystemExit('replace_once marker not found')
               text = text.replace(marker, replacement, 1)
-          assertion = 'assert \'entityMap\' not in read("src/renderer/renderer-groups-permissions-archive.js")'
-          diagnostic = '''_groups_final = read("src/renderer/renderer-groups-permissions-archive.js")\nif "entityMap" in _groups_final:\n    print("Residual entityMap lines:")\n    for _line in _groups_final.splitlines():\n        if "entityMap" in _line:\n            print(_line)\nassert "entityMap" not in _groups_final'''
-          if assertion in text:
-              text = text.replace(assertion, diagnostic, 1)
+          group_write = 'write("src/renderer/renderer-groups-permissions-archive.js", groups)'
+          group_cleanup = '''groups = re.sub(r"\\nfunction refreshGroupEntityMap\\(entityMap\\) \\{[\\s\\S]*?\\n\\}\\n?", "\\n", groups, count=1)\n''' + group_write
+          if group_cleanup not in text:
+              if group_write not in text:
+                  raise SystemExit('group write marker not found')
+              text = text.replace(group_write, group_cleanup, 1)
           path.write_text(text, encoding='utf-8')
           PY
 
