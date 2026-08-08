@@ -68,3 +68,10 @@ jobs:
             echo "::error title=Expansion acceptance::$msg"
             exit 1
           fi
+      - name: Diagnose settings lists
+        run: |
+          if ! node scripts/check-settings-lists.js >/tmp/settings.txt 2>&1; then
+            msg=$(tail -n 30 /tmp/settings.txt | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Settings lists::$msg"
+            exit 1
+          fi
