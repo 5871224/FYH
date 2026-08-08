@@ -1,0 +1,179 @@
+
+-- 2026-08-08 班表解除封存與共用主檔軟刪除
+begin;
+
+alter table public.set_leave add column if not exists deleted_at timestamptz;
+alter table public.set_overtime add column if not exists deleted_at timestamptz;
+
+create index if not exists idx_set_leave_active_sort on public.set_leave(sort_order, code, id) where deleted_at is null;
+create index if not exists idx_set_overtime_active_sort on public.set_overtime(sort_order, name, id) where deleted_at is null;
+
+create or replace function public.delete_member_account_v4(p_target_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path=public,auth,pg_temp
+as $$
+declare
+  v_profile public.set_employee%rowtype;
+  v_unarchived_schedule_count bigint := 0;
+begin
+  select * into v_profile
+  from public.set_employee
+  where id=p_target_id and deleted_at is null
+  for update;
+
+  if not found then
+    return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'blocked',false);
+  end if;
+
+  select count(*) into v_unarchived_schedule_count
+  from public.schedule_entries entry
+  where entry.member_id=p_target_id
+    and not public.is_schedule_date_archived(entry.group_id,entry.work_date);
+
+  if v_unarchived_schedule_count>0 then
+    return jsonb_build_object(
+      'ok',false,
+      'deleted',false,
+      'softDeleted',false,
+      'blocked',true,
+      'code','MEMBER_HAS_UNARCHIVED_SCHEDULE',
+      'message','此人員仍有未封存班表，請先完成班表封存或清除相關排班。',
+      'history',jsonb_build_object('unarchivedSchedule',v_unarchived_schedule_count)
+    );
+  end if;
+
+  update public.set_employee
+  set deleted_at=now(), updated_at=now()
+  where id=p_target_id;
+
+  return jsonb_build_object(
+    'ok',true,
+    'deleted',true,
+    'softDeleted',true,
+    'blocked',false,
+    'employeeCode',v_profile.employee_code
+  );
+end;
+$$;
+
+create or replace function public.archive_schedule_v1(p_group_id uuid,p_start_date date,p_end_date date)
+returns jsonb
+language plpgsql
+security definer
+set search_path=public,pg_catalog
+as $$
+declare
+  v_group public.schedule_groups%rowtype;
+  v_actor_name text;
+  v_archive_id uuid;
+  v_entry_count integer;
+  v_member_count integer;
+begin
+  if not public.can_access_group(auth.uid(),p_group_id,'schedule_manage') then
+    raise exception '沒有班表管理權限' using errcode='42501';
+  end if;
+  if p_start_date is null or p_end_date is null or p_start_date>p_end_date then
+    raise exception '封存日期範圍不正確';
+  end if;
+  if exists(
+    select 1 from public.schedule_archives
+    where group_id=p_group_id
+      and daterange(start_date,end_date,'[]')&&daterange(p_start_date,p_end_date,'[]')
+  ) then
+    raise exception '封存日期範圍不可重疊';
+  end if;
+
+  select * into v_group
+  from public.schedule_groups
+  where id=p_group_id and deleted_at is null;
+  if not found then raise exception '找不到群組'; end if;
+
+  select full_name into v_actor_name from public.set_employee where id=auth.uid();
+
+  insert into public.schedule_archives(
+    group_id,group_code_snapshot,group_name_snapshot,start_date,end_date,archived_by,archived_by_name_snapshot
+  ) values(
+    p_group_id,v_group.code,v_group.name,p_start_date,p_end_date,auth.uid(),coalesce(v_actor_name,'')
+  ) returning id into v_archive_id;
+
+  insert into public.schedule_archive_entries(
+    archive_id,source_schedule_entry_id,source_member_id,source_department_id,source_shift_id,source_leave_id,source_overtime_id,
+    work_date,employee_code_snapshot,employee_name_snapshot,member_sort_order,department_name_snapshot,department_sort_order,
+    shift_name_snapshot,shift_start_time_snapshot,shift_end_time_snapshot,shift_color_snapshot,shift_text_color_snapshot,
+    leave_code_snapshot,leave_name_snapshot,leave_color_snapshot,overtime_name_snapshot,overtime_color_snapshot,
+    leave_all_day,leave_start_time,leave_end_time,leave_reason,overtime_start_time,overtime_end_time,overtime_reason,note
+  )
+  select
+    v_archive_id,entry.id,member.id,coalesce(entry.support_department_id,member.home_department_id),entry.shift_type_id,entry.leave_type_id,entry.overtime_type_id,
+    archive_date.work_date,coalesce(member.employee_code,''),coalesce(member.full_name,''),coalesce(member.sort_order,0),
+    coalesce(department.name,''),coalesce(department.sort_order,0),coalesce(shift.name,''),shift.start_time,shift.end_time,shift.color,shift.text_color,
+    coalesce(leave_type.code,''),coalesce(leave_type.name,''),leave_type.color,coalesce(overtime_type.name,''),overtime_type.color,
+    coalesce(entry.leave_all_day,true),entry.leave_start_time,entry.leave_end_time,entry.leave_reason,
+    entry.overtime_start_time,entry.overtime_end_time,entry.overtime_reason,null
+  from public.set_employee member
+  cross join lateral(
+    select generated_date::date work_date
+    from generate_series(p_start_date,p_end_date,interval '1 day') generated_date
+  ) archive_date
+  left join public.schedule_entries entry
+    on entry.member_id=member.id and entry.work_date=archive_date.work_date and entry.group_id=p_group_id
+  left join public.set_departments department on department.id=coalesce(entry.support_department_id,member.home_department_id)
+  left join public.set_shift shift on shift.id=entry.shift_type_id
+  left join public.set_leave leave_type on leave_type.id=entry.leave_type_id
+  left join public.set_overtime overtime_type on overtime_type.id=entry.overtime_type_id
+  where member.group_id=p_group_id
+    and (
+      (member.deleted_at is null and public.is_employee_employed_on(member.hire_date,member.leave_date,archive_date.work_date))
+      or entry.id is not null
+    );
+
+  select count(*),count(distinct source_member_id)
+  into v_entry_count,v_member_count
+  from public.schedule_archive_entries
+  where archive_id=v_archive_id;
+
+  update public.schedule_archives
+  set entry_count=v_entry_count,member_count=v_member_count
+  where id=v_archive_id;
+
+  return jsonb_build_object('ok',true,'archiveId',v_archive_id,'entryCount',v_entry_count,'memberCount',v_member_count);
+end;
+$$;
+
+create or replace function public.unarchive_schedule_v1(p_archive_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path=public,pg_catalog
+as $$
+declare
+  v_archive public.schedule_archives%rowtype;
+begin
+  select * into v_archive
+  from public.schedule_archives
+  where id=p_archive_id
+  for update;
+
+  if not found then raise exception '找不到封存班表'; end if;
+  if not public.can_access_group(auth.uid(),v_archive.group_id,'schedule_manage') then
+    raise exception '沒有解除封存權限' using errcode='42501';
+  end if;
+  if not exists(
+    select 1 from public.schedule_groups
+    where id=v_archive.group_id and deleted_at is null
+  ) then
+    raise exception '群組已刪除，無法解除封存';
+  end if;
+
+  delete from public.schedule_archives where id=p_archive_id;
+
+  return jsonb_build_object(
+    'ok',true,
+    'groupId',v_archive.group_id,
+    'startDate',v_archive.start_date,
+    'endDate',v_archive.end_date
+  );
+end;
+$$;
