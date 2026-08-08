@@ -24,7 +24,7 @@ test("登入成功後直接沿用 signIn 回傳身分，不重做 initializeAuth
   const block = auth.slice(start, end);
   assert.match(block, /const authContext = await window\.schedulerApi\.signIn/);
   assert.match(block, /await initializeAuthenticatedHome\(authContext\)/);
-  assert.doesNotMatch(block, /initializeAuth/);
+  assert.doesNotMatch(block, /schedulerApi\.initializeAuth\s*\(/);
   assert.doesNotMatch(block, /await loadApp\(\)/);
 });
 
