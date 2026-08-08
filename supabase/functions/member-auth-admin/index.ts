@@ -94,7 +94,7 @@ async function findProfileByCode(ctx: any, employeeCode: string) {
   if (!key) return null;
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id,employee_code,full_name,role,access_role_id,group_id,hire_date,leave_date,deleted_at")
+    .select("id,employee_code,full_name,access_role_id,group_id,hire_date,leave_date,deleted_at")
     .ilike("employee_code", employeeCode.trim())
     .limit(10);
   if (error) throw error;
@@ -104,7 +104,7 @@ async function findProfileByCode(ctx: any, employeeCode: string) {
 async function getAccessRole(ctx: any, roleId: string): Promise<AccessRole> {
   const { data, error } = await ctx.supabaseAdmin
     .from("access_roles")
-    .select("id,code,name,permissions,legacy_role")
+    .select("id,code,name,permissions")
     .eq("id", roleId)
     .maybeSingle();
   if (error) throw error;
