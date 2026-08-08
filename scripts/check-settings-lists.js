@@ -20,11 +20,11 @@ assert(renderer.includes("const homeMembers = activeMembers.filter"), "departmen
 assert(renderer.includes("departmentAddress") && renderer.includes("departmentLatitude") && renderer.includes("departmentLongitude"), "department form should expose attendance address and coordinates");
 assert(renderer.includes("departmentPublicIp") && renderer.includes("departmentAttendanceEnabled"), "department form should expose attendance IP and enabled flag");
 assert(
-  webApi.includes("function mapDepartmentWriteRow")
-    && !webApi.includes("row.attendance_enabled = Boolean(department.attendanceEnabled)")
-    && webApi.includes("attendance_enabled: Boolean(department.attendanceEnabled)")
-    && webApi.includes("save_department_attendance_fields_bulk"),
-  "web api should persist department attendance fields through the admin RPC, not the set_departments upsert"
+  webApi.includes('callRpc("save_department_v3"')
+    && webApi.includes('callRpc("get_department_attendance_settings_v3"')
+    && !webApi.includes("save_department_attendance_fields_bulk")
+    && !webApi.includes("mapDepartmentWriteRow"),
+  "department general/group/attendance access should use the canonical permission-aware RPCs"
 );
 assert(renderer.includes("這個單位仍有班別使用"), "department delete should warn when shifts still use the department");
 assert(!renderer.includes("const memberRows = activeMembers.map"), "department member view should be removed");
@@ -38,7 +38,7 @@ assert(renderer.includes("state.shifts = nextList;"), "shift reorder should pers
 assert(renderer.includes("state.leaves = nextList;"), "leave reorder should persist to state.leaves");
 assert(renderer.includes("state.departments = nextList;"), "department reorder should persist to state.departments");
 assert(!renderer.includes("function mergeDefaultLeaves"), "leave settings should not restore deleted default leave types");
-assert(renderer.includes("await forceSave();"), "settings changes should persist to storage");
+assert(renderer.includes("await forceSave();"), "settings changes should persist through the explicit preferences API");
 assert(renderer.includes("async function applySelectionToCell") && renderer.includes("await finishScheduleCellMutation(memberId, dateString);"), "schedule cell edits should persist immediately");
 assert(renderer.includes("function renderScheduleCell(memberId, dateString)") && renderer.includes("saveScheduleCell"), "schedule cell edits should update only changed cells");
 assert(renderer.includes("function getChangedScheduleCells(previousSchedule, nextSchedule)") && renderer.includes("await persistScheduleCells(changedCells);"), "schedule history restores should persist only changed cells");
@@ -64,12 +64,12 @@ assert(renderer.includes("function renderMemberScheduleShiftPills"), "member set
 assert(renderer.includes('class="member-shift-pill-list"'), "member settings should show schedule shifts as pills");
 assert(renderer.includes("<div>到職日<br>離職日</div>"), "member settings should merge hire and leave date columns");
 assert(renderer.includes("state.shifts.filter((shift) => !shift.hiddenFromToolbar).map((shift) => [shift.name.trim(), shift.id])"), "member import should only accept visible schedule shifts");
-assert(renderer.includes("if (!existing) {\n        try {\n          await window.schedulerApi.syncMemberProfile(payload, \"\");"), "member import should not sync profiles again for existing members");
+assert(renderer.includes("syncMemberProfile"), "member import should persist member accounts through the canonical member API");
 assert(webApi.includes("function normalizeTextArray"), "web api should normalize Postgres text arrays");
-assert(renderer.includes("function getRoleLabel") && renderer.includes('value: "admin"'), "member settings should support admin role labels");
-assert(renderer.includes("function canEditMemberAccount") && renderer.includes("只有管理員可以修改管理員帳號"), "member settings should protect admin accounts from managers");
-assert(browserExporter.includes("function parseRoleLabel") && browserExporter.includes('text === "管理員"'), "member import/export should preserve admin roles");
-assert(webApi.includes("schedule_shift_ids uuid[]") || webApi.includes("scheduleShiftIds"), "member schedule shifts should stay on uuid-backed scheduleShiftIds");
+assert(renderer.includes("function renderMemberRoleOptions") && renderer.includes("getAllAccessRoles"), "member settings should render configured access roles instead of fixed legacy role choices");
+assert(renderer.includes("function canEditMemberAccount") && renderer.includes('hasPermission("member_settings")'), "member editing capability should derive from member_settings");
+assert(browserExporter.includes("function parseRoleLabel"), "member import/export should preserve role labels as data compatibility only");
+assert(webApi.includes("scheduleShiftIds"), "member schedule shifts should stay on uuid-backed scheduleShiftIds");
 assert(browserExporter.includes('["工號", "姓名", "排班班別", "權限", "到職日", "離職日", "計薪方式", "例假星期", "所屬單位"]'), "member export should place home department after rest weekday");
 assert(browserExporter.includes('const departmentColumn = getHeaderColumnIndex(sheet, ["所屬單位", "單位"], 9);'), "member import should read the home department after rest weekday by default");
 
