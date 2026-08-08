@@ -262,11 +262,13 @@
           min-height: 30px;
         }
 
-        .toolbar-category-group > .toolbar-section-combined {
+        .toolbar-category-group > .toolbar-section-combined,
+        .toolbar-category-group > .toolbar-section-leave {
           flex-wrap: wrap !important;
         }
 
-        .toolbar-category-group > .toolbar-section-combined > #shiftChips {
+        .toolbar-category-group > .toolbar-section-combined > #shiftChips,
+        .toolbar-category-group > .toolbar-section-leave > #leaveChips {
           display: contents !important;
         }
 
