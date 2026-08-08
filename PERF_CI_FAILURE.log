@@ -10,49 +10,49 @@ TAP version 13
 # Subtest: 瀏覽器不得直接 CRUD 核心資料表
 ok 1 - 瀏覽器不得直接 CRUD 核心資料表
   ---
-  duration_ms: 9.279282
+  duration_ms: 7.944941
   type: 'test'
   ...
 # Subtest: 權限資料層不得用 runtime monkey patch
 ok 2 - 權限資料層不得用 runtime monkey patch
   ---
-  duration_ms: 2.45129
+  duration_ms: 2.188072
   type: 'test'
   ...
 # Subtest: 正式寫入 API 都是具名領域操作
 ok 3 - 正式寫入 API 都是具名領域操作
   ---
-  duration_ms: 0.861552
+  duration_ms: 0.800283
   type: 'test'
   ...
 # Subtest: 舊通用 API 與重複 Edge Function 不得存在
 ok 4 - 舊通用 API 與重複 Edge Function 不得存在
   ---
-  duration_ms: 0.404166
+  duration_ms: 0.377885
   type: 'test'
   ...
 # Subtest: 本人 Edge Function 必須拒絕已軟刪除帳號
 ok 5 - 本人 Edge Function 必須拒絕已軟刪除帳號
   ---
-  duration_ms: 0.560228
+  duration_ms: 0.558903
   type: 'test'
   ...
 # Subtest: 打卡地點只能使用本人所屬群組的有效單位
 ok 6 - 打卡地點只能使用本人所屬群組的有效單位
   ---
-  duration_ms: 0.340813
+  duration_ms: 0.390118
   type: 'test'
   ...
 # Subtest: 正式 SQL 最終守門使用權限項目而非文字角色
 ok 7 - 正式 SQL 最終守門使用權限項目而非文字角色
   ---
-  duration_ms: 2.132879
+  duration_ms: 2.457615
   type: 'test'
   ...
 # Subtest: 前端角色只使用 access_role_id 與權限資料，不保留文字角色相容層
 not ok 8 - 前端角色只使用 access_role_id 與權限資料，不保留文字角色相容層
   ---
-  duration_ms: 7.221854
+  duration_ms: 5.184371
   type: 'test'
   location: '/home/runner/work/FYH/FYH/tests/access-architecture.test.js:90:1'
   failureType: 'testCodeFailure'
@@ -989,487 +989,487 @@ not ok 8 - 前端角色只使用 access_role_id 與權限資料，不保留文�
 # Subtest: 首頁與簽到簿使用新導覽
 ok 9 - 首頁與簽到簿使用新導覽
   ---
-  duration_ms: 1.877012
+  duration_ms: 0.951665
   type: 'test'
   ...
 # Subtest: 個人記錄與簽到審核欄位完整
 ok 10 - 個人記錄與簽到審核欄位完整
   ---
-  duration_ms: 0.489043
+  duration_ms: 0.346116
   type: 'test'
   ...
 # Subtest: 前端只呼叫統一 attendance-ledger API
 ok 11 - 前端只呼叫統一 attendance-ledger API
   ---
-  duration_ms: 2.142434
+  duration_ms: 1.124618
   type: 'test'
   ...
 # Subtest: 每日簽到與訂餐後端只使用新資料模型
 ok 12 - 每日簽到與訂餐後端只使用新資料模型
   ---
-  duration_ms: 0.750428
+  duration_ms: 0.529868
   type: 'test'
   ...
 # Subtest: Edge Function 部署清單只包含新簽到端點
 ok 13 - Edge Function 部署清單只包含新簽到端點
   ---
-  duration_ms: 0.378079
+  duration_ms: 0.274763
   type: 'test'
   ...
 # Subtest: 舊出勤 Edge Function 原始碼已移除
 ok 14 - 舊出勤 Edge Function 原始碼已移除
   ---
-  duration_ms: 0.387562
+  duration_ms: 0.242683
   type: 'test'
   ...
 # Subtest: 正式 SQL 不保留舊出勤結構或遷移檔
 ok 15 - 正式 SQL 不保留舊出勤結構或遷移檔
   ---
-  duration_ms: 4.45594
+  duration_ms: 2.679208
   type: 'test'
   ...
 # Subtest: 簽到審核移除代為申請並只顯示員工姓名
 ok 16 - 簽到審核移除代為申請並只顯示員工姓名
   ---
-  duration_ms: 1.724166
+  duration_ms: 1.904783
   type: 'test'
   ...
 # Subtest: 簽到審核使用一致班表圖示與三個單行 SVG 操作
 ok 17 - 簽到審核使用一致班表圖示與三個單行 SVG 操作
   ---
-  duration_ms: 1.870142
+  duration_ms: 1.786423
   type: 'test'
   ...
 # Subtest: 背景初始化完成後不強制把已開啟頁面切回首頁
 ok 18 - 背景初始化完成後不強制把已開啟頁面切回首頁
   ---
-  duration_ms: 0.39987
+  duration_ms: 0.419142
   type: 'test'
   ...
 # Subtest: 個人記錄輸入採暫存與靜默重新讀取
 ok 19 - 個人記錄輸入採暫存與靜默重新讀取
   ---
-  duration_ms: 0.828563
+  duration_ms: 0.869993
   type: 'test'
   ...
 # Subtest: 簽到審核匯出使用正式 exportRows 十二欄契約
 ok 20 - 簽到審核匯出使用正式 exportRows 十二欄契約
   ---
-  duration_ms: 2.973061
+  duration_ms: 2.926039
   type: 'test'
   ...
 # Subtest: 簽到審核使用寬版容器、整齊篩選列與完整操作欄
 ok 21 - 簽到審核使用寬版容器、整齊篩選列與完整操作欄
   ---
-  duration_ms: 6.224211
+  duration_ms: 3.258528
   type: 'test'
   ...
 # Subtest: 正式請假匯出排除休例假、隱藏單位與無假別資料
 ok 22 - 正式請假匯出排除休例假、隱藏單位與無假別資料
   ---
-  duration_ms: 2.006804
+  duration_ms: 2.139151
   type: 'test'
   ...
 # Subtest: 正式加班匯出輸出十二欄時間與休息區段
 ok 23 - 正式加班匯出輸出十二欄時間與休息區段
   ---
-  duration_ms: 0.340202
+  duration_ms: 0.333923
   type: 'test'
   ...
 # Subtest: 正式 SAP 休例假匯出套用代碼並排除日薪人員
 ok 24 - 正式 SAP 休例假匯出套用代碼並排除日薪人員
   ---
-  duration_ms: 0.252483
+  duration_ms: 0.322872
   type: 'test'
   ...
 # Subtest: SAP CSV 保留 BOM 並正確跳脫逗號與雙引號
 ok 25 - SAP CSV 保留 BOM 並正確跳脫逗號與雙引號
   ---
-  duration_ms: 0.349446
+  duration_ms: 0.33774
   type: 'test'
   ...
 # Subtest: 全新資料庫只保留兩個正式 SQL 檔與每日簽到模型
 ok 26 - 全新資料庫只保留兩個正式 SQL 檔與每日簽到模型
   ---
-  duration_ms: 3.431126
+  duration_ms: 3.460886
   type: 'test'
   ...
 # Subtest: 正式 SQL 必須包含群組、角色權限與班表封存模型
 ok 27 - 正式 SQL 必須包含群組、角色權限與班表封存模型
   ---
-  duration_ms: 4.032534
+  duration_ms: 4.189636
   type: 'test'
   ...
 # Subtest: 群組簽到審核 Edge Function 必須列入部署清單與文件
 ok 28 - 群組簽到審核 Edge Function 必須列入部署清單與文件
   ---
-  duration_ms: 1.006676
+  duration_ms: 1.034791
   type: 'test'
   ...
 # Subtest: 正式文件不得描述切換期相容或補丁式執行
 ok 29 - 正式文件不得描述切換期相容或補丁式執行
   ---
-  duration_ms: 1.050041
+  duration_ms: 1.119227
   type: 'test'
   ...
 # Subtest: 可從 PR 說明讀取允許與禁止修改範圍
 ok 30 - 可從 PR 說明讀取允許與禁止修改範圍
   ---
-  duration_ms: 2.310061
+  duration_ms: 2.385781
   type: 'test'
   ...
 # Subtest: 路徑規則支援精確檔案、單層萬用字元與遞迴目錄
 ok 31 - 路徑規則支援精確檔案、單層萬用字元與遞迴目錄
   ---
-  duration_ms: 0.703198
+  duration_ms: 1.082008
   type: 'test'
   ...
 # Subtest: 超出允許範圍或命中禁止範圍時應失敗
 ok 32 - 超出允許範圍或命中禁止範圍時應失敗
   ---
-  duration_ms: 0.560067
+  duration_ms: 0.971572
   type: 'test'
   ...
 # Subtest: 禁止使用允許整個儲存庫的過度寬泛規則
 ok 33 - 禁止使用允許整個儲存庫的過度寬泛規則
   ---
-  duration_ms: 0.415864
+  duration_ms: 0.718911
   type: 'test'
   ...
 # Subtest: Git 修改清單應保留中文檔名而不是引號跳脫碼
 ok 34 - Git 修改清單應保留中文檔名而不是引號跳脫碼
   ---
-  duration_ms: 59.699264
+  duration_ms: 66.40528
   type: 'test'
   ...
 # Subtest: 正式檢查與 workflow 不再使用 V2 階段命名
 ok 35 - 正式檢查與 workflow 不再使用 V2 階段命名
   ---
-  duration_ms: 1.186482
+  duration_ms: 1.748942
   type: 'test'
   ...
 # Subtest: 測試檔名不再保留 phase 或 v2 階段名稱
 ok 36 - 測試檔名不再保留 phase 或 v2 階段名稱
   ---
-  duration_ms: 0.999916
+  duration_ms: 1.356711
   type: 'test'
   ...
 # Subtest: bundle 說明不再標示過渡或 legacy 執行模式
 ok 37 - bundle 說明不再標示過渡或 legacy 執行模式
   ---
-  duration_ms: 0.290979
+  duration_ms: 0.369208
   type: 'test'
   ...
 # Subtest: JavaScript 架構檢查阻擋共享模組重複函式
 ok 38 - JavaScript 架構檢查阻擋共享模組重複函式
   ---
-  duration_ms: 235.588802
+  duration_ms: 193.712387
   type: 'test'
   ...
 # Subtest: 正式目錄不得保留一次性遷移腳本、失效檢查與未部署端點
 ok 39 - 正式目錄不得保留一次性遷移腳本、失效檢查與未部署端點
   ---
-  duration_ms: 1.69986
+  duration_ms: 1.419338
   type: 'test'
   ...
 # Subtest: 匯出流程不得由後載入模組覆寫正式 API 或匯出器
 ok 40 - 匯出流程不得由後載入模組覆寫正式 API 或匯出器
   ---
-  duration_ms: 10.98435
+  duration_ms: 6.932892
   type: 'test'
   ...
 # Subtest: 訂餐核心樣式各只有一個正式根層來源
 ok 41 - 訂餐核心樣式各只有一個正式根層來源
   ---
-  duration_ms: 16.952938
+  duration_ms: 15.767396
   type: 'test'
   ...
 # Subtest: 班表外框不再依賴根層後載入修正
 ok 42 - 班表外框不再依賴根層後載入修正
   ---
-  duration_ms: 1.688774
+  duration_ms: 2.477141
   type: 'test'
   ...
 # Subtest: 既有打卡樣式規則不再於 pages 重複
 ok 43 - 既有打卡樣式規則不再於 pages 重複
   ---
-  duration_ms: 0.750358
+  duration_ms: 1.800213
   type: 'test'
   ...
 # Subtest: 班表共用樣式不再依賴後載入覆蓋
 ok 44 - 班表共用樣式不再依賴後載入覆蓋
   ---
-  duration_ms: 3.977483
+  duration_ms: 3.999771
   type: 'test'
   ...
 # Subtest: 手機主要頁面與表單響應式規格集中於 responsive
 ok 45 - 手機主要頁面與表單響應式規格集中於 responsive
   ---
-  duration_ms: 2.261249
+  duration_ms: 1.985394
   type: 'test'
   ...
 # Subtest: 手機假別與加班設定表格應使用內部水平捲動
 ok 46 - 手機假別與加班設定表格應使用內部水平捲動
   ---
-  duration_ms: 0.557493
+  duration_ms: 0.527634
   type: 'test'
   ...
 # Subtest: 訂餐與簽到簿使用 Chrome 式共用籤頁
 ok 47 - 訂餐與簽到簿使用 Chrome 式共用籤頁
   ---
-  duration_ms: 1.448519
+  duration_ms: 1.513824
   type: 'test'
   ...
 # Subtest: 電腦版主要頁面靠上且訂餐統計總計維持單行
 ok 48 - 電腦版主要頁面靠上且訂餐統計總計維持單行
   ---
-  duration_ms: 1.060707
+  duration_ms: 1.032686
   type: 'test'
   ...
 # Subtest: 未隱藏且無人員的單位仍顯示並可參與班表拖曳
 ok 49 - 未隱藏且無人員的單位仍顯示並可參與班表拖曳
   ---
-  duration_ms: 2.298174
+  duration_ms: 1.752539
   type: 'test'
   ...
 # Subtest: 人員可拖入空單位並保存新的所屬單位
 ok 50 - 人員可拖入空單位並保存新的所屬單位
   ---
-  duration_ms: 0.470675
+  duration_ms: 0.319496
   type: 'test'
   ...
 # Subtest: 空單位顯示與拖曳不介入自動排班候選人運算
 ok 51 - 空單位顯示與拖曳不介入自動排班候選人運算
   ---
-  duration_ms: 2.149504
+  duration_ms: 1.279958
   type: 'test'
   ...
 # Subtest: 儲存庫只保留單一正式 GitHub Actions workflow
 ok 52 - 儲存庫只保留單一正式 GitHub Actions workflow
   ---
-  duration_ms: 2.138848
+  duration_ms: 2.239938
   type: 'test'
   ...
 # Subtest: 正式 workflow 只驗證，不重複部署 GitHub Pages
 ok 53 - 正式 workflow 只驗證，不重複部署 GitHub Pages
   ---
-  duration_ms: 0.776557
+  duration_ms: 0.740051
   type: 'test'
   ...
 # Subtest: 純文件變更只跑輕量守門測試，其他異動跑完整驗證
 ok 54 - 純文件變更只跑輕量守門測試，其他異動跑完整驗證
   ---
-  duration_ms: 0.841393
+  duration_ms: 0.826031
   type: 'test'
   ...
 # Subtest: 正式 workflow 不得自動修改或推送 PR 分支
 ok 55 - 正式 workflow 不得自動修改或推送 PR 分支
   ---
-  duration_ms: 0.441552
+  duration_ms: 0.416707
   type: 'test'
   ...
 # Subtest: 群組設定單位欄使用可換行膠囊標籤並取得主要寬度
 ok 56 - 群組設定單位欄使用可換行膠囊標籤並取得主要寬度
   ---
-  duration_ms: 2.499951
+  duration_ms: 2.774897
   type: 'test'
   ...
 # Subtest: 首頁只讀最小群組資格，不在登入後預載完整班表
 ok 57 - 首頁只讀最小群組資格，不在登入後預載完整班表
   ---
-  duration_ms: 3.732912
+  duration_ms: 3.388331
   type: 'test'
   ...
 # Subtest: 簽到簿不再使用 v2 或舊審核 UI 標記
 ok 58 - 簽到簿不再使用 v2 或舊審核 UI 標記
   ---
-  duration_ms: 16.461267
+  duration_ms: 11.042139
   type: 'test'
   ...
 # Subtest: 簽到簿篩選只由正式記錄事件處理器更新並重新載入
 ok 59 - 簽到簿篩選只由正式記錄事件處理器更新並重新載入
   ---
-  duration_ms: 1.388801
+  duration_ms: 0.477341
   type: 'test'
   ...
 # Subtest: 登入資料狀態由工廠與單一重設函式提供
 ok 60 - 登入資料狀態由工廠與單一重設函式提供
   ---
-  duration_ms: 0.524845
+  duration_ms: 0.656294
   type: 'test'
   ...
 # Subtest: 自動排班預覽只由共用函式寫入與儲存
 ok 61 - 自動排班預覽只由共用函式寫入與儲存
   ---
-  duration_ms: 0.377347
+  duration_ms: 0.588057
   type: 'test'
   ...
 # Subtest: 首頁與班表資料載入使用正式模組，不靠後載入攔截器
 ok 62 - 首頁與班表資料載入使用正式模組，不靠後載入攔截器
   ---
-  duration_ms: 1.974666
+  duration_ms: 1.421151
   type: 'test'
   ...
 # Subtest: 簽到簿群組審核 API 由正式 web-api 提供
 ok 63 - 簽到簿群組審核 API 由正式 web-api 提供
   ---
-  duration_ms: 3.754494
+  duration_ms: 2.358209
   type: 'test'
   ...
 # Subtest: 登入首頁與班表延後載入由正式 bundle 模組提供
 ok 64 - 登入首頁與班表延後載入由正式 bundle 模組提供
   ---
-  duration_ms: 1.756063
+  duration_ms: 1.925773
   type: 'test'
   ...
 # Subtest: 登入成功後直接沿用 signIn 回傳身分，不重做 initializeAuth
 ok 65 - 登入成功後直接沿用 signIn 回傳身分，不重做 initializeAuth
   ---
-  duration_ms: 0.338951
+  duration_ms: 0.445011
   type: 'test'
   ...
 # Subtest: 首頁初始化只取得 appInfo 與權限，不讀完整班表
 ok 66 - 首頁初始化只取得 appInfo 與權限，不讀完整班表
   ---
-  duration_ms: 0.265572
+  duration_ms: 0.314777
   type: 'test'
   ...
 # Subtest: 班表完整資料只在正式 ensureScheduleApplicationLoaded 載入
 ok 67 - 班表完整資料只在正式 ensureScheduleApplicationLoaded 載入
   ---
-  duration_ms: 0.348114
+  duration_ms: 0.54141
   type: 'test'
   ...
 # Subtest: 訂餐管理前端 action 必須與 meal-order 後端一致
 ok 68 - 訂餐管理前端 action 必須與 meal-order 後端一致
   ---
-  duration_ms: 10.116058
+  duration_ms: 9.780194
   type: 'test'
   ...
 # Subtest: 班表與管理人員名錄使用正式權限 RPC
 ok 69 - 班表與管理人員名錄使用正式權限 RPC
   ---
-  duration_ms: 3.103543
+  duration_ms: 2.826403
   type: 'test'
   ...
 # Subtest: 排班儲存只提交 UUID 主鍵，不以工號當外鍵
 ok 70 - 排班儲存只提交 UUID 主鍵，不以工號當外鍵
   ---
-  duration_ms: 1.856481
+  duration_ms: 1.57084
   type: 'test'
   ...
 # Subtest: 單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px
 ok 71 - 單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px
   ---
-  duration_ms: 1.748482
+  duration_ms: 1.186624
   type: 'test'
   ...
 # Subtest: 人員設定應直接由正式模組輸出第一欄拖曳把手
 ok 72 - 人員設定應直接由正式模組輸出第一欄拖曳把手
   ---
-  duration_ms: 0.653695
+  duration_ms: 0.465859
   type: 'test'
   ...
 # Subtest: 拖曳人員只調整人員順序並重新開啟人員設定
 ok 73 - 拖曳人員只調整人員順序並重新開啟人員設定
   ---
-  duration_ms: 4.499844
+  duration_ms: 3.589255
   type: 'test'
   ...
 # Subtest: 未知排序類型不得再落入加班資料
 ok 74 - 未知排序類型不得再落入加班資料
   ---
-  duration_ms: 0.510774
+  duration_ms: 1.870279
   type: 'test'
   ...
 # Subtest: heavy admin/review data is lazy-loaded
 ok 75 - heavy admin/review data is lazy-loaded
   ---
-  duration_ms: 1.394009
+  duration_ms: 1.823732
   type: 'test'
   ...
 # Subtest: ExcelJS is lazy-loaded
 ok 76 - ExcelJS is lazy-loaded
   ---
-  duration_ms: 0.448703
+  duration_ms: 0.408863
   type: 'test'
   ...
 # Subtest: schedule hot RPCs materialize actor access instead of row-by-row permission helpers
 ok 77 - schedule hot RPCs materialize actor access instead of row-by-row permission helpers
   ---
-  duration_ms: 1.258078
+  duration_ms: 0.827283
   type: 'test'
   ...
 # Subtest: authenticated direct-write RLS policies are not recreated
 ok 78 - authenticated direct-write RLS policies are not recreated
   ---
-  duration_ms: 2.551398
+  duration_ms: 2.430834
   type: 'test'
   ...
 # Subtest: 權限設定的權限項目使用可換行膠囊標籤並取得主要寬度
 ok 79 - 權限設定的權限項目使用可換行膠囊標籤並取得主要寬度
   ---
-  duration_ms: 2.41033
+  duration_ms: 2.566568
   type: 'test'
   ...
 # Subtest: 首次載入班表顯示圓形載入動畫
 ok 80 - 首次載入班表顯示圓形載入動畫
   ---
-  duration_ms: 1.484331
+  duration_ms: 1.952692
   type: 'test'
   ...
 # Subtest: 個人記錄表格縮窄打卡欄並保留完整審核欄
 ok 81 - 個人記錄表格縮窄打卡欄並保留完整審核欄
   ---
-  duration_ms: 1.837773
+  duration_ms: 1.461887
   type: 'test'
   ...
 # Subtest: 上下班打卡按鈕使用不同顏色
 ok 82 - 上下班打卡按鈕使用不同顏色
   ---
-  duration_ms: 0.407071
+  duration_ms: 0.267289
   type: 'test'
   ...
 # Subtest: 個人記錄重繪會保存並還原視窗及表格捲動位置
 ok 83 - 個人記錄重繪會保存並還原視窗及表格捲動位置
   ---
-  duration_ms: 2.05245
+  duration_ms: 2.466541
   type: 'test'
   ...
 # Subtest: 個人記錄未打卡欄保持空白且地點同列
 ok 84 - 個人記錄未打卡欄保持空白且地點同列
   ---
-  duration_ms: 1.579823
+  duration_ms: 1.844341
   type: 'test'
   ...
 # Subtest: 非當日工時不渲染停用輸入框
 ok 85 - 非當日工時不渲染停用輸入框
   ---
-  duration_ms: 0.441382
+  duration_ms: 0.3916
   type: 'test'
   ...
 # Subtest: 備註使用單行輸入框並限制在欄內
 ok 86 - 備註使用單行輸入框並限制在欄內
   ---
-  duration_ms: 1.750475
+  duration_ms: 1.807812
   type: 'test'
   ...
 # Subtest: 目錄刪除成功後才更新前端狀態
 ok 87 - 目錄刪除成功後才更新前端狀態
   ---
-  duration_ms: 3.930514
+  duration_ms: 4.427679
   type: 'test'
   ...
 # Subtest: 後端刪除失敗時不應先移除前端資料
 ok 88 - 後端刪除失敗時不應先移除前端資料
   ---
-  duration_ms: 2.95299
+  duration_ms: 2.810503
   type: 'test'
   ...
 # Subtest: 安全目錄 API 與人員同步應由正式 web-api 提供
 not ok 89 - 安全目錄 API 與人員同步應由正式 web-api 提供
   ---
-  duration_ms: 1.780969
+  duration_ms: 1.813533
   type: 'test'
   location: '/home/runner/work/FYH/FYH/tests/renderer-admin-data-contracts.test.js:57:1'
   failureType: 'testCodeFailure'
@@ -1495,19 +1495,19 @@ not ok 89 - 安全目錄 API 與人員同步應由正式 web-api 提供
 # Subtest: 目錄刪除畫面流程不應再依賴函式覆蓋
 ok 90 - 目錄刪除畫面流程不應再依賴函式覆蓋
   ---
-  duration_ms: 0.542491
+  duration_ms: 0.490666
   type: 'test'
   ...
 # Subtest: 目前人員應優先依 profile id，再依工號解析
 ok 91 - 目前人員應優先依 profile id，再依工號解析
   ---
-  duration_ms: 2.813234
+  duration_ms: 2.012765
   type: 'test'
   ...
 # Subtest: 管理能力應完全由權限項目與適用群組決定
 not ok 92 - 管理能力應完全由權限項目與適用群組決定
   ---
-  duration_ms: 2.577817
+  duration_ms: 1.7584
   type: 'test'
   location: '/home/runner/work/FYH/FYH/tests/renderer-auth-context.test.js:29:1'
   failureType: 'testCodeFailure'
@@ -1529,385 +1529,385 @@ not ok 92 - 管理能力應完全由權限項目與適用群組決定
 # Subtest: 假別明細與設定輔助應位於對應責任模組
 ok 93 - 假別明細與設定輔助應位於對應責任模組
   ---
-  duration_ms: 0.31848
+  duration_ms: 0.233275
   type: 'test'
   ...
 # Subtest: 登入、簽到簿與班表模組順序應維持且不再載入舊申請模組
 ok 94 - 登入、簽到簿與班表模組順序應維持且不再載入舊申請模組
   ---
-  duration_ms: 0.499667
+  duration_ms: 0.330857
   type: 'test'
   ...
 # Subtest: 排班前端不得保留已淘汰申請流程的無引用輔助名稱
 ok 95 - 排班前端不得保留已淘汰申請流程的無引用輔助名稱
   ---
-  duration_ms: 0.951825
+  duration_ms: 0.73422
   type: 'test'
   ...
 # Subtest: 自動補班只處理月薪人員的完全空白格
 ok 96 - 自動補班只處理月薪人員的完全空白格
   ---
-  duration_ms: 3.422644
+  duration_ms: 4.263834
   type: 'test'
   ...
 # Subtest: 套用自動補班應建立復原點並只儲存變更格
 ok 97 - 套用自動補班應建立復原點並只儲存變更格
   ---
-  duration_ms: 2.651165
+  duration_ms: 3.277844
   type: 'test'
   ...
 # Subtest: 共用套用與取消按鈕應依預覽類型分流
 ok 98 - 共用套用與取消按鈕應依預覽類型分流
   ---
-  duration_ms: 1.360369
+  duration_ms: 1.497613
   type: 'test'
   ...
 # Subtest: 自動補班應由正式模組提供而非覆蓋自動排班函式
 ok 99 - 自動補班應由正式模組提供而非覆蓋自動排班函式
   ---
-  duration_ms: 0.495081
+  duration_ms: 0.732607
   type: 'test'
   ...
 # Subtest: 八週休假目標應扣除既有例假
 ok 100 - 八週休假目標應扣除既有例假
   ---
-  duration_ms: 6.46713
+  duration_ms: 9.561846
   type: 'test'
   ...
 # Subtest: 班別需求應依營運狀態及需求人數計算
 ok 101 - 班別需求應依營運狀態及需求人數計算
   ---
-  duration_ms: 2.18065
+  duration_ms: 4.253261
   type: 'test'
   ...
 # Subtest: 最小成本分配應優先符合人員班別順位
 ok 102 - 最小成本分配應優先符合人員班別順位
   ---
-  duration_ms: 2.777461
+  duration_ms: 3.138394
   type: 'test'
   ...
 # Subtest: 自動排班應維持明確建置順序
 ok 103 - 自動排班應維持明確建置順序
   ---
-  duration_ms: 8.975538
+  duration_ms: 8.026804
   type: 'test'
   ...
 # Subtest: renderer 不再含任何 v2 JavaScript 補丁
 ok 104 - renderer 不再含任何 v2 JavaScript 補丁
   ---
-  duration_ms: 1.683876
+  duration_ms: 1.674203
   type: 'test'
   ...
 # Subtest: 帳號刪除由正式 API 與人員模組提供
 ok 105 - 帳號刪除由正式 API 與人員模組提供
   ---
-  duration_ms: 0.781975
+  duration_ms: 0.617031
   type: 'test'
   ...
 # Subtest: 訂餐 Excel 由正式 web-api 唯一提供
 ok 106 - 訂餐 Excel 由正式 web-api 唯一提供
   ---
-  duration_ms: 0.68402
+  duration_ms: 0.610018
   type: 'test'
   ...
 # Subtest: 設定拖曳把手直接由正式畫面產生
 ok 107 - 設定拖曳把手直接由正式畫面產生
   ---
-  duration_ms: 0.83966
+  duration_ms: 0.794091
   type: 'test'
   ...
 # Subtest: 拖曳捲動保存由正式事件總控註冊
 ok 108 - 拖曳捲動保存由正式事件總控註冊
   ---
-  duration_ms: 0.279683
+  duration_ms: 0.324305
   type: 'test'
   ...
 # Subtest: renderer foundation 應保留目錄與每日簽到預設狀態
 ok 109 - renderer foundation 應保留目錄與每日簽到預設狀態
   ---
-  duration_ms: 3.150092
+  duration_ms: 3.192536
   type: 'test'
   ...
 # Subtest: 日期與時間工具應正確處理格式及區間
 ok 110 - 日期與時間工具應正確處理格式及區間
   ---
-  duration_ms: 1.799918
+  duration_ms: 1.881269
   type: 'test'
   ...
 # Subtest: renderer.js 不應再保存已拆出的核心區塊
 ok 111 - renderer.js 不應再保存已拆出的核心區塊
   ---
-  duration_ms: 2.014505
+  duration_ms: 1.947693
   type: 'test'
   ...
 # Subtest: 班表人員可拖到不同單位並沿用目標人員位置
 ok 112 - 班表人員可拖到不同單位並沿用目標人員位置
   ---
-  duration_ms: 2.640719
+  duration_ms: 4.639334
   type: 'test'
   ...
 # Subtest: 同單位人員排序仍應正常運作
 ok 113 - 同單位人員排序仍應正常運作
   ---
-  duration_ms: 0.895542
+  duration_ms: 1.29202
   type: 'test'
   ...
 # Subtest: 跨單位拖曳應由正式函式提供而非後載入覆蓋
 ok 114 - 跨單位拖曳應由正式函式提供而非後載入覆蓋
   ---
-  duration_ms: 5.499741
+  duration_ms: 9.481968
   type: 'test'
   ...
 # Subtest: 單位設定最終畫面應直接由正式模組提供七欄
 ok 115 - 單位設定最終畫面應直接由正式模組提供七欄
   ---
-  duration_ms: 3.682768
+  duration_ms: 3.696155
   type: 'test'
   ...
 # Subtest: 單位設定不應再依賴後載入函式覆蓋
 ok 116 - 單位設定不應再依賴後載入函式覆蓋
   ---
-  duration_ms: 0.780903
+  duration_ms: 1.384062
   type: 'test'
   ...
 # Subtest: Ctrl+C 應複製目前班表選取範圍
 ok 117 - Ctrl+C 應複製目前班表選取範圍
   ---
-  duration_ms: 2.985469
+  duration_ms: 2.714103
   type: 'test'
   ...
 # Subtest: 班表操作應保留復原、重做、複製、剪下、貼上與刪除入口
 ok 118 - 班表操作應保留復原、重做、複製、剪下、貼上與刪除入口
   ---
-  duration_ms: 0.25089
+  duration_ms: 0.244065
   type: 'test'
   ...
 # Subtest: 鍵盤與正式匯出操作應維持明確模組順序
 ok 119 - 鍵盤與正式匯出操作應維持明確模組順序
   ---
-  duration_ms: 0.505327
+  duration_ms: 0.446714
   type: 'test'
   ...
 # Subtest: 訂餐功能不再依賴 v2 補丁檔
 ok 120 - 訂餐功能不再依賴 v2 補丁檔
   ---
-  duration_ms: 1.346318
+  duration_ms: 1.231527
   type: 'test'
   ...
 # Subtest: 訂餐正式函式各只有一份宣告且沒有後載入覆蓋
 ok 121 - 訂餐正式函式各只有一份宣告且沒有後載入覆蓋
   ---
-  duration_ms: 2.454354
+  duration_ms: 1.697647
   type: 'test'
   ...
 # Subtest: 訂餐驗證、刪除與拖曳把手均由正式模組提供
 ok 122 - 訂餐驗證、刪除與拖曳把手均由正式模組提供
   ---
-  duration_ms: 0.432017
+  duration_ms: 0.377735
   type: 'test'
   ...
 # Subtest: 儲存訂餐重新渲染時應保留剛輸入的數量與備註
 ok 123 - 儲存訂餐重新渲染時應保留剛輸入的數量與備註
   ---
-  duration_ms: 0.400511
+  duration_ms: 0.48253
   type: 'test'
   ...
 # Subtest: 今日訂餐完成讀取後才顯示空商品提示，且不顯示處理中文字
 ok 124 - 今日訂餐完成讀取後才顯示空商品提示，且不顯示處理中文字
   ---
-  duration_ms: 0.39941
+  duration_ms: 0.442796
   type: 'test'
   ...
 # Subtest: 人員設定列應直接提供拖曳排序識別值
 ok 125 - 人員設定列應直接提供拖曳排序識別值
   ---
-  duration_ms: 3.223299
+  duration_ms: 3.229905
   type: 'test'
   ...
 # Subtest: 重新渲染人員清單應保留捲動位置與輸入游標
 ok 126 - 重新渲染人員清單應保留捲動位置與輸入游標
   ---
-  duration_ms: 2.36291
+  duration_ms: 2.042911
   type: 'test'
   ...
 # Subtest: 人員排序應由正式設定模組提供而非覆蓋函式
 ok 127 - 人員排序應由正式設定模組提供而非覆蓋函式
   ---
-  duration_ms: 2.292315
+  duration_ms: 1.303562
   type: 'test'
   ...
 # Subtest: 返回鍵遇到彈窗時應只關閉彈窗
 ok 128 - 返回鍵遇到彈窗時應只關閉彈窗
   ---
-  duration_ms: 2.39046
+  duration_ms: 1.909472
   type: 'test'
   ...
 # Subtest: 可見清單排序應保留未顯示項目的原位置
 ok 129 - 可見清單排序應保留未顯示項目的原位置
   ---
-  duration_ms: 2.016808
+  duration_ms: 1.419669
   type: 'test'
   ...
 # Subtest: 第十一階段應移出彈窗與排序控制並維持模組順序
 ok 130 - 第十一階段應移出彈窗與排序控制並維持模組順序
   ---
-  duration_ms: 0.451106
+  duration_ms: 0.39654
   type: 'test'
   ...
 # Subtest: renderer.js 只保留狀態與啟動流程
 ok 131 - renderer.js 只保留狀態與啟動流程
   ---
-  duration_ms: 1.684137
+  duration_ms: 2.170499
   type: 'test'
   ...
 # Subtest: 模組應依責任順序進入建置與測試來源
 ok 132 - 模組應依責任順序進入建置與測試來源
   ---
-  duration_ms: 0.300634
+  duration_ms: 0.431455
   type: 'test'
   ...
 # Subtest: 事件總控應完整註冊所有責任模組
 ok 133 - 事件總控應完整註冊所有責任模組
   ---
-  duration_ms: 0.246463
+  duration_ms: 0.224058
   type: 'test'
   ...
 # Subtest: 委派事件應保留主要操作入口
 ok 134 - 委派事件應保留主要操作入口
   ---
-  duration_ms: 0.432629
+  duration_ms: 0.440432
   type: 'test'
   ...
 # Subtest: 共用訊息與時間輸入工具應保留既有格式
 ok 135 - 共用訊息與時間輸入工具應保留既有格式
   ---
-  duration_ms: 3.191983
+  duration_ms: 3.527369
   type: 'test'
   ...
 # Subtest: 任職與營運區間判定應包含起訖日
 ok 136 - 任職與營運區間判定應包含起訖日
   ---
-  duration_ms: 1.228473
+  duration_ms: 1.229183
   type: 'test'
   ...
 # Subtest: 狀態正規化工具應保留顏色與排班清理規則
 ok 137 - 狀態正規化工具應保留顏色與排班清理規則
   ---
-  duration_ms: 3.710108
+  duration_ms: 2.915609
   type: 'test'
   ...
 # Subtest: renderer 模組應維持核心來源與建置順序
 ok 138 - renderer 模組應維持核心來源與建置順序
   ---
-  duration_ms: 8.055495
+  duration_ms: 5.791413
   type: 'test'
   ...
 # Subtest: 復原與重做按鈕應依堆疊及權限狀態停用
 ok 139 - 復原與重做按鈕應依堆疊及權限狀態停用
   ---
-  duration_ms: 3.051796
+  duration_ms: 2.526883
   type: 'test'
   ...
 # Subtest: 復原應將目前班表推入重做堆疊並還原目標快照
 ok 140 - 復原應將目前班表推入重做堆疊並還原目標快照
   ---
-  duration_ms: 2.402167
+  duration_ms: 2.163275
   type: 'test'
   ...
 # Subtest: 班表歷程控制應由正式互動模組提供而非覆蓋函式
 ok 141 - 班表歷程控制應由正式互動模組提供而非覆蓋函式
   ---
-  duration_ms: 9.108921
+  duration_ms: 7.557874
   type: 'test'
   ...
 # Subtest: 班表剪貼簿資料應完整複製目前明細且不共用物件
 ok 142 - 班表剪貼簿資料應完整複製目前明細且不共用物件
   ---
-  duration_ms: 3.70421
+  duration_ms: 3.345677
   type: 'test'
   ...
 # Subtest: 班表鍵值解析應支援含底線的人員代碼
 ok 143 - 班表鍵值解析應支援含底線的人員代碼
   ---
-  duration_ms: 3.059397
+  duration_ms: 2.788803
   type: 'test'
   ...
 # Subtest: 手動更新班表儲存格時應同步更新同一人員的統計欄
 ok 144 - 手動更新班表儲存格時應同步更新同一人員的統計欄
   ---
-  duration_ms: 1.935608
+  duration_ms: 1.920402
   type: 'test'
   ...
 # Subtest: 第三階段應維持核心來源與建置順序
 ok 145 - 第三階段應維持核心來源與建置順序
   ---
-  duration_ms: 6.081881
+  duration_ms: 4.536182
   type: 'test'
   ...
 # Subtest: 班表文字大小應依段落數與字數判定
 ok 146 - 班表文字大小應依段落數與字數判定
   ---
-  duration_ms: 2.672366
+  duration_ms: 2.719022
   type: 'test'
   ...
 # Subtest: 八週統計應分開計算例假、休息日、休息日出勤與未排
 ok 147 - 八週統計應分開計算例假、休息日、休息日出勤與未排
   ---
-  duration_ms: 2.026322
+  duration_ms: 1.980936
   type: 'test'
   ...
 # Subtest: 儲存格渲染應保留班別、假別與加班三段資訊
 ok 148 - 儲存格渲染應保留班別、假別與加班三段資訊
   ---
-  duration_ms: 2.750772
+  duration_ms: 3.131031
   type: 'test'
   ...
 # Subtest: 例假排班只變更例假段落與班別檢視人員區塊
 ok 149 - 例假排班只變更例假段落與班別檢視人員區塊
   ---
-  duration_ms: 1.70622
+  duration_ms: 1.824664
   type: 'test'
   ...
 # Subtest: 需填時間或需填原因的假別應產生明細提示標記
 ok 150 - 需填時間或需填原因的假別應產生明細提示標記
   ---
-  duration_ms: 1.273641
+  duration_ms: 1.250412
   type: 'test'
   ...
 # Subtest: 休假明細只保留右上關閉並將儲存放在標題列
 ok 151 - 休假明細只保留右上關閉並將儲存放在標題列
   ---
-  duration_ms: 0.556542
+  duration_ms: 0.612743
   type: 'test'
   ...
 # Subtest: 第五階段應移出班表渲染並維持建置順序
 ok 152 - 第五階段應移出班表渲染並維持建置順序
   ---
-  duration_ms: 6.170236
+  duration_ms: 6.803141
   type: 'test'
   ...
 # Subtest: 目錄設定應保留顏色預覽與共用操作按鈕
 ok 153 - 目錄設定應保留顏色預覽與共用操作按鈕
   ---
-  duration_ms: 2.215171
+  duration_ms: 3.972611
   type: 'test'
   ...
 # Subtest: 單位表單應保留有效期間、班表顯示與打卡欄位
 ok 154 - 單位表單應保留有效期間、班表顯示與打卡欄位
   ---
-  duration_ms: 2.188913
+  duration_ms: 3.198056
   type: 'test'
   ...
 # Subtest: 設定拖曳排序應只重排可見項目並保留缺漏項目
 ok 155 - 設定拖曳排序應只重排可見項目並保留缺漏項目
   ---
-  duration_ms: 1.49722
+  duration_ms: 2.277609
   type: 'test'
   ...
 # Subtest: 人員設定篩選應同時套用姓名、單位、權限、在職與薪資條件
 not ok 156 - 人員設定篩選應同時套用姓名、單位、權限、在職與薪資條件
   ---
-  duration_ms: 2.28177
+  duration_ms: 5.283894
   type: 'test'
   location: '/home/runner/work/FYH/FYH/tests/renderer-settings.test.js:37:1'
   failureType: 'testCodeFailure'
@@ -1938,253 +1938,253 @@ not ok 156 - 人員設定篩選應同時套用姓名、單位、權限、在職�
 # Subtest: 第六階段應移出設定管理並維持建置順序
 ok 157 - 第六階段應移出設定管理並維持建置順序
   ---
-  duration_ms: 4.926464
+  duration_ms: 4.97864
   type: 'test'
   ...
 # Subtest: 今日打卡狀態應透過 attendance-clock today 查詢
 ok 158 - 今日打卡狀態應透過 attendance-clock today 查詢
   ---
-  duration_ms: 3.458337
+  duration_ms: 4.372827
   type: 'test'
   ...
 # Subtest: 訂餐管理應保留補助並提供安全刪除品項操作
 ok 159 - 訂餐管理應保留補助並提供安全刪除品項操作
   ---
-  duration_ms: 2.520311
+  duration_ms: 3.170535
   type: 'test'
   ...
 # Subtest: 小型 API 應由正式 web-api 提供而非後載入覆蓋
 ok 160 - 小型 API 應由正式 web-api 提供而非後載入覆蓋
   ---
-  duration_ms: 0.484816
+  duration_ms: 0.743507
   type: 'test'
   ...
 # Subtest: iPad、觸控 Mac 與 Android 平板應使用電腦版 Session 規則
 ok 161 - iPad、觸控 Mac 與 Android 平板應使用電腦版 Session 規則
   ---
-  duration_ms: 8.002306
+  duration_ms: 6.386033
   type: 'test'
   ...
 # Subtest: 手機仍使用 localStorage 與 48 小時期限
 ok 162 - 手機仍使用 localStorage 與 48 小時期限
   ---
-  duration_ms: 1.296926
+  duration_ms: 1.218903
   type: 'test'
   ...
 # Subtest: 正式 Session 寫入只保留目前裝置應使用的儲存區
 ok 163 - 正式 Session 寫入只保留目前裝置應使用的儲存區
   ---
-  duration_ms: 1.324336
+  duration_ms: 1.317678
   type: 'test'
   ...
 # Subtest: 平板 Session 應由正式 web-api 管理而非包裝所有 API
 ok 164 - 平板 Session 應由正式 web-api 管理而非包裝所有 API
   ---
-  duration_ms: 0.439108
+  duration_ms: 0.362255
   type: 'test'
   ...
 # Subtest: 假別明細摘要應保留整天、時間與原因
 ok 165 - 假別明細摘要應保留整天、時間與原因
   ---
-  duration_ms: 3.226154
+  duration_ms: 3.701505
   type: 'test'
   ...
 # Subtest: 主頁渲染應保留三個入口、簽到簿名稱與訂餐管理分頁
 ok 166 - 主頁渲染應保留三個入口、簽到簿名稱與訂餐管理分頁
   ---
-  duration_ms: 0.35226
+  duration_ms: 0.378606
   type: 'test'
   ...
 # Subtest: 第十二階段應移出提示框與主頁渲染並維持模組順序
 ok 167 - 第十二階段應移出提示框與主頁渲染並維持模組順序
   ---
-  duration_ms: 0.436144
+  duration_ms: 0.397111
   type: 'test'
   ...
 # Subtest: 日期標題斑馬紋應跟隨每週起算日移動
 ok 168 - 日期標題斑馬紋應跟隨每週起算日移動
   ---
-  duration_ms: 6.351609
+  duration_ms: 5.620664
   type: 'test'
   ...
 # Subtest: 斑馬紋與週界線應使用同一個每週起算日
 ok 169 - 斑馬紋與週界線應使用同一個每週起算日
   ---
-  duration_ms: 1.710676
+  duration_ms: 1.312448
   type: 'test'
   ...
 # Subtest: 今天日期標題在電腦與手機都必須保持微亮藍色
 ok 170 - 今天日期標題在電腦與手機都必須保持微亮藍色
   ---
-  duration_ms: 0.723748
+  duration_ms: 0.896833
   type: 'test'
   ...
 # Subtest: 電腦與手機班表標題應共用放大後字級
 ok 171 - 電腦與手機班表標題應共用放大後字級
   ---
-  duration_ms: 0.420351
+  duration_ms: 0.378035
   type: 'test'
   ...
 # Subtest: 日期標題與表格內容週界線應只繪製單一同粗線條
 ok 172 - 日期標題與表格內容週界線應只繪製單一同粗線條
   ---
-  duration_ms: 0.445978
+  duration_ms: 0.405837
   type: 'test'
   ...
 # Subtest: 週期起訖應依設定的星期起始日計算
 ok 173 - 週期起訖應依設定的星期起始日計算
   ---
-  duration_ms: 1.83557
+  duration_ms: 1.839692
   type: 'test'
   ...
 # Subtest: 例休檢查應回報缺少例假、例假出勤與跨週連續出勤
 ok 174 - 例休檢查應回報缺少例假、例假出勤與跨週連續出勤
   ---
-  duration_ms: 1.572933
+  duration_ms: 1.885718
   type: 'test'
   ...
 # Subtest: 到離職週應至少保留兩個未在職日、例假或休息日
 ok 175 - 到離職週應至少保留兩個未在職日、例假或休息日
   ---
-  duration_ms: 2.124477
+  duration_ms: 1.510228
   type: 'test'
   ...
 # Subtest: 首次班表以八週週期載入且只呼叫一次正式班表查詢 RPC
 ok 176 - 首次班表以八週週期載入且只呼叫一次正式班表查詢 RPC
   ---
-  duration_ms: 2.422948
+  duration_ms: 2.470799
   type: 'test'
   ...
 # Subtest: 班表初始化不再依賴頁面補丁或第二次同區間查詢
 ok 177 - 班表初始化不再依賴頁面補丁或第二次同區間查詢
   ---
-  duration_ms: 0.443856
+  duration_ms: 0.420354
   type: 'test'
   ...
 # Subtest: 單位打卡設定仍延後到單位設定頁載入
 ok 178 - 單位打卡設定仍延後到單位設定頁載入
   ---
-  duration_ms: 2.070598
+  duration_ms: 2.025628
   type: 'test'
   ...
 # Subtest: 規格書明定首次班表不相容舊瀏覽位置
 ok 179 - 規格書明定首次班表不相容舊瀏覽位置
   ---
-  duration_ms: 0.992836
+  duration_ms: 0.70771
   type: 'test'
   ...
 # Subtest: 班表浮動工具列使用整合式左側操作列
 ok 180 - 班表浮動工具列使用整合式左側操作列
   ---
-  duration_ms: 1.233922
+  duration_ms: 1.79578
   type: 'test'
   ...
 # Subtest: 班表週移動與例假排班顯示具有正式程式契約
 ok 181 - 班表週移動與例假排班顯示具有正式程式契約
   ---
-  duration_ms: 0.945726
+  duration_ms: 1.201932
   type: 'test'
   ...
 # Subtest: 共用設定返回流程應在重新開頁後還原捲動位置
 ok 182 - 共用設定返回流程應在重新開頁後還原捲動位置
   ---
-  duration_ms: 3.375775
+  duration_ms: 3.826838
   type: 'test'
   ...
 # Subtest: 刪除班別應先保存位置，成功更新後再還原
 ok 183 - 刪除班別應先保存位置，成功更新後再還原
   ---
-  duration_ms: 1.766018
+  duration_ms: 1.915343
   type: 'test'
   ...
 # Subtest: 所有主要設定刪除流程都必須使用共用捲動還原
 ok 184 - 所有主要設定刪除流程都必須使用共用捲動還原
   ---
-  duration_ms: 2.115214
+  duration_ms: 2.673307
   type: 'test'
   ...
 # Subtest: 設定列表應以完整內容寬度維持水平捲動後的表頭格式
 ok 185 - 設定列表應以完整內容寬度維持水平捲動後的表頭格式
   ---
-  duration_ms: 2.228561
+  duration_ms: 1.94585
   type: 'test'
   ...
 # Subtest: 班表頁外層寬度固定在頁面內，水平移動留在表格捲動區
 ok 186 - 班表頁外層寬度固定在頁面內，水平移動留在表格捲動區
   ---
-  duration_ms: 0.27755
+  duration_ms: 0.203039
   type: 'test'
   ...
 # Subtest: 班別假別加班刪除只走明確 RPC 契約
 ok 187 - 班別假別加班刪除只走明確 RPC 契約
   ---
-  duration_ms: 2.070808
+  duration_ms: 1.187887
   type: 'test'
   ...
 # Subtest: 設定刪除失敗時不得先關閉視窗或先移除本機資料
 ok 188 - 設定刪除失敗時不得先關閉視窗或先移除本機資料
   ---
-  duration_ms: 0.52102
+  duration_ms: 0.399926
   type: 'test'
   ...
 # Subtest: 個人記錄畫面使用正式狀態初始化來源
 ok 189 - 個人記錄畫面使用正式狀態初始化來源
   ---
-  duration_ms: 1.88935
+  duration_ms: 1.990083
   type: 'test'
   ...
 # Subtest: 正式期間匯出直接整合於操作模組並使用共用月份天數函式
 ok 190 - 正式期間匯出直接整合於操作模組並使用共用月份天數函式
   ---
-  duration_ms: 0.465107
+  duration_ms: 0.474014
   type: 'test'
   ...
 # Subtest: 架構檢查模式不得產生稽核報告檔
 ok 191 - 架構檢查模式不得產生稽核報告檔
   ---
-  duration_ms: 248.473958
+  duration_ms: 219.792998
   type: 'test'
   ...
 # Subtest: 班表浮動工具列支援雙擊修改與選中項目圖示
 ok 192 - 班表浮動工具列支援雙擊修改與選中項目圖示
   ---
-  duration_ms: 2.475575
+  duration_ms: 2.488953
   type: 'test'
   ...
 # Subtest: 班表浮動工具列使用緊湊合併版面
 ok 193 - 班表浮動工具列使用緊湊合併版面
   ---
-  duration_ms: 2.457068
+  duration_ms: 2.569724
   type: 'test'
   ...
 # Subtest: 班別與假別移除提示但保留快速連點修改
 ok 194 - 班別與假別移除提示但保留快速連點修改
   ---
-  duration_ms: 0.46701
+  duration_ms: 0.515441
   type: 'test'
   ...
 # Subtest: mjs 啟動模組由靜態發布自動複製且不進入 app.js 清單
 ok 195 - mjs 啟動模組由靜態發布自動複製且不進入 app.js 清單
   ---
-  duration_ms: 1.783463
+  duration_ms: 1.272063
   type: 'test'
   ...
 # Subtest: 浮動工具列控制按鈕依新版版面排列
 ok 196 - 浮動工具列控制按鈕依新版版面排列
   ---
-  duration_ms: 2.921083
+  duration_ms: 2.200946
   type: 'test'
   ...
 # Subtest: 班別與假別重新渲染後仍可快速連點開啟修改
 ok 197 - 班別與假別重新渲染後仍可快速連點開啟修改
   ---
-  duration_ms: 0.563672
+  duration_ms: 0.483833
   type: 'test'
   ...
 # Subtest: 公開設定檢查不執行瀏覽器 DOM 初始化
 ok 198 - 公開設定檢查不執行瀏覽器 DOM 初始化
   ---
-  duration_ms: 3.10181
+  duration_ms: 1.365438
   type: 'test'
   ...
 1..198
@@ -2195,4 +2195,4 @@ ok 198 - 公開設定檢查不執行瀏覽器 DOM 初始化
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1783.053833
+# duration_ms 1652.266751
