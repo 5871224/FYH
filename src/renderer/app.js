@@ -1138,16 +1138,7 @@
     return role === "admin" || role === "manager" ? role : "employee";
   }
 
-  function hasManagerAccess(role) {
-    const normalizedRole = normalizeRole(role);
-    return normalizedRole === "admin" || normalizedRole === "manager";
-  }
-
-  function hasAdminAccess(role) {
-    return normalizeRole(role) === "admin";
-  }
-
-  function compactExportDate(value) {
+      function compactExportDate(value) {
     return String(value || "").replace(/[^0-9]/g, "").slice(0, 8);
   }
 
@@ -1409,11 +1400,7 @@
     return rows[0] || null;
   }
 
-  async function getScheduleDirectoryRows() {
-    return await callRpc("get_schedule_directory_v2", {}, { auth: true }) || [];
-  }
-
-    async function getEmployeeAdminDirectoryRows() {
+      async function getEmployeeAdminDirectoryRows() {
     ensureSignedIn();
     return await callRpc("get_employee_admin_directory_v3", {}) || [];
   }
@@ -1426,14 +1413,7 @@
     }
   }
 
-  function ensureManager() {
-    ensureSignedIn();
-    if (!hasManagerAccess(currentProfile?.role)) {
-      throw new Error("此功能需要主管權限");
-    }
-  }
-
-  async function refreshSessionIfNeeded() {
+    async function refreshSessionIfNeeded() {
     if (!currentSession?.refresh_token) {
       return currentSession;
     }
@@ -1757,8 +1737,15 @@
   
   async function getDepartmentAttendanceSettings() {
     ensureSignedIn();
-    const result = await requestFunction("department-attendance-v2", {});
-    return Array.isArray(result?.settings) ? result.settings : [];
+    const rows = await callRpc("get_department_attendance_settings_v3", {}) || [];
+    return rows.map((row) => ({
+      departmentId: row.department_id,
+      address: row.address || "",
+      latitude: row.latitude,
+      longitude: row.longitude,
+      attendanceEnabled: Boolean(row.attendance_enabled),
+      publicIp: row.public_ip || ""
+    }));
   }
 
   async function getTodayAttendance() {
@@ -1810,17 +1797,7 @@
     return requestFunction("attendance-review-groups", { action: "history", recordId });
   }
 
-  async function getMemberOrder() {
-    ensureSignedIn();
-    return requestFunction("member-order-v2", { action: "list" });
-  }
-
-  async function saveMemberOrder(memberIds = []) {
-    ensureManager();
-    return requestFunction("member-order-v2", { action: "save", memberIds });
-  }
-
-  async function getTodayMealOrder() {
+      async function getTodayMealOrder() {
     ensureSignedIn();
     return requestFunction("meal-order", {
       action: "today_status"
@@ -1900,28 +1877,17 @@
         address: row.address || "",
         latitude: row.latitude ?? "",
         longitude: row.longitude ?? "",
-        publicIp: hasAdminAccess(currentProfile?.role) ? row.public_ip || "" : "",
+        publicIp: row.public_ip || "",
         attendanceEnabled: Boolean(row.attendance_enabled),
         groupId: row.group_id || "",
         deleted: Boolean(row.deleted_at)
       }));
   }
 
-  function mapDepartmentWriteRow(department, sortOrder) {
-    return {
-      id: department.id,
-      name: department.name || department.id,
-      start_date: nullableDate(department.startDate),
-      end_date: nullableDate(department.endDate),
-      hidden_from_schedule: Boolean(department.hiddenFromSchedule),
-      sort_order: sortOrder
-    };
-  }
-
-  
+    
   
   async function loadScheduleExportRows(startDate, endDate) {
-    ensureManager();
+    ensureSignedIn();
     const normalizedStart = nullableDate(startDate);
     const normalizedEnd = nullableDate(endDate);
     if (!normalizedStart || !normalizedEnd || normalizedStart > normalizedEnd) {
@@ -2032,7 +1998,7 @@
   }
 
   async function loadEmployeeAdminDirectory() {
-    ensureManager();
+    ensureSignedIn();
     return mapMemberDirectoryRows(await getEmployeeAdminDirectoryRows());
   }
 
@@ -2115,7 +2081,7 @@
 
 
   async function resetMemberPassword(employeeCode) {
-    ensureManager();
+    ensureSignedIn();
     return requestFunction("member-auth-admin", {
       action: "reset_password",
       employeeCode: String(employeeCode || "").trim(),
@@ -2124,7 +2090,7 @@
   }
 
   async function deleteMemberProfile(employeeCode, currentPassword = "") {
-    ensureManager();
+    ensureSignedIn();
     return requestFunction("member-auth-admin", {
       action: "delete_member",
       employeeCode: String(employeeCode || "").trim(),
@@ -2419,7 +2385,7 @@
   }
 
   async function exportAttendanceReview(filters = {}) {
-    ensureManager();
+    ensureSignedIn();
     const result = await requestFunction("attendance-ledger-export", {
       fromDate: filters.fromDate,
       toDate: filters.toDate,
@@ -2553,8 +2519,6 @@
     setAttendanceReviewed,
     getAttendanceHistory,
     getMealStatsReport,
-    getMemberOrder,
-    saveMemberOrder,
     getMealAdminSettings,
     saveMealAdminSettings,
     deleteMealProduct,
@@ -10477,16 +10441,9 @@ function syncScheduleOvertimeFormUi() {
 ;
 
 /* ===== renderer-schedule-compliance-settings.js ===== */
-/* 班表目錄同步、月週設定與例休檢查畫面。
- * 由固定建置清單載入。
+/* 月週設定與例休檢查畫面。
+ * 由固定建置清單載入；設定儲存使用明確的領域 API。
  */
-
-async function syncScheduleCatalogs() {
-  if (!isManager()) {
-    return;
-  }
-  await window.schedulerApi.syncCatalogs(state);
-}
 
 function getConfiguredMonthStartDay() {
   const value = Number(state.rules?.monthStartDay);

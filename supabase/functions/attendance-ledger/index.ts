@@ -1,17 +1,6 @@
 import { withSupabase } from "npm:@supabase/server@^1";
 
 const PAGE_SIZE = 50;
-const ISSUE_TYPES = [
-  "未打上班",
-  "未打下班",
-  "無排班但有打卡",
-  "遲到",
-  "早退",
-  "上班晚於下班",
-  "上班地點不符",
-  "下班地點不符"
-];
-
 function taipeiDate(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Taipei",
@@ -149,13 +138,6 @@ function minutesToHours(value: unknown) {
   return value === null || value === undefined ? null : Number(value) / 60;
 }
 
-function timeToIso(workDate: string, value: unknown) {
-  const time = String(value || "").trim();
-  if (!time) return null;
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new Error("打卡時間格式錯誤");
-  return new Date(`${workDate}T${time}:00+08:00`).toISOString();
-}
-
 function rowKey(userId: string, workDate: string) {
   return `${userId}:${workDate}`;
 }
@@ -164,15 +146,11 @@ async function getActor(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!userId) throw new Error("請先登入");
   const result = await ctx.supabaseAdmin.from("set_employee")
-    .select("id,employee_code,full_name,role,hire_date,leave_date")
+    .select("id,employee_code,full_name,hire_date,leave_date")
     .eq("id", userId).single();
   if (result.error) throw result.error;
   if (!effective(result.data)) throw new Error("此帳號目前不在有效期間");
   return result.data;
-}
-
-function requireAdmin(actor: any) {
-  if (actor?.role !== "admin") throw new Error("此功能限管理員使用");
 }
 
 async function fetchScheduleContext(ctx: any, fromDate: string, toDate: string, memberIds?: string[]) {
@@ -313,131 +291,6 @@ async function personalSave(ctx: any, body: any, actor: any) {
   return { ok: true, record: result.data };
 }
 
-async function reviewList(ctx: any, body: any, actor: any) {
-  requireAdmin(actor);
-  const today = taipeiDate();
-  const fromDate = validDate(body?.fromDate, addDays(today, -30));
-  const toDate = validDate(body?.toDate, today);
-  const memberId = String(body?.memberId || "");
-  const status = String(body?.status || "unreviewed");
-  const issueType = String(body?.issueType || "");
-  const page = pageNumber(body?.page);
-  const [memberResult, attendanceResult, scheduleContext] = await Promise.all([
-    ctx.supabaseAdmin.from("set_employee").select("id,employee_code,full_name,role,hire_date,leave_date").order("employee_code", { ascending: true }),
-    ctx.supabaseAdmin.from("attendance_days").select("*").gte("work_date", fromDate).lte("work_date", toDate),
-    fetchScheduleContext(ctx, fromDate, toDate)
-  ]);
-  for (const result of [memberResult, attendanceResult]) if (result.error) throw result.error;
-  const members = memberResult.data || [];
-  const attendance = new Map((attendanceResult.data || []).map((row: any) => [rowKey(row.user_id, row.work_date), row]));
-  const rows: any[] = [];
-  for (const date of datesBetween(fromDate, toDate)) {
-    for (const member of members) {
-      if (memberId && member.id !== memberId) continue;
-      if (!employedOn(member, date)) continue;
-      const current: any = attendance.get(rowKey(member.id, date)) || null;
-      const reviewed = Boolean(current?.reviewed_at);
-      if (status === "reviewed" && !reviewed) continue;
-      if (status === "unreviewed" && reviewed) continue;
-      const schedule = scheduleDisplay(scheduleContext, member.id, date);
-      const currentIssues = attendanceIssues(current || { work_date: date }, schedule.shift, date, today);
-      if (issueType && issueType !== "__all__" && !currentIssues.includes(issueType)) continue;
-      rows.push({
-        id: current?.id || "",
-        user_id: member.id,
-        work_date: date,
-        employee_code: member.employee_code || "",
-        employee_name: member.full_name || "",
-        ...schedule,
-        clock_in_at: current?.clock_in_at || null,
-        clock_in_location: current?.clock_in_location || null,
-        clock_out_at: current?.clock_out_at || null,
-        clock_out_location: current?.clock_out_location || null,
-        regularHours: minutesToHours(current?.regular_minutes),
-        overtimeHours: minutesToHours(current?.overtime_minutes),
-        note: current?.note || "",
-        reviewed,
-        reviewedAt: current?.reviewed_at || null,
-        issues: currentIssues
-      });
-    }
-  }
-  rows.sort((a, b) => String(b.work_date).localeCompare(String(a.work_date)) || String(a.employee_code).localeCompare(String(b.employee_code)));
-  const offset = (page - 1) * PAGE_SIZE;
-  return { ok: true, members, issueTypes: ISSUE_TYPES, rows: rows.slice(offset, offset + PAGE_SIZE), total: rows.length, page, pageSize: PAGE_SIZE };
-}
-
-async function reviewSave(ctx: any, body: any, actor: any) {
-  requireAdmin(actor);
-  const userId = String(body?.userId || "");
-  const workDate = validDate(body?.workDate, "");
-  if (!userId || !workDate) throw new Error("缺少人員或日期");
-  const old = await getOrCreateDay(ctx, userId, workDate);
-  const clockInAt = timeToIso(workDate, body?.clockInTime);
-  const clockOutAt = timeToIso(workDate, body?.clockOutTime);
-  const update: any = {
-    clock_in_at: clockInAt,
-    clock_out_at: clockOutAt,
-    regular_minutes: hoursToMinutes(body?.regularHours),
-    overtime_minutes: hoursToMinutes(body?.overtimeHours),
-    note: String(body?.note || ""),
-    reviewed_at: null,
-    reviewed_by: null
-  };
-  update.clock_in_location = clockInAt
-    ? (old.clock_in_location || { name: "管理員補登", source: "管理員補登" })
-    : null;
-  update.clock_out_location = clockOutAt
-    ? (old.clock_out_location || { name: "管理員補登", source: "管理員補登" })
-    : null;
-  const result = await ctx.supabaseAdmin.from("attendance_days").update(update).eq("id", old.id).select("*").single();
-  if (result.error) throw result.error;
-  await writeAudit(ctx, old.id, "admin_edit", actor.id, old, result.data, body?.reason);
-  return { ok: true, record: result.data };
-}
-
-function parseReviewToken(token: unknown) {
-  const [userId, workDate] = String(token || "").split(":");
-  return { userId, workDate };
-}
-
-async function reviewSet(ctx: any, body: any, actor: any) {
-  requireAdmin(actor);
-  const reviewed = Boolean(body?.reviewed);
-  const tokens = Array.isArray(body?.tokens) ? body.tokens : [body?.token];
-  let changed = 0;
-  for (const token of tokens.filter(Boolean)) {
-    const { userId, workDate } = parseReviewToken(token);
-    if (!userId || !validDate(workDate, "")) continue;
-    const old = await getOrCreateDay(ctx, userId, workDate);
-    const update = reviewed
-      ? { reviewed_at: new Date().toISOString(), reviewed_by: actor.id }
-      : { reviewed_at: null, reviewed_by: null };
-    const result = await ctx.supabaseAdmin.from("attendance_days").update(update).eq("id", old.id).select("*").single();
-    if (result.error) throw result.error;
-    await writeAudit(ctx, old.id, reviewed ? "reviewed" : "returned", actor.id, old, result.data, body?.reason);
-    changed += 1;
-  }
-  return { ok: true, changed };
-}
-
-async function history(ctx: any, body: any, actor: any) {
-  requireAdmin(actor);
-  const recordId = String(body?.recordId || "");
-  if (!recordId) return { ok: true, logs: [] };
-  const result = await ctx.supabaseAdmin.from("attendance_audit_logs")
-    .select("id,action,changed_by,before_data,after_data,reason,created_at,set_employee:changed_by(full_name)")
-    .eq("attendance_day_id", recordId).order("created_at", { ascending: false });
-  if (result.error) throw result.error;
-  return {
-    ok: true,
-    logs: (result.data || []).map((log: any) => ({
-      ...log,
-      operator_name: log.set_employee?.full_name || ""
-    }))
-  };
-}
-
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
     if (req.method !== "POST") return Response.json({ message: "Method Not Allowed" }, { status: 405 });
@@ -446,10 +299,6 @@ export default {
       const actor = await getActor(ctx);
       if (body?.action === "personal_list") return Response.json(await personalList(ctx, body, actor));
       if (body?.action === "personal_save") return Response.json(await personalSave(ctx, body, actor));
-      if (body?.action === "review_list") return Response.json(await reviewList(ctx, body, actor));
-      if (body?.action === "review_save") return Response.json(await reviewSave(ctx, body, actor));
-      if (body?.action === "review_set") return Response.json(await reviewSet(ctx, body, actor));
-      if (body?.action === "history") return Response.json(await history(ctx, body, actor));
       return Response.json({ message: "不支援的簽到簿操作" }, { status: 400 });
     } catch (error) {
       return Response.json({ message: error instanceof Error ? error.message : "簽到簿操作失敗" }, { status: 400 });

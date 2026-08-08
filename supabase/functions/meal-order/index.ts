@@ -55,7 +55,7 @@ async function getProfile(ctx: any) {
   if (!userId) throw new Error("請先登入");
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id,employee_code,full_name,role,group_id,access_role_id,home_department_id,hire_date,leave_date,deleted_at")
+    .select("id,employee_code,full_name,group_id,access_role_id,home_department_id,hire_date,leave_date,deleted_at")
     .eq("id", userId)
     .is("deleted_at", null)
     .single();
