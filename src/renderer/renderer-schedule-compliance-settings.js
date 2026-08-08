@@ -1,13 +1,6 @@
-/* 班表目錄同步、月週設定與例休檢查畫面。
- * 由固定建置清單載入。
+/* 月週設定與例休檢查畫面。
+ * 由固定建置清單載入；設定儲存使用明確的領域 API。
  */
-
-async function syncScheduleCatalogs() {
-  if (!isManager()) {
-    return;
-  }
-  await window.schedulerApi.syncCatalogs(state);
-}
 
 function getConfiguredMonthStartDay() {
   const value = Number(state.rules?.monthStartDay);
