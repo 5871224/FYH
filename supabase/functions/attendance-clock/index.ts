@@ -22,8 +22,13 @@ function addDaysToDateString(dateString: string, count: number) {
 
 function isProfileEffective(profile: any, today = taipeiDateString()) {
   const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
-  return Boolean((!profile.hire_date || today >= profile.hire_date)
-    && (!effectiveEndDate || today <= effectiveEndDate));
+  return Boolean(
+    profile
+      && !profile.deleted_at
+      && profile.group_id
+      && (!profile.hire_date || today >= profile.hire_date)
+      && (!effectiveEndDate || today <= effectiveEndDate)
+  );
 }
 
 function getClientIp(req: Request) {
@@ -102,11 +107,12 @@ async function getProfile(ctx: any) {
   if (!userId) throw new Error("請先登入");
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id, employee_code, full_name, hire_date, leave_date")
+    .select("id,employee_code,full_name,group_id,hire_date,leave_date,deleted_at")
     .eq("id", userId)
+    .is("deleted_at", null)
     .single();
   if (error) throw error;
-  if (!isProfileEffective(data)) throw new Error("帳號不在有效任職期間，無法打卡");
+  if (!isProfileEffective(data)) throw new Error("帳號不在有效任職期間或尚未設定群組，無法打卡");
   return data;
 }
 
@@ -121,18 +127,20 @@ async function getTodayRecord(ctx: any, userId: string, workDate = taipeiDateStr
   return safeAttendanceRecord(data);
 }
 
-async function getEnabledDepartments(ctx: any) {
+async function getEnabledDepartments(ctx: any, groupId: string) {
   const { data, error } = await ctx.supabaseAdmin
     .from("set_departments")
-    .select("id, name, address, latitude, longitude, attendance_enabled, public_ip")
-    .eq("attendance_enabled", true);
+    .select("id,name,address,latitude,longitude,attendance_enabled,public_ip,group_id,deleted_at")
+    .eq("group_id", groupId)
+    .eq("attendance_enabled", true)
+    .is("deleted_at", null);
   if (error) throw error;
   return data || [];
 }
 
-async function resolveClockLocation(ctx: any, req: Request, body: any) {
-  const departments = await getEnabledDepartments(ctx);
-  if (!departments.length) throw new Error("目前沒有啟用打卡的單位，請先到修改單位設定打卡資料");
+async function resolveClockLocation(ctx: any, req: Request, body: any, groupId: string) {
+  const departments = await getEnabledDepartments(ctx, groupId);
+  if (!departments.length) throw new Error("所屬群組目前沒有啟用打卡的單位，請洽管理員確認打卡設定");
 
   const allowGps = isPhoneRequest(req, body?.deviceType);
   const latitude = toNumber(body?.latitude);
@@ -165,7 +173,7 @@ async function resolveClockLocation(ctx: any, req: Request, body: any) {
     }
     gpsFailure = gpsMatch
       ? `目前距離最近可打卡單位約 ${Math.round(gpsMatch.distance)} 公尺，需在 ${MAX_GPS_DISTANCE_METERS} 公尺內`
-      : "已啟用打卡的單位尚未設定經緯度";
+      : "所屬群組已啟用打卡的單位尚未設定經緯度";
   } else if (allowGps) {
     if (body?.geolocationError) gpsFailure = String(body.geolocationError);
     else if (latitude === null || longitude === null || accuracy === null) gpsFailure = "手機沒有提供 GPS 定位，請允許瀏覽器定位後再打卡";
@@ -188,14 +196,18 @@ async function resolveClockLocation(ctx: any, req: Request, body: any) {
     };
   }
 
-  console.warn("attendance-location-rejected", { reason: gpsFailure || "IP_NOT_ALLOWED", hasClientIp: Boolean(clientIp) });
-  throw new Error("目前位置或網路不符合打卡條件，請確認定位權限或洽管理員");
+  console.warn("attendance-location-rejected", {
+    groupId,
+    reason: gpsFailure || "IP_NOT_ALLOWED",
+    hasClientIp: Boolean(clientIp)
+  });
+  throw new Error("目前位置或網路不符合所屬群組的打卡條件，請確認定位權限或洽管理員");
 }
 
 async function clock(ctx: any, req: Request, body: any, kind: "clock_in" | "clock_out") {
   const profile = await getProfile(ctx);
   const workDate = taipeiDateString();
-  const location = await resolveClockLocation(ctx, req, body);
+  const location = await resolveClockLocation(ctx, req, body, profile.group_id);
   const { data, error } = await ctx.supabaseAdmin.rpc("save_attendance_clock", {
     p_user_id: profile.id,
     p_work_date: workDate,
