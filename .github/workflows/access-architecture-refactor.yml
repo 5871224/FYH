@@ -37,6 +37,7 @@ jobs:
           p.write_text(s, encoding='utf-8')
           PY
           python3 .github/finalize-access-architecture.py
+          python3 .github/refactor-access-cleanup8.py
           python3 - <<'PY'
           from pathlib import Path
           p = Path('tests/access-architecture.test.js')
@@ -63,6 +64,7 @@ jobs:
           node --check src/renderer/renderer-groups-permissions-archive.js
           node --check src/renderer/app.js
           node --check tests/access-architecture.test.js
+          node --check scripts/check-renderer-alignment.js
       - name: Full CI
         run: npm run ci:check
       - name: Architecture scan
