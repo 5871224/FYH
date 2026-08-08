@@ -70,7 +70,7 @@ function commitSortedListFromDom(category) {
   }
   renderAll();
   reopenSortedSettings(category, returnTo);
-  queueSave();
+  void window.schedulerApi.reorderSettings(category, orderedIds).catch((error) => setSaveStatus(`排序儲存失敗：${error.message}`));
   return true;
 }
 
@@ -113,6 +113,6 @@ function commitDepartmentMemberOrderFromDom() {
   state.members = nextMembers;
   renderAll();
   void reopenSettingsModalPreservingScroll(returnTo);
-  queueSave();
+  void window.schedulerApi.reorderSettings("member", nextMembers.filter((member) => !member.deleted).map((member) => member.id)).catch((error) => setSaveStatus(`人員排序儲存失敗：${error.message}`));
   return true;
 }

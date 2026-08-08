@@ -58,6 +58,7 @@ async function loadApp() {
   managerDirectoryLoaded = false;
   managerDirectoryLoading = null;
   bindEvents();
+  bindGroupFeatureEvents();
   pushAppBackHistoryGuard();
   authErrorMessage = "";
   try {
@@ -75,7 +76,8 @@ async function loadApp() {
     }
     appInfo = await window.schedulerApi.getAppInfo();
     const payload = await window.schedulerApi.loadState();
-    state = normalizeState(payload);
+    await loadGroupAccessData(payload);
+    state = initializeGroupPermissionState(payload);
     resetScheduleWindowToToday();
     await ensureVisibleScheduleLoaded();
     currentMember = resolveCurrentMember();
@@ -93,18 +95,7 @@ async function loadApp() {
 
   renderAll();
   syncCoreActionsMenu();
-  void refreshScheduleCatalogsAfterInitialRender();
 }
 
-async function refreshScheduleCatalogsAfterInitialRender() {
-  if (!isManager()) {
-    return;
-  }
-  try {
-    await syncScheduleCatalogs();
-  } catch (error) {
-    setSaveStatus(`同步設定失敗：${error.message}`);
-  }
-}
 
 loadApp();

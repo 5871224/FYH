@@ -1,5 +1,5 @@
-/* 群組、角色權限與班表封存擴充。
- * 置於 renderer.js 後載入，延伸既有全域班表模組。
+/* 群組、角色權限與班表封存。
+ * 權限狀態由 canonical schedulerApi 載入；本模組只負責領域狀態與介面。
  */
 
 const GROUP_PERMISSION_LABELS = {
@@ -26,15 +26,8 @@ const groupFeatureState = {
   dragGroupId: ""
 };
 
-function groupApiConfig() {
-  const config = window.SCHEDULER_CONFIG || {};
-  return {
-    url: String(config.supabaseUrl || "").replace(/\/$/, ""),
-    anonKey: String(config.supabaseAnonKey || "")
-  };
-}
 
-async function groupRpc(functionName, payload = {}) {
+) {
   const { url, anonKey } = groupApiConfig();
   const token = window.schedulerApi?.getAuthContext?.()?.session?.access_token || "";
   if (!url || !anonKey || !token) throw new Error("尚未完成登入驗證");
@@ -52,15 +45,16 @@ async function groupRpc(functionName, payload = {}) {
   return data;
 }
 
-async function loadGroupAccessData() {
-  const [bundle, entityMap] = await Promise.all([
-    groupRpc("get_group_access_bundle_v1"),
-    groupRpc("get_group_entity_map_v1")
-  ]);
-  groupFeatureState.bundle = bundle && typeof bundle === "object" ? bundle : { actor: {}, groups: [], roles: [] };
-  groupFeatureState.entityMap = entityMap && typeof entityMap === "object" ? entityMap : { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] };
+async function loadGroupAccessData(payload = {}) {
+  groupFeatureState.bundle = payload.accessBundle && typeof payload.accessBundle === "object"
+    ? payload.accessBundle
+    : await window.schedulerApi.getGroupAccessBundle();
+  groupFeatureState.entityMap = payload.entityMap && typeof payload.entityMap === "object"
+    ? payload.entityMap
+    : await window.schedulerApi.getGroupEntityMap();
   return { bundle: groupFeatureState.bundle, entityMap: groupFeatureState.entityMap };
 }
+
 
 function getAccessActor() { return groupFeatureState.bundle?.actor || {}; }
 function getAccessPermissions() { return Array.isArray(getAccessActor().permissions) ? getAccessActor().permissions : []; }
@@ -422,7 +416,7 @@ async function saveScheduleGroupFromForm() {
   const name = document.getElementById("groupName")?.value.trim() || "";
   if (!code || !name) { reportValidationError("請填寫群組代碼與群組名稱"); return; }
   const existing = getAllGroups().find((item) => item.id === modalContext.targetId) || null;
-  await groupRpc("save_schedule_group_v1", { p_group: { id: existing?.id || "", code, name, mealEnabled: Boolean(document.getElementById("groupMealEnabled")?.checked), status: document.getElementById("groupStatus")?.value || "active", sortOrder: existing?.sortOrder ?? getAllGroups().length } });
+  await window.schedulerApi.saveScheduleGroup({ id: existing?.id || "", code, name, mealEnabled: Boolean(document.getElementById("groupMealEnabled")?.checked), status: document.getElementById("groupStatus")?.value || "active", sortOrder: existing?.sortOrder ?? getAllGroups().length);
   await reloadGroupApplicationState();
   openGroupSettings();
 }
@@ -430,7 +424,7 @@ async function saveScheduleGroupFromForm() {
 async function toggleScheduleGroup(groupId) {
   const group = getAllGroups().find((item) => item.id === groupId);
   if (!group) return;
-  await groupRpc("save_schedule_group_v1", { p_group: { id: group.id, code: group.code, name: group.name, mealEnabled: group.mealEnabled, status: group.status === "active" ? "inactive" : "active", sortOrder: group.sortOrder } });
+  await window.schedulerApi.saveScheduleGroup({ id: group.id, code: group.code, name: group.name, mealEnabled: group.mealEnabled, status: group.status === "active" ? "inactive" : "active", sortOrder: group.sortOrder);
   await reloadGroupApplicationState();
   openGroupSettings();
 }
@@ -440,7 +434,7 @@ async function deleteScheduleGroup(groupId) {
   if (!group) return;
   const typed = window.prompt(`刪除「${group.name}」後，未封存班表、群組內單位、班別及目前歸屬設定將一併刪除。已封存班表保留。\n\n請輸入「${group.name}」確認刪除：`) || "";
   if (typed !== group.name) return;
-  await groupRpc("delete_schedule_group_v1", { p_group_id: group.id, p_confirm_name: typed });
+  await window.schedulerApi.deleteScheduleGroup(group.id, typed);
   localStorage.removeItem("fyh.schedule.groupId");
   await reloadGroupApplicationState();
   openGroupSettings();
@@ -448,7 +442,7 @@ async function deleteScheduleGroup(groupId) {
 
 async function saveGroupOrder() {
   const ids = Array.from(document.querySelectorAll("#groupSettingsRows [data-group-row]")).map((row) => row.dataset.groupRow || "").filter(Boolean);
-  await groupRpc("reorder_schedule_groups_v1", { p_group_ids: ids });
+  await window.schedulerApi.reorderScheduleGroups(ids);
   await loadGroupAccessData();
 }
 
@@ -496,7 +490,7 @@ async function saveAccessRoleFromForm() {
   const existing = getAllRoles().find((role) => role.id === modalContext.targetId) || null;
   const permissions = Array.from(document.querySelectorAll("[data-role-permission]:checked")).map((input) => input.dataset.rolePermission || "").filter(Boolean);
   const groupIds = Array.from(document.querySelectorAll("[data-role-group]:checked")).map((input) => input.dataset.roleGroup || "").filter(Boolean);
-  await groupRpc("save_access_role_v1", { p_role: { id: existing?.id || "", code: existing?.code || "", name, permissions, groupIds } });
+  await window.schedulerApi.saveAccessRole({ id: existing?.id || "", code: existing?.code || "", name, permissions, groupIds });
   await reloadGroupApplicationState();
   openPermissionSettings();
 }
@@ -505,12 +499,12 @@ async function deleteAccessRole(roleId) {
   const role = getAllRoles().find((item) => item.id === roleId);
   if (!role) return;
   if (!await confirmAction(`確定要刪除角色「${role.name}」嗎？`)) return;
-  await groupRpc("delete_access_role_v1", { p_role_id: roleId });
+  await window.schedulerApi.deleteAccessRole(roleId);
   await reloadGroupApplicationState();
   openPermissionSettings();
 }
 
-async function loadArchiveList(groupId = null) { return await groupRpc("get_schedule_archives_v1", { p_group_id: groupId }); }
+async function loadArchiveList(groupId = null) { return await window.schedulerApi.getScheduleArchives(groupId); }
 
 async function openScheduleArchive() {
   if (!hasPermission("schedule_view")) return;
@@ -534,8 +528,8 @@ async function createScheduleArchive() {
   const endDate = document.getElementById("archiveEndDate")?.value || "";
   if (!group || !startDate || !endDate || startDate > endDate) { reportValidationError("封存日期範圍不正確"); return; }
   if (!await confirmAction(`確定封存「${group.name}」${startDate}～${endDate} 的班表嗎？封存後不可修改。`)) return;
-  await groupRpc("archive_schedule_v1", { p_group_id: group.id, p_start_date: startDate, p_end_date: endDate });
-  groupFeatureState.entityMap = await groupRpc("get_group_entity_map_v1");
+  await window.schedulerApi.archiveSchedule(group.id, startDate, endDate);
+  groupFeatureState.entityMap = await window.schedulerApi.getGroupEntityMap();
   scheduleUndoStack = [];
   scheduleRedoStack = [];
   renderAll();
@@ -546,8 +540,8 @@ async function unarchiveSchedule(archiveId) {
   const archive = (await loadArchiveList(null) || []).find((item) => item.id === archiveId);
   if (!archive) return;
   if (!await confirmAction(`確定解除「${archive.group_name || ""}」${archive.start_date || ""}～${archive.end_date || ""} 的班表封存嗎？解除後可重新修改班表。`)) return;
-  await groupRpc("unarchive_schedule_v1", { p_archive_id: archiveId });
-  groupFeatureState.entityMap = await groupRpc("get_group_entity_map_v1");
+  await window.schedulerApi.unarchiveSchedule(archiveId);
+  groupFeatureState.entityMap = await window.schedulerApi.getGroupEntityMap();
   scheduleUndoStack = [];
   scheduleRedoStack = [];
   await reloadGroupApplicationState();
@@ -555,7 +549,7 @@ async function unarchiveSchedule(archiveId) {
 }
 
 async function viewScheduleArchive(archiveId) {
-  const result = await groupRpc("get_schedule_archive_detail_v1", { p_archive_id: archiveId });
+  const result = await window.schedulerApi.getScheduleArchiveDetail(archiveId);
   const archive = result?.archive || {};
   const entries = Array.isArray(result?.entries) ? result.entries : [];
   modalContext = { category: "schedule-archive-detail", targetId: archiveId };
@@ -580,13 +574,13 @@ function memberShiftNamesForGroup(groupId, selectedIds) {
   const names = (selectedIds || []).map((id) => map.get(id)).filter(Boolean);
   return names.length ? names.join("、") : "未指定";
 }
-function renderMemberCustomRoleOptions(member) {
+function renderMemberRoleOptions(member) {
   const selectedRoleId = member?.roleId || getRoleById(member?.role)?.id || getRoleByLegacyRole(member?.role)?.id || "";
   const options = hasPermission("permission_settings") ? getAllRoles() : getAllRoles().filter((role) => role.id === selectedRoleId);
   return options.map((role) => `<option value="${escapeHtml(role.id)}" ${role.id === selectedRoleId ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("");
 }
 
-function openMemberFormWithGroups(mode, memberId = "") {
+function openMemberForm(mode, memberId = "") {
   const returnTo = modalContext?.category === "department-settings"
     ? captureSettingsReturnContext({ category: "department-settings", view: modalContext.view || departmentSettingsView })
     : modalContext?.category === "member-settings" ? captureSettingsReturnContext({ category: "member-settings" }) : null;
@@ -611,7 +605,7 @@ function openMemberFormWithGroups(mode, memberId = "") {
   });
 }
 
-async function saveMemberWithGroups(mode) {
+async function saveMember(mode) {
   const returnTo = modalContext.returnTo || null;
   const hireDate = document.getElementById("memberHireDate")?.value || "";
   const leaveDate = document.getElementById("memberLeaveDate")?.value || "";
@@ -631,7 +625,7 @@ async function saveMemberWithGroups(mode) {
   if (!payload.groupId) return reportValidationError("請選擇所屬群組");
   if (!payload.deptId) return reportValidationError("請選擇所屬單位");
   try {
-    if (previousMember && previousMember.groupId !== payload.groupId) await groupRpc("validate_member_group_change_v1", { p_employee_code: previousMember.code, p_new_group_id: payload.groupId });
+    if (previousMember && previousMember.groupId !== payload.groupId) await window.schedulerApi.validateMemberGroupChange(previousMember.code, payload.groupId);
     await window.schedulerApi.syncMemberProfile(payload, previousMember?.code || "");
     await reloadGroupApplicationState();
     closeModal();
@@ -721,84 +715,19 @@ function bindGroupFeatureEvents() {
   });
 }
 
-(function installGroupPermissionArchiveFeature() {
-  const originalLoadState = window.schedulerApi.loadState.bind(window.schedulerApi);
-  window.schedulerApi.loadState = async function loadStateWithGroups() {
-    const [payload] = await Promise.all([originalLoadState(), loadGroupAccessData()]);
-    return payload;
-  };
-  const originalLoadEmployeeAdminDirectory = window.schedulerApi.loadEmployeeAdminDirectory.bind(window.schedulerApi);
-  window.schedulerApi.loadEmployeeAdminDirectory = async function loadEmployeeAdminDirectoryWithGroups() {
-    const rows = await originalLoadEmployeeAdminDirectory();
-    const groupMap = makeIdMap(groupFeatureState.entityMap.members, "groupId");
-    const roleMap = makeIdMap(groupFeatureState.entityMap.members, "roleId");
-    return (rows || []).map((member) => ({ ...member, groupId: groupMap.get(member.id) || "", roleId: roleMap.get(member.id) || getRoleByLegacyRole(member.role)?.id || "", role: roleMap.get(member.id) || getRoleByLegacyRole(member.role)?.id || member.role }));
-  };
-  const originalNormalizeState = normalizeState;
-  normalizeState = function normalizeStateWithGroups(payload) {
-    const normalized = enrichNormalizedState(originalNormalizeState(payload));
-    if (!groupFeatureState.currentGroupId || !getSelectableGroups().some((group) => group.id === groupFeatureState.currentGroupId)) groupFeatureState.currentGroupId = chooseCurrentGroupId();
-    snapshotAllState(normalized);
-    groupFeatureState.initialized = true;
-    return applyCurrentGroupScope(normalized);
-  };
-  const originalSaveState = window.schedulerApi.saveState.bind(window.schedulerApi);
-  window.schedulerApi.saveState = async function saveStateWithGroups(scopedState) { return originalSaveState(mergeFullStateForSave(scopedState)); };
-  const originalSyncMemberProfile = window.schedulerApi.syncMemberProfile.bind(window.schedulerApi);
-  window.schedulerApi.syncMemberProfile = async function syncMemberProfileWithAccess(member, previousCode = "") {
-    const role = getRoleById(member?.roleId || member?.role) || getRoleByLegacyRole(member?.role);
-    const result = await originalSyncMemberProfile({ ...member, role: role?.legacyRole || "employee" }, previousCode);
-    await groupRpc("assign_member_access_v1", { p_employee_code: member.code, p_group_id: member.groupId, p_role_id: role?.id || member.roleId || member.role, p_department_id: member.deptId, p_shift_ids: Array.isArray(member.scheduleShiftIds) ? member.scheduleShiftIds : [] });
-    return result;
-  };
-  const originalSaveDepartmentItem = window.schedulerApi.saveDepartmentItem.bind(window.schedulerApi);
-  window.schedulerApi.saveDepartmentItem = async function saveDepartmentItemWithGroup(department, sortOrder = 0) {
-    const result = await originalSaveDepartmentItem(department, sortOrder);
-    await groupRpc("assign_department_group_v1", { p_department_id: department.id, p_group_id: department.groupId || groupFeatureState.currentGroupId });
-    return result;
-  };
-  const originalSaveScheduleCells = window.schedulerApi.saveScheduleCells.bind(window.schedulerApi);
-  window.schedulerApi.saveScheduleCells = async function saveScheduleCellsWithArchiveGuard(payloads) {
-    const archived = (payloads || []).find((payload) => isArchivedDate(payload.dateString || payload.workDate || ""));
-    if (archived) throw new Error("此期間班表已封存，不可修改");
-    return originalSaveScheduleCells(payloads);
-  };
-  const originalRenderAll = renderAll;
-  renderAll = function renderAllWithGroupFeature(...args) { const result = originalRenderAll.apply(this, args); syncPermissionUi(); return result; };
-  const originalRenderTable = renderTable;
-  renderTable = function renderTableWithArchivedCells(...args) { const result = originalRenderTable.apply(this, args); markArchivedScheduleCells(); return result; };
-  const originalNormalizeRole = normalizeRole;
-  normalizeRole = function normalizeRoleWithCustomRoles(role) { return getRoleById(role)?.legacyRole || originalNormalizeRole(role); };
-  isAdmin = function isPermissionAdministrator() { return hasPermission("permission_settings"); };
-  isManager = function isFunctionalManager() { return getAccessPermissions().some((permission) => permission !== "schedule_view"); };
-  canEditSchedule = function canEditScheduleByPermission() { return hasPermission("schedule_manage") && roleAppliesToGroup(groupFeatureState.currentGroupId); };
-  getRoleLabel = function getCustomRoleLabel(role) { return getRoleById(role)?.name || getRoleByLegacyRole(role)?.name || "員工"; };
-  canEditMemberAccount = function canEditMemberAccountByPermission(_member) { return hasPermission("member_settings"); };
-  const originalResolveCurrentMember = resolveCurrentMember;
-  resolveCurrentMember = function resolveCurrentMemberAcrossGroups() {
-    const scoped = originalResolveCurrentMember();
-    if (scoped) return scoped;
-    if (currentProfile?.id) { const byId = groupFeatureState.allMembers.find((member) => member.id === currentProfile.id); if (byId) return byId; }
-    return groupFeatureState.allMembers.find((member) => member.code === currentProfile?.employee_code) || null;
-  };
-  const originalSyncRoleUi = syncRoleUi;
-  syncRoleUi = function syncRoleUiWithPermissions(...args) { const result = originalSyncRoleUi.apply(this, args); syncPermissionUi(); return result; };
-  renderRecordsTabs = function renderRecordsTabsWithPermissions() {
-    const tabs = [["personal", "個人記錄", true], ["review", "簽到審核", hasPermission("attendance_review")]].filter((tab) => tab[2]);
-    if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
-    return `<div class="record-tabs" role="tablist" aria-label="簽到簿分頁">${tabs.map(([id, label]) => `<button class="ghost-btn page-tab-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" role="tab" aria-selected="${recordsState.activeTab === id ? "true" : "false"}" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
-  };
-  const originalEnsureAttendanceReviewState = ensureAttendanceReviewState;
-  ensureAttendanceReviewState = function ensureAttendanceReviewStateWithGroup() { const review = originalEnsureAttendanceReviewState(); review.filters.groupId = review.filters.groupId || ""; return review; };
-  renderAttendanceReviewSection = renderAttendanceReviewSectionWithGroups;
-  openMemberForm = openMemberFormWithGroups;
-  saveMember = saveMemberWithGroups;
-  renderMemberRoleOptions = renderMemberCustomRoleOptions;
-  const originalApplySelectionToCell = applySelectionToCell;
-  applySelectionToCell = async function applySelectionToCellArchiveAware(memberId, day) { const dateString = normalizeScheduleDateInput(day); if (isArchivedDate(dateString) || isDeletedScheduleMember(memberId)) return; return originalApplySelectionToCell(memberId, day); };
-  const originalApplyClipboardSlot = applyClipboardSlotToScheduleCell;
-  applyClipboardSlotToScheduleCell = async function applyClipboardSlotArchiveAware(memberId, dateString, clipboardSlot) { if (isArchivedDate(dateString) || isDeletedScheduleMember(memberId)) return false; return originalApplyClipboardSlot(memberId, dateString, clipboardSlot); };
-  const originalGetSelectedScheduleCells = getSelectedScheduleCells;
-  getSelectedScheduleCells = function getSelectedScheduleCellsArchiveAware() { return originalGetSelectedScheduleCells().filter((cell) => !cell.dataset.readonly && !isArchivedDate(cell.dataset.date || "")); };
-  bindGroupFeatureEvents();
-})();
+
+function initializeGroupPermissionState(payload) {
+  const normalized = enrichNormalizedState(normalizeState(payload));
+  if (!groupFeatureState.currentGroupId || !getSelectableGroups().some((group) => group.id === groupFeatureState.currentGroupId)) {
+    groupFeatureState.currentGroupId = chooseCurrentGroupId();
+  }
+  snapshotAllState(normalized);
+  groupFeatureState.initialized = true;
+  return applyCurrentGroupScope(normalized);
+}
+
+function refreshGroupEntityMap(entityMap) {
+  groupFeatureState.entityMap = entityMap && typeof entityMap === "object"
+    ? entityMap
+    : { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] };
+}

@@ -8,29 +8,35 @@ function isLoggedIn() {
 
 function resolveCurrentMember() {
   if (currentProfile?.id) {
-    const byId = state.members.find((member) => member.id === currentProfile.id);
+    const byId = (groupFeatureState.allMembers || []).find((member) => member.id === currentProfile.id)
+      || state.members.find((member) => member.id === currentProfile.id);
     if (byId) return byId;
   }
   if (!currentProfile?.employee_code) return null;
-  return state.members.find((member) => member.code === currentProfile.employee_code) || null;
+  return (groupFeatureState.allMembers || []).find((member) => member.code === currentProfile.employee_code)
+    || state.members.find((member) => member.code === currentProfile.employee_code)
+    || null;
 }
+
 
 function normalizeRole(role) {
   return role === "admin" || role === "manager" ? role : "employee";
 }
 
 function isAdmin() {
-  return normalizeRole(currentProfile?.role) === "admin";
+  return hasPermission("permission_settings");
 }
+
 
 function isManager() {
-  const role = normalizeRole(currentProfile?.role);
-  return role === "admin" || role === "manager";
+  return getAccessPermissions().some((permission) => permission !== "schedule_view");
 }
 
+
 function canEditSchedule() {
-  return isManager();
+  return hasPermission("schedule_manage") && roleAppliesToGroup(groupFeatureState.currentGroupId);
 }
+
 
 async function ensureManagerDirectoryLoaded() {
   if (!isManager() || managerDirectoryLoaded) {
@@ -59,12 +65,14 @@ function getCurrentProfileName() {
 }
 
 function getRoleLabel(role) {
-  return ROLE_OPTIONS.find((option) => option.value === normalizeRole(role))?.label || "員工";
+  return getRoleById(role)?.name || getRoleByLegacyRole(role)?.name || "員工";
 }
 
-function canEditMemberAccount(member) {
-  return isAdmin() || normalizeRole(member?.role) !== "admin";
+
+function canEditMemberAccount(_member) {
+  return hasPermission("member_settings");
 }
+
 
 function openSignInDialog(message = "") {
   authPromptMessage = message;
@@ -170,12 +178,10 @@ function syncRoleUi() {
 
   ["shiftChips", "leaveChips", "overtimeChips"].forEach((id) => {
     const element = document.getElementById(id);
-    if (!element) {
-      return;
-    }
+    if (!element) return;
     element.classList.toggle("chips-readonly", !canEditSchedule());
   });
-
+  syncPermissionUi();
 }
 
 function renderAuthBar() {

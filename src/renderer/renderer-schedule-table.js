@@ -1,4 +1,6 @@
 function renderTable() {
+  queueMicrotask(markArchivedScheduleCells);
+
   hideLeaveTooltip();
   const table = document.getElementById("mainTable");
   const visibleDates = getVisibleDates();

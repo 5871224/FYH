@@ -9,7 +9,5 @@ if (typeof document !== "undefined" && typeof document.write === "function") {
   document.write('<script src="./login-fast-home.mjs?v=20260807-schedule-first-load"><\/script>');
   document.write('<script src="./app-config-base.mjs?v=20260730-toolbar-compact"><\/script>');
   document.write('<script src="./toolbar-compact.mjs?v=20260730-toolbar-compact"><\/script>');
-  document.write('<script defer src="./renderer-groups-permissions-archive.mjs?v=20260807-permission-tags-loading"><\/script>');
-  document.write('<script defer src="./renderer-group-backend-bridges.mjs?v=20260807-schedule-first-load"><\/script>');
   document.write('<script defer src="./page-lazy-data.mjs?v=20260807-permission-tags-loading"><\/script>');
 }

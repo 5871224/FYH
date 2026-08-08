@@ -272,157 +272,39 @@
     return text ? JSON.parse(text) : null;
   }
 
-  function buildQuery(params = {}) {
-    const search = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== "") {
-        search.set(key, String(value));
-      }
-    });
-    const query = search.toString();
-    return query ? `?${query}` : "";
-  }
-
-  function quoteFilterValue(value) {
-    return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
-  }
-
-  function buildInFilter(values) {
-    return `in.(${values.map((value) => quoteFilterValue(value)).join(",")})`;
-  }
-
   function isUuid(value) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || "").trim());
   }
 
-  async function restSelect(table, options = {}) {
-    const { select = "*", filters = {}, order = "", limit = "", auth = false } = options;
-    if (!limit) {
-      return restSelectAll(table, { select, filters, order, auth });
-    }
-    return requestJson(
-      `/rest/v1/${table}${buildQuery({
-        select,
-        order,
-        limit,
-        ...filters
-      })}`,
-      {
-        method: "GET",
-        auth,
-        headers: {
-          Accept: "application/json"
-        }
-      }
-    );
-  }
-
-  async function restSelectAll(table, options = {}) {
-    const { select = "*", filters = {}, order = "", auth = false } = options;
-    const pageSize = 1000;
-    const rows = [];
-    for (let offset = 0; ; offset += pageSize) {
-      const page = await requestJson(
-        `/rest/v1/${table}${buildQuery({
-          select,
-          order,
-          offset,
-          limit: pageSize,
-          ...filters
-        })}`,
-        {
-          method: "GET",
-          auth,
-          headers: {
-            Accept: "application/json"
-          }
-        }
-      );
-      rows.push(...(Array.isArray(page) ? page : []));
-      if (!Array.isArray(page) || page.length < pageSize) {
-        return rows;
-      }
-    }
-  }
-
-  async function restInsert(table, rows, options = {}) {
-    const { auth = false, onConflict = "", prefer = "return=representation" } = options;
-    return requestJson(
-      `/rest/v1/${table}${buildQuery(onConflict ? { on_conflict: onConflict } : {})}`,
-      {
-        method: "POST",
-        auth,
-        headers: {
-          Prefer: prefer
-        },
-        body: JSON.stringify(rows)
-      }
-    );
-  }
-
-  async function restUpdate(table, filters, payload, options = {}) {
-    const { auth = false, prefer = "return=representation" } = options;
-    return requestJson(
-      `/rest/v1/${table}${buildQuery(filters)}`,
-      {
-        method: "PATCH",
-        auth,
-        headers: {
-          Prefer: prefer
-        },
-        body: JSON.stringify(payload)
-      }
-    );
-  }
-
-  async function restDelete(table, filters, options = {}) {
-    const { auth = false, prefer = "return=minimal" } = options;
-    return requestJson(
-      `/rest/v1/${table}${buildQuery(filters)}`,
-      {
-        method: "DELETE",
-        auth,
-        headers: {
-          Prefer: prefer
-        }
-      }
-    );
-  }
-
-  async function restRpc(functionName, payload = {}, options = {}) {
-    const { auth = false, prefer = "return=representation" } = options;
-    return requestJson(
-      `/rest/v1/rpc/${functionName}`,
-      {
-        method: "POST",
-        auth,
-        headers: {
-          Accept: "application/json",
-          Prefer: prefer
-        },
-        body: JSON.stringify(payload || {})
-      }
-    );
+  async function callRpc(functionName, payload = {}, options = {}) {
+    const { prefer = "return=representation" } = options;
+    return requestJson(`/rest/v1/rpc/${functionName}`, {
+      method: "POST",
+      auth: true,
+      headers: {
+        Accept: "application/json",
+        Prefer: prefer
+      },
+      body: JSON.stringify(payload || {})
+    });
   }
 
   async function getMyProfileRow() {
-    const rows = await restRpc("get_my_profile_v2", {}, { auth: true }) || [];
+    const rows = await callRpc("get_my_profile_v2", {}, { auth: true }) || [];
     return rows[0] || null;
   }
 
   async function getScheduleDirectoryRows() {
-    return await restRpc("get_schedule_directory_v2", {}, { auth: true }) || [];
+    return await callRpc("get_schedule_directory_v2", {}, { auth: true }) || [];
   }
 
-  async function getEmployeeAdminDirectoryRows() {
-    ensureManager();
-    return await restRpc("get_employee_admin_directory_v2", {}, { auth: true }) || [];
+    async function getEmployeeAdminDirectoryRows() {
+    ensureSignedIn();
+    return await callRpc("get_employee_admin_directory_v3", {}) || [];
   }
 
-  async function getDepartmentDirectoryRows() {
-    return await restRpc("get_department_directory_v2", {}, { auth: true }) || [];
-  }
 
+  
   function ensureSignedIn() {
     if (!currentSession?.user) {
       throw new Error("請先登入");
@@ -756,33 +638,8 @@
       .filter((range) => range.startDate && range.endDate && range.startDate <= range.endDate);
   }
 
-  async function fetchExistingScheduleRowsForRanges(ranges) {
-    const loadedRanges = normalizeScheduleLoadedRanges(ranges);
-    if (!loadedRanges.length) {
-      return [];
-    }
-    const pages = await Promise.all(loadedRanges.map((range) => restSelect("schedule_entries", {
-      select: "id,member_id,work_date",
-      filters: getScheduleEntryFilters(range),
-      auth: true
-    })));
-    const rowsByKey = new Map();
-    pages.flat().forEach((row) => {
-      if (row?.id) {
-        rowsByKey.set(row.id, row);
-      }
-    });
-    return [...rowsByKey.values()];
-  }
-
-  async function deleteRowsNotIn(table, ids) {
-    await restDelete(table, {
-      id: notInFilter(ids)
-    }, {
-      auth: true
-    });
-  }
-
+  
+  
   async function getDepartmentAttendanceSettings() {
     ensureSignedIn();
     const result = await requestFunction("department-attendance-v2", {});
@@ -818,25 +675,41 @@
     return requestFunction("attendance-ledger", { action: "personal_save", ...payload });
   }
 
-  async function getAttendanceReviewList(filters = {}) {
+    async function getAttendanceReviewList(filters = {}) {
+    ensureSignedIn();
+    return requestFunction("attendance-review-groups", { action: "review_list", ...filters });
+  }
+
+) {
     ensureManager();
     return requestFunction("attendance-ledger", { action: "review_list", ...filters });
   }
 
-  async function saveAttendanceReviewRecord(payload = {}) {
+    async function saveAttendanceReviewRecord(payload = {}) {
+    ensureSignedIn();
+    return requestFunction("attendance-review-groups", { action: "review_save", ...payload });
+  }
+
+) {
     ensureManager();
     return requestFunction("attendance-ledger", { action: "review_save", ...payload });
   }
 
-  async function setAttendanceReviewed(payload = {}) {
+    async function setAttendanceReviewed(payload = {}) {
+    ensureSignedIn();
+    return requestFunction("attendance-review-groups", { action: "review_set", ...payload });
+  }
+
+) {
     ensureManager();
     return requestFunction("attendance-ledger", { action: "review_set", ...payload });
   }
 
-  async function getAttendanceHistory(recordId) {
-    ensureManager();
-    return requestFunction("attendance-ledger", { action: "history", recordId });
+    async function getAttendanceHistory(recordId) {
+    ensureSignedIn();
+    return requestFunction("attendance-review-groups", { action: "history", recordId });
   }
+
 
   async function getMemberOrder() {
     ensureSignedIn();
@@ -903,42 +776,8 @@
     return requestFunction("meal-report-v2", filters);
   }
 
-  async function fetchRowsById(table) {
-    const rows = table === "set_employee"
-      ? await getEmployeeAdminDirectoryRows()
-      : table === "set_departments"
-        ? await getDepartmentDirectoryRows()
-        : await restSelect(table, {
-          select: "*",
-          auth: Boolean(currentSession?.access_token)
-        });
-    return new Map((rows || [])
-      .filter((row) => row.id)
-      .map((row) => [row.id, row]));
-  }
-
-  async function fetchRowById(table, id) {
-    const rowId = String(id || "").trim();
-    if (!rowId) {
-      return null;
-    }
-    if (table === "set_employee") {
-      return (await getEmployeeAdminDirectoryRows()).find((row) => row.id === rowId) || null;
-    }
-    if (table === "set_departments") {
-      return (await getDepartmentDirectoryRows()).find((row) => row.id === rowId) || null;
-    }
-    const rows = await restSelect(table, {
-      select: "*",
-      filters: {
-        id: `eq.${rowId}`
-      },
-      limit: "1",
-      auth: true
-    });
-    return rows?.[0] || null;
-  }
-
+  
+  
   function assertProfileCanLogin(profile) {
     const today = taipeiDateString();
     const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
@@ -947,26 +786,8 @@
     }
   }
 
-  function getRemovedRowIds(rowMap, keptRowIds) {
-    const keptIds = new Set((keptRowIds || []).map((value) => String(value || "").trim()).filter(Boolean));
-    return [...rowMap.entries()]
-      .filter(([rowId, row]) => rowId && !keptIds.has(rowId) && row?.id)
-      .map(([, row]) => row.id);
-  }
-
-  async function clearScheduleEntriesByForeignIds(column, ids, payload) {
-    const values = [...new Set((ids || []).map((value) => String(value || "").trim()).filter(Boolean))];
-    if (!values.length) {
-      return;
-    }
-    await restUpdate("schedule_entries", {
-      [column]: buildInFilter(values)
-    }, payload, {
-      auth: true,
-      prefer: "return=minimal"
-    });
-  }
-
+  
+  
   function mapDepartmentRows(rows = []) {
     return (rows || [])
       .filter((row) => row.id)
@@ -982,6 +803,7 @@
         longitude: row.longitude ?? "",
         publicIp: hasAdminAccess(currentProfile?.role) ? row.public_ip || "" : "",
         attendanceEnabled: Boolean(row.attendance_enabled),
+        groupId: row.group_id || "",
         deleted: Boolean(row.deleted_at)
       }));
   }
@@ -997,37 +819,8 @@
     };
   }
 
-  async function saveDepartmentAttendanceSettings(departments) {
-    if (!hasAdminAccess(currentProfile?.role)) {
-      return;
-    }
-    await restRpc("save_department_attendance_fields_bulk", {
-      settings: (departments || []).map((department) => ({
-        department_id: department.id,
-        address: department.address || "",
-        latitude: department.latitude === "" || department.latitude === null || department.latitude === undefined ? null : Number(department.latitude),
-        longitude: department.longitude === "" || department.longitude === null || department.longitude === undefined ? null : Number(department.longitude),
-        attendance_enabled: Boolean(department.attendanceEnabled),
-        public_ip: department.publicIp || ""
-      }))
-    }, {
-      auth: true,
-      prefer: "return=minimal"
-    });
-  }
-
-  async function saveDepartmentGeneralSettings(departments) {
-    ensureManager();
-    await restRpc("save_departments_general_v2", {
-      p_departments: (departments || []).map((department, index) => ({
-        ...mapDepartmentWriteRow(department, Number.isInteger(department.sortOrder) ? department.sortOrder : index)
-      }))
-    }, {
-      auth: true,
-      prefer: "return=minimal"
-    });
-  }
-
+  
+  
   async function loadScheduleExportRows(startDate, endDate) {
     ensureManager();
     const normalizedStart = nullableDate(startDate);
@@ -1035,7 +828,7 @@
     if (!normalizedStart || !normalizedEnd || normalizedStart > normalizedEnd) {
       throw new Error("匯出日期範圍不正確");
     }
-    return await restRpc("get_schedule_export_rows_v2", {
+    return await callRpc("get_schedule_export_rows_v2", {
       p_start_date: normalizedStart,
       p_end_date: normalizedEnd
     }, { auth: true }) || [];
@@ -1057,7 +850,8 @@
         deleted: Boolean(row.deleted_at),
         requiredStaffCount: Math.max(0, Number(row.required_staff_count) || 0),
         applicableDeptId: row.applicable_department_id || "",
-        positionRequirements: []
+        positionRequirements: [],
+        groupId: row.group_id || ""
       }));
   }
 
@@ -1131,6 +925,8 @@
         fixedRestWeekday: clampInteger(row.fixed_rest_weekday, 0, 6, 0),
         monthlyRestDays: Math.max(0, Number(row.monthly_rest_days) || 0),
         role: normalizeRole(row.role),
+        roleId: row.access_role_id || "",
+        groupId: row.group_id || "",
         deleted: Boolean(row.deleted_at)
       };
     });
@@ -1151,139 +947,61 @@
     return [...ordered, ...list.filter((member) => !orderedSet.has(String(member.id || "")))];
   }
 
-  async function loadState() {
-    const auth = Boolean(currentSession?.access_token);
-    try {
-      const settingsRows = await restSelect("scheduler_settings", {
-        select: "*",
-        filters: { id: `eq.${documentId}` },
-        limit: "1",
-        auth
-      });
-      const settings = settingsRows?.[0] || {};
-      const scheduleRange = getScheduleLoadRange(settings);
-      const visibleStartDate = addDaysToDateString(scheduleRange.startDate, 7) || taipeiDateString();
-      const visibleStart = toDateObject(visibleStartDate);
-      const memberOrderPromise = currentSession?.access_token
-        ? requestFunction("member-order-v2", { action: "list" })
-        : Promise.resolve({ memberIds: [] });
-
-      const [
-        departmentRows,
-        profileRows,
-        shiftRows,
-        leaveRows,
-        overtimeRows,
-        holidayRows,
-        scheduleEntryRows,
-        memberOrderResult
-      ] = await Promise.all([
-        getDepartmentDirectoryRows(),
-        getScheduleDirectoryRows(),
-        restSelect("set_shift", { select: "*", order: "sort_order.asc,name.asc", auth }),
-        restSelect("set_leave", { select: "*", order: "sort_order.asc,code.asc", auth }),
-        restSelect("set_overtime", { select: "*", order: "sort_order.asc,name.asc", auth }),
-        restSelect("holidays", { select: "*", order: "sort_order.asc,holiday_date.asc", auth }),
-        restSelect("schedule_entries", {
-          select: "*",
-          filters: getScheduleEntryFilters(scheduleRange),
-          order: "work_date.asc",
-          auth
-        }),
-        memberOrderPromise
-      ]);
-
-      const departments = mapDepartmentRows(departmentRows);
-      let members = mapMemberDirectoryRows(profileRows);
-      members = applyMemberOrder(members, memberOrderResult?.memberIds || []);
-      const schedule = mapScheduleRows(scheduleEntryRows, members);
-
-      return {
-        year: visibleStart?.getFullYear() || new Date().getFullYear(),
-        month: visibleStart?.getMonth() ?? new Date().getMonth(),
-        selected: { type: null, id: null },
-        deptFilter: "all",
-        tableView: settings.table_view === "shift" ? "shift" : "member",
-        tableDeptScopeFilter: "all",
-        tableStatsVisible: settings.table_stats_visible !== false,
-        scheduleStartDate: visibleStartDate,
-        departments,
-        members,
-        shifts: mapShiftRows(shiftRows),
-        leaves: mapLeaveRows(leaveRows),
-        overtime: mapOvertimeRows(overtimeRows),
-        holidays: mapHolidayRows(holidayRows),
-        rules: {
-          weekStart: clampInteger(settings.week_start, 0, 6, 0),
-          monthStartDay: clampInteger(settings.month_start_day, 1, 31, 1),
-          eightWeekStartDate: settings.eight_week_start_date || ""
-        },
-        schedule,
-        scheduleLoadedRanges: [scheduleRange]
-      };
-    } catch (error) {
-      if (!currentSession?.access_token && /permission denied|42501|401|403/i.test(error.message || "")) {
-        throw new Error("未登入時無法讀取正式班表，請檢查正規化資料表的匿名讀取權限");
-      }
-      throw error;
+    async function loadState() {
+    ensureSignedIn();
+    const bootstrap = await callRpc("get_scheduler_bootstrap_v3", { p_document_id: documentId });
+    if (!bootstrap || typeof bootstrap !== "object") {
+      throw new Error("無法載入班表基礎資料");
     }
+    const settings = bootstrap.settings || {};
+    const scheduleRange = getScheduleLoadRange(settings);
+    const visibleStartDate = addDaysToDateString(scheduleRange.startDate, 7) || taipeiDateString();
+    const visibleStart = toDateObject(visibleStartDate);
+    const scheduleEntryRows = await callRpc("get_schedule_entries_v3", {
+      p_start_date: scheduleRange.startDate,
+      p_end_date: scheduleRange.endDate
+    }) || [];
+
+    const departments = mapDepartmentRows(bootstrap.departments || []);
+    const members = mapMemberDirectoryRows(bootstrap.members || []);
+    return {
+      year: visibleStart?.getFullYear() || new Date().getFullYear(),
+      month: visibleStart?.getMonth() ?? new Date().getMonth(),
+      selected: { type: null, id: null },
+      deptFilter: "all",
+      tableView: settings.table_view === "shift" ? "shift" : "member",
+      tableDeptScopeFilter: "all",
+      tableStatsVisible: settings.table_stats_visible !== false,
+      scheduleStartDate: visibleStartDate,
+      departments,
+      members,
+      shifts: mapShiftRows(bootstrap.shifts || []),
+      leaves: mapLeaveRows(bootstrap.leaves || []),
+      overtime: mapOvertimeRows(bootstrap.overtime || []),
+      holidays: mapHolidayRows(bootstrap.holidays || []),
+      rules: {
+        weekStart: clampInteger(settings.week_start, 0, 6, 0),
+        monthStartDay: clampInteger(settings.month_start_day, 1, 31, 1),
+        eightWeekStartDate: settings.eight_week_start_date || ""
+      },
+      schedule: mapScheduleRows(scheduleEntryRows, members),
+      scheduleLoadedRanges: [scheduleRange],
+      accessBundle: bootstrap.accessBundle || { actor: {}, groups: [], roles: [] },
+      entityMap: bootstrap.entityMap || { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] }
+    };
   }
 
-  async function syncLeaveAndOvertimeCatalogs(state) {
-    const leaveItems = (state.leaves || []).filter((item) => item?.id && item?.code && !item?.deleted);
-    if (leaveItems.length) {
-      await restInsert("set_leave", leaveItems.map((item, index) => ({
-        id: item.id,
-        code: item.code,
-        name: item.name,
-        color: item.color || null,
-        text_color: item.textColor || null,
-        auto_text_color: item.autoTextColor !== false,
-        hidden_from_toolbar: Boolean(item.hiddenFromToolbar),
-        requires_time: Boolean(item.requiresTime),
-        requires_reason: Boolean(item.requiresReason),
-        sort_order: index
-      })), {
-        auth: true,
-        onConflict: "id",
-        prefer: "resolution=merge-duplicates,return=minimal"
-      });
-    }
 
-    const overtimeItems = (state.overtime || []).filter((item) => item?.id && item?.name && !item?.deleted);
-    if (overtimeItems.length) {
-      await restInsert("set_overtime", overtimeItems.map((item, index) => ({
-        id: item.id,
-        name: item.name,
-        color: item.color || null,
-        text_color: item.textColor || null,
-        auto_text_color: item.autoTextColor !== false,
-        hidden_from_toolbar: Boolean(item.hiddenFromToolbar),
-        start_time: nullableTime(item.startTime),
-        end_time: nullableTime(item.endTime),
-        use_rest_1: Boolean(item.useRest1),
-        rest_1_start_time: item.useRest1 ? nullableTime(item.rest1StartTime) : null,
-        rest_1_end_time: item.useRest1 ? nullableTime(item.rest1EndTime) : null,
-        use_rest_2: Boolean(item.useRest2),
-        rest_2_start_time: item.useRest2 ? nullableTime(item.rest2StartTime) : null,
-        rest_2_end_time: item.useRest2 ? nullableTime(item.rest2EndTime) : null,
-        sort_order: index
-      })), {
-        auth: true,
-        onConflict: "id",
-        prefer: "resolution=merge-duplicates,return=minimal"
-      });
-    }
-  }
-
-  async function syncMemberProfile(member, previousEmployeeCode = "") {
-    ensureManager();
+  
+    async function syncMemberProfile(member, previousEmployeeCode = "") {
+    ensureSignedIn();
     return requestFunction("member-auth-admin", {
       action: "upsert_member",
       member: {
         employeeCode: String(member?.code || "").trim(),
         fullName: member?.name || "",
-        role: normalizeRole(member?.role),
+        groupId: member?.groupId || "",
+        accessRoleId: member?.roleId || member?.role || "",
         hireDate: member?.hireDate || null,
         leaveDate: member?.leaveDate || null,
         payByDay: Boolean(member?.payByDay),
@@ -1296,6 +1014,7 @@
       defaultPassword: "0000"
     });
   }
+
 
   async function resetMemberPassword(employeeCode) {
     ensureManager();
@@ -1314,26 +1033,24 @@
     });
   }
 
-  async function ensureMemberProfiles(state) {
-    const members = Array.isArray(state.members) ? state.members.filter((member) => member?.code && member?.name && !member?.deleted) : [];
-    if (!members.length) {
-      return new Map();
-    }
-    let rows = await getEmployeeAdminDirectoryRows();
-    const requestedCodes = new Set(members.map((member) => member.code));
-    const existingCodes = new Set((rows || []).map((row) => row.employee_code).filter(Boolean));
-    for (const member of members) {
-      if (!existingCodes.has(member.code)) {
-        await syncMemberProfile(member, member.code);
-      }
-    }
-    rows = await getEmployeeAdminDirectoryRows();
-    return new Map((rows || [])
-      .filter((row) => requestedCodes.has(row.employee_code))
-      .map((row) => [row.employee_code, row]));
+  
+    async function loadScheduleEntries(range = {}) {
+    ensureSignedIn();
+    const startDate = toDateObject(range.startDate) ? range.startDate : "";
+    const endDate = toDateObject(range.endDate) ? range.endDate : "";
+    if (!startDate || !endDate) throw new Error("schedule range is required");
+    const rows = await callRpc("get_schedule_entries_v3", {
+      p_start_date: startDate,
+      p_end_date: endDate
+    }) || [];
+    const members = Array.isArray(range.members) ? range.members : [];
+    return {
+      schedule: mapScheduleRows(rows, members),
+      scheduleLoadedRanges: [{ startDate, endDate }]
+    };
   }
 
-  async function loadScheduleEntries(range = {}) {
+) {
     const startDate = toDateObject(range.startDate) ? range.startDate : "";
     const endDate = toDateObject(range.endDate) ? range.endDate : "";
     if (!startDate || !endDate) {
@@ -1353,309 +1070,49 @@
     };
   }
 
-  async function saveState(state) {
-    ensureManager();
-    const departments = Array.isArray(state.departments) ? state.departments.filter((item) => !item?.deleted) : [];
-    const shifts = Array.isArray(state.shifts) ? state.shifts.filter((item) => !item?.deleted) : [];
-    const leaves = Array.isArray(state.leaves) ? state.leaves.filter((item) => !item?.deleted) : [];
-    const overtime = Array.isArray(state.overtime) ? state.overtime.filter((item) => !item?.deleted) : [];
-    const holidays = Array.isArray(state.holidays) ? state.holidays : [];
-
-    if (departments.length) {
-      await saveDepartmentGeneralSettings(departments.map((department, index) => ({ ...department, sortOrder: index })));
-      await saveDepartmentAttendanceSettings(departments);
-    }
-    const departmentMap = await fetchRowsById("set_departments");
-
-    if (leaves.length) {
-      await restInsert("set_leave", leaves.map((item, index) => ({
-        id: item.id,
-        code: item.code || item.id,
-        name: item.name || item.code || item.id,
-        color: item.color || null,
-        text_color: item.textColor || null,
-        auto_text_color: item.autoTextColor !== false,
-        hidden_from_toolbar: Boolean(item.hiddenFromToolbar),
-        requires_time: Boolean(item.requiresTime),
-        requires_reason: Boolean(item.requiresReason),
-        sort_order: index
-      })), {
-        auth: true,
-        onConflict: "id",
-        prefer: "resolution=merge-duplicates,return=minimal"
-      });
-    }
-    const leaveMap = await fetchRowsById("set_leave");
-
-    if (overtime.length) {
-      await restInsert("set_overtime", overtime.map((item, index) => ({
-        id: item.id,
-        name: item.name || "加班",
-        color: item.color || null,
-        text_color: item.textColor || null,
-        auto_text_color: item.autoTextColor !== false,
-        hidden_from_toolbar: Boolean(item.hiddenFromToolbar),
-        start_time: nullableTime(item.startTime),
-        end_time: nullableTime(item.endTime),
-        use_rest_1: Boolean(item.useRest1),
-        rest_1_start_time: item.useRest1 ? nullableTime(item.rest1StartTime) : null,
-        rest_1_end_time: item.useRest1 ? nullableTime(item.rest1EndTime) : null,
-        use_rest_2: Boolean(item.useRest2),
-        rest_2_start_time: item.useRest2 ? nullableTime(item.rest2StartTime) : null,
-        rest_2_end_time: item.useRest2 ? nullableTime(item.rest2EndTime) : null,
-        sort_order: index
-      })), {
-        auth: true,
-        onConflict: "id",
-        prefer: "resolution=merge-duplicates,return=minimal"
-      });
-    }
-    const overtimeMap = await fetchRowsById("set_overtime");
-
-    if (shifts.length) {
-      await restInsert("set_shift", shifts.map((shift, index) => ({
-        id: shift.id,
-        name: shift.name || shift.id,
-        applicable_department_id: departmentMap.has(shift.applicableDeptId) ? shift.applicableDeptId : null,
-        color: shift.color || null,
-        text_color: shift.textColor || null,
-        auto_text_color: shift.autoTextColor !== false,
-        hidden_from_toolbar: Boolean(shift.hiddenFromToolbar),
-        start_time: nullableTime(shift.startTime),
-        end_time: nullableTime(shift.endTime),
-        required_staff_count: Math.max(0, Number(shift.requiredStaffCount) || 0),
-        sort_order: index
-      })), {
-        auth: true,
-        onConflict: "id",
-        prefer: "resolution=merge-duplicates,return=minimal"
-      });
-    }
-    const shiftMap = await fetchRowsById("set_shift");
-    const shiftIds = new Set(shifts.map((shift) => shift.id));
-
-    if (holidays.length) {
-      await restInsert("holidays", holidays
-        .filter((holiday) => nullableDate(holiday.date))
-        .map((holiday, index) => ({
-          id: holiday.id,
-          holiday_date: nullableDate(holiday.date),
-          name: holiday.name || "假日",
-          sort_order: index
-        })), {
-        auth: true,
-        onConflict: "holiday_date",
-        prefer: "resolution=merge-duplicates,return=minimal"
-      });
-    }
-    await deleteRowsNotIn("holidays", holidays.map((holiday) => holiday.id));
-
-    const profileMap = await ensureMemberProfiles(state);
-    for (const member of (state.members || []).filter((item) => !item?.deleted)) {
-      const profile = profileMap.get(member.code);
-      if (!profile?.id) {
-        continue;
-      }
-      const scheduleShiftIds = (Array.isArray(member.scheduleShiftIds) ? member.scheduleShiftIds : [])
-        .filter((shiftId, index, list) => shiftIds.has(shiftId) && list.indexOf(shiftId) === index);
-      const homeDeptId = member.deptId || "";
-      await restUpdate("set_employee", {
-        id: `eq.${profile.id}`
-      }, {
-        employee_code: member.code,
-        full_name: member.name,
-        role: normalizeRole(member.role),
-        hire_date: nullableDate(member.hireDate),
-        leave_date: nullableDate(member.leaveDate),
-        pay_by_day: Boolean(member.payByDay),
-        fixed_rest_weekday: clampInteger(member.fixedRestWeekday, 0, 6, 0),
-        monthly_rest_days: clampInteger(member.monthlyRestDays, 0, 31, 0),
-        home_department_id: departmentMap.get(homeDeptId)?.id || null,
-        schedule_shift_ids: scheduleShiftIds,
-      }, {
-        auth: true,
-        prefer: "return=minimal"
-      });
-    }
-
-    await restInsert("scheduler_settings", [{
-      id: documentId,
-      current_year: Number(state.year) || new Date().getFullYear(),
-      current_month: clampInteger(state.month, 0, 11, new Date().getMonth()),
-      dept_filter: state.deptFilter || "all",
-      table_view: state.tableView === "shift" ? "shift" : "member",
-      table_dept_scope_filter: state.tableDeptScopeFilter || "all",
-      table_stats_visible: state.tableStatsVisible !== false,
-      schedule_start_date: nullableDate(state.scheduleStartDate),
-      week_start: clampInteger(state.rules?.weekStart, 0, 6, 0),
-      month_start_day: clampInteger(state.rules?.monthStartDay, 1, 31, 1),
-      eight_week_start_date: nullableDate(state.rules?.eightWeekStartDate),
-      updated_at: new Date().toISOString()
-    }], {
-      auth: true,
-      onConflict: "id",
-      prefer: "resolution=merge-duplicates,return=minimal"
+  
+  
+    async function saveDepartmentItem(department, sortOrder = 0) {
+    ensureSignedIn();
+    return await callRpc("save_department_v3", {
+      p_department: { ...department, sortOrder }
     });
-
-    const scheduleEntries = [];
-    const preservedScheduleKeys = new Set();
-    Object.entries(state.schedule || {}).forEach(([key, slot]) => {
-      const parsed = parseScheduleKey(key);
-      if (!parsed || !slot) {
-        return;
-      }
-      const member = (state.members || []).find((item) => item.id === parsed.memberId);
-      if (member?.deleted) {
-        if (isUuid(parsed.memberId)) preservedScheduleKeys.add(makeScheduleEntryKey(parsed.memberId, parsed.workDate));
-        return;
-      }
-      const profile = member ? profileMap.get(member.code) : null;
-      if (!profile?.id) {
-        return;
-      }
-      scheduleEntries.push({ parsed, slot, profile });
-    });
-    const scheduleRows = scheduleEntries.map(({ parsed, slot, profile }) => {
-      return {
-        member_id: profile.id,
-        work_date: parsed.workDate,
-        shift_type_id: shiftMap.get(slot.shift)?.id || null,
-        leave_type_id: leaveMap.get(slot.leave)?.id || null,
-        leave_all_day: slot.leaveMeta?.allDay !== false,
-        leave_start_time: slot.leaveMeta?.allDay === false ? nullableTime(slot.leaveMeta?.startTime) : null,
-        leave_end_time: slot.leaveMeta?.allDay === false ? nullableTime(slot.leaveMeta?.endTime) : null,
-        leave_reason: slot.leaveMeta?.reason || null,
-        overtime_type_id: overtimeMap.get(slot.overtime)?.id || null,
-        overtime_start_time: nullableTime(slot.overtimeMeta?.startTime),
-        overtime_end_time: nullableTime(slot.overtimeMeta?.endTime),
-        overtime_use_rest_1: Boolean(slot.overtimeMeta?.useRest1),
-        overtime_rest_1_start_time: slot.overtimeMeta?.useRest1 ? nullableTime(slot.overtimeMeta?.rest1StartTime) : null,
-        overtime_rest_1_end_time: slot.overtimeMeta?.useRest1 ? nullableTime(slot.overtimeMeta?.rest1EndTime) : null,
-        overtime_use_rest_2: Boolean(slot.overtimeMeta?.useRest2),
-        overtime_rest_2_start_time: slot.overtimeMeta?.useRest2 ? nullableTime(slot.overtimeMeta?.rest2StartTime) : null,
-        overtime_rest_2_end_time: slot.overtimeMeta?.useRest2 ? nullableTime(slot.overtimeMeta?.rest2EndTime) : null,
-        overtime_reason: slot.overtimeMeta?.reason || null
-      };
-    }).filter((row) => row && (row.shift_type_id || row.leave_type_id || row.overtime_type_id));
-    const savedScheduleKeys = new Set([
-      ...scheduleRows.map((row) => makeScheduleEntryKey(row.member_id, row.work_date)),
-      ...preservedScheduleKeys
-    ]);
-    const existingScheduleRows = await fetchExistingScheduleRowsForRanges(state.scheduleLoadedRanges);
-    const removedScheduleRows = (existingScheduleRows || [])
-      .filter((row) => row?.id && !savedScheduleKeys.has(makeScheduleEntryKey(row.member_id, row.work_date)))
-      .map((row) => ({
-        member_id: row.member_id,
-        work_date: row.work_date,
-        delete_entry: true
-      }));
-    await saveScheduleEntryRows([...scheduleRows, ...removedScheduleRows]);
-
-    await syncLeaveAndOvertimeCatalogs(state);
-    return { ok: true, savedAt: new Date().toISOString() };
   }
 
-  async function syncCatalogs(state) {
-    ensureManager();
-    await syncLeaveAndOvertimeCatalogs(state);
-  }
 
-  async function saveDepartmentItem(department, sortOrder = 0) {
-    ensureManager();
-    await saveDepartmentGeneralSettings([{ ...department, sortOrder }]);
-    await saveDepartmentAttendanceSettings([department]);
-    return { ok: true };
-  }
-
-  async function deleteDepartmentItem(departmentId) {
-    ensureManager();
-    await restRpc("delete_department_general_v2", {
+    async function deleteDepartmentItem(departmentId) {
+    ensureSignedIn();
+    return await callRpc("delete_department_v3", {
       p_department_id: String(departmentId || "").trim()
-    }, {
-      auth: true,
-      prefer: "return=minimal"
-    });
-    return { ok: true };
-  }
-
-  async function saveShiftItem(shift, sortOrder = 0) {
-    ensureManager();
-    await restInsert("set_shift", [{
-      id: shift.id,
-      name: shift.name || shift.id,
-      applicable_department_id: shift.applicableDeptId || null,
-      color: shift.color || null,
-      text_color: shift.textColor || null,
-      auto_text_color: shift.autoTextColor !== false,
-      hidden_from_toolbar: Boolean(shift.hiddenFromToolbar),
-      start_time: nullableTime(shift.startTime),
-      end_time: nullableTime(shift.endTime),
-      required_staff_count: Math.max(0, Number(shift.requiredStaffCount) || 0),
-      sort_order: sortOrder
-    }], {
-      auth: true,
-      onConflict: "id",
-      prefer: "resolution=merge-duplicates,return=minimal"
-    });
-    return { ok: true };
-  }
-
-  async function saveCatalogItem(category, item, sortOrder = 0) {
-    ensureManager();
-    if (category === "leave") {
-      await restInsert("set_leave", [{
-        id: item.id,
-        code: item.code || item.id,
-        name: item.name || item.code || item.id,
-        color: item.color || null,
-        text_color: item.textColor || null,
-        auto_text_color: item.autoTextColor !== false,
-        hidden_from_toolbar: Boolean(item.hiddenFromToolbar),
-        requires_time: Boolean(item.requiresTime),
-        requires_reason: Boolean(item.requiresReason),
-        sort_order: sortOrder
-      }], {
-        auth: true,
-        onConflict: "id",
-        prefer: "resolution=merge-duplicates,return=minimal"
-      });
-      return { ok: true };
-    }
-    if (category === "overtime") {
-      await restInsert("set_overtime", [{
-        id: item.id,
-        name: item.name || "加班",
-        color: item.color || null,
-        text_color: item.textColor || null,
-        auto_text_color: item.autoTextColor !== false,
-        hidden_from_toolbar: Boolean(item.hiddenFromToolbar),
-        start_time: nullableTime(item.startTime),
-        end_time: nullableTime(item.endTime),
-        use_rest_1: Boolean(item.useRest1),
-        rest_1_start_time: item.useRest1 ? nullableTime(item.rest1StartTime) : null,
-        rest_1_end_time: item.useRest1 ? nullableTime(item.rest1EndTime) : null,
-        use_rest_2: Boolean(item.useRest2),
-        rest_2_start_time: item.useRest2 ? nullableTime(item.rest2StartTime) : null,
-        rest_2_end_time: item.useRest2 ? nullableTime(item.rest2EndTime) : null,
-        sort_order: sortOrder
-      }], {
-        auth: true,
-        onConflict: "id",
-        prefer: "resolution=merge-duplicates,return=minimal"
-      });
-      return { ok: true };
-    }
-    throw new Error(`不支援的設定類型：${category}`);
-  }
-
-  async function deleteCatalogItem(category, itemId) {
-    ensureManager();
-    return requestFunction("catalog-admin", {
-      action: "delete",
-      category: String(category || ""),
-      itemId: String(itemId || "")
     });
   }
+
+
+    async function saveShiftItem(shift, sortOrder = 0) {
+    ensureSignedIn();
+    return await callRpc("save_shift_v3", {
+      p_shift: { ...shift, sortOrder }
+    });
+  }
+
+
+    async function saveCatalogItem(category, item, sortOrder = 0) {
+    ensureSignedIn();
+    return await callRpc("save_catalog_item_v3", {
+      p_category: String(category || ""),
+      p_item: { ...item, sortOrder }
+    });
+  }
+
+
+    async function deleteCatalogItem(category, itemId) {
+    ensureSignedIn();
+    return await callRpc("delete_catalog_item_v3", {
+      p_category: String(category || ""),
+      p_item_id: String(itemId || "")
+    });
+  }
+
 
   async function resolveManagerMemberProfileId(memberId, memberCode) {
     const normalizedMemberId = String(memberId || "").trim();
@@ -1674,80 +1131,110 @@
     return profile.id;
   }
 
-  async function saveScheduleEntryRows(rows) {
-    const entries = (Array.isArray(rows) ? rows : [])
-      .filter((row) => row?.member_id && row?.work_date);
-    if (!entries.length) {
-      return [];
-    }
-    return await restRpc("save_schedule_entries_bulk", { entries }, { auth: true }) || [];
+    async function saveScheduleEntryRows(rows) {
+    const entries = (Array.isArray(rows) ? rows : []).filter((row) => row?.member_id && row?.work_date);
+    if (!entries.length) return [];
+    return await callRpc("save_schedule_entries_v3", { entries }) || [];
   }
 
-  async function saveScheduleCells(payloads) {
-    ensureManager();
-    const rowCache = new Map();
-    const resolveCatalogRow = async (table, id) => {
-      const rowId = String(id || "").trim();
-      if (!rowId) {
-        return null;
-      }
-      const cacheKey = `${table}:${rowId}`;
-      if (!rowCache.has(cacheKey)) {
-        rowCache.set(cacheKey, fetchRowById(table, rowId));
-      }
-      return await rowCache.get(cacheKey);
-    };
+
+    async function saveScheduleCells(payloads) {
+    ensureSignedIn();
     const rows = [];
     for (const payload of Array.isArray(payloads) ? payloads : []) {
       const profileMemberId = await resolveManagerMemberProfileId(payload.memberId, payload.memberCode);
       const workDate = nullableDate(payload.dateString || payload.workDate);
-      if (!profileMemberId || !workDate) {
-        throw new Error("schedule cell member and date are required");
-      }
+      if (!profileMemberId || !workDate) throw new Error("schedule cell member and date are required");
       const slot = payload.slot || {};
-      const [shiftType, leaveType, overtimeType] = await Promise.all([
-        resolveCatalogRow("set_shift", slot.shift),
-        resolveCatalogRow("set_leave", slot.leave),
-        resolveCatalogRow("set_overtime", slot.overtime)
-      ]);
-      if (!shiftType?.id && !leaveType?.id && !overtimeType?.id) {
-        rows.push({
-          member_id: profileMemberId,
-          work_date: workDate,
-          delete_entry: true
-        });
+      const shiftId = isUuid(slot.shift) ? slot.shift : null;
+      const leaveId = isUuid(slot.leave) ? slot.leave : null;
+      const overtimeId = isUuid(slot.overtime) ? slot.overtime : null;
+      if (!shiftId && !leaveId && !overtimeId) {
+        rows.push({ member_id: profileMemberId, work_date: workDate, delete_entry: true });
         continue;
       }
       const leaveAllDay = slot.leaveMeta?.allDay !== false;
       rows.push({
         member_id: profileMemberId,
         work_date: workDate,
-        shift_type_id: shiftType?.id || null,
-        leave_type_id: leaveType?.id || null,
+        shift_type_id: shiftId,
+        leave_type_id: leaveId,
         leave_all_day: leaveAllDay,
-        leave_start_time: leaveType?.id && !leaveAllDay ? nullableTime(slot.leaveMeta?.startTime) : null,
-        leave_end_time: leaveType?.id && !leaveAllDay ? nullableTime(slot.leaveMeta?.endTime) : null,
-        leave_reason: leaveType?.id ? slot.leaveMeta?.reason || null : null,
-        overtime_type_id: overtimeType?.id || null,
-        overtime_start_time: overtimeType?.id ? nullableTime(slot.overtimeMeta?.startTime) : null,
-        overtime_end_time: overtimeType?.id ? nullableTime(slot.overtimeMeta?.endTime) : null,
-        overtime_use_rest_1: overtimeType?.id ? Boolean(slot.overtimeMeta?.useRest1) : false,
-        overtime_rest_1_start_time: overtimeType?.id && slot.overtimeMeta?.useRest1 ? nullableTime(slot.overtimeMeta?.rest1StartTime) : null,
-        overtime_rest_1_end_time: overtimeType?.id && slot.overtimeMeta?.useRest1 ? nullableTime(slot.overtimeMeta?.rest1EndTime) : null,
-        overtime_use_rest_2: overtimeType?.id ? Boolean(slot.overtimeMeta?.useRest2) : false,
-        overtime_rest_2_start_time: overtimeType?.id && slot.overtimeMeta?.useRest2 ? nullableTime(slot.overtimeMeta?.rest2StartTime) : null,
-        overtime_rest_2_end_time: overtimeType?.id && slot.overtimeMeta?.useRest2 ? nullableTime(slot.overtimeMeta?.rest2EndTime) : null,
-        overtime_reason: overtimeType?.id ? slot.overtimeMeta?.reason || null : null
+        leave_start_time: leaveId && !leaveAllDay ? nullableTime(slot.leaveMeta?.startTime) : null,
+        leave_end_time: leaveId && !leaveAllDay ? nullableTime(slot.leaveMeta?.endTime) : null,
+        leave_reason: leaveId ? slot.leaveMeta?.reason || null : null,
+        overtime_type_id: overtimeId,
+        overtime_start_time: overtimeId ? nullableTime(slot.overtimeMeta?.startTime) : null,
+        overtime_end_time: overtimeId ? nullableTime(slot.overtimeMeta?.endTime) : null,
+        overtime_use_rest_1: overtimeId ? Boolean(slot.overtimeMeta?.useRest1) : false,
+        overtime_rest_1_start_time: overtimeId && slot.overtimeMeta?.useRest1 ? nullableTime(slot.overtimeMeta?.rest1StartTime) : null,
+        overtime_rest_1_end_time: overtimeId && slot.overtimeMeta?.useRest1 ? nullableTime(slot.overtimeMeta?.rest1EndTime) : null,
+        overtime_use_rest_2: overtimeId ? Boolean(slot.overtimeMeta?.useRest2) : false,
+        overtime_rest_2_start_time: overtimeId && slot.overtimeMeta?.useRest2 ? nullableTime(slot.overtimeMeta?.rest2StartTime) : null,
+        overtime_rest_2_end_time: overtimeId && slot.overtimeMeta?.useRest2 ? nullableTime(slot.overtimeMeta?.rest2EndTime) : null,
+        overtime_reason: overtimeId ? slot.overtimeMeta?.reason || null : null
       });
     }
     const savedRows = await saveScheduleEntryRows(rows);
     return { ok: true, rows: savedRows };
   }
 
+
+  async function reorderSettings(category, ids = []) {
+    ensureSignedIn();
+    return await callRpc("reorder_settings_v3", {
+      p_category: String(category || ""),
+      p_ids: (Array.isArray(ids) ? ids : []).filter(isUuid)
+    });
+  }
+
+  async function saveSchedulerPreferences(state) {
+    ensureSignedIn();
+    return await callRpc("save_scheduler_preferences_v3", {
+      p_document_id: documentId,
+      p_settings: {
+        currentYear: Number(state?.year) || new Date().getFullYear(),
+        currentMonth: clampInteger(state?.month, 0, 11, new Date().getMonth()),
+        deptFilter: state?.deptFilter || "all",
+        tableView: state?.tableView === "shift" ? "shift" : "member",
+        tableDeptScopeFilter: state?.tableDeptScopeFilter || "all",
+        tableStatsVisible: state?.tableStatsVisible !== false,
+        scheduleStartDate: nullableDate(state?.scheduleStartDate),
+        weekStart: clampInteger(state?.rules?.weekStart, 0, 6, 0),
+        monthStartDay: clampInteger(state?.rules?.monthStartDay, 1, 31, 1),
+        eightWeekStartDate: nullableDate(state?.rules?.eightWeekStartDate)
+      }
+    });
+  }
+
+  async function saveHolidays(holidays = []) {
+    ensureSignedIn();
+    return await callRpc("save_holidays_v3", {
+      p_holidays: (Array.isArray(holidays) ? holidays : []).map((holiday) => ({
+        id: holiday.id,
+        date: holiday.date,
+        name: holiday.name || "假日"
+      }))
+    });
+  }
+
   async function saveScheduleCell(payload) {
     const result = await saveScheduleCells([payload]);
     return { ok: true, row: result.rows?.[0] || null };
   }
+
+  async function getGroupAccessBundle() { return await callRpc("get_group_access_bundle_v1", {}) || {}; }
+  async function getGroupEntityMap() { return await callRpc("get_group_entity_map_v1", {}) || {}; }
+  async function saveScheduleGroup(group) { return callRpc("save_schedule_group_v1", { p_group: group }); }
+  async function deleteScheduleGroup(groupId, confirmName) { return callRpc("delete_schedule_group_v1", { p_group_id: groupId, p_confirm_name: confirmName }); }
+  async function reorderScheduleGroups(groupIds) { return callRpc("reorder_schedule_groups_v1", { p_group_ids: groupIds }); }
+  async function saveAccessRole(role) { return callRpc("save_access_role_v1", { p_role: role }); }
+  async function deleteAccessRole(roleId) { return callRpc("delete_access_role_v1", { p_role_id: roleId }); }
+  async function validateMemberGroupChange(employeeCode, groupId) { return callRpc("validate_member_group_change_v1", { p_employee_code: employeeCode, p_new_group_id: groupId }); }
+  async function getScheduleArchives(groupId = null) { return callRpc("get_schedule_archives_v1", { p_group_id: groupId }); }
+  async function archiveSchedule(groupId, startDate, endDate) { return callRpc("archive_schedule_v1", { p_group_id: groupId, p_start_date: startDate, p_end_date: endDate }); }
+  async function unarchiveSchedule(archiveId) { return callRpc("unarchive_schedule_v1", { p_archive_id: archiveId }); }
+  async function getScheduleArchiveDetail(archiveId) { return callRpc("get_schedule_archive_detail_v1", { p_archive_id: archiveId }); }
 
   async function exportSapCsv(payload) {
     if (!exporter.getSapLeaveExportRows(payload).length) {
@@ -2001,8 +1488,6 @@
     loadEmployeeAdminDirectory,
     loadScheduleEntries,
     loadScheduleExportRows,
-    saveState,
-    syncCatalogs,
     saveDepartmentItem,
     deleteDepartmentItem,
     saveShiftItem,
@@ -2010,6 +1495,21 @@
     deleteCatalogItem,
     saveScheduleCells,
     saveScheduleCell,
+    reorderSettings,
+    saveSchedulerPreferences,
+    saveHolidays,
+    getGroupAccessBundle,
+    getGroupEntityMap,
+    saveScheduleGroup,
+    deleteScheduleGroup,
+    reorderScheduleGroups,
+    saveAccessRole,
+    deleteAccessRole,
+    validateMemberGroupChange,
+    getScheduleArchives,
+    archiveSchedule,
+    unarchiveSchedule,
+    getScheduleArchiveDetail,
     syncMemberProfile,
     resetMemberPassword,
     exportSapCsv,

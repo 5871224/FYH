@@ -22,36 +22,6 @@ function pruneEmptySchedule() {
   });
 }
 
-function buildPersistedState() {
-  const nextState = {
-    ...state,
-    schedule: {}
-  };
-  Object.entries(state.schedule || {}).forEach(([key, slot]) => {
-    if (!slot) {
-      return;
-    }
-    const nextSlot = {
-      shift: slot.shift || null,
-      leave: slot.leave || null,
-      overtime: slot.overtime || null
-    };
-    if (nextSlot.leave && slot.leaveMeta) {
-      nextSlot.leaveMeta = {
-        ...slot.leaveMeta
-      };
-    }
-    if (nextSlot.overtime && slot.overtimeMeta) {
-      nextSlot.overtimeMeta = {
-        ...slot.overtimeMeta
-      };
-    }
-    if (nextSlot.shift || nextSlot.leave || nextSlot.overtime) {
-      nextState.schedule[key] = nextSlot;
-    }
-  });
-  return nextState;
-}
 
 function queueSave() {
   if (!canEditSchedule()) {
@@ -65,18 +35,17 @@ function queueSave() {
 }
 
 async function forceSave() {
-  if (!canEditSchedule()) {
-    return false;
-  }
+  if (!canEditSchedule()) return false;
   if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = null;
   }
   try {
-    await window.schedulerApi.saveState(buildPersistedState());
+    await window.schedulerApi.saveSchedulerPreferences(state);
     return true;
   } catch (error) {
     setSaveStatus(`儲存失敗：${error.message}`);
     return false;
   }
 }
+

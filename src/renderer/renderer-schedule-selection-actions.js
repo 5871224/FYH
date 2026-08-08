@@ -20,6 +20,9 @@ function clearOvertimeFromSlot(slot) {
 
 async function applySelectionToCell(memberId, day) {
   const dateString = normalizeScheduleDateInput(day);
+  if (isArchivedDate(dateString) || isDeletedScheduleMember(memberId)) return;
+
+  const dateString = normalizeScheduleDateInput(day);
   if (!canEditSchedule()) {
     return;
   }
