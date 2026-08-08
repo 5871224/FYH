@@ -22,6 +22,21 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Patch cleanup transformer
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/canonical-cleanup.py')
+          text = path.read_text(encoding='utf-8')
+          marker = 'def replace_once(text, old, new, label):\n'
+          replacement = marker + '    if label == "unarchive archive range refresh":\n        return text.replace(old, new)\n'
+          if replacement not in text:
+              if marker not in text:
+                  raise SystemExit('replace_once marker not found')
+              text = text.replace(marker, replacement, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+
       - name: Apply canonical cleanup
         run: python .github/canonical-cleanup.py
 
