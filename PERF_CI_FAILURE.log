@@ -10,2189 +10,1226 @@ TAP version 13
 # Subtest: 瀏覽器不得直接 CRUD 核心資料表
 ok 1 - 瀏覽器不得直接 CRUD 核心資料表
   ---
-  duration_ms: 7.944941
+  duration_ms: 7.039336
   type: 'test'
   ...
 # Subtest: 權限資料層不得用 runtime monkey patch
 ok 2 - 權限資料層不得用 runtime monkey patch
   ---
-  duration_ms: 2.188072
+  duration_ms: 1.479648
   type: 'test'
   ...
 # Subtest: 正式寫入 API 都是具名領域操作
 ok 3 - 正式寫入 API 都是具名領域操作
   ---
-  duration_ms: 0.800283
+  duration_ms: 0.4781
   type: 'test'
   ...
 # Subtest: 舊通用 API 與重複 Edge Function 不得存在
 ok 4 - 舊通用 API 與重複 Edge Function 不得存在
   ---
-  duration_ms: 0.377885
+  duration_ms: 0.219696
   type: 'test'
   ...
 # Subtest: 本人 Edge Function 必須拒絕已軟刪除帳號
 ok 5 - 本人 Edge Function 必須拒絕已軟刪除帳號
   ---
-  duration_ms: 0.558903
+  duration_ms: 0.260827
   type: 'test'
   ...
 # Subtest: 打卡地點只能使用本人所屬群組的有效單位
 ok 6 - 打卡地點只能使用本人所屬群組的有效單位
   ---
-  duration_ms: 0.390118
+  duration_ms: 0.158346
   type: 'test'
   ...
 # Subtest: 正式 SQL 最終守門使用權限項目而非文字角色
 ok 7 - 正式 SQL 最終守門使用權限項目而非文字角色
   ---
-  duration_ms: 2.457615
+  duration_ms: 1.706604
   type: 'test'
   ...
 # Subtest: 前端角色只使用 access_role_id 與權限資料，不保留文字角色相容層
-not ok 8 - 前端角色只使用 access_role_id 與權限資料，不保留文字角色相容層
+ok 8 - 前端角色只使用 access_role_id 與權限資料，不保留文字角色相容層
   ---
-  duration_ms: 5.184371
+  duration_ms: 1.11039
   type: 'test'
-  location: '/home/runner/work/FYH/FYH/tests/access-architecture.test.js:90:1'
-  failureType: 'testCodeFailure'
-  error: |-
-    The input was expected to not match the regular expression /getRoleByLegacyRole/. Input:
-    
-    '/* 群組、角色權限與班表封存。\n' +
-      ' * 權限狀態由 canonical schedulerApi 載入；本模組只負責領域狀態與介面。\n' +
-      ' */\n' +
-      '\n' +
-      'const GROUP_PERMISSION_LABELS = {\n' +
-      '  schedule_view: "班表查看",\n' +
-      '  schedule_manage: "班表管理",\n' +
-      '  group_settings: "群組設定",\n' +
-      '  department_settings: "單位設定",\n' +
-      '  member_settings: "人員設定",\n' +
-      '  leave_settings: "假別設定",\n' +
-      '  permission_settings: "權限設定",\n' +
-      '  attendance_review: "簽到審核",\n' +
-      '  meal_admin: "訂餐管理"\n' +
-      '};\n' +
-      '\n' +
-      'const groupFeatureState = {\n' +
-      '  bundle: { actor: {}, groups: [], roles: [] },\n' +
-      '  entityMap: { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] },\n' +
-      '  currentGroupId: "",\n' +
-      '  allDepartments: [],\n' +
-      '  allMembers: [],\n' +
-      '  allShifts: [],\n' +
-      '  allSchedule: {},\n' +
-      '  initialized: false,\n' +
-      '  dragGroupId: ""\n' +
-      '};\n' +
-      '\n' +
-      'async function loadGroupAccessData(payload = {}) {\n' +
-      '  groupFeatureState.bundle = payload.accessBundle && typeof payload.accessBundle === "object"\n' +
-      '    ? payload.accessBundle\n' +
-      '    : await window.schedulerApi.getGroupAccessBundle();\n' +
-      '  groupFeatureState.entityMap = payload.entityMap && typeof payload.entityMap === "object"\n' +
-      '    ? payload.entityMap\n' +
-      '    : await window.schedulerApi.getGroupEntityMap();\n' +
-      '  return { bundle: groupFeatureState.bundle, entityMap: groupFeatureState.entityMap };\n' +
-      '}\n' +
-      '\n' +
-      '\n' +
-      'function getAccessActor() { return groupFeatureState.bundle?.actor || {}; }\n' +
-      'function getAccessPermissions() { return Array.isArray(getAccessActor().permissions) ? getAccessActor().permissions : []; }\n' +
-      'function hasPermission(permission) { return getAccessPermissions().includes(permission); }\n' +
-      'function getApplicableGroupIds() { return Array.isArray(getAccessActor().applicableGroupIds) ? getAccessActor().applicableGroupIds.filter(Boolean) : []; }\n' +
-      'function roleAppliesToGroup(groupId) { return Boolean(groupId && getApplicableGroupIds().includes(groupId)); }\n' +
-      'function getAllGroups() { return Array.isArray(groupFeatureState.bundle?.groups) ? groupFeatureState.bundle.groups : []; }\n' +
-      'function getSelectableGroups() {\n' +
-      '  const allowed = new Set(getApplicableGroupIds());\n' +
-      '  return getAllGroups().filter((group) => allowed.has(group.id) && group.status === "active");\n' +
-      '}\n' +
-      'function getCurrentGroup() { return getAllGroups().find((group) => group.id === groupFeatureState.currentGroupId) || null; }\n' +
-      'function getActorGroup() { return getAllGroups().find((group) => group.id === getAccessActor().groupId) || null; }\n' +
-      'function getAllRoles() { return Array.isArray(groupFeatureState.bundle?.roles) ? groupFeatureState.bundle.roles : []; }\n' +
-      'function getRoleById(roleId) { return getAllRoles().find((role) => role.id === roleId) || null; }\n' +
-      '\n' +
-      'function chooseCurrentGroupId() {\n' +
-      '  const selectable = getSelectableGroups();\n' +
-      '  if (!selectable.length) return "";\n' +
-      '  const stored = localStorage.getItem("fyh.schedule.groupId") || "";\n' +
-      '  if (selectable.some((group) => group.id === stored)) return stored;\n' +
-      '  const actorGroupId = getAccessActor().groupId || "";\n' +
-      '  if (selectable.some((group) => group.id === actorGroupId)) return actorGroupId;\n' +
-      '  return selectable[0].id;\n' +
-      '}\n' +
-      '\n' +
-      'function makeIdMap(rows, valueKey) {\n' +
-      '  return new Map((Array.isArray(rows) ? rows : []).map((row) => [row.id, row[valueKey]]));\n' +
-      '}\n' +
-      '\n' +
-      'function appendDeletedLabel(value, deleted) {\n' +
-      '  const text = String(value || "");\n' +
-      '  if (!deleted || text.endsWith("（已刪除）")) return text;\n' +
-      '  return `${text}（已刪除）`;\n' +
-      '}\n' +
-      '\n' +
-      'function enrichNormalizedState(normalized) {\n' +
-      '  const departmentGroups = makeIdMap(groupFeatureState.entityMap.departments, "groupId");\n' +
-      '  const departmentDeleted = makeIdMap(groupFeatureState.entityMap.departments, "deleted");\n' +
-      '  const memberGroups = makeIdMap(groupFeatureState.entityMap.members, "groupId");\n' +
-      '  const memberRoles = makeIdMap(groupFeatureState.entityMap.members, "roleId");\n' +
-      '  const memberDeleted = makeIdMap(groupFeatureState.entityMap.members, "deleted");\n' +
-      '  const shiftGroups = makeIdMap(groupFeatureState.entityMap.shifts, "groupId");\n' +
-      '  const shiftDeleted = makeIdMap(groupFeatureState.entityMap.shifts, "deleted");\n' +
-      '  const leaveDeleted = makeIdMap(groupFeatureState.entityMap.leaves, "deleted");\n' +
-      '  const overtimeDeleted = makeIdMap(groupFeatureState.entityMap.overtime, "deleted");\n' +
-      '\n' +
-      '  normalized.departments = (normalized.departments || []).map((department) => {\n' +
-      '    const deleted = Boolean(department.deleted || departmentDeleted.get(department.id));\n' +
-      '    return { ...department, name: appendDeletedLabel(department.name, deleted), groupId: departmentGroups.get(department.id) || "", deleted };\n' +
-      '  });\n' +
-      '  normalized.members = (normalized.members || []).map((member) => {\n' +
-      '    const roleId = memberRoles.get(member.id) || member.roleId || "";\n' +
-      '    const deleted = Boolean(member.deleted || memberDeleted.get(member.id));\n' +
-      '    return { ...member, name: appendDeletedLabel(member.name, deleted), groupId: memberGroups.get(member.id) || "", roleId, deleted };\n' +
-      '  });\n' +
-      '  normalized.shifts = (normalized.shifts || []).map((shift) => {\n' +
-      '    const deleted = Boolean(shift.deleted || shiftDeleted.get(shift.id));\n' +
-      '    return {\n' +
-      '      ...shift,\n' +
-      '      name: appendDeletedLabel(shift.name, deleted),\n' +
-      '      groupId: shiftGroups.get(shift.id) || normalized.departments.find((department) => department.id === shift.applicableDeptId)?.groupId || "",\n' +
-      '      hiddenFromToolbar: deleted || Boolean(shift.hiddenFromToolbar),\n' +
-      '      deleted\n' +
-      '    };\n' +
-      '  });\n' +
-      '  normalized.leaves = (normalized.leaves || []).map((leave) => {\n' +
-      '    const deleted = Boolean(leave.deleted || leaveDeleted.get(leave.id));\n' +
-      '    return { ...leave, name: appendDeletedLabel(leave.name, deleted), hiddenFromToolbar: deleted || Boolean(leave.hiddenFromToolbar), deleted };\n' +
-      '  });\n' +
-      '  normalized.overtime = (normalized.overtime || []).map((overtime) => {\n' +
-      '    const deleted = Boolean(overtime.deleted || overtimeDeleted.get(overtime.id));\n' +
-      '    return { ...overtime, name: appendDeletedLabel(overtime.name, deleted), hiddenFromToolbar: deleted || Boolean(overtime.hiddenFromToolbar), deleted };\n' +
-      '  });\n' +
-      '  normalized.groups = getAllGroups();\n' +
-      '  normalized.accessRoles = getAllRoles();\n' +
-      '  normalized.access = getAccessActor();\n' +
-      '  return normalized;\n' +
-      '}\n' +
-      '\n' +
-      'function scheduleKeyMemberId(key) {\n' +
-      '  if (typeof parseScheduleKeyParts === "function") return parseScheduleKeyParts(key)?.memberId || "";\n' +
-      '  const parts = String(key || "").split("_");\n' +
-      '  if (parts.length < 4) return "";\n' +
-      '  parts.splice(-3);\n' +
-      '  return parts.join("_");\n' +
-      '}\n' +
-      '\n' +
-      'function snapshotAllState(normalized) {\n' +
-      '  groupFeatureState.allDepartments = deepClone(normalized.departments || []);\n' +
-      '  groupFeatureState.allMembers = deepClone(normalized.members || []);\n' +
-      '  groupFeatureState.allShifts = deepClone(normalized.shifts || []);\n' +
-      '  groupFeatureState.allSchedule = deepClone(normalized.schedule || {});\n' +
-      '}\n' +
-      '\n' +
-      'function currentGroupMemberIds() {\n' +
-      '  return new Set(groupFeatureState.allMembers.filter((member) => member.groupId === groupFeatureState.currentGroupId).map((member) => member.id));\n' +
-      '}\n' +
-      '\n' +
-      'function syncCurrentScopeIntoAll() {\n' +
-      '  const groupId = groupFeatureState.currentGroupId;\n' +
-      '  if (!groupId || !state || typeof state !== "object") return;\n' +
-      '  groupFeatureState.allDepartments = [\n' +
-      '    ...groupFeatureState.allDepartments.filter((item) => item.groupId !== groupId),\n' +
-      '    ...(state.departments || []).map((item) => ({ ...deepClone(item), groupId }))\n' +
-      '  ];\n' +
-      '  groupFeatureState.allMembers = [\n' +
-      '    ...groupFeatureState.allMembers.filter((item) => item.groupId !== groupId),\n' +
-      '    ...(state.members || []).map((item) => ({ ...deepClone(item), groupId: item.groupId || groupId }))\n' +
-      '  ];\n' +
-      '  groupFeatureState.allShifts = [\n' +
-      '    ...groupFeatureState.allShifts.filter((item) => item.groupId !== groupId),\n' +
-      '    ...(state.shifts || []).map((item) => ({ ...deepClone(item), groupId: item.groupId || groupId }))\n' +
-      '  ];\n' +
-      '  const memberIds = currentGroupMemberIds();\n' +
-      '  const nextSchedule = {};\n' +
-      '  Object.entries(groupFeatureState.allSchedule || {}).forEach(([key, slot]) => {\n' +
-      '    if (!memberIds.has(scheduleKeyMemberId(key))) nextSchedule[key] = slot;\n' +
-      '  });\n' +
-      '  Object.entries(state.schedule || {}).forEach(([key, slot]) => { nextSchedule[key] = deepClone(slot); });\n' +
-      '  groupFeatureState.allSchedule = nextSchedule;\n' +
-      '}\n' +
-      '\n' +
-      'function applyCurrentGroupScope(targetState = state) {\n' +
-      '  const groupId = groupFeatureState.currentGroupId;\n' +
-      '  const departments = groupFeatureState.allDepartments.filter((item) => item.groupId === groupId);\n' +
-      '  const members = groupFeatureState.allMembers.filter((item) => item.groupId === groupId);\n' +
-      '  const shifts = groupFeatureState.allShifts.filter((item) => item.groupId === groupId);\n' +
-      '  const memberIds = new Set(members.map((member) => member.id));\n' +
-      '  const schedule = {};\n' +
-      '  Object.entries(groupFeatureState.allSchedule || {}).forEach(([key, slot]) => {\n' +
-      '    if (memberIds.has(scheduleKeyMemberId(key))) schedule[key] = deepClone(slot);\n' +
-      '  });\n' +
-      '  targetState.departments = deepClone(departments);\n' +
-      '  targetState.members = deepClone(members);\n' +
-      '  targetState.shifts = deepClone(shifts);\n' +
-      '  targetState.schedule = schedule;\n' +
-      '  targetState.groups = getAllGroups();\n' +
-      '  targetState.accessRoles = getAllRoles();\n' +
-      '  targetState.access = getAccessActor();\n' +
-      '  targetState.currentGroupId = groupId;\n' +
-      '  if (!targetState.departments.some((department) => department.id === targetState.deptFilter)) targetState.deptFilter = "all";\n' +
-      '  if (!targetState.departments.some((department) => department.id === targetState.tableDeptScopeFilter)) targetState.tableDeptScopeFilter = "all";\n' +
-      '  return targetState;\n' +
-      '}\n' +
-      '\n' +
-      'function resetGroupInteractionState() {\n' +
-      '  state.selected = { type: null, id: null };\n' +
-      '  state.deptFilter = "all";\n' +
-      '  state.tableDeptScopeFilter = "all";\n' +
-      '  scheduleUndoStack = [];\n' +
-      '  scheduleRedoStack = [];\n' +
-      '  scheduleClipboard = null;\n' +
-      '  autoSchedulePreview = null;\n' +
-      '  clearScheduleRangeSelection?.();\n' +
-      '  syncScheduleHistoryButtons?.();\n' +
-      '}\n' +
-      '\n' +
-      'async function switchScheduleGroup(groupId) {\n' +
-      '  if (!roleAppliesToGroup(groupId)) return;\n' +
-      '  const group = getAllGroups().find((item) => item.id === groupId && item.status === "active");\n' +
-      '  if (!group) return;\n' +
-      '  syncCurrentScopeIntoAll();\n' +
-      '  groupFeatureState.currentGroupId = groupId;\n' +
-      '  localStorage.setItem("fyh.schedule.groupId", groupId);\n' +
-      '  applyCurrentGroupScope(state);\n' +
-      '  resetGroupInteractionState();\n' +
-      '  currentMember = resolveCurrentMember();\n' +
-      '  renderAll();\n' +
-      '}\n' +
-      '\n' +
-      'async function reloadGroupApplicationState() {\n' +
-      '  const '... 40527 more characters
-    
-  code: 'ERR_ASSERTION'
-  name: 'AssertionError'
-  expected:
-  actual: |-
-    /* 群組、角色權限與班表封存。
-     * 權限狀態由 canonical schedulerApi 載入；本模組只負責領域狀態與介面。
-     */
-    
-    const GROUP_PERMISSION_LABELS = {
-      schedule_view: "班表查看",
-      schedule_manage: "班表管理",
-      group_settings: "群組設定",
-      department_settings: "單位設定",
-      member_settings: "人員設定",
-      leave_settings: "假別設定",
-      permission_settings: "權限設定",
-      attendance_review: "簽到審核",
-      meal_admin: "訂餐管理"
-    };
-    
-    const groupFeatureState = {
-      bundle: { actor: {}, groups: [], roles: [] },
-      entityMap: { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] },
-      currentGroupId: "",
-      allDepartments: [],
-      allMembers: [],
-      allShifts: [],
-      allSchedule: {},
-      initialized: false,
-      dragGroupId: ""
-    };
-    
-    async function loadGroupAccessData(payload = {}) {
-      groupFeatureState.bundle = payload.accessBundle && typeof payload.accessBundle === "object"
-        ? payload.accessBundle
-        : await window.schedulerApi.getGroupAccessBundle();
-      groupFeatureState.entityMap = payload.entityMap && typeof payload.entityMap === "object"
-        ? payload.entityMap
-        : await window.schedulerApi.getGroupEntityMap();
-      return { bundle: groupFeatureState.bundle, entityMap: groupFeatureState.entityMap };
-    }
-    
-    
-    function getAccessActor() { return groupFeatureState.bundle?.actor || {}; }
-    function getAccessPermissions() { return Array.isArray(getAccessActor().permissions) ? getAccessActor().permissions : []; }
-    function hasPermission(permission) { return getAccessPermissions().includes(permission); }
-    function getApplicableGroupIds() { return Array.isArray(getAccessActor().applicableGroupIds) ? getAccessActor().applicableGroupIds.filter(Boolean) : []; }
-    function roleAppliesToGroup(groupId) { return Boolean(groupId && getApplicableGroupIds().includes(groupId)); }
-    function getAllGroups() { return Array.isArray(groupFeatureState.bundle?.groups) ? groupFeatureState.bundle.groups : []; }
-    function getSelectableGroups() {
-      const allowed = new Set(getApplicableGroupIds());
-      return getAllGroups().filter((group) => allowed.has(group.id) && group.status === "active");
-    }
-    function getCurrentGroup() { return getAllGroups().find((group) => group.id === groupFeatureState.currentGroupId) || null; }
-    function getActorGroup() { return getAllGroups().find((group) => group.id === getAccessActor().groupId) || null; }
-    function getAllRoles() { return Array.isArray(groupFeatureState.bundle?.roles) ? groupFeatureState.bundle.roles : []; }
-    function getRoleById(roleId) { return getAllRoles().find((role) => role.id === roleId) || null; }
-    
-    function chooseCurrentGroupId() {
-      const selectable = getSelectableGroups();
-      if (!selectable.length) return "";
-      const stored = localStorage.getItem("fyh.schedule.groupId") || "";
-      if (selectable.some((group) => group.id === stored)) return stored;
-      const actorGroupId = getAccessActor().groupId || "";
-      if (selectable.some((group) => group.id === actorGroupId)) return actorGroupId;
-      return selectable[0].id;
-    }
-    
-    function makeIdMap(rows, valueKey) {
-      return new Map((Array.isArray(rows) ? rows : []).map((row) => [row.id, row[valueKey]]));
-    }
-    
-    function appendDeletedLabel(value, deleted) {
-      const text = String(value || "");
-      if (!deleted || text.endsWith("（已刪除）")) return text;
-      return `${text}（已刪除）`;
-    }
-    
-    function enrichNormalizedState(normalized) {
-      const departmentGroups = makeIdMap(groupFeatureState.entityMap.departments, "groupId");
-      const departmentDeleted = makeIdMap(groupFeatureState.entityMap.departments, "deleted");
-      const memberGroups = makeIdMap(groupFeatureState.entityMap.members, "groupId");
-      const memberRoles = makeIdMap(groupFeatureState.entityMap.members, "roleId");
-      const memberDeleted = makeIdMap(groupFeatureState.entityMap.members, "deleted");
-      const shiftGroups = makeIdMap(groupFeatureState.entityMap.shifts, "groupId");
-      const shiftDeleted = makeIdMap(groupFeatureState.entityMap.shifts, "deleted");
-      const leaveDeleted = makeIdMap(groupFeatureState.entityMap.leaves, "deleted");
-      const overtimeDeleted = makeIdMap(groupFeatureState.entityMap.overtime, "deleted");
-    
-      normalized.departments = (normalized.departments || []).map((department) => {
-        const deleted = Boolean(department.deleted || departmentDeleted.get(department.id));
-        return { ...department, name: appendDeletedLabel(department.name, deleted), groupId: departmentGroups.get(department.id) || "", deleted };
-      });
-      normalized.members = (normalized.members || []).map((member) => {
-        const roleId = memberRoles.get(member.id) || member.roleId || "";
-        const deleted = Boolean(member.deleted || memberDeleted.get(member.id));
-        return { ...member, name: appendDeletedLabel(member.name, deleted), groupId: memberGroups.get(member.id) || "", roleId, deleted };
-      });
-      normalized.shifts = (normalized.shifts || []).map((shift) => {
-        const deleted = Boolean(shift.deleted || shiftDeleted.get(shift.id));
-        return {
-          ...shift,
-          name: appendDeletedLabel(shift.name, deleted),
-          groupId: shiftGroups.get(shift.id) || normalized.departments.find((department) => department.id === shift.applicableDeptId)?.groupId || "",
-          hiddenFromToolbar: deleted || Boolean(shift.hiddenFromToolbar),
-          deleted
-        };
-      });
-      normalized.leaves = (normalized.leaves || []).map((leave) => {
-        const deleted = Boolean(leave.deleted || leaveDeleted.get(leave.id));
-        return { ...leave, name: appendDeletedLabel(leave.name, deleted), hiddenFromToolbar: deleted || Boolean(leave.hiddenFromToolbar), deleted };
-      });
-      normalized.overtime = (normalized.overtime || []).map((overtime) => {
-        const deleted = Boolean(overtime.deleted || overtimeDeleted.get(overtime.id));
-        return { ...overtime, name: appendDeletedLabel(overtime.name, deleted), hiddenFromToolbar: deleted || Boolean(overtime.hiddenFromToolbar), deleted };
-      });
-      normalized.groups = getAllGroups();
-      normalized.accessRoles = getAllRoles();
-      normalized.access = getAccessActor();
-      return normalized;
-    }
-    
-    function scheduleKeyMemberId(key) {
-      if (typeof parseScheduleKeyParts === "function") return parseScheduleKeyParts(key)?.memberId || "";
-      const parts = String(key || "").split("_");
-      if (parts.length < 4) return "";
-      parts.splice(-3);
-      return parts.join("_");
-    }
-    
-    function snapshotAllState(normalized) {
-      groupFeatureState.allDepartments = deepClone(normalized.departments || []);
-      groupFeatureState.allMembers = deepClone(normalized.members || []);
-      groupFeatureState.allShifts = deepClone(normalized.shifts || []);
-      groupFeatureState.allSchedule = deepClone(normalized.schedule || {});
-    }
-    
-    function currentGroupMemberIds() {
-      return new Set(groupFeatureState.allMembers.filter((member) => member.groupId === groupFeatureState.currentGroupId).map((member) => member.id));
-    }
-    
-    function syncCurrentScopeIntoAll() {
-      const groupId = groupFeatureState.currentGroupId;
-      if (!groupId || !state || typeof state !== "object") return;
-      groupFeatureState.allDepartments = [
-        ...groupFeatureState.allDepartments.filter((item) => item.groupId !== groupId),
-        ...(state.departments || []).map((item) => ({ ...deepClone(item), groupId }))
-      ];
-      groupFeatureState.allMembers = [
-        ...groupFeatureState.allMembers.filter((item) => item.groupId !== groupId),
-        ...(state.members || []).map((item) => ({ ...deepClone(item), groupId: item.groupId || groupId }))
-      ];
-      groupFeatureState.allShifts = [
-        ...groupFeatureState.allShifts.filter((item) => item.groupId !== groupId),
-        ...(state.shifts || []).map((item) => ({ ...deepClone(item), groupId: item.groupId || groupId }))
-      ];
-      const memberIds = currentGroupMemberIds();
-      const nextSchedule = {};
-      Object.entries(groupFeatureState.allSchedule || {}).forEach(([key, slot]) => {
-        if (!memberIds.has(scheduleKeyMemberId(key))) nextSchedule[key] = slot;
-      });
-      Object.entries(state.schedule || {}).forEach(([key, slot]) => { nextSchedule[key] = deepClone(slot); });
-      groupFeatureState.allSchedule = nextSchedule;
-    }
-    
-    function applyCurrentGroupScope(targetState = state) {
-      const groupId = groupFeatureState.currentGroupId;
-      const departments = groupFeatureState.allDepartments.filter((item) => item.groupId === groupId);
-      const members = groupFeatureState.allMembers.filter((item) => item.groupId === groupId);
-      const shifts = groupFeatureState.allShifts.filter((item) => item.groupId === groupId);
-      const memberIds = new Set(members.map((member) => member.id));
-      const schedule = {};
-      Object.entries(groupFeatureState.allSchedule || {}).forEach(([key, slot]) => {
-        if (memberIds.has(scheduleKeyMemberId(key))) schedule[key] = deepClone(slot);
-      });
-      targetState.departments = deepClone(departments);
-      targetState.members = deepClone(members);
-      targetState.shifts = deepClone(shifts);
-      targetState.schedule = schedule;
-      targetState.groups = getAllGroups();
-      targetState.accessRoles = getAllRoles();
-      targetState.access = getAccessActor();
-      targetState.currentGroupId = groupId;
-      if (!targetState.departments.some((department) => department.id === targetState.deptFilter)) targetState.deptFilter = "all";
-      if (!targetState.departments.some((department) => department.id === targetState.tableDeptScopeFilter)) targetState.tableDeptScopeFilter = "all";
-      return targetState;
-    }
-    
-    function resetGroupInteractionState() {
-      state.selected = { type: null, id: null };
-      state.deptFilter = "all";
-      state.tableDeptScopeFilter = "all";
-      scheduleUndoStack = [];
-      scheduleRedoStack = [];
-      scheduleClipboard = null;
-      autoSchedulePreview = null;
-      clearScheduleRangeSelection?.();
-      syncScheduleHistoryButtons?.();
-    }
-    
-    async function switchScheduleGroup(groupId) {
-      if (!roleAppliesToGroup(groupId)) return;
-      const group = getAllGroups().find((item) => item.id === groupId && item.status === "active");
-      if (!group) return;
-      syncCurrentScopeIntoAll();
-      groupFeatureState.currentGroupId = groupId;
-      localStorage.setItem("fyh.schedule.groupId", groupId);
-      applyCurrentGroupScope(state);
-      resetGroupInteractionState();
-      currentMember = resolveCurrentMember();
-      renderAll();
-    }
-    
-    async function reloadGroupApplicationState() {
-      const previousGroupId = groupFeatureState.currentGroupId;
-      const payload = await window.schedulerApi.loadState();
-      await loadGroupAccessData(payload);
-      state = initializeGroupPermissionState(payload);
-      if (previousGroupId && getSelectableGroups().some((group) => group.id === previousGroupId)) {
-        groupFeatureState.currentGroupId = previousGroupId;
-        applyCurrentGroupScope(state);
-      }
-      currentMember = resolveCurrentMember();
-      scheduleApplicationLoaded = true;
-      managerDirectoryLoaded = false;
-      managerDirectoryLoading = null;
-      renderAll();
-    }
-    
-    function isArchivedDate(dateString, groupId = groupFeatureState.currentGroupId) {
-      return (groupFeatureState.entityMap.archiveRanges || []).some((range) => range.groupId === groupId && dateString >= range.startDate && dateString <= range.endDate);
-    }
-    
-    function isDeletedScheduleMember(memberId) {
-      return Boolean((state.members || []).find((member) => member.id === memberId)?.deleted);
-    }
-    
-    function markArchivedScheduleCells() {
-      document.querySelectorAll("#mainTable .cell[data-date]").forEach((cell) => {
-        const archived = isArchivedDate(cell.dataset.date || "");
-        cell.classList.toggle("archived-schedule-cell", archived);
-        if (archived) {
-          cell.dataset.readonly = "true";
-          cell.title = "此期間班表已封存";
-        }
-      });
-      const dates = typeof getVisibleDates === "function" ? getVisibleDates() : [];
-      const archivedVisible = dates.some((date) => isArchivedDate(date));
-      const card = document.getElementById("scheduleCard");
-      let banner = document.getElementById("scheduleArchiveBanner");
-      if (!archivedVisible) { banner?.remove(); return; }
-      if (!banner && card) {
-        banner = document.createElement("div");
-        banner.id = "scheduleArchiveBanner";
-        banner.className = "schedule-archive-banner";
-        const nav = card.querySelector(".calendar-nav");
-        nav?.insertAdjacentElement("afterend", banner);
-      }
-      if (banner) banner.textContent = "顯示範圍包含已封存班表；封存日期不可變動。";
-    }
-    
-    function ensureGroupSelector() {
-      const tableViewSelect = document.getElementById("tableViewSelect");
-      if (!tableViewSelect) return;
-      let selector = document.getElementById("scheduleGroupSelect");
-      if (!selector) {
-        selector = document.createElement("select");
-        selector.id = "scheduleGroupSelect";
-        selector.setAttribute("aria-label", "群組");
-        tableViewSelect.insertAdjacentElement("beforebegin", selector);
-      }
-      const options = getSelectableGroups();
-      selector.innerHTML = options.map((group) => `<option value="${escapeHtml(group.id)}" ${group.id === groupFeatureState.currentGroupId ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("");
-      selector.hidden = options.length === 0;
-      selector.disabled = options.length <= 1;
-    }
-    
-    function ensureFunctionMenuButtons() {
-      const menu = document.getElementById("coreActionsMenu");
-      if (!menu) return;
-      const definitions = [
-        ["groupSettingsMenuButton", "群組設定", "group_settings", "group-settings"],
-        ["permissionSettingsMenuButton", "權限設定", "permission_settings", "permission-settings"],
-        ["scheduleArchiveMenuButton", "班表封存", "schedule_view", "schedule-archive"]
-      ];
-      definitions.forEach(([id, label, permission, action]) => {
-        let button = document.getElementById(id);
-        if (!button) {
-          button = document.createElement("button");
-          button.id = id;
-          button.type = "button";
-          button.className = "ghost-btn ops-btn group-feature-action";
-          button.dataset.groupFeatureAction = action;
-          button.textContent = label;
-          menu.prepend(button);
-        }
-        const visible = action === "schedule-archive" ? hasPermission("schedule_view") : hasPermission(permission);
-        button.style.display = visible ? "" : "none";
-        button.disabled = !visible;
-      });
-    }
-    
-    function syncPermissionUi() {
-      ensureGroupSelector();
-      ensureFunctionMenuButtons();
-      markArchivedScheduleCells();
-      const visibility = {
-        shiftSettingsButton: hasPermission("schedule_manage"),
-        restComplianceButton: hasPermission("schedule_manage"),
-        deptSettingsButton: hasPermission("department_settings"),
-        leaveSettingsButton: hasPermission("leave_settings"),
-        overtimeSettingsButton: false,
-        weekStartSettingsButton: hasPermission("schedule_manage"),
-        autoSchedulePreviewButton: hasPermission("schedule_manage"),
-        autoFillSchedulePreviewButton: hasPermission("schedule_manage"),
-        autoScheduleApplyButton: hasPermission("schedule_manage"),
-        autoScheduleCancelButton: hasPermission("schedule_manage"),
-        exportSapButton: hasPermission("schedule_manage"),
-        exportLeaveButton: hasPermission("schedule_manage"),
-        exportOvertimeButton: hasPermission("schedule_manage")
-      };
-      Object.entries(visibility).forEach(([id, visible]) => {
-        const element = document.getElementById(id);
-        if (!element) return;
-        element.style.display = visible ? "" : "none";
-        element.disabled = !visible;
-      });
-      document.querySelectorAll("[data-open-department-settings]").forEach((element) => { element.style.display = hasPermission("department_settings") ? "" : "none"; });
-      document.querySelectorAll("[data-open-member-settings]").forEach((element) => { element.style.display = hasPermission("member_settings") ? "" : "none"; });
-      const mealButton = document.querySelector('[data-home-action="meal"]');
-      const actorGroup = getActorGroup();
-      if (mealButton) mealButton.style.display = actorGroup?.mealEnabled && actorGroup?.status === "active" ? "" : "none";
-      document.querySelectorAll('[data-meal-tab="stats"], [data-meal-tab="settings"]').forEach((tab) => { tab.style.display = hasPermission("meal_admin") ? "" : "none"; });
-    }
-    
-    function groupUnitNames(group) { return Array.isArray(group?.unitNames) && group.unitNames.length ? group.unitNames.join("、") : "-"; }
-    function renderGroupUnitTags(group) {
-      const unitNames = Array.isArray(group?.unitNames) ? group.unitNames.filter(Boolean) : [];
-      if (!unitNames.length) return '<span class="group-unit-empty">-</span>';
-      return `<div class="group-unit-tags">${unitNames.map((name) => `<span class="group-unit-tag">${escapeHtml(name)}</span>`).join("")}</div>`;
-    }
-    function actionIcon(name) {
-      const paths = name === "edit"
-        ? '<path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path>'
-        : '<path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M7 7l1 13h8l1-13"></path>';
-      return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
-    }
-    
-    function renderGroupSettingsRows() {
-      return getAllGroups().map((group) => `
-        <tr class="group-settings-row" draggable="true" data-group-row="${escapeHtml(group.id)}">
-          <td class="group-drag-col"><span class="group-drag-handle" title="拖曳排序">≡</span></td>
-          <td class="group-code-col">${escapeHtml(group.code || "")}</td><td class="group-name-col">${escapeHtml(group.name || "")}</td>
-          <td class="group-units-cell" title="${escapeHtml(groupUnitNames(group))}">${renderGroupUnitTags(group)}</td>
-          <td class="group-meal-col"><input type="checkbox" ${group.mealEnabled ? "checked" : ""} disabled aria-label="可否訂餐"></td>
-          <td class="group-status-col"><span class="group-status ${group.status === "active" ? "is-active" : "is-inactive"}">${group.status === "active" ? "啟用" : "停用"}</span></td>
-          <td class="group-actions-cell group-actions-col"><button class="settings-icon-btn" type="button" data-edit-schedule-group="${escapeHtml(group.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="ghost-btn compact-btn" type="button" data-toggle-schedule-group="${escapeHtml(group.id)}">${group.status === "active" ? "停用" : "啟用"}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-schedule-group="${escapeHtml(group.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td>
-        </tr>`).join("");
-    }
-    
-    function openGroupSettings() {
-      if (!hasPermission("group_settings")) return;
-      modalContext = { category: "group-settings" };
-      openEntityListModal({
-        title: "群組設定",
-        modalClass: "modal modal-wide group-settings-modal settings-list-modal",
-        body: `<div class="records-table-wrap"><table class="records-table group-settings-table"><thead><tr><th class="group-drag-col"></th><th class="group-code-col">群組代碼</th><th class="group-name-col">群組名稱</th><th class="group-units-col">單位</th><th class="group-meal-col">可否訂餐</th><th class="group-status-col">狀態</th><th class="group-actions-col">操作</th></tr></thead><tbody id="groupSettingsRows">${renderGroupSettingsRows()}</tbody></table></div>`,
-        headerButtons: '<button class="btn-primary" type="button" data-add-schedule-group="true">新增</button>',
-        hideFooterClose: true
-      });
-    }
-    
-    function openGroupForm(groupId = "") {
-      const group = getAllGroups().find((item) => item.id === groupId) || { id: "", code: "", name: "", mealEnabled: false, status: "active", sortOrder: getAllGroups().length };
-      modalContext = { category: "group-form", targetId: group.id || "" };
-      openEntityListModal({
-        title: group.id ? "修改群組" : "新增群組",
-        modalClass: "modal modal-form-compact",
-        body: `<div class="form-grid two-col"><div class="form-row"><label for="groupCode">群組代碼</label><input id="groupCode" type="text" maxlength="30" value="${escapeHtml(group.code)}"></div><div class="form-row"><label for="groupName">群組名稱</label><input id="groupName" type="text" maxlength="30" value="${escapeHtml(group.name)}"></div><div class="form-row"><label class="checkbox-row"><input id="groupMealEnabled" type="checkbox" ${group.mealEnabled ? "checked" : ""}>可否訂餐</label></div><div class="form-row"><label for="groupStatus">狀態</label><select id="groupStatus"><option value="active" ${group.status === "active" ? "selected" : ""}>啟用</option><option value="inactive" ${group.status === "inactive" ? "selected" : ""}>停用</option></select></div></div>`,
-        headerButtons: `<button class="btn-primary" type="button" data-save-schedule-group="true">${group.id ? "儲存修改" : "新增"}</button>`,
-        hideFooterClose: true
-      });
-    }
-    
-    async function saveScheduleGroupFromForm() {
-      const code = document.getElementById("groupCode")?.value.trim() || "";
-      const name = document.getElementById("groupName")?.value.trim() || "";
-      if (!code || !name) { reportValidationError("請填寫群組代碼與群組名稱"); return; }
-      const existing = getAllGroups().find((item) => item.id === modalContext.targetId) || null;
-      await window.schedulerApi.saveScheduleGroup({ id: existing?.id || "", code, name, mealEnabled: Boolean(document.getElementById("groupMealEnabled")?.checked), status: document.getElementById("groupStatus")?.value || "active", sortOrder: existing?.sortOrder ?? getAllGroups().length });
-      await reloadGroupApplicationState();
-      openGroupSettings();
-    }
-    
-    async function toggleScheduleGroup(groupId) {
-      const group = getAllGroups().find((item) => item.id === groupId);
-      if (!group) return;
-      await window.schedulerApi.saveScheduleGroup({ id: group.id, code: group.code, name: group.name, mealEnabled: group.mealEnabled, status: group.status === "active" ? "inactive" : "active", sortOrder: group.sortOrder });
-      await reloadGroupApplicationState();
-      openGroupSettings();
-    }
-    
-    async function deleteScheduleGroup(groupId) {
-      const group = getAllGroups().find((item) => item.id === groupId);
-      if (!group) return;
-      const typed = window.prompt(`刪除「${group.name}」後，未封存班表、群組內單位、班別及目前歸屬設定將一併刪除。已封存班表保留。\n\n請輸入「${group.name}」確認刪除：`) || "";
-      if (typed !== group.name) return;
-      await window.schedulerApi.deleteScheduleGroup(group.id, typed);
-      localStorage.removeItem("fyh.schedule.groupId");
-      await reloadGroupApplicationState();
-      openGroupSettings();
-    }
-    
-    async function saveGroupOrder() {
-      const ids = Array.from(document.querySelectorAll("#groupSettingsRows [data-group-row]")).map((row) => row.dataset.groupRow || "").filter(Boolean);
-      await window.schedulerApi.reorderScheduleGroups(ids);
-      await loadGroupAccessData();
-    }
-    
-    function permissionSummary(role) { return (role.permissions || []).map((permission) => GROUP_PERMISSION_LABELS[permission]).filter(Boolean).join("、") || "-"; }
-    function renderPermissionSummaryTags(role) {
-      const labels = (role.permissions || []).map((permission) => GROUP_PERMISSION_LABELS[permission]).filter(Boolean);
-      if (!labels.length) return '<span class="group-unit-empty">-</span>';
-      return `<div class="permission-summary-tags">${labels.map((label) => `<span class="group-unit-tag permission-summary-tag">${escapeHtml(label)}</span>`).join("")}</div>`;
-    }
-    function roleGroupSummary(role) {
-      const names = (role.groupIds || []).map((groupId) => getAllGroups().find((group) => group.id === groupId)?.name).filter(Boolean);
-      return names.length ? names.join("、") : "未設定";
-    }
-    
-    function openPermissionSettings() {
-      if (!hasPermission("permission_settings")) return;
-      modalContext = { category: "permission-settings" };
-      openEntityListModal({
-        title: "權限設定",
-        modalClass: "modal modal-wide permission-settings-modal settings-list-modal",
-        body: `<div class="records-table-wrap"><table class="records-table permission-settings-table"><thead><tr><th class="permission-role-col">角色名稱</th><th class="permission-group-col">適用群組</th><th class="permission-items-col">權限項目</th><th class="permission-actions-col">操作</th></tr></thead><tbody>${getAllRoles().map((role) => `<tr><td class="permission-role-col">${escapeHtml(role.name)}</td><td class="permission-group-col">${escapeHtml(roleGroupSummary(role))}</td><td class="permission-summary-cell permission-items-col">${renderPermissionSummaryTags(role)}</td><td class="permission-actions-col"><button class="settings-icon-btn" type="button" data-edit-access-role="${escapeHtml(role.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-access-role="${escapeHtml(role.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td></tr>`).join("")}</tbody></table></div>`,
-        headerButtons: '<button class="btn-primary" type="button" data-add-access-role="true">新增</button>',
-        hideFooterClose: true
-      });
-    }
-    
-    function permissionCheckbox(permission, checked) { return `<label class="permission-check"><input type="checkbox" value="${permission}" data-role-permission="${permission}" ${checked ? "checked" : ""}>${escapeHtml(GROUP_PERMISSION_LABELS[permission])}</label>`; }
-    
-    function openAccessRoleForm(roleId = "") {
-      const role = getAllRoles().find((item) => item.id === roleId) || { id: "", code: "", name: "", permissions: ["schedule_view"], groupIds: [groupFeatureState.currentGroupId].filter(Boolean) };
-      const permissions = new Set(role.permissions || []);
-      modalContext = { category: "access-role-form", targetId: role.id || "" };
-      openEntityListModal({
-        title: role.id ? "修改角色" : "新增角色",
-        modalClass: "modal modal-wide access-role-form-modal",
-        body: `<div class="form-row"><label for="accessRoleName">角色名稱</label><input id="accessRoleName" type="text" maxlength="30" value="${escapeHtml(role.name)}"></div><fieldset class="role-group-fieldset"><legend>適用群組</legend><div class="role-group-grid">${getAllGroups().map((group) => `<label><input type="checkbox" data-role-group="${escapeHtml(group.id)}" ${role.groupIds?.includes(group.id) ? "checked" : ""}>${escapeHtml(group.name)}</label>`).join("")}</div></fieldset><fieldset class="role-permission-fieldset"><legend>權限項目</legend><div class="schedule-permission-row"><span>班表</span><label><input type="checkbox" data-role-permission="schedule_view" ${permissions.has("schedule_view") ? "checked" : ""}>查看</label><label><input type="checkbox" data-role-permission="schedule_manage" ${permissions.has("schedule_manage") ? "checked" : ""}>管理</label></div><div class="role-permission-grid">${["group_settings","department_settings","member_settings","leave_settings","permission_settings","attendance_review","meal_admin"].map((permission) => permissionCheckbox(permission, permissions.has(permission))).join("")}</div></fieldset>`,
-        headerButtons: `<button class="btn-primary" type="button" data-save-access-role="true">${role.id ? "儲存修改" : "新增"}</button>`,
-        hideFooterClose: true
-      });
-    }
-    
-    async function saveAccessRoleFromForm() {
-      const name = document.getElementById("accessRoleName")?.value.trim() || "";
-      if (!name) { reportValidationError("請填寫角色名稱"); return; }
-      const existing = getAllRoles().find((role) => role.id === modalContext.targetId) || null;
-      const permissions = Array.from(document.querySelectorAll("[data-role-permission]:checked")).map((input) => input.dataset.rolePermission || "").filter(Boolean);
-      const groupIds = Array.from(document.querySelectorAll("[data-role-group]:checked")).map((input) => input.dataset.roleGroup || "").filter(Boolean);
-      await window.schedulerApi.saveAccessRole({ id: existing?.id || "", code: existing?.code || "", name, permissions, groupIds });
-      await reloadGroupApplicationState();
-      openPermissionSettings();
-    }
-    
-    async function deleteAccessRole(roleId) {
-      const role = getAllRoles().find((item) => item.id === roleId);
-      if (!role) return;
-      if (!await confirmAction(`確定要刪除角色「${role.name}」嗎？`)) return;
-      await window.schedulerApi.deleteAccessRole(roleId);
-      await reloadGroupApplicationState();
-      openPermissionSettings();
-    }
-    
-    async function loadArchiveList(groupId = null) { return await window.schedulerApi.getScheduleArchives(groupId); }
-    
-    async function openScheduleArchive() {
-      if (!hasPermission("schedule_view")) return;
-      const archives = await loadArchiveList(null);
-      const currentGroup = getCurrentGroup();
-      const visibleDates = typeof getVisibleDates === "function" ? getVisibleDates() : [];
-      const startDate = visibleDates[0] || getTodayDateString();
-      const endDate = visibleDates[visibleDates.length - 1] || getTodayDateString();
-      modalContext = { category: "schedule-archive" };
-      openEntityListModal({
-        title: "班表封存",
-        modalClass: "modal modal-wide schedule-archive-modal settings-list-modal",
-        body: `${hasPermission("schedule_manage") && currentGroup ? `<div class="archive-create-row"><div class="form-row"><label>群組</label><div class="readonly-pill">${escapeHtml(currentGroup.name)}</div></div><div class="form-row"><label for="archiveStartDate">開始日期</label><input id="archiveStartDate" type="date" value="${escapeHtml(startDate)}"></div><div class="form-row"><label for="archiveEndDate">結束日期</label><input id="archiveEndDate" type="date" value="${escapeHtml(endDate)}"></div><button class="btn-primary" type="button" data-create-schedule-archive="true">封存</button></div>` : ""}<div class="records-table-wrap"><table class="records-table archive-list-table"><thead><tr><th>群組</th><th>日期範圍</th><th>封存時間</th><th>封存人員</th><th>人員數</th><th>資料筆數</th><th>操作</th></tr></thead><tbody>${(archives || []).map((archive) => `<tr><td>${escapeHtml(archive.group_name || "")}</td><td>${escapeHtml(archive.start_date)}～${escapeHtml(archive.end_date)}</td><td>${escapeHtml(String(archive.archived_at || "").replace("T", " ").slice(0,16))}</td><td>${escapeHtml(archive.archived_by_name || "")}</td><td>${Number(archive.member_count || 0)}</td><td>${Number(archive.entry_count || 0)}</td><td><button class="ghost-btn compact-btn" type="button" data-view-schedule-archive="${escapeHtml(archive.id)}">查看</button>${hasPermission("schedule_manage") && roleAppliesToGroup(archive.group_id) ? `<button class="ghost-btn compact-btn" type="button" data-unarchive-schedule="${escapeHtml(archive.id)}">解除封存</button>` : ""}</td></tr>`).join("") || '<tr><td colspan="7">尚無封存班表</td></tr>'}</tbody></table></div>`,
-        hideFooterClose: true
-      });
-    }
-    
-    async function createScheduleArchive() {
-      const group = getCurrentGroup();
-      const startDate = document.getElementById("archiveStartDate")?.value || "";
-      const endDate = document.getElementById("archiveEndDate")?.value || "";
-      if (!group || !startDate || !endDate || startDate > endDate) { reportValidationError("封存日期範圍不正確"); return; }
-      if (!await confirmAction(`確定封存「${group.name}」${startDate}～${endDate} 的班表嗎？封存後不可修改。`)) return;
-      await window.schedulerApi.archiveSchedule(group.id, startDate, endDate);
-      groupFeatureState.entityMap = await window.schedulerApi.getGroupEntityMap();
-      scheduleUndoStack = [];
-      scheduleRedoStack = [];
-      renderAll();
-      await openScheduleArchive();
-    }
-    
-    async function unarchiveSchedule(archiveId) {
-      const archive = (await loadArchiveList(null) || []).find((item) => item.id === archiveId);
-      if (!archive) return;
-      if (!await confirmAction(`確定解除「${archive.group_name || ""}」${archive.start_date || ""}～${archive.end_date || ""} 的班表封存嗎？解除後可重新修改班表。`)) return;
-      await window.schedulerApi.unarchiveSchedule(archiveId);
-      groupFeatureState.entityMap = await window.schedulerApi.getGroupEntityMap();
-      scheduleUndoStack = [];
-      scheduleRedoStack = [];
-      await reloadGroupApplicationState();
-      await openScheduleArchive();
-    }
-    
-    async function viewScheduleArchive(archiveId) {
-      const result = await window.schedulerApi.getScheduleArchiveDetail(archiveId);
-      const archive = result?.archive || {};
-      const entries = Array.isArray(result?.entries) ? result.entries : [];
-      modalContext = { category: "schedule-archive-detail", targetId: archiveId };
-      openEntityListModal({
-        title: `${archive.group_name_snapshot || ""}封存班表`,
-        modalClass: "modal modal-wide archive-detail-modal",
-        body: `<p class="modal-description">${escapeHtml(archive.start_date || "")}～${escapeHtml(archive.end_date || "")}，封存後不可修改。</p><div class="records-table-wrap"><table class="records-table archive-detail-table"><thead><tr><th>日期</th><th>群組－單位</th><th>人員</th><th>班別</th><th>假別</th><th>加班</th><th>備註</th></tr></thead><tbody>${entries.map((entry) => `<tr><td>${escapeHtml(entry.work_date || "")}</td><td>${escapeHtml(`${archive.group_name_snapshot || ""}-${entry.department_name_snapshot || ""}`)}</td><td>${escapeHtml(entry.employee_name_snapshot || entry.employee_code_snapshot || "")}</td><td>${escapeHtml(entry.shift_name_snapshot || "-")}${entry.shift_start_time_snapshot ? `<br><span>${escapeHtml(String(entry.shift_start_time_snapshot).slice(0,5))}-${escapeHtml(String(entry.shift_end_time_snapshot || "").slice(0,5))}</span>` : ""}</td><td>${escapeHtml(entry.leave_name_snapshot || "-")}</td><td>${escapeHtml(entry.overtime_name_snapshot || "-")}</td><td>${escapeHtml(entry.note || entry.leave_reason || entry.overtime_reason || "")}</td></tr>`).join("") || '<tr><td colspan="7">沒有班表資料</td></tr>'}</tbody></table></div>`,
-        hideFooterClose: true
-      });
-    }
-    
-    function getDepartmentsForGroup(groupId) { return groupFeatureState.allDepartments.filter((department) => department.groupId === groupId && !department.deleted); }
-    function getShiftsForGroup(groupId) { return groupFeatureState.allShifts.filter((shift) => shift.groupId === groupId && !shift.deleted); }
-    function renderMemberGroupOptions(selectedGroupId) { return getSelectableGroups().map((group) => `<option value="${escapeHtml(group.id)}" ${group.id === selectedGroupId ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join(""); }
-    function renderMemberUnitOptions(groupId, selectedDeptId = "") { return getDepartmentsForGroup(groupId).map((department) => `<option value="${escapeHtml(department.id)}" ${department.id === selectedDeptId ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join(""); }
-    function renderMemberGroupShiftSelector(groupId, selectedIds = []) {
-      const shifts = getShiftsForGroup(groupId).filter((shift) => !shift.hiddenFromToolbar);
-      return `<div class="schedule-dept-list" id="memberScheduleShiftList" hidden>${shifts.map((shift, index) => { const checked = selectedIds.includes(shift.id); return `<label class="schedule-dept-option" draggable="true" data-schedule-shift-option="${escapeHtml(shift.id)}"><input type="checkbox" value="${escapeHtml(shift.id)}" ${checked ? "checked" : ""}><span class="schedule-dept-rank">${checked ? index + 1 : "-"}</span><span>${escapeHtml(shift.name)}</span></label>`; }).join("")}</div>`;
-    }
-    function memberShiftNamesForGroup(groupId, selectedIds) {
-      const map = new Map(getShiftsForGroup(groupId).map((shift) => [shift.id, shift.name]));
-      const names = (selectedIds || []).map((id) => map.get(id)).filter(Boolean);
-      return names.length ? names.join("、") : "未指定";
-    }
-    function renderMemberRoleOptions(member) {
-      const selectedRoleId = member?.roleId || getRoleById(member?.role)?.id || getRoleByLegacyRole(member?.role)?.id || "";
-      const options = hasPermission("permission_settings") ? getAllRoles() : getAllRoles().filter((role) => role.id === selectedRoleId);
-      return options.map((role) => `<option value="${escapeHtml(role.id)}" ${role.id === selectedRoleId ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("");
-    }
-    
-    function openMemberForm(mode, memberId = "") {
-      const returnTo = modalContext?.category === "department-settings"
-        ? captureSettingsReturnContext({ category: "department-settings", view: modalContext.view || departmentSettingsView })
-        : modalContext?.category === "member-settings" ? captureSettingsReturnContext({ category: "member-settings" }) : null;
-      const employeeRole = getAllRoles().find((role) => role.code === "employee") || getAllRoles()[0] || null;
-      const member = mode === "edit" ? state.members.find((item) => item.id === memberId) : {
-        id: "", code: "", name: "", groupId: groupFeatureState.currentGroupId,
-        deptId: getDepartmentsForGroup(groupFeatureState.currentGroupId)[0]?.id || "",
-        hireDate: "", leaveDate: "", payByDay: false, fixedRestWeekday: 0,
-        scheduleShiftIds: [], roleId: employeeRole?.id || "", role: employeeRole?.id || ""
-      };
-      if (!member) return;
-      if (!canEditMemberAccount(member)) { showInfoMessage("沒有權限修改此帳號"); return; }
-      const groupId = member.groupId || groupFeatureState.currentGroupId;
-      const selectedShifts = Array.isArray(member.scheduleShiftIds) ? member.scheduleShiftIds : [];
-      modalContext = { mode, category: "member", targetId: memberId, returnTo };
-      openEntityListModal({
-        title: `${mode === "edit" ? "修改" : "新增"}人員`,
-        modalClass: "modal modal-member-form",
-        body: `<div class="form-grid two-col"><div class="form-row"><label for="memberCode">工號</label><input id="memberCode" type="text" maxlength="12" value="${escapeHtml(member.code)}"></div><div class="form-row"><label for="memberName">姓名</label><input id="memberName" type="text" maxlength="12" value="${escapeHtml(member.name)}"></div><div class="form-row"><label for="memberRole">權限</label><select id="memberRole" ${hasPermission("permission_settings") ? "" : "disabled"}>${renderMemberCustomRoleOptions(member)}</select></div><div class="form-row"><label for="memberSalaryType">計薪方式</label><select id="memberSalaryType"><option value="monthly" ${member.payByDay ? "" : "selected"}>月薪</option><option value="daily" ${member.payByDay ? "selected" : ""}>日薪</option></select></div><div class="form-row"><label for="memberHireDate">到職日</label><input id="memberHireDate" type="date" value="${escapeHtml(member.hireDate)}"></div><div class="form-row"><label for="memberLeaveDate">離職日</label><input id="memberLeaveDate" type="date" value="${escapeHtml(member.leaveDate)}"></div><div class="form-row"><label for="memberFixedRestWeekday">例假星期</label><select id="memberFixedRestWeekday">${REST_WEEKDAY_OPTIONS.map((option) => `<option value="${option.value}" ${normalizeRestWeekday(member.fixedRestWeekday) === option.value ? "selected" : ""}>${option.label}</option>`).join("")}</select></div><div class="form-row"><label for="memberGroup">所屬群組</label><select id="memberGroup">${renderMemberGroupOptions(groupId)}</select></div><div class="form-row"><label for="memberDept">所屬單位</label><select id="memberDept">${renderMemberUnitOptions(groupId, member.deptId || "")}</select></div>${mode === "edit" ? `<div class="form-row"><button class="ghost-btn" type="button" data-reset-member-password="${escapeHtml(member.code)}">重設密碼為 0000</button></div>` : ""}<div class="form-row form-row-wide"><label>排班班別</label><div class="schedule-dept-summary-row"><div class="readonly-pill schedule-shift-summary">${escapeHtml(memberShiftNamesForGroup(groupId, selectedShifts))}</div><button class="ghost-btn compact-btn" type="button" data-toggle-schedule-shifts="true">設定</button></div>${renderMemberGroupShiftSelector(groupId, selectedShifts)}</div></div>`,
-        headerButtons: `<button class="btn-primary" type="button" data-save-member="${mode}">${mode === "edit" ? "儲存修改" : "新增"}</button>`,
-        hideFooterClose: true
-      });
-    }
-    
-    async function saveMember(mode) {
-      const returnTo = modalContext.returnTo || null;
-      const hireDate = document.getElementById("memberHireDate")?.value || "";
-      const leaveDate = document.getElementById("memberLeaveDate")?.value || "";
-      if (hireDate && leaveDate && !isValidDateRange(hireDate, leaveDate)) { reportValidationError("到職日必須早於離職日"); return; }
-      const previousMember = mode === "edit" ? state.members.find((member) => member.id === modalContext.targetId) || null : null;
-      const groupId = document.getElementById("memberGroup")?.value || "";
-      const deptId = document.getElementById("memberDept")?.value || "";
-      const roleId = document.getElementById("memberRole")?.value || previousMember?.roleId || "";
-      const scheduleShiftIds = readMemberScheduleShiftIds();
-      const payload = {
-        id: mode === "edit" ? modalContext.targetId : uid("m"), code: document.getElementById("memberCode")?.value.trim(), name: document.getElementById("memberName")?.value.trim(),
-        groupId, deptId, scheduleShiftIds, positionId: previousMember?.positionId || "", proxyMemberId: "", hireDate, leaveDate,
-        payByDay: document.getElementById("memberSalaryType")?.value === "daily", fixedRestWeekday: normalizeRestWeekday(document.getElementById("memberFixedRestWeekday")?.value),
-        monthlyRestDays: Math.max(0, Number(previousMember?.monthlyRestDays) || 0), roleId, role: roleId
-      };
-      if (!payload.code || !payload.name) return reportValidationError("請填寫人員編號與姓名");
-      if (!payload.groupId) return reportValidationError("請選擇所屬群組");
-      if (!payload.deptId) return reportValidationError("請選擇所屬單位");
-      try {
-        if (previousMember && previousMember.groupId !== payload.groupId) await window.schedulerApi.validateMemberGroupChange(previousMember.code, payload.groupId);
-        await window.schedulerApi.syncMemberProfile(payload, previousMember?.code || "");
-        await reloadGroupApplicationState();
-        closeModal();
-        await reopenSettingsModalPreservingScroll(returnTo || { category: "member-settings", scrollTop: 0 });
-      } catch (error) { reportValidationError(`同步人員資料失敗：${error.message}`); }
-    }
-    
-    function syncMemberGroupFields(groupId) {
-      const deptSelect = document.getElementById("memberDept");
-      if (deptSelect) deptSelect.innerHTML = renderMemberUnitOptions(groupId, "");
-      const shiftList = document.getElementById("memberScheduleShiftList");
-      if (shiftList) shiftList.outerHTML = renderMemberGroupShiftSelector(groupId, []);
-      const summary = document.querySelector(".schedule-shift-summary");
-      if (summary) summary.textContent = "未指定";
-    }
-    
-    function renderAttendanceGroupOptions(selectedValue) { return `<option value="">全部群組</option>${getSelectableGroups().map((group) => `<option value="${escapeHtml(group.id)}" ${group.id === selectedValue ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("")}`; }
-    
-    function renderAttendanceReviewSectionWithGroups() {
-      const review = ensureAttendanceReviewState();
-      const filters = review.filters;
-      const rows = review.rows || [];
-      return `<section class="records-section"><div class="records-admin-toolbar overtime-review-toolbar attendance-review-toolbar"><div class="records-admin-filters overtime-review-filters attendance-review-filters"><label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-attendance-review-filter="fromDate"></label><label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-attendance-review-filter="toDate"></label><label class="records-admin-field"><span>群組</span><select data-attendance-review-filter="groupId">${renderAttendanceGroupOptions(filters.groupId || "")}</select></label><label class="records-admin-field"><span>人員</span><select data-attendance-review-filter="memberId">${memberOptions(filters.memberId, review.members)}</select></label><label class="records-admin-field"><span>異常</span><select data-attendance-review-filter="issueType"><option value="" ${!filters.issueType ? "selected" : ""}>全部顯示</option>${(review.issueTypes || []).map((type) => `<option value="${escapeHtml(type)}" ${filters.issueType === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label><label class="records-admin-field"><span>狀態</span><select data-attendance-review-filter="status"><option value="unreviewed" ${filters.status === "unreviewed" ? "selected" : ""}>未審</option><option value="reviewed" ${filters.status === "reviewed" ? "selected" : ""}>已審</option><option value="all" ${filters.status === "all" ? "selected" : ""}>全部</option></select></label></div><div class="records-admin-actions overtime-review-actions attendance-review-actions"><button class="ghost-btn compact-btn" type="button" data-export-attendance-review="true">匯出加班</button><button class="primary-btn compact-btn" type="button" data-attendance-review-batch="reviewed">批次審核</button><button class="ghost-btn compact-btn" type="button" data-attendance-review-batch="returned">批次退回</button></div></div>${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}<div class="records-table-wrap"><table class="records-table attendance-review-table"><thead><tr><th class="attendance-review-check-col"><input type="checkbox" data-attendance-review-check-all></th><th>日期</th><th>員工</th><th>圖示</th><th>群組－單位</th><th>打卡時間</th><th>上班時數</th><th>加班時數</th><th>備註</th><th>異常</th><th>狀態</th><th>操作</th></tr></thead><tbody>${rows.map((row) => {
-        const token = `${row.user_id}:${row.work_date}`;
-        const groupUnit = [row.groupName || row.group_name || "", row.departmentName || row.department_name || ""].filter(Boolean).join("-") || "-";
-        return `<tr><td><input type="checkbox" data-attendance-review-check="${escapeHtml(token)}"></td><td>${escapeHtml(row.work_date || "")}</td><td>${escapeHtml(row.employee_name || "")}</td><td>${renderScheduleIcon(row)}</td><td>${escapeHtml(groupUnit)}</td><td>${renderPunchLine("上班", row.clock_in_at, row.clock_in_location) || "-"}${renderPunchLine("下班", row.clock_out_at, row.clock_out_location)}</td><td>${row.regularHours ?? ""}</td><td>${row.overtimeHours ?? ""}</td><td>${escapeHtml(row.note || "")}</td><td>${escapeHtml((row.issues || []).join("、") || "正常")}</td><td>${renderReviewStatus(row.reviewed)}</td><td><div class="attendance-review-row-actions"><button class="settings-icon-btn attendance-review-action-btn" type="button" data-edit-attendance-review="${escapeHtml(token)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="settings-icon-btn attendance-review-action-btn attendance-review-toggle ${row.reviewed ? "is-reviewed" : "is-unreviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}" aria-label="${row.reviewed ? "取消審核" : "審核"}" title="${row.reviewed ? "取消審核" : "審核"}"><svg viewBox="0 0 24 24"><path d="M9 4h6l1 2h3v15H5V6h3l1-2z"></path><path d="m9 13 2 2 4-5"></path></svg></button>${row.id ? `<button class="settings-icon-btn attendance-review-action-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}</div></td></tr>`;
-      }).join("") || '<tr><td colspan="12">沒有資料</td></tr>'}</tbody></table></div>${renderAttendanceReviewPagination(review)}</section>`;
-    }
-    
-    function bindGroupFeatureEvents() {
-      document.addEventListener("change", (event) => {
-        const target = event.target;
-        if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
-        if (target.id === "scheduleGroupSelect") { void switchScheduleGroup(target.value); return; }
-        if (target.id === "memberGroup") { syncMemberGroupFields(target.value); return; }
-        if (target.dataset.rolePermission === "schedule_manage" && target.checked) {
-          const view = document.querySelector('[data-role-permission="schedule_view"]');
-          if (view) view.checked = true;
-          return;
-        }
-        if (target.dataset.rolePermission === "schedule_view" && !target.checked) {
-          const manage = document.querySelector('[data-role-permission="schedule_manage"]');
-          if (manage) manage.checked = false;
-        }
-      });
-      document.addEventListener("click", (event) => {
-        const button = event.target.closest("button");
-        if (!button) return;
-        const action = button.dataset.groupFeatureAction;
-        if (action === "group-settings") { event.preventDefault(); closeCoreActionsMenu(); openGroupSettings(); return; }
-        if (action === "permission-settings") { event.preventDefault(); closeCoreActionsMenu(); openPermissionSettings(); return; }
-        if (action === "schedule-archive") { event.preventDefault(); closeCoreActionsMenu(); void openScheduleArchive(); return; }
-        if (button.dataset.addScheduleGroup !== undefined) { openGroupForm(); return; }
-        if (button.dataset.editScheduleGroup) { openGroupForm(button.dataset.editScheduleGroup); return; }
-        if (button.dataset.saveScheduleGroup !== undefined) { void saveScheduleGroupFromForm().catch((error) => reportValidationError(error.message)); return; }
-        if (button.dataset.toggleScheduleGroup) { void toggleScheduleGroup(button.dataset.toggleScheduleGroup).catch((error) => showInfoMessage(error.message)); return; }
-        if (button.dataset.deleteScheduleGroup) { void deleteScheduleGroup(button.dataset.deleteScheduleGroup).catch((error) => showInfoMessage(error.message)); return; }
-        if (button.dataset.addAccessRole !== undefined) { openAccessRoleForm(); return; }
-        if (button.dataset.editAccessRole) { openAccessRoleForm(button.dataset.editAccessRole); return; }
-        if (button.dataset.saveAccessRole !== undefined) { void saveAccessRoleFromForm().catch((error) => reportValidationError(error.message)); return; }
-        if (button.dataset.deleteAccessRole) { void deleteAccessRole(button.dataset.deleteAccessRole).catch((error) => showInfoMessage(error.message)); return; }
-        if (button.dataset.createScheduleArchive !== undefined) { void createScheduleArchive().catch((error) => reportValidationError(error.message)); return; }
-        if (button.dataset.viewScheduleArchive) { void viewScheduleArchive(button.dataset.viewScheduleArchive).catch((error) => showInfoMessage(error.message)); return; }
-        if (button.dataset.unarchiveSchedule) { void unarchiveSchedule(button.dataset.unarchiveSchedule).catch((error) => showInfoMessage(error.message)); }
-      });
-      document.addEventListener("dragstart", (event) => {
-        const row = event.target.closest?.("[data-group-row]");
-        if (!row) return;
-        groupFeatureState.dragGroupId = row.dataset.groupRow || "";
-        row.classList.add("is-dragging");
-      });
-      document.addEventListener("dragover", (event) => {
-        const row = event.target.closest?.("[data-group-row]");
-        if (!row || !groupFeatureState.dragGroupId) return;
-        event.preventDefault();
-        const dragging = document.querySelector(`[data-group-row="${groupFeatureState.dragGroupId}"]`);
-        if (!dragging || dragging === row) return;
-        const rect = row.getBoundingClientRect();
-        row.parentElement?.insertBefore(dragging, event.clientY < rect.top + rect.height / 2 ? row : row.nextSibling);
-      });
-      document.addEventListener("dragend", (event) => {
-        const row = event.target.closest?.("[data-group-row]");
-        row?.classList.remove("is-dragging");
-        if (!groupFeatureState.dragGroupId) return;
-        groupFeatureState.dragGroupId = "";
-        void saveGroupOrder().catch((error) => showInfoMessage(error.message));
-      });
-    }
-    
-    
-    function initializeGroupPermissionState(payload) {
-      const normalized = enrichNormalizedState(normalizeState(payload));
-      if (!groupFeatureState.currentGroupId || !getSelectableGroups().some((group) => group.id === groupFeatureState.currentGroupId)) {
-        groupFeatureState.currentGroupId = chooseCurrentGroupId();
-      }
-      snapshotAllState(normalized);
-      groupFeatureState.initialized = true;
-      return applyCurrentGroupScope(normalized);
-    }
-    
-    function refreshGroupEntityMap(entityMap) {
-      groupFeatureState.entityMap = entityMap && typeof entityMap === "object"
-        ? entityMap
-        : { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] };
-    }
-    
-  operator: 'doesNotMatch'
-  stack: |-
-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/access-architecture.test.js:99:12)
-    Test.runInAsyncScope (node:async_hooks:214:14)
-    Test.run (node:internal/test_runner/test:1047:25)
-    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
-    Test.postRun (node:internal/test_runner/test:1173:19)
-    Test.run (node:internal/test_runner/test:1101:12)
-    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
   ...
 # Subtest: 首頁與簽到簿使用新導覽
 ok 9 - 首頁與簽到簿使用新導覽
   ---
-  duration_ms: 0.951665
+  duration_ms: 1.136498
   type: 'test'
   ...
 # Subtest: 個人記錄與簽到審核欄位完整
 ok 10 - 個人記錄與簽到審核欄位完整
   ---
-  duration_ms: 0.346116
+  duration_ms: 0.380415
   type: 'test'
   ...
 # Subtest: 前端只呼叫統一 attendance-ledger API
 ok 11 - 前端只呼叫統一 attendance-ledger API
   ---
-  duration_ms: 1.124618
+  duration_ms: 1.814325
   type: 'test'
   ...
 # Subtest: 每日簽到與訂餐後端只使用新資料模型
 ok 12 - 每日簽到與訂餐後端只使用新資料模型
   ---
-  duration_ms: 0.529868
+  duration_ms: 0.657667
   type: 'test'
   ...
 # Subtest: Edge Function 部署清單只包含新簽到端點
 ok 13 - Edge Function 部署清單只包含新簽到端點
   ---
-  duration_ms: 0.274763
+  duration_ms: 0.307777
   type: 'test'
   ...
 # Subtest: 舊出勤 Edge Function 原始碼已移除
 ok 14 - 舊出勤 Edge Function 原始碼已移除
   ---
-  duration_ms: 0.242683
+  duration_ms: 0.310491
   type: 'test'
   ...
 # Subtest: 正式 SQL 不保留舊出勤結構或遷移檔
 ok 15 - 正式 SQL 不保留舊出勤結構或遷移檔
   ---
-  duration_ms: 2.679208
+  duration_ms: 3.365378
   type: 'test'
   ...
 # Subtest: 簽到審核移除代為申請並只顯示員工姓名
 ok 16 - 簽到審核移除代為申請並只顯示員工姓名
   ---
-  duration_ms: 1.904783
+  duration_ms: 1.315964
   type: 'test'
   ...
 # Subtest: 簽到審核使用一致班表圖示與三個單行 SVG 操作
 ok 17 - 簽到審核使用一致班表圖示與三個單行 SVG 操作
   ---
-  duration_ms: 1.786423
+  duration_ms: 2.816934
   type: 'test'
   ...
 # Subtest: 背景初始化完成後不強制把已開啟頁面切回首頁
 ok 18 - 背景初始化完成後不強制把已開啟頁面切回首頁
   ---
-  duration_ms: 0.419142
+  duration_ms: 1.890709
   type: 'test'
   ...
 # Subtest: 個人記錄輸入採暫存與靜默重新讀取
 ok 19 - 個人記錄輸入採暫存與靜默重新讀取
   ---
-  duration_ms: 0.869993
+  duration_ms: 0.638768
   type: 'test'
   ...
 # Subtest: 簽到審核匯出使用正式 exportRows 十二欄契約
 ok 20 - 簽到審核匯出使用正式 exportRows 十二欄契約
   ---
-  duration_ms: 2.926039
+  duration_ms: 2.25544
   type: 'test'
   ...
 # Subtest: 簽到審核使用寬版容器、整齊篩選列與完整操作欄
 ok 21 - 簽到審核使用寬版容器、整齊篩選列與完整操作欄
   ---
-  duration_ms: 3.258528
+  duration_ms: 1.714146
   type: 'test'
   ...
 # Subtest: 正式請假匯出排除休例假、隱藏單位與無假別資料
 ok 22 - 正式請假匯出排除休例假、隱藏單位與無假別資料
   ---
-  duration_ms: 2.139151
+  duration_ms: 1.166152
   type: 'test'
   ...
 # Subtest: 正式加班匯出輸出十二欄時間與休息區段
 ok 23 - 正式加班匯出輸出十二欄時間與休息區段
   ---
-  duration_ms: 0.333923
+  duration_ms: 0.187058
   type: 'test'
   ...
 # Subtest: 正式 SAP 休例假匯出套用代碼並排除日薪人員
 ok 24 - 正式 SAP 休例假匯出套用代碼並排除日薪人員
   ---
-  duration_ms: 0.322872
+  duration_ms: 0.138716
   type: 'test'
   ...
 # Subtest: SAP CSV 保留 BOM 並正確跳脫逗號與雙引號
 ok 25 - SAP CSV 保留 BOM 並正確跳脫逗號與雙引號
   ---
-  duration_ms: 0.33774
+  duration_ms: 0.209742
   type: 'test'
   ...
 # Subtest: 全新資料庫只保留兩個正式 SQL 檔與每日簽到模型
 ok 26 - 全新資料庫只保留兩個正式 SQL 檔與每日簽到模型
   ---
-  duration_ms: 3.460886
+  duration_ms: 2.485893
   type: 'test'
   ...
 # Subtest: 正式 SQL 必須包含群組、角色權限與班表封存模型
 ok 27 - 正式 SQL 必須包含群組、角色權限與班表封存模型
   ---
-  duration_ms: 4.189636
+  duration_ms: 2.541955
   type: 'test'
   ...
 # Subtest: 群組簽到審核 Edge Function 必須列入部署清單與文件
 ok 28 - 群組簽到審核 Edge Function 必須列入部署清單與文件
   ---
-  duration_ms: 1.034791
+  duration_ms: 0.721802
   type: 'test'
   ...
 # Subtest: 正式文件不得描述切換期相容或補丁式執行
 ok 29 - 正式文件不得描述切換期相容或補丁式執行
   ---
-  duration_ms: 1.119227
+  duration_ms: 0.845055
   type: 'test'
   ...
 # Subtest: 可從 PR 說明讀取允許與禁止修改範圍
 ok 30 - 可從 PR 說明讀取允許與禁止修改範圍
   ---
-  duration_ms: 2.385781
+  duration_ms: 1.731963
   type: 'test'
   ...
 # Subtest: 路徑規則支援精確檔案、單層萬用字元與遞迴目錄
 ok 31 - 路徑規則支援精確檔案、單層萬用字元與遞迴目錄
   ---
-  duration_ms: 1.082008
+  duration_ms: 0.691808
   type: 'test'
   ...
 # Subtest: 超出允許範圍或命中禁止範圍時應失敗
 ok 32 - 超出允許範圍或命中禁止範圍時應失敗
   ---
-  duration_ms: 0.971572
+  duration_ms: 0.633531
   type: 'test'
   ...
 # Subtest: 禁止使用允許整個儲存庫的過度寬泛規則
 ok 33 - 禁止使用允許整個儲存庫的過度寬泛規則
   ---
-  duration_ms: 0.718911
+  duration_ms: 0.496658
   type: 'test'
   ...
 # Subtest: Git 修改清單應保留中文檔名而不是引號跳脫碼
 ok 34 - Git 修改清單應保留中文檔名而不是引號跳脫碼
   ---
-  duration_ms: 66.40528
+  duration_ms: 50.197962
   type: 'test'
   ...
 # Subtest: 正式檢查與 workflow 不再使用 V2 階段命名
 ok 35 - 正式檢查與 workflow 不再使用 V2 階段命名
   ---
-  duration_ms: 1.748942
+  duration_ms: 1.202856
   type: 'test'
   ...
 # Subtest: 測試檔名不再保留 phase 或 v2 階段名稱
 ok 36 - 測試檔名不再保留 phase 或 v2 階段名稱
   ---
-  duration_ms: 1.356711
+  duration_ms: 0.967397
   type: 'test'
   ...
 # Subtest: bundle 說明不再標示過渡或 legacy 執行模式
 ok 37 - bundle 說明不再標示過渡或 legacy 執行模式
   ---
-  duration_ms: 0.369208
+  duration_ms: 0.25566
   type: 'test'
   ...
 # Subtest: JavaScript 架構檢查阻擋共享模組重複函式
 ok 38 - JavaScript 架構檢查阻擋共享模組重複函式
   ---
-  duration_ms: 193.712387
+  duration_ms: 166.778296
   type: 'test'
   ...
 # Subtest: 正式目錄不得保留一次性遷移腳本、失效檢查與未部署端點
 ok 39 - 正式目錄不得保留一次性遷移腳本、失效檢查與未部署端點
   ---
-  duration_ms: 1.419338
+  duration_ms: 0.963531
   type: 'test'
   ...
 # Subtest: 匯出流程不得由後載入模組覆寫正式 API 或匯出器
 ok 40 - 匯出流程不得由後載入模組覆寫正式 API 或匯出器
   ---
-  duration_ms: 6.932892
+  duration_ms: 4.388869
   type: 'test'
   ...
 # Subtest: 訂餐核心樣式各只有一個正式根層來源
 ok 41 - 訂餐核心樣式各只有一個正式根層來源
   ---
-  duration_ms: 15.767396
+  duration_ms: 18.899082
   type: 'test'
   ...
 # Subtest: 班表外框不再依賴根層後載入修正
 ok 42 - 班表外框不再依賴根層後載入修正
   ---
-  duration_ms: 2.477141
+  duration_ms: 1.29933
   type: 'test'
   ...
 # Subtest: 既有打卡樣式規則不再於 pages 重複
 ok 43 - 既有打卡樣式規則不再於 pages 重複
   ---
-  duration_ms: 1.800213
+  duration_ms: 0.543818
   type: 'test'
   ...
 # Subtest: 班表共用樣式不再依賴後載入覆蓋
 ok 44 - 班表共用樣式不再依賴後載入覆蓋
   ---
-  duration_ms: 3.999771
+  duration_ms: 2.811215
   type: 'test'
   ...
 # Subtest: 手機主要頁面與表單響應式規格集中於 responsive
 ok 45 - 手機主要頁面與表單響應式規格集中於 responsive
   ---
-  duration_ms: 1.985394
+  duration_ms: 1.423925
   type: 'test'
   ...
 # Subtest: 手機假別與加班設定表格應使用內部水平捲動
 ok 46 - 手機假別與加班設定表格應使用內部水平捲動
   ---
-  duration_ms: 0.527634
+  duration_ms: 0.317472
   type: 'test'
   ...
 # Subtest: 訂餐與簽到簿使用 Chrome 式共用籤頁
 ok 47 - 訂餐與簽到簿使用 Chrome 式共用籤頁
   ---
-  duration_ms: 1.513824
+  duration_ms: 0.77442
   type: 'test'
   ...
 # Subtest: 電腦版主要頁面靠上且訂餐統計總計維持單行
 ok 48 - 電腦版主要頁面靠上且訂餐統計總計維持單行
   ---
-  duration_ms: 1.032686
+  duration_ms: 0.621293
   type: 'test'
   ...
 # Subtest: 未隱藏且無人員的單位仍顯示並可參與班表拖曳
 ok 49 - 未隱藏且無人員的單位仍顯示並可參與班表拖曳
   ---
-  duration_ms: 1.752539
+  duration_ms: 1.73723
   type: 'test'
   ...
 # Subtest: 人員可拖入空單位並保存新的所屬單位
 ok 50 - 人員可拖入空單位並保存新的所屬單位
   ---
-  duration_ms: 0.319496
+  duration_ms: 0.353495
   type: 'test'
   ...
 # Subtest: 空單位顯示與拖曳不介入自動排班候選人運算
 ok 51 - 空單位顯示與拖曳不介入自動排班候選人運算
   ---
-  duration_ms: 1.279958
+  duration_ms: 1.677301
   type: 'test'
   ...
 # Subtest: 儲存庫只保留單一正式 GitHub Actions workflow
 ok 52 - 儲存庫只保留單一正式 GitHub Actions workflow
   ---
-  duration_ms: 2.239938
+  duration_ms: 1.216537
   type: 'test'
   ...
 # Subtest: 正式 workflow 只驗證，不重複部署 GitHub Pages
 ok 53 - 正式 workflow 只驗證，不重複部署 GitHub Pages
   ---
-  duration_ms: 0.740051
+  duration_ms: 0.514515
   type: 'test'
   ...
 # Subtest: 純文件變更只跑輕量守門測試，其他異動跑完整驗證
 ok 54 - 純文件變更只跑輕量守門測試，其他異動跑完整驗證
   ---
-  duration_ms: 0.826031
+  duration_ms: 0.471079
   type: 'test'
   ...
 # Subtest: 正式 workflow 不得自動修改或推送 PR 分支
 ok 55 - 正式 workflow 不得自動修改或推送 PR 分支
   ---
-  duration_ms: 0.416707
+  duration_ms: 0.236231
   type: 'test'
   ...
 # Subtest: 群組設定單位欄使用可換行膠囊標籤並取得主要寬度
 ok 56 - 群組設定單位欄使用可換行膠囊標籤並取得主要寬度
   ---
-  duration_ms: 2.774897
+  duration_ms: 1.621618
   type: 'test'
   ...
 # Subtest: 首頁只讀最小群組資格，不在登入後預載完整班表
 ok 57 - 首頁只讀最小群組資格，不在登入後預載完整班表
   ---
-  duration_ms: 3.388331
+  duration_ms: 3.135257
   type: 'test'
   ...
 # Subtest: 簽到簿不再使用 v2 或舊審核 UI 標記
 ok 58 - 簽到簿不再使用 v2 或舊審核 UI 標記
   ---
-  duration_ms: 11.042139
+  duration_ms: 15.520003
   type: 'test'
   ...
 # Subtest: 簽到簿篩選只由正式記錄事件處理器更新並重新載入
 ok 59 - 簽到簿篩選只由正式記錄事件處理器更新並重新載入
   ---
-  duration_ms: 0.477341
+  duration_ms: 0.410069
   type: 'test'
   ...
 # Subtest: 登入資料狀態由工廠與單一重設函式提供
 ok 60 - 登入資料狀態由工廠與單一重設函式提供
   ---
-  duration_ms: 0.656294
+  duration_ms: 0.41736
   type: 'test'
   ...
 # Subtest: 自動排班預覽只由共用函式寫入與儲存
 ok 61 - 自動排班預覽只由共用函式寫入與儲存
   ---
-  duration_ms: 0.588057
+  duration_ms: 0.304893
   type: 'test'
   ...
 # Subtest: 首頁與班表資料載入使用正式模組，不靠後載入攔截器
 ok 62 - 首頁與班表資料載入使用正式模組，不靠後載入攔截器
   ---
-  duration_ms: 1.421151
+  duration_ms: 1.101075
   type: 'test'
   ...
 # Subtest: 簽到簿群組審核 API 由正式 web-api 提供
 ok 63 - 簽到簿群組審核 API 由正式 web-api 提供
   ---
-  duration_ms: 2.358209
+  duration_ms: 2.509898
   type: 'test'
   ...
 # Subtest: 登入首頁與班表延後載入由正式 bundle 模組提供
 ok 64 - 登入首頁與班表延後載入由正式 bundle 模組提供
   ---
-  duration_ms: 1.925773
+  duration_ms: 1.144841
   type: 'test'
   ...
 # Subtest: 登入成功後直接沿用 signIn 回傳身分，不重做 initializeAuth
 ok 65 - 登入成功後直接沿用 signIn 回傳身分，不重做 initializeAuth
   ---
-  duration_ms: 0.445011
+  duration_ms: 0.288969
   type: 'test'
   ...
 # Subtest: 首頁初始化只取得 appInfo 與權限，不讀完整班表
 ok 66 - 首頁初始化只取得 appInfo 與權限，不讀完整班表
   ---
-  duration_ms: 0.314777
+  duration_ms: 0.176512
   type: 'test'
   ...
 # Subtest: 班表完整資料只在正式 ensureScheduleApplicationLoaded 載入
 ok 67 - 班表完整資料只在正式 ensureScheduleApplicationLoaded 載入
   ---
-  duration_ms: 0.54141
+  duration_ms: 0.266947
   type: 'test'
   ...
 # Subtest: 訂餐管理前端 action 必須與 meal-order 後端一致
 ok 68 - 訂餐管理前端 action 必須與 meal-order 後端一致
   ---
-  duration_ms: 9.780194
+  duration_ms: 5.928075
   type: 'test'
   ...
 # Subtest: 班表與管理人員名錄使用正式權限 RPC
 ok 69 - 班表與管理人員名錄使用正式權限 RPC
   ---
-  duration_ms: 2.826403
+  duration_ms: 2.108021
   type: 'test'
   ...
 # Subtest: 排班儲存只提交 UUID 主鍵，不以工號當外鍵
 ok 70 - 排班儲存只提交 UUID 主鍵，不以工號當外鍵
   ---
-  duration_ms: 1.57084
+  duration_ms: 1.230859
   type: 'test'
   ...
 # Subtest: 單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px
 ok 71 - 單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px
   ---
-  duration_ms: 1.186624
+  duration_ms: 1.125182
   type: 'test'
   ...
 # Subtest: 人員設定應直接由正式模組輸出第一欄拖曳把手
 ok 72 - 人員設定應直接由正式模組輸出第一欄拖曳把手
   ---
-  duration_ms: 0.465859
+  duration_ms: 0.431802
   type: 'test'
   ...
 # Subtest: 拖曳人員只調整人員順序並重新開啟人員設定
 ok 73 - 拖曳人員只調整人員順序並重新開啟人員設定
   ---
-  duration_ms: 3.589255
+  duration_ms: 2.575556
   type: 'test'
   ...
 # Subtest: 未知排序類型不得再落入加班資料
 ok 74 - 未知排序類型不得再落入加班資料
   ---
-  duration_ms: 1.870279
+  duration_ms: 0.337881
   type: 'test'
   ...
 # Subtest: heavy admin/review data is lazy-loaded
 ok 75 - heavy admin/review data is lazy-loaded
   ---
-  duration_ms: 1.823732
+  duration_ms: 1.069669
   type: 'test'
   ...
 # Subtest: ExcelJS is lazy-loaded
 ok 76 - ExcelJS is lazy-loaded
   ---
-  duration_ms: 0.408863
+  duration_ms: 0.385112
   type: 'test'
   ...
 # Subtest: schedule hot RPCs materialize actor access instead of row-by-row permission helpers
 ok 77 - schedule hot RPCs materialize actor access instead of row-by-row permission helpers
   ---
-  duration_ms: 0.827283
+  duration_ms: 0.689044
   type: 'test'
   ...
 # Subtest: authenticated direct-write RLS policies are not recreated
 ok 78 - authenticated direct-write RLS policies are not recreated
   ---
-  duration_ms: 2.430834
+  duration_ms: 1.677672
   type: 'test'
   ...
 # Subtest: 權限設定的權限項目使用可換行膠囊標籤並取得主要寬度
 ok 79 - 權限設定的權限項目使用可換行膠囊標籤並取得主要寬度
   ---
-  duration_ms: 2.566568
+  duration_ms: 1.977016
   type: 'test'
   ...
 # Subtest: 首次載入班表顯示圓形載入動畫
 ok 80 - 首次載入班表顯示圓形載入動畫
   ---
-  duration_ms: 1.952692
+  duration_ms: 1.291799
   type: 'test'
   ...
 # Subtest: 個人記錄表格縮窄打卡欄並保留完整審核欄
 ok 81 - 個人記錄表格縮窄打卡欄並保留完整審核欄
   ---
-  duration_ms: 1.461887
+  duration_ms: 1.262255
   type: 'test'
   ...
 # Subtest: 上下班打卡按鈕使用不同顏色
 ok 82 - 上下班打卡按鈕使用不同顏色
   ---
-  duration_ms: 0.267289
+  duration_ms: 0.301999
   type: 'test'
   ...
 # Subtest: 個人記錄重繪會保存並還原視窗及表格捲動位置
 ok 83 - 個人記錄重繪會保存並還原視窗及表格捲動位置
   ---
-  duration_ms: 2.466541
+  duration_ms: 1.267082
   type: 'test'
   ...
 # Subtest: 個人記錄未打卡欄保持空白且地點同列
 ok 84 - 個人記錄未打卡欄保持空白且地點同列
   ---
-  duration_ms: 1.844341
+  duration_ms: 1.167314
   type: 'test'
   ...
 # Subtest: 非當日工時不渲染停用輸入框
 ok 85 - 非當日工時不渲染停用輸入框
   ---
-  duration_ms: 0.3916
+  duration_ms: 0.232295
   type: 'test'
   ...
 # Subtest: 備註使用單行輸入框並限制在欄內
 ok 86 - 備註使用單行輸入框並限制在欄內
   ---
-  duration_ms: 1.807812
+  duration_ms: 1.175316
   type: 'test'
   ...
 # Subtest: 目錄刪除成功後才更新前端狀態
 ok 87 - 目錄刪除成功後才更新前端狀態
   ---
-  duration_ms: 4.427679
+  duration_ms: 2.815873
   type: 'test'
   ...
 # Subtest: 後端刪除失敗時不應先移除前端資料
 ok 88 - 後端刪除失敗時不應先移除前端資料
   ---
-  duration_ms: 2.810503
+  duration_ms: 1.758231
   type: 'test'
   ...
 # Subtest: 安全目錄 API 與人員同步應由正式 web-api 提供
-not ok 89 - 安全目錄 API 與人員同步應由正式 web-api 提供
+ok 89 - 安全目錄 API 與人員同步應由正式 web-api 提供
   ---
-  duration_ms: 1.813533
+  duration_ms: 0.56581
   type: 'test'
-  location: '/home/runner/work/FYH/FYH/tests/renderer-admin-data-contracts.test.js:57:1'
-  failureType: 'testCodeFailure'
-  error: |-
-    Expected values to be strictly equal:
-    
-    false !== true
-    
-  code: 'ERR_ASSERTION'
-  name: 'AssertionError'
-  expected: true
-  actual: false
-  operator: 'strictEqual'
-  stack: |-
-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/renderer-admin-data-contracts.test.js:67:10)
-    Test.runInAsyncScope (node:async_hooks:214:14)
-    Test.run (node:internal/test_runner/test:1047:25)
-    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
-    Test.postRun (node:internal/test_runner/test:1173:19)
-    Test.run (node:internal/test_runner/test:1101:12)
-    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
   ...
 # Subtest: 目錄刪除畫面流程不應再依賴函式覆蓋
 ok 90 - 目錄刪除畫面流程不應再依賴函式覆蓋
   ---
-  duration_ms: 0.490666
+  duration_ms: 0.367215
   type: 'test'
   ...
 # Subtest: 目前人員應優先依 profile id，再依工號解析
 ok 91 - 目前人員應優先依 profile id，再依工號解析
   ---
-  duration_ms: 2.012765
+  duration_ms: 1.779333
   type: 'test'
   ...
 # Subtest: 管理能力應完全由權限項目與適用群組決定
-not ok 92 - 管理能力應完全由權限項目與適用群組決定
+ok 92 - 管理能力應完全由權限項目與適用群組決定
   ---
-  duration_ms: 1.7584
+  duration_ms: 1.8915
   type: 'test'
-  location: '/home/runner/work/FYH/FYH/tests/renderer-auth-context.test.js:29:1'
-  failureType: 'testCodeFailure'
-  error: 'normalizeRole is not defined'
-  code: 'ERR_TEST_FAILURE'
-  name: 'ReferenceError'
-  stack: |-
-    evalmachine.<anonymous>:2:5
-    Script.runInContext (node:vm:149:12)
-    Script.runInNewContext (node:vm:154:17)
-    Object.runInNewContext (node:vm:310:38)
-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/renderer-auth-context.test.js:43:18)
-    Test.runInAsyncScope (node:async_hooks:214:14)
-    Test.run (node:internal/test_runner/test:1047:25)
-    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
-    Test.postRun (node:internal/test_runner/test:1173:19)
-    Test.run (node:internal/test_runner/test:1101:12)
   ...
 # Subtest: 假別明細與設定輔助應位於對應責任模組
 ok 93 - 假別明細與設定輔助應位於對應責任模組
   ---
-  duration_ms: 0.233275
+  duration_ms: 0.161981
   type: 'test'
   ...
 # Subtest: 登入、簽到簿與班表模組順序應維持且不再載入舊申請模組
 ok 94 - 登入、簽到簿與班表模組順序應維持且不再載入舊申請模組
   ---
-  duration_ms: 0.330857
+  duration_ms: 0.258294
   type: 'test'
   ...
 # Subtest: 排班前端不得保留已淘汰申請流程的無引用輔助名稱
 ok 95 - 排班前端不得保留已淘汰申請流程的無引用輔助名稱
   ---
-  duration_ms: 0.73422
+  duration_ms: 0.584238
   type: 'test'
   ...
 # Subtest: 自動補班只處理月薪人員的完全空白格
 ok 96 - 自動補班只處理月薪人員的完全空白格
   ---
-  duration_ms: 4.263834
+  duration_ms: 3.251189
   type: 'test'
   ...
 # Subtest: 套用自動補班應建立復原點並只儲存變更格
 ok 97 - 套用自動補班應建立復原點並只儲存變更格
   ---
-  duration_ms: 3.277844
+  duration_ms: 2.583888
   type: 'test'
   ...
 # Subtest: 共用套用與取消按鈕應依預覽類型分流
 ok 98 - 共用套用與取消按鈕應依預覽類型分流
   ---
-  duration_ms: 1.497613
+  duration_ms: 1.020385
   type: 'test'
   ...
 # Subtest: 自動補班應由正式模組提供而非覆蓋自動排班函式
 ok 99 - 自動補班應由正式模組提供而非覆蓋自動排班函式
   ---
-  duration_ms: 0.732607
+  duration_ms: 0.546031
   type: 'test'
   ...
 # Subtest: 八週休假目標應扣除既有例假
 ok 100 - 八週休假目標應扣除既有例假
   ---
-  duration_ms: 9.561846
+  duration_ms: 4.770766
   type: 'test'
   ...
 # Subtest: 班別需求應依營運狀態及需求人數計算
 ok 101 - 班別需求應依營運狀態及需求人數計算
   ---
-  duration_ms: 4.253261
+  duration_ms: 1.753295
   type: 'test'
   ...
 # Subtest: 最小成本分配應優先符合人員班別順位
 ok 102 - 最小成本分配應優先符合人員班別順位
   ---
-  duration_ms: 3.138394
+  duration_ms: 2.195812
   type: 'test'
   ...
 # Subtest: 自動排班應維持明確建置順序
 ok 103 - 自動排班應維持明確建置順序
   ---
-  duration_ms: 8.026804
+  duration_ms: 4.434457
   type: 'test'
   ...
 # Subtest: renderer 不再含任何 v2 JavaScript 補丁
 ok 104 - renderer 不再含任何 v2 JavaScript 補丁
   ---
-  duration_ms: 1.674203
+  duration_ms: 1.320241
   type: 'test'
   ...
 # Subtest: 帳號刪除由正式 API 與人員模組提供
 ok 105 - 帳號刪除由正式 API 與人員模組提供
   ---
-  duration_ms: 0.617031
+  duration_ms: 0.476148
   type: 'test'
   ...
 # Subtest: 訂餐 Excel 由正式 web-api 唯一提供
 ok 106 - 訂餐 Excel 由正式 web-api 唯一提供
   ---
-  duration_ms: 0.610018
+  duration_ms: 0.508626
   type: 'test'
   ...
 # Subtest: 設定拖曳把手直接由正式畫面產生
 ok 107 - 設定拖曳把手直接由正式畫面產生
   ---
-  duration_ms: 0.794091
+  duration_ms: 0.658809
   type: 'test'
   ...
 # Subtest: 拖曳捲動保存由正式事件總控註冊
 ok 108 - 拖曳捲動保存由正式事件總控註冊
   ---
-  duration_ms: 0.324305
+  duration_ms: 0.217033
   type: 'test'
   ...
 # Subtest: renderer foundation 應保留目錄與每日簽到預設狀態
 ok 109 - renderer foundation 應保留目錄與每日簽到預設狀態
   ---
-  duration_ms: 3.192536
+  duration_ms: 2.851976
   type: 'test'
   ...
 # Subtest: 日期與時間工具應正確處理格式及區間
 ok 110 - 日期與時間工具應正確處理格式及區間
   ---
-  duration_ms: 1.881269
+  duration_ms: 2.218405
   type: 'test'
   ...
 # Subtest: renderer.js 不應再保存已拆出的核心區塊
 ok 111 - renderer.js 不應再保存已拆出的核心區塊
   ---
-  duration_ms: 1.947693
+  duration_ms: 1.263196
   type: 'test'
   ...
 # Subtest: 班表人員可拖到不同單位並沿用目標人員位置
 ok 112 - 班表人員可拖到不同單位並沿用目標人員位置
   ---
-  duration_ms: 4.639334
+  duration_ms: 2.481937
   type: 'test'
   ...
 # Subtest: 同單位人員排序仍應正常運作
 ok 113 - 同單位人員排序仍應正常運作
   ---
-  duration_ms: 1.29202
+  duration_ms: 0.724997
   type: 'test'
   ...
 # Subtest: 跨單位拖曳應由正式函式提供而非後載入覆蓋
 ok 114 - 跨單位拖曳應由正式函式提供而非後載入覆蓋
   ---
-  duration_ms: 9.481968
+  duration_ms: 4.466654
   type: 'test'
   ...
 # Subtest: 單位設定最終畫面應直接由正式模組提供七欄
 ok 115 - 單位設定最終畫面應直接由正式模組提供七欄
   ---
-  duration_ms: 3.696155
+  duration_ms: 5.414372
   type: 'test'
   ...
 # Subtest: 單位設定不應再依賴後載入函式覆蓋
 ok 116 - 單位設定不應再依賴後載入函式覆蓋
   ---
-  duration_ms: 1.384062
+  duration_ms: 0.521885
   type: 'test'
   ...
 # Subtest: Ctrl+C 應複製目前班表選取範圍
 ok 117 - Ctrl+C 應複製目前班表選取範圍
   ---
-  duration_ms: 2.714103
+  duration_ms: 2.970803
   type: 'test'
   ...
 # Subtest: 班表操作應保留復原、重做、複製、剪下、貼上與刪除入口
 ok 118 - 班表操作應保留復原、重做、複製、剪下、貼上與刪除入口
   ---
-  duration_ms: 0.244065
+  duration_ms: 0.20169
   type: 'test'
   ...
 # Subtest: 鍵盤與正式匯出操作應維持明確模組順序
 ok 119 - 鍵盤與正式匯出操作應維持明確模組順序
   ---
-  duration_ms: 0.446714
+  duration_ms: 0.290952
   type: 'test'
   ...
 # Subtest: 訂餐功能不再依賴 v2 補丁檔
 ok 120 - 訂餐功能不再依賴 v2 補丁檔
   ---
-  duration_ms: 1.231527
+  duration_ms: 1.039574
   type: 'test'
   ...
 # Subtest: 訂餐正式函式各只有一份宣告且沒有後載入覆蓋
 ok 121 - 訂餐正式函式各只有一份宣告且沒有後載入覆蓋
   ---
-  duration_ms: 1.697647
+  duration_ms: 1.636671
   type: 'test'
   ...
 # Subtest: 訂餐驗證、刪除與拖曳把手均由正式模組提供
 ok 122 - 訂餐驗證、刪除與拖曳把手均由正式模組提供
   ---
-  duration_ms: 0.377735
+  duration_ms: 0.386383
   type: 'test'
   ...
 # Subtest: 儲存訂餐重新渲染時應保留剛輸入的數量與備註
 ok 123 - 儲存訂餐重新渲染時應保留剛輸入的數量與備註
   ---
-  duration_ms: 0.48253
+  duration_ms: 0.32266
   type: 'test'
   ...
 # Subtest: 今日訂餐完成讀取後才顯示空商品提示，且不顯示處理中文字
 ok 124 - 今日訂餐完成讀取後才顯示空商品提示，且不顯示處理中文字
   ---
-  duration_ms: 0.442796
+  duration_ms: 0.324853
   type: 'test'
   ...
 # Subtest: 人員設定列應直接提供拖曳排序識別值
 ok 125 - 人員設定列應直接提供拖曳排序識別值
   ---
-  duration_ms: 3.229905
+  duration_ms: 2.333086
   type: 'test'
   ...
 # Subtest: 重新渲染人員清單應保留捲動位置與輸入游標
 ok 126 - 重新渲染人員清單應保留捲動位置與輸入游標
   ---
-  duration_ms: 2.042911
+  duration_ms: 1.598664
   type: 'test'
   ...
 # Subtest: 人員排序應由正式設定模組提供而非覆蓋函式
 ok 127 - 人員排序應由正式設定模組提供而非覆蓋函式
   ---
-  duration_ms: 1.303562
+  duration_ms: 1.234514
   type: 'test'
   ...
 # Subtest: 返回鍵遇到彈窗時應只關閉彈窗
 ok 128 - 返回鍵遇到彈窗時應只關閉彈窗
   ---
-  duration_ms: 1.909472
+  duration_ms: 1.552687
   type: 'test'
   ...
 # Subtest: 可見清單排序應保留未顯示項目的原位置
 ok 129 - 可見清單排序應保留未顯示項目的原位置
   ---
-  duration_ms: 1.419669
+  duration_ms: 1.255384
   type: 'test'
   ...
 # Subtest: 第十一階段應移出彈窗與排序控制並維持模組順序
 ok 130 - 第十一階段應移出彈窗與排序控制並維持模組順序
   ---
-  duration_ms: 0.39654
+  duration_ms: 0.352424
   type: 'test'
   ...
 # Subtest: renderer.js 只保留狀態與啟動流程
 ok 131 - renderer.js 只保留狀態與啟動流程
   ---
-  duration_ms: 2.170499
+  duration_ms: 1.629561
   type: 'test'
   ...
 # Subtest: 模組應依責任順序進入建置與測試來源
 ok 132 - 模組應依責任順序進入建置與測試來源
   ---
-  duration_ms: 0.431455
+  duration_ms: 0.320886
   type: 'test'
   ...
 # Subtest: 事件總控應完整註冊所有責任模組
 ok 133 - 事件總控應完整註冊所有責任模組
   ---
-  duration_ms: 0.224058
+  duration_ms: 0.166708
   type: 'test'
   ...
 # Subtest: 委派事件應保留主要操作入口
 ok 134 - 委派事件應保留主要操作入口
   ---
-  duration_ms: 0.440432
+  duration_ms: 0.326154
   type: 'test'
   ...
 # Subtest: 共用訊息與時間輸入工具應保留既有格式
 ok 135 - 共用訊息與時間輸入工具應保留既有格式
   ---
-  duration_ms: 3.527369
+  duration_ms: 2.062283
   type: 'test'
   ...
 # Subtest: 任職與營運區間判定應包含起訖日
 ok 136 - 任職與營運區間判定應包含起訖日
   ---
-  duration_ms: 1.229183
+  duration_ms: 0.68642
   type: 'test'
   ...
 # Subtest: 狀態正規化工具應保留顏色與排班清理規則
 ok 137 - 狀態正規化工具應保留顏色與排班清理規則
   ---
-  duration_ms: 2.915609
+  duration_ms: 2.027962
   type: 'test'
   ...
 # Subtest: renderer 模組應維持核心來源與建置順序
 ok 138 - renderer 模組應維持核心來源與建置順序
   ---
-  duration_ms: 5.791413
+  duration_ms: 3.952721
   type: 'test'
   ...
 # Subtest: 復原與重做按鈕應依堆疊及權限狀態停用
 ok 139 - 復原與重做按鈕應依堆疊及權限狀態停用
   ---
-  duration_ms: 2.526883
+  duration_ms: 2.142081
   type: 'test'
   ...
 # Subtest: 復原應將目前班表推入重做堆疊並還原目標快照
 ok 140 - 復原應將目前班表推入重做堆疊並還原目標快照
   ---
-  duration_ms: 2.163275
+  duration_ms: 1.64944
   type: 'test'
   ...
 # Subtest: 班表歷程控制應由正式互動模組提供而非覆蓋函式
 ok 141 - 班表歷程控制應由正式互動模組提供而非覆蓋函式
   ---
-  duration_ms: 7.557874
+  duration_ms: 4.680902
   type: 'test'
   ...
 # Subtest: 班表剪貼簿資料應完整複製目前明細且不共用物件
 ok 142 - 班表剪貼簿資料應完整複製目前明細且不共用物件
   ---
-  duration_ms: 3.345677
+  duration_ms: 2.257162
   type: 'test'
   ...
 # Subtest: 班表鍵值解析應支援含底線的人員代碼
 ok 143 - 班表鍵值解析應支援含底線的人員代碼
   ---
-  duration_ms: 2.788803
+  duration_ms: 2.096084
   type: 'test'
   ...
 # Subtest: 手動更新班表儲存格時應同步更新同一人員的統計欄
 ok 144 - 手動更新班表儲存格時應同步更新同一人員的統計欄
   ---
-  duration_ms: 1.920402
+  duration_ms: 1.098822
   type: 'test'
   ...
 # Subtest: 第三階段應維持核心來源與建置順序
 ok 145 - 第三階段應維持核心來源與建置順序
   ---
-  duration_ms: 4.536182
+  duration_ms: 4.498431
   type: 'test'
   ...
 # Subtest: 班表文字大小應依段落數與字數判定
 ok 146 - 班表文字大小應依段落數與字數判定
   ---
-  duration_ms: 2.719022
+  duration_ms: 2.171806
   type: 'test'
   ...
 # Subtest: 八週統計應分開計算例假、休息日、休息日出勤與未排
 ok 147 - 八週統計應分開計算例假、休息日、休息日出勤與未排
   ---
-  duration_ms: 1.980936
+  duration_ms: 1.551725
   type: 'test'
   ...
 # Subtest: 儲存格渲染應保留班別、假別與加班三段資訊
 ok 148 - 儲存格渲染應保留班別、假別與加班三段資訊
   ---
-  duration_ms: 3.131031
+  duration_ms: 2.139678
   type: 'test'
   ...
 # Subtest: 例假排班只變更例假段落與班別檢視人員區塊
 ok 149 - 例假排班只變更例假段落與班別檢視人員區塊
   ---
-  duration_ms: 1.824664
+  duration_ms: 1.330576
   type: 'test'
   ...
 # Subtest: 需填時間或需填原因的假別應產生明細提示標記
 ok 150 - 需填時間或需填原因的假別應產生明細提示標記
   ---
-  duration_ms: 1.250412
+  duration_ms: 0.921839
   type: 'test'
   ...
 # Subtest: 休假明細只保留右上關閉並將儲存放在標題列
 ok 151 - 休假明細只保留右上關閉並將儲存放在標題列
   ---
-  duration_ms: 0.612743
+  duration_ms: 0.457429
   type: 'test'
   ...
 # Subtest: 第五階段應移出班表渲染並維持建置順序
 ok 152 - 第五階段應移出班表渲染並維持建置順序
   ---
-  duration_ms: 6.803141
+  duration_ms: 7.723933
   type: 'test'
   ...
 # Subtest: 目錄設定應保留顏色預覽與共用操作按鈕
 ok 153 - 目錄設定應保留顏色預覽與共用操作按鈕
   ---
-  duration_ms: 3.972611
+  duration_ms: 2.43666
   type: 'test'
   ...
 # Subtest: 單位表單應保留有效期間、班表顯示與打卡欄位
 ok 154 - 單位表單應保留有效期間、班表顯示與打卡欄位
   ---
-  duration_ms: 3.198056
+  duration_ms: 2.063515
   type: 'test'
   ...
 # Subtest: 設定拖曳排序應只重排可見項目並保留缺漏項目
 ok 155 - 設定拖曳排序應只重排可見項目並保留缺漏項目
   ---
-  duration_ms: 2.277609
+  duration_ms: 1.61579
   type: 'test'
   ...
 # Subtest: 人員設定篩選應同時套用姓名、單位、權限、在職與薪資條件
-not ok 156 - 人員設定篩選應同時套用姓名、單位、權限、在職與薪資條件
+ok 156 - 人員設定篩選應同時套用姓名、單位、權限、在職與薪資條件
   ---
-  duration_ms: 5.283894
+  duration_ms: 1.425868
   type: 'test'
-  location: '/home/runner/work/FYH/FYH/tests/renderer-settings.test.js:37:1'
-  failureType: 'testCodeFailure'
-  error: |-
-    Expected values to be strictly deep-equal:
-    + actual - expected
-    
-    + []
-    - [
-    -   '1'
-    - ]
-    
-  code: 'ERR_ASSERTION'
-  name: 'AssertionError'
-  expected:
-    0: '1'
-  actual:
-  operator: 'deepStrictEqual'
-  stack: |-
-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/renderer-settings.test.js:51:10)
-    Test.runInAsyncScope (node:async_hooks:214:14)
-    Test.run (node:internal/test_runner/test:1047:25)
-    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
-    Test.postRun (node:internal/test_runner/test:1173:19)
-    Test.run (node:internal/test_runner/test:1101:12)
-    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
   ...
 # Subtest: 第六階段應移出設定管理並維持建置順序
 ok 157 - 第六階段應移出設定管理並維持建置順序
   ---
-  duration_ms: 4.97864
+  duration_ms: 4.804036
   type: 'test'
   ...
 # Subtest: 今日打卡狀態應透過 attendance-clock today 查詢
 ok 158 - 今日打卡狀態應透過 attendance-clock today 查詢
   ---
-  duration_ms: 4.372827
+  duration_ms: 2.271784
   type: 'test'
   ...
 # Subtest: 訂餐管理應保留補助並提供安全刪除品項操作
 ok 159 - 訂餐管理應保留補助並提供安全刪除品項操作
   ---
-  duration_ms: 3.170535
+  duration_ms: 2.586051
   type: 'test'
   ...
 # Subtest: 小型 API 應由正式 web-api 提供而非後載入覆蓋
 ok 160 - 小型 API 應由正式 web-api 提供而非後載入覆蓋
   ---
-  duration_ms: 0.743507
+  duration_ms: 0.529186
   type: 'test'
   ...
 # Subtest: iPad、觸控 Mac 與 Android 平板應使用電腦版 Session 規則
 ok 161 - iPad、觸控 Mac 與 Android 平板應使用電腦版 Session 規則
   ---
-  duration_ms: 6.386033
+  duration_ms: 4.510089
   type: 'test'
   ...
 # Subtest: 手機仍使用 localStorage 與 48 小時期限
 ok 162 - 手機仍使用 localStorage 與 48 小時期限
   ---
-  duration_ms: 1.218903
+  duration_ms: 0.870342
   type: 'test'
   ...
 # Subtest: 正式 Session 寫入只保留目前裝置應使用的儲存區
 ok 163 - 正式 Session 寫入只保留目前裝置應使用的儲存區
   ---
-  duration_ms: 1.317678
+  duration_ms: 0.932836
   type: 'test'
   ...
 # Subtest: 平板 Session 應由正式 web-api 管理而非包裝所有 API
 ok 164 - 平板 Session 應由正式 web-api 管理而非包裝所有 API
   ---
-  duration_ms: 0.362255
+  duration_ms: 0.314547
   type: 'test'
   ...
 # Subtest: 假別明細摘要應保留整天、時間與原因
 ok 165 - 假別明細摘要應保留整天、時間與原因
   ---
-  duration_ms: 3.701505
+  duration_ms: 2.321538
   type: 'test'
   ...
 # Subtest: 主頁渲染應保留三個入口、簽到簿名稱與訂餐管理分頁
 ok 166 - 主頁渲染應保留三個入口、簽到簿名稱與訂餐管理分頁
   ---
-  duration_ms: 0.378606
+  duration_ms: 0.255089
   type: 'test'
   ...
 # Subtest: 第十二階段應移出提示框與主頁渲染並維持模組順序
 ok 167 - 第十二階段應移出提示框與主頁渲染並維持模組順序
   ---
-  duration_ms: 0.397111
+  duration_ms: 0.294157
   type: 'test'
   ...
 # Subtest: 日期標題斑馬紋應跟隨每週起算日移動
 ok 168 - 日期標題斑馬紋應跟隨每週起算日移動
   ---
-  duration_ms: 5.620664
+  duration_ms: 3.278831
   type: 'test'
   ...
 # Subtest: 斑馬紋與週界線應使用同一個每週起算日
 ok 169 - 斑馬紋與週界線應使用同一個每週起算日
   ---
-  duration_ms: 1.312448
+  duration_ms: 0.82114
   type: 'test'
   ...
 # Subtest: 今天日期標題在電腦與手機都必須保持微亮藍色
 ok 170 - 今天日期標題在電腦與手機都必須保持微亮藍色
   ---
-  duration_ms: 0.896833
+  duration_ms: 0.489187
   type: 'test'
   ...
 # Subtest: 電腦與手機班表標題應共用放大後字級
 ok 171 - 電腦與手機班表標題應共用放大後字級
   ---
-  duration_ms: 0.378035
+  duration_ms: 0.234468
   type: 'test'
   ...
 # Subtest: 日期標題與表格內容週界線應只繪製單一同粗線條
 ok 172 - 日期標題與表格內容週界線應只繪製單一同粗線條
   ---
-  duration_ms: 0.405837
+  duration_ms: 0.338773
   type: 'test'
   ...
 # Subtest: 週期起訖應依設定的星期起始日計算
 ok 173 - 週期起訖應依設定的星期起始日計算
   ---
-  duration_ms: 1.839692
+  duration_ms: 1.431126
   type: 'test'
   ...
 # Subtest: 例休檢查應回報缺少例假、例假出勤與跨週連續出勤
 ok 174 - 例休檢查應回報缺少例假、例假出勤與跨週連續出勤
   ---
-  duration_ms: 1.885718
+  duration_ms: 1.267242
   type: 'test'
   ...
 # Subtest: 到離職週應至少保留兩個未在職日、例假或休息日
 ok 175 - 到離職週應至少保留兩個未在職日、例假或休息日
   ---
-  duration_ms: 1.510228
+  duration_ms: 1.598033
   type: 'test'
   ...
 # Subtest: 首次班表以八週週期載入且只呼叫一次正式班表查詢 RPC
 ok 176 - 首次班表以八週週期載入且只呼叫一次正式班表查詢 RPC
   ---
-  duration_ms: 2.470799
+  duration_ms: 1.748798
   type: 'test'
   ...
 # Subtest: 班表初始化不再依賴頁面補丁或第二次同區間查詢
 ok 177 - 班表初始化不再依賴頁面補丁或第二次同區間查詢
   ---
-  duration_ms: 0.420354
+  duration_ms: 0.288919
   type: 'test'
   ...
 # Subtest: 單位打卡設定仍延後到單位設定頁載入
 ok 178 - 單位打卡設定仍延後到單位設定頁載入
   ---
-  duration_ms: 2.025628
+  duration_ms: 1.828566
   type: 'test'
   ...
 # Subtest: 規格書明定首次班表不相容舊瀏覽位置
 ok 179 - 規格書明定首次班表不相容舊瀏覽位置
   ---
-  duration_ms: 0.70771
+  duration_ms: 0.502156
   type: 'test'
   ...
 # Subtest: 班表浮動工具列使用整合式左側操作列
 ok 180 - 班表浮動工具列使用整合式左側操作列
   ---
-  duration_ms: 1.79578
+  duration_ms: 1.389454
   type: 'test'
   ...
 # Subtest: 班表週移動與例假排班顯示具有正式程式契約
 ok 181 - 班表週移動與例假排班顯示具有正式程式契約
   ---
-  duration_ms: 1.201932
+  duration_ms: 0.913987
   type: 'test'
   ...
 # Subtest: 共用設定返回流程應在重新開頁後還原捲動位置
 ok 182 - 共用設定返回流程應在重新開頁後還原捲動位置
   ---
-  duration_ms: 3.826838
+  duration_ms: 2.749604
   type: 'test'
   ...
 # Subtest: 刪除班別應先保存位置，成功更新後再還原
 ok 183 - 刪除班別應先保存位置，成功更新後再還原
   ---
-  duration_ms: 1.915343
+  duration_ms: 1.377906
   type: 'test'
   ...
 # Subtest: 所有主要設定刪除流程都必須使用共用捲動還原
 ok 184 - 所有主要設定刪除流程都必須使用共用捲動還原
   ---
-  duration_ms: 2.673307
+  duration_ms: 2.139428
   type: 'test'
   ...
 # Subtest: 設定列表應以完整內容寬度維持水平捲動後的表頭格式
 ok 185 - 設定列表應以完整內容寬度維持水平捲動後的表頭格式
   ---
-  duration_ms: 1.94585
+  duration_ms: 1.533298
   type: 'test'
   ...
 # Subtest: 班表頁外層寬度固定在頁面內，水平移動留在表格捲動區
 ok 186 - 班表頁外層寬度固定在頁面內，水平移動留在表格捲動區
   ---
-  duration_ms: 0.203039
+  duration_ms: 0.214689
   type: 'test'
   ...
 # Subtest: 班別假別加班刪除只走明確 RPC 契約
 ok 187 - 班別假別加班刪除只走明確 RPC 契約
   ---
-  duration_ms: 1.187887
+  duration_ms: 1.664393
   type: 'test'
   ...
 # Subtest: 設定刪除失敗時不得先關閉視窗或先移除本機資料
 ok 188 - 設定刪除失敗時不得先關閉視窗或先移除本機資料
   ---
-  duration_ms: 0.399926
+  duration_ms: 0.387065
   type: 'test'
   ...
 # Subtest: 個人記錄畫面使用正式狀態初始化來源
 ok 189 - 個人記錄畫面使用正式狀態初始化來源
   ---
-  duration_ms: 1.990083
+  duration_ms: 1.492517
   type: 'test'
   ...
 # Subtest: 正式期間匯出直接整合於操作模組並使用共用月份天數函式
 ok 190 - 正式期間匯出直接整合於操作模組並使用共用月份天數函式
   ---
-  duration_ms: 0.474014
+  duration_ms: 0.35706
   type: 'test'
   ...
 # Subtest: 架構檢查模式不得產生稽核報告檔
 ok 191 - 架構檢查模式不得產生稽核報告檔
   ---
-  duration_ms: 219.792998
+  duration_ms: 179.051997
   type: 'test'
   ...
 # Subtest: 班表浮動工具列支援雙擊修改與選中項目圖示
 ok 192 - 班表浮動工具列支援雙擊修改與選中項目圖示
   ---
-  duration_ms: 2.488953
+  duration_ms: 1.795007
   type: 'test'
   ...
 # Subtest: 班表浮動工具列使用緊湊合併版面
 ok 193 - 班表浮動工具列使用緊湊合併版面
   ---
-  duration_ms: 2.569724
+  duration_ms: 1.458296
   type: 'test'
   ...
 # Subtest: 班別與假別移除提示但保留快速連點修改
 ok 194 - 班別與假別移除提示但保留快速連點修改
   ---
-  duration_ms: 0.515441
+  duration_ms: 0.344381
   type: 'test'
   ...
 # Subtest: mjs 啟動模組由靜態發布自動複製且不進入 app.js 清單
 ok 195 - mjs 啟動模組由靜態發布自動複製且不進入 app.js 清單
   ---
-  duration_ms: 1.272063
+  duration_ms: 1.298729
   type: 'test'
   ...
 # Subtest: 浮動工具列控制按鈕依新版版面排列
 ok 196 - 浮動工具列控制按鈕依新版版面排列
   ---
-  duration_ms: 2.200946
+  duration_ms: 1.488541
   type: 'test'
   ...
 # Subtest: 班別與假別重新渲染後仍可快速連點開啟修改
 ok 197 - 班別與假別重新渲染後仍可快速連點開啟修改
   ---
-  duration_ms: 0.483833
+  duration_ms: 0.264553
   type: 'test'
   ...
 # Subtest: 公開設定檢查不執行瀏覽器 DOM 初始化
 ok 198 - 公開設定檢查不執行瀏覽器 DOM 初始化
   ---
-  duration_ms: 1.365438
+  duration_ms: 0.78809
   type: 'test'
   ...
 1..198
 # tests 198
 # suites 0
-# pass 194
-# fail 4
+# pass 198
+# fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1652.266751
+# duration_ms 1269.023989
+
+> fyh-workforce-system@1.0.0 web:check
+> node scripts/check-public-supabase.js
+
+supabase auth config and anonymous access checks ok
+normalized storage and access architecture checks passed
+expansion acceptance checks passed
+node:internal/assert/utils:77
+    throw err;
+    ^
+
+AssertionError [ERR_ASSERTION]: member import/export should preserve role labels as data compatibility only
+    at Object.<anonymous> (/home/runner/work/FYH/FYH/scripts/check-settings-lists.js:71:1)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+    at Module.load (node:internal/modules/cjs/loader:1505:32)
+    at Function._load (node:internal/modules/cjs/loader:1309:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v22.23.1

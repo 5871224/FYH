@@ -1,2 +1,0 @@
-src/renderer/app.js:7612:  const selectedRoleId = member?.roleId || getRoleById(member?.role)?.id || getRoleByLegacyRole(member?.role)?.id || "";
-src/renderer/renderer-groups-permissions-archive.js:545:  const selectedRoleId = member?.roleId || getRoleById(member?.role)?.id || getRoleByLegacyRole(member?.role)?.id || "";
