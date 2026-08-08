@@ -5,22 +5,17 @@ on:
     paths:
       - .github/workflows/access-architecture-refactor.yml
 permissions:
-  contents: write
+  contents: read
 jobs:
-  refactor:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Apply canonical page loading
-        run: python3 .github/refactor-access-cleanup5.py
-      - name: Install
-        run: npm ci
+      - run: npm ci
       - name: Build and syntax check
         run: |
           npm run web:publish
@@ -28,15 +23,7 @@ jobs:
           node --check src/renderer/renderer-page-data.js
           node --check src/renderer/renderer-groups-permissions-archive.js
           node --check src/renderer/app.js
-      - name: Commit canonical page loading
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "整合正式頁面資料載入架構"
-          git push origin refactor/access-architecture-v3
-      - name: Run unit tests
+      - name: Unit tests
         run: |
           mv .github/workflows/access-architecture-refactor.yml /tmp/access-architecture-refactor.yml
           npm test
-          mv /tmp/access-architecture-refactor.yml .github/workflows/access-architecture-refactor.yml
