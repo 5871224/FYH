@@ -15,7 +15,7 @@ const coreSource = read("scripts/renderer-core-source.js");
 
 test("目前人員應優先依 profile id，再依工號解析", () => {
   const start = authContext.indexOf("function resolveCurrentMember");
-  const end = authContext.indexOf("function normalizeRole", start);
+  const end = authContext.indexOf("function isAdmin", start);
   const context = {
     state: { members: [{ id: "M1", code: "001" }, { id: "M2", code: "002" }] },
     currentProfile: { id: "M2", employee_code: "001" }
@@ -27,20 +27,17 @@ test("目前人員應優先依 profile id，再依工號解析", () => {
 });
 
 test("管理能力應完全由權限項目與適用群組決定", () => {
-  const start = authContext.indexOf("function normalizeRole");
+  const start = authContext.indexOf("function isAdmin");
   const end = authContext.indexOf("async function ensureManagerDirectoryLoaded", start);
   let permissions = [];
   const context = {
-    currentProfile: { role: "employee" },
     currentSession: { user: { id: "U1" } },
     groupFeatureState: { currentGroupId: "G1" },
     getAccessPermissions: () => permissions,
     hasPermission: (permission) => permissions.includes(permission),
-    roleAppliesToGroup: (groupId) => groupId === "G1",
-    getRoleById: () => null,
-    getRoleByLegacyRole: () => null
+    roleAppliesToGroup: (groupId) => groupId === "G1"
   };
-  const api = vm.runInNewContext(authContext.slice(start, end) + "\n;({ normalizeRole, isAdmin, isManager, canEditSchedule })", context);
+  const api = vm.runInNewContext(authContext.slice(start, end) + "\n;({ isAdmin, isManager, canEditSchedule })", context);
   assert.equal(api.isManager(), false);
   permissions = ["schedule_view", "schedule_manage"];
   assert.equal(api.isManager(), true);

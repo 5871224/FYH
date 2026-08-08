@@ -75,7 +75,7 @@ function getFilteredMemberSettingsMembers() {
         : getMemberHomeDeptId(member) === memberSettingsFilters.department;
     const matchesRole = memberSettingsFilters.role === "all"
       ? true
-      : normalizeRole(member.role) === memberSettingsFilters.role;
+      : member.roleId === memberSettingsFilters.role;
     const active = isMemberCurrentlyActive(member);
     const matchesEmployment = memberSettingsFilters.employment === "all"
       ? true
@@ -119,7 +119,7 @@ function renderMemberSettingsList() {
                  <div class="member-table-code">${escapeHtml(member.code)}</div>
                 <div class="member-table-name">${escapeHtml(member.name)}</div>
                 <div class="member-shift-pill-list">${renderMemberScheduleShiftPills(member)}</div>
-                <div>${getRoleLabel(member.role)}</div>
+                <div>${getRoleLabel(member.roleId)}</div>
                 <div class="member-date-stack"><span>${escapeHtml(member.hireDate || "-")}</span><span>${escapeHtml(member.leaveDate || "-")}</span></div>
                 <div>${getSalaryTypeLabel(member)}</div>
                 <div>${getRestWeekdayLabel(member.fixedRestWeekday)}</div>
@@ -192,9 +192,7 @@ async function openMemberSettings() {
           <label for="memberSettingsRoleFilter">權限</label>
           <select id="memberSettingsRoleFilter" data-member-settings-filter-field="role">
             <option value="all" ${memberSettingsFilters.role === "all" ? "selected" : ""}>全部</option>
-            <option value="admin" ${memberSettingsFilters.role === "admin" ? "selected" : ""}>管理員</option>
-            <option value="manager" ${memberSettingsFilters.role === "manager" ? "selected" : ""}>主管</option>
-            <option value="employee" ${memberSettingsFilters.role === "employee" ? "selected" : ""}>員工</option>
+            ${getAllRoles().map((role) => `<option value="${escapeHtml(role.id)}" ${memberSettingsFilters.role === role.id ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("")}
           </select>
         </div>
         <div class="form-row">
@@ -253,6 +251,16 @@ async function importMembersFromSettings() {
     }
     const departmentMap = new Map(state.departments.map((department) => [department.name.trim(), department.id]));
     const shiftMap = new Map(state.shifts.filter((shift) => !shift.hiddenFromToolbar).map((shift) => [shift.name.trim(), shift.id]));
+    const accessRoleMap = new Map();
+    getAllRoles().forEach((role) => {
+      accessRoleMap.set(String(role.id || "").trim().toLowerCase(), role.id);
+      accessRoleMap.set(String(role.code || "").trim().toLowerCase(), role.id);
+      accessRoleMap.set(String(role.name || "").trim().toLowerCase(), role.id);
+    });
+    const defaultAccessRoleId = getAllRoles().find((role) => {
+      const permissions = Array.isArray(role.permissions) ? role.permissions : [];
+      return permissions.length === 1 && permissions.includes("schedule_view");
+    })?.id || "";
     let imported = 0;
     let updated = 0;
     let skipped = 0;
@@ -281,6 +289,15 @@ async function importMembersFromSettings() {
         continue;
       }
       const existing = state.members.find((member) => member.code === code) || null;
+      const importedRoleKey = String(row.roleName || "").trim().toLowerCase();
+      const importedRoleId = accessRoleMap.get(importedRoleKey) || "";
+      const roleId = isAdmin()
+        ? (importedRoleId || existing?.roleId || defaultAccessRoleId)
+        : (existing?.roleId || defaultAccessRoleId);
+      if (!roleId) {
+        skipped += 1;
+        continue;
+      }
       const payload = {
         id: existing?.id || uid("m"),
         code,
@@ -294,7 +311,7 @@ async function importMembersFromSettings() {
         payByDay: Boolean(row.payByDay),
         fixedRestWeekday: normalizeRestWeekday(row.fixedRestWeekday),
         monthlyRestDays: Math.max(0, Number(row.monthlyRestDays) || 0),
-        role: isAdmin() ? normalizeRole(row.role) : normalizeRole(existing?.role)
+        roleId
       };
       if (!existing) {
         try {

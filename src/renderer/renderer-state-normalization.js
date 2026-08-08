@@ -75,7 +75,7 @@ function sanitizeMember(member, fallbackIndex, merged) {
     payByDay: Boolean(member?.payByDay),
     fixedRestWeekday: normalizeRestWeekday(member?.fixedRestWeekday),
     monthlyRestDays: Math.max(0, Number(member?.monthlyRestDays) || 0),
-    role: normalizeRole(member?.role)
+    roleId: member?.roleId || ""
   };
 }
 

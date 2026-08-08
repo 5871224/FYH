@@ -553,42 +553,33 @@ drop policy if exists write_set_departments on public.set_departments;
 drop policy if exists insert_set_departments_group on public.set_departments;
 drop policy if exists update_set_departments_group on public.set_departments;
 drop policy if exists delete_set_departments_group on public.set_departments;
-create policy read_set_departments on public.set_departments for select to authenticated using(deleted_at is null and public.role_applies_to_group(auth.uid(),group_id));
-create policy insert_set_departments_group on public.set_departments for insert to authenticated with check(deleted_at is null and public.can_access_group(auth.uid(),group_id,'department_settings'));
-create policy update_set_departments_group on public.set_departments for update to authenticated using(deleted_at is null and public.can_access_group(auth.uid(),group_id,'department_settings')) with check(deleted_at is null and public.can_access_group(auth.uid(),group_id,'department_settings'));
-create policy delete_set_departments_group on public.set_departments for delete to authenticated using(deleted_at is null and public.can_access_group(auth.uid(),group_id,'department_settings'));
+create policy read_set_departments on public.set_departments for select to authenticated using(deleted_at is null and public.role_applies_to_group((select auth.uid()),group_id));
+create policy delete_set_departments_group on public.set_departments for delete to authenticated using(deleted_at is null and public.can_access_group((select auth.uid()),group_id,'department_settings'));
 
 drop policy if exists read_set_employee on public.set_employee;
 drop policy if exists insert_set_employee on public.set_employee;
 drop policy if exists update_set_employee on public.set_employee;
 drop policy if exists delete_set_employee on public.set_employee;
-create policy read_set_employee on public.set_employee for select to authenticated using(deleted_at is null and (id=auth.uid() or public.role_applies_to_group(auth.uid(),group_id)));
-create policy insert_set_employee on public.set_employee for insert to authenticated with check(public.can_access_group(auth.uid(),group_id,'member_settings'));
-create policy update_set_employee on public.set_employee for update to authenticated using(public.can_access_group(auth.uid(),group_id,'member_settings')) with check(public.can_access_group(auth.uid(),group_id,'member_settings'));
-create policy delete_set_employee on public.set_employee for delete to authenticated using(public.can_access_group(auth.uid(),group_id,'member_settings'));
+create policy read_set_employee on public.set_employee for select to authenticated using(deleted_at is null and (id=(select auth.uid()) or public.role_applies_to_group((select auth.uid()),group_id)));
+create policy delete_set_employee on public.set_employee for delete to authenticated using(public.can_access_group((select auth.uid()),group_id,'member_settings'));
 
 drop policy if exists read_set_shift on public.set_shift;
 drop policy if exists write_set_shift on public.set_shift;
 drop policy if exists insert_set_shift_group on public.set_shift;
 drop policy if exists update_set_shift_group on public.set_shift;
 drop policy if exists delete_set_shift_group on public.set_shift;
-create policy read_set_shift on public.set_shift for select to authenticated using(deleted_at is null and public.role_applies_to_group(auth.uid(),group_id));
-create policy insert_set_shift_group on public.set_shift for insert to authenticated with check(deleted_at is null and public.can_access_group(auth.uid(),group_id,'schedule_manage'));
-create policy update_set_shift_group on public.set_shift for update to authenticated using(deleted_at is null and public.can_access_group(auth.uid(),group_id,'schedule_manage')) with check(deleted_at is null and public.can_access_group(auth.uid(),group_id,'schedule_manage'));
-create policy delete_set_shift_group on public.set_shift for delete to authenticated using(deleted_at is null and public.can_access_group(auth.uid(),group_id,'schedule_manage'));
+create policy read_set_shift on public.set_shift for select to authenticated using(deleted_at is null and public.role_applies_to_group((select auth.uid()),group_id));
+create policy delete_set_shift_group on public.set_shift for delete to authenticated using(deleted_at is null and public.can_access_group((select auth.uid()),group_id,'schedule_manage'));
 
 drop policy if exists read_schedule_entries on public.schedule_entries;
 drop policy if exists write_schedule_entries on public.schedule_entries;
 drop policy if exists insert_schedule_entries on public.schedule_entries;
 drop policy if exists update_schedule_entries on public.schedule_entries;
 drop policy if exists delete_schedule_entries on public.schedule_entries;
-create policy read_schedule_entries on public.schedule_entries for select to authenticated using(public.can_access_group(auth.uid(),group_id,'schedule_view'));
-create policy insert_schedule_entries on public.schedule_entries for insert to authenticated with check(public.can_access_group(auth.uid(),group_id,'schedule_manage'));
-create policy update_schedule_entries on public.schedule_entries for update to authenticated using(public.can_access_group(auth.uid(),group_id,'schedule_manage')) with check(public.can_access_group(auth.uid(),group_id,'schedule_manage'));
-create policy delete_schedule_entries on public.schedule_entries for delete to authenticated using(public.can_access_group(auth.uid(),group_id,'schedule_manage'));
+create policy read_schedule_entries on public.schedule_entries for select to authenticated using(public.can_access_group((select auth.uid()),group_id,'schedule_view'));
 
 drop policy if exists read_meal_orders on public.meal_orders;
-create policy read_meal_orders on public.meal_orders for select to authenticated using(public.is_effective_user(auth.uid()) and (user_id=auth.uid() or public.can_access_group(auth.uid(),group_id,'meal_admin')));
+create policy read_meal_orders on public.meal_orders for select to authenticated using(public.is_effective_user((select auth.uid())) and (user_id=(select auth.uid()) or public.can_access_group((select auth.uid()),group_id,'meal_admin')));
 
 revoke all on function public.set_shift_group_v1(),public.set_schedule_entry_group_v1(),public.protect_archived_schedule_v1(),public.stamp_attendance_group_v1(),public.stamp_meal_group_v1(),public.protect_employee_role_changes() from public,anon,authenticated;
 
@@ -923,14 +914,14 @@ drop policy if exists read_set_shift on public.set_shift;
 create policy read_set_shift on public.set_shift
 for select to authenticated
 using(
-  public.role_applies_to_group(auth.uid(),group_id)
+  public.role_applies_to_group((select auth.uid()),group_id)
   and (
     deleted_at is null
     or exists(
       select 1 from public.schedule_entries entry
       where entry.shift_type_id=set_shift.id
         and not public.is_schedule_date_archived(entry.group_id,entry.work_date)
-        and public.role_applies_to_group(auth.uid(),entry.group_id)
+        and public.role_applies_to_group((select auth.uid()),entry.group_id)
     )
   )
 );
@@ -943,24 +934,17 @@ drop policy if exists update_set_leave on public.set_leave;
 create policy read_set_leave on public.set_leave
 for select to authenticated
 using(
-  public.is_effective_user(auth.uid())
+  public.is_effective_user((select auth.uid()))
   and (
     deleted_at is null
     or exists(
       select 1 from public.schedule_entries entry
       where entry.leave_type_id=set_leave.id
         and not public.is_schedule_date_archived(entry.group_id,entry.work_date)
-        and public.role_applies_to_group(auth.uid(),entry.group_id)
+        and public.role_applies_to_group((select auth.uid()),entry.group_id)
     )
   )
 );
-create policy insert_set_leave on public.set_leave
-for insert to authenticated
-with check(public.is_manager(auth.uid()) and deleted_at is null);
-create policy update_set_leave on public.set_leave
-for update to authenticated
-using(public.is_manager(auth.uid()) and deleted_at is null)
-with check(public.is_manager(auth.uid()) and deleted_at is null);
 
 drop policy if exists read_set_overtime on public.set_overtime;
 drop policy if exists write_set_overtime on public.set_overtime;
@@ -969,24 +953,17 @@ drop policy if exists update_set_overtime on public.set_overtime;
 create policy read_set_overtime on public.set_overtime
 for select to authenticated
 using(
-  public.is_effective_user(auth.uid())
+  public.is_effective_user((select auth.uid()))
   and (
     deleted_at is null
     or exists(
       select 1 from public.schedule_entries entry
       where entry.overtime_type_id=set_overtime.id
         and not public.is_schedule_date_archived(entry.group_id,entry.work_date)
-        and public.role_applies_to_group(auth.uid(),entry.group_id)
+        and public.role_applies_to_group((select auth.uid()),entry.group_id)
     )
   )
 );
-create policy insert_set_overtime on public.set_overtime
-for insert to authenticated
-with check(public.is_manager(auth.uid()) and deleted_at is null);
-create policy update_set_overtime on public.set_overtime
-for update to authenticated
-using(public.is_manager(auth.uid()) and deleted_at is null)
-with check(public.is_manager(auth.uid()) and deleted_at is null);
 
 revoke all on function public.unarchive_schedule_v1(uuid) from public,anon;
 grant execute on function public.unarchive_schedule_v1(uuid) to authenticated,service_role;
@@ -1009,62 +986,86 @@ stable
 security definer
 set search_path=public,pg_catalog
 as $$
-with visible_schedule as (
-  select e.*
-  from public.schedule_entries e
-  where public.can_access_group(auth.uid(),e.group_id,'schedule_view')
-    and not public.is_schedule_date_archived(e.group_id,e.work_date)
+with actor as materialized (
+  select employee.access_role_id
+  from public.set_employee employee
+  join public.access_roles role on role.id=employee.access_role_id
+  where employee.id=(select auth.uid())
+    and employee.deleted_at is null
+    and 'schedule_view'=any(coalesce(role.permissions,'{}'::text[]))
+    and public.is_employee_account_effective(employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date)
+  limit 1
+),
+allowed_groups as materialized (
+  select role_group.group_id
+  from actor
+  join public.access_role_groups role_group on role_group.role_id=actor.access_role_id
+),
+visible_schedule as materialized (
+  select entry.*
+  from public.schedule_entries entry
+  join allowed_groups allowed on allowed.group_id=entry.group_id
+  where not exists(
+    select 1 from public.schedule_archives archive
+    where archive.group_id=entry.group_id
+      and entry.work_date between archive.start_date and archive.end_date
+  )
 ),
 visible_departments as (
-  select d.*
-  from public.set_departments d
-  where public.role_applies_to_group(auth.uid(),d.group_id)
-    and (
-      d.deleted_at is null
-      or exists(
-        select 1 from visible_schedule e
-        left join public.set_employee m on m.id=e.member_id
-        where e.support_department_id=d.id
-           or (e.support_department_id is null and m.home_department_id=d.id)
-      )
-    )
+  select department.*
+  from public.set_departments department
+  join allowed_groups allowed on allowed.group_id=department.group_id
+  where department.deleted_at is null
+     or exists(
+       select 1
+       from visible_schedule entry
+       left join public.set_employee member on member.id=entry.member_id
+       where entry.support_department_id=department.id
+          or (entry.support_department_id is null and member.home_department_id=department.id)
+     )
 ),
 visible_members as (
-  select m.*
-  from public.set_employee m
-  where public.role_applies_to_group(auth.uid(),m.group_id)
-    and (m.deleted_at is null or exists(select 1 from visible_schedule e where e.member_id=m.id))
+  select member.*
+  from public.set_employee member
+  join allowed_groups allowed on allowed.group_id=member.group_id
+  where member.deleted_at is null
+     or exists(select 1 from visible_schedule entry where entry.member_id=member.id)
 ),
 visible_shifts as (
-  select s.*
-  from public.set_shift s
-  where public.role_applies_to_group(auth.uid(),s.group_id)
-    and (s.deleted_at is null or exists(select 1 from visible_schedule e where e.shift_type_id=s.id))
+  select shift.*
+  from public.set_shift shift
+  join allowed_groups allowed on allowed.group_id=shift.group_id
+  where shift.deleted_at is null
+     or exists(select 1 from visible_schedule entry where entry.shift_type_id=shift.id)
 ),
 visible_leaves as (
-  select l.* from public.set_leave l
-  where l.deleted_at is null or exists(select 1 from visible_schedule e where e.leave_type_id=l.id)
+  select leave_item.*
+  from public.set_leave leave_item
+  where leave_item.deleted_at is null
+     or exists(select 1 from visible_schedule entry where entry.leave_type_id=leave_item.id)
 ),
 visible_overtime as (
-  select o.* from public.set_overtime o
-  where o.deleted_at is null or exists(select 1 from visible_schedule e where e.overtime_type_id=o.id)
+  select overtime_item.*
+  from public.set_overtime overtime_item
+  where overtime_item.deleted_at is null
+     or exists(select 1 from visible_schedule entry where entry.overtime_type_id=overtime_item.id)
 )
-select case when public.is_effective_user(auth.uid()) then jsonb_build_object(
-  'settings',coalesce((select to_jsonb(s) from public.scheduler_settings s where s.id=coalesce(nullif(p_document_id,''),'default') limit 1),'{}'::jsonb),
+select case when exists(select 1 from actor) then jsonb_build_object(
+  'settings',coalesce((select to_jsonb(setting) from public.scheduler_settings setting where setting.id=coalesce(nullif(p_document_id,''),'default') limit 1),'{}'::jsonb),
   'departments',coalesce((select jsonb_agg(jsonb_build_object(
-    'id',d.id,'name',d.name,'group_id',d.group_id,'start_date',d.start_date,'end_date',d.end_date,
-    'hidden_from_schedule',d.hidden_from_schedule,'sort_order',d.sort_order,'deleted_at',d.deleted_at
-  ) order by d.sort_order,d.name,d.id) from visible_departments d),'[]'::jsonb),
+    'id',department.id,'name',department.name,'group_id',department.group_id,'start_date',department.start_date,'end_date',department.end_date,
+    'hidden_from_schedule',department.hidden_from_schedule,'sort_order',department.sort_order,'deleted_at',department.deleted_at
+  ) order by department.sort_order,department.name,department.id) from visible_departments department),'[]'::jsonb),
   'members',coalesce((select jsonb_agg(jsonb_build_object(
-    'id',m.id,'employee_code',m.employee_code,'full_name',m.full_name,'group_id',m.group_id,'access_role_id',m.access_role_id,
-    'home_department_id',m.home_department_id,'hire_date',m.hire_date,'leave_date',m.leave_date,'pay_by_day',m.pay_by_day,
-    'fixed_rest_weekday',m.fixed_rest_weekday,'schedule_shift_ids',m.schedule_shift_ids,'monthly_rest_days',m.monthly_rest_days,
-    'sort_order',m.sort_order,'role',m.role,'deleted_at',m.deleted_at
-  ) order by m.sort_order,m.full_name,m.id) from visible_members m),'[]'::jsonb),
-  'shifts',coalesce((select jsonb_agg(to_jsonb(s) order by s.sort_order,s.name,s.id) from visible_shifts s),'[]'::jsonb),
-  'leaves',coalesce((select jsonb_agg(to_jsonb(l) order by l.sort_order,l.code,l.id) from visible_leaves l),'[]'::jsonb),
-  'overtime',coalesce((select jsonb_agg(to_jsonb(o) order by o.sort_order,o.name,o.id) from visible_overtime o),'[]'::jsonb),
-  'holidays',coalesce((select jsonb_agg(to_jsonb(h) order by h.sort_order,h.holiday_date,h.id) from public.holidays h),'[]'::jsonb),
+    'id',member.id,'employee_code',member.employee_code,'full_name',member.full_name,'group_id',member.group_id,'access_role_id',member.access_role_id,
+    'home_department_id',member.home_department_id,'hire_date',member.hire_date,'leave_date',member.leave_date,'pay_by_day',member.pay_by_day,
+    'fixed_rest_weekday',member.fixed_rest_weekday,'schedule_shift_ids',member.schedule_shift_ids,'monthly_rest_days',member.monthly_rest_days,
+    'sort_order',member.sort_order,'role',member.role,'deleted_at',member.deleted_at
+  ) order by member.sort_order,member.full_name,member.id) from visible_members member),'[]'::jsonb),
+  'shifts',coalesce((select jsonb_agg(to_jsonb(shift) order by shift.sort_order,shift.name,shift.id) from visible_shifts shift),'[]'::jsonb),
+  'leaves',coalesce((select jsonb_agg(to_jsonb(leave_item) order by leave_item.sort_order,leave_item.code,leave_item.id) from visible_leaves leave_item),'[]'::jsonb),
+  'overtime',coalesce((select jsonb_agg(to_jsonb(overtime_item) order by overtime_item.sort_order,overtime_item.name,overtime_item.id) from visible_overtime overtime_item),'[]'::jsonb),
+  'holidays',coalesce((select jsonb_agg(to_jsonb(holiday) order by holiday.sort_order,holiday.holiday_date,holiday.id) from public.holidays holiday),'[]'::jsonb),
   'accessBundle',public.get_group_access_bundle_v1(),
   'entityMap',public.get_group_entity_map_v1()
 ) else null end
@@ -1077,13 +1078,29 @@ stable
 security definer
 set search_path=public,pg_catalog
 as $$
-  select e.*
-  from public.schedule_entries e
-  where public.is_effective_user(auth.uid())
-    and p_start_date is not null and p_end_date is not null and p_start_date<=p_end_date
-    and e.work_date between p_start_date and p_end_date
-    and public.can_access_group(auth.uid(),e.group_id,'schedule_view')
-  order by e.work_date,e.member_id
+  with actor as materialized (
+    select employee.access_role_id
+    from public.set_employee employee
+    join public.access_roles role on role.id=employee.access_role_id
+    where employee.id=(select auth.uid())
+      and employee.deleted_at is null
+      and 'schedule_view'=any(coalesce(role.permissions,'{}'::text[]))
+      and public.is_employee_account_effective(employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date)
+    limit 1
+  ),
+  allowed_groups as materialized (
+    select role_group.group_id
+    from actor
+    join public.access_role_groups role_group on role_group.role_id=actor.access_role_id
+  )
+  select entry.*
+  from public.schedule_entries entry
+  join allowed_groups allowed on allowed.group_id=entry.group_id
+  where p_start_date is not null
+    and p_end_date is not null
+    and p_start_date<=p_end_date
+    and entry.work_date between p_start_date and p_end_date
+  order by entry.work_date,entry.member_id
 $$;
 
 create or replace function public.save_schedule_entries_v3(entries jsonb)
@@ -1092,34 +1109,67 @@ language plpgsql
 security definer
 set search_path=public,pg_catalog
 as $$
+declare
+  v_role_id uuid;
+  v_invalid boolean:=false;
 begin
-  if auth.uid() is null or not public.has_access_permission(auth.uid(),'schedule_manage') then
+  select employee.access_role_id
+  into v_role_id
+  from public.set_employee employee
+  join public.access_roles role on role.id=employee.access_role_id
+  where employee.id=(select auth.uid())
+    and employee.deleted_at is null
+    and 'schedule_manage'=any(coalesce(role.permissions,'{}'::text[]))
+    and public.is_employee_account_effective(employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date)
+  limit 1;
+
+  if v_role_id is null then
     raise exception '沒有班表管理權限' using errcode='42501';
   end if;
   if entries is null or jsonb_typeof(entries)<>'array' then
     raise exception '班表資料格式錯誤' using errcode='22023';
   end if;
-  if exists(
-    select 1 from jsonb_to_recordset(entries) as x(member_id uuid,work_date date)
-    where x.member_id is null or x.work_date is null
-  ) then
-    raise exception '班表人員與日期不可空白' using errcode='23502';
-  end if;
-  if exists(
+
+  with incoming as materialized (
+    select *
+    from jsonb_to_recordset(entries) as item(
+      member_id uuid,work_date date,delete_entry boolean,support_department_id uuid,
+      shift_type_id uuid,leave_type_id uuid,leave_all_day boolean,leave_start_time time,leave_end_time time,leave_reason text,
+      overtime_type_id uuid,overtime_start_time time,overtime_end_time time,
+      overtime_use_rest_1 boolean,overtime_rest_1_start_time time,overtime_rest_1_end_time time,
+      overtime_use_rest_2 boolean,overtime_rest_2_start_time time,overtime_rest_2_end_time time,overtime_reason text,note text
+    )
+  )
+  select exists(
     select 1
-    from jsonb_to_recordset(entries) as x(member_id uuid,work_date date,delete_entry boolean,shift_type_id uuid,leave_type_id uuid,overtime_type_id uuid)
-    left join public.set_employee m on m.id=x.member_id
-    where m.id is null or m.group_id is null
-      or not public.can_access_group(auth.uid(),m.group_id,'schedule_manage')
-      or public.is_schedule_date_archived(m.group_id,x.work_date)
-      or (m.deleted_at is not null and not (coalesce(x.delete_entry,false) or (x.shift_type_id is null and x.leave_type_id is null and x.overtime_type_id is null)))
-  ) then
+    from incoming item
+    left join public.set_employee member on member.id=item.member_id
+    where item.member_id is null
+       or item.work_date is null
+       or member.id is null
+       or member.group_id is null
+       or not exists(
+         select 1 from public.access_role_groups allowed
+         where allowed.role_id=v_role_id and allowed.group_id=member.group_id
+       )
+       or exists(
+         select 1 from public.schedule_archives archive
+         where archive.group_id=member.group_id
+           and item.work_date between archive.start_date and archive.end_date
+       )
+       or (member.deleted_at is not null and not (
+         coalesce(item.delete_entry,false)
+         or (item.shift_type_id is null and item.leave_type_id is null and item.overtime_type_id is null)
+       ))
+  ) into v_invalid;
+
+  if v_invalid then
     raise exception '包含無權管理、已封存或已刪除人員的班表資料' using errcode='42501';
   end if;
 
   return query
-  with incoming as(
-    select * from jsonb_to_recordset(entries) as x(
+  with incoming as materialized (
+    select * from jsonb_to_recordset(entries) as item(
       member_id uuid,work_date date,delete_entry boolean,support_department_id uuid,
       shift_type_id uuid,leave_type_id uuid,leave_all_day boolean,leave_start_time time,leave_end_time time,leave_reason text,
       overtime_type_id uuid,overtime_start_time time,overtime_end_time time,
@@ -1127,36 +1177,36 @@ begin
       overtime_use_rest_2 boolean,overtime_rest_2_start_time time,overtime_rest_2_end_time time,overtime_reason text,note text
     )
   ),
-  deleted as(
-    delete from public.schedule_entries e using incoming x
-    where e.member_id=x.member_id and e.work_date=x.work_date
-      and (coalesce(x.delete_entry,false) or (x.shift_type_id is null and x.leave_type_id is null and x.overtime_type_id is null))
-    returning e.*
+  deleted as (
+    delete from public.schedule_entries entry using incoming item
+    where entry.member_id=item.member_id and entry.work_date=item.work_date
+      and (coalesce(item.delete_entry,false) or (item.shift_type_id is null and item.leave_type_id is null and item.overtime_type_id is null))
+    returning entry.*
   ),
-  upserted as(
+  upserted as (
     insert into public.schedule_entries(
       member_id,work_date,support_department_id,shift_type_id,leave_type_id,leave_all_day,leave_start_time,leave_end_time,leave_reason,
       overtime_type_id,overtime_start_time,overtime_end_time,overtime_use_rest_1,overtime_rest_1_start_time,overtime_rest_1_end_time,
       overtime_use_rest_2,overtime_rest_2_start_time,overtime_rest_2_end_time,overtime_reason,note
     )
-    select x.member_id,x.work_date,x.support_department_id,x.shift_type_id,x.leave_type_id,coalesce(x.leave_all_day,true),
-      case when x.leave_type_id is null then null else x.leave_start_time end,
-      case when x.leave_type_id is null then null else x.leave_end_time end,
-      case when x.leave_type_id is null then null else x.leave_reason end,
-      x.overtime_type_id,
-      case when x.overtime_type_id is null then null else x.overtime_start_time end,
-      case when x.overtime_type_id is null then null else x.overtime_end_time end,
-      case when x.overtime_type_id is null then false else coalesce(x.overtime_use_rest_1,false) end,
-      case when x.overtime_type_id is null or not coalesce(x.overtime_use_rest_1,false) then null else x.overtime_rest_1_start_time end,
-      case when x.overtime_type_id is null or not coalesce(x.overtime_use_rest_1,false) then null else x.overtime_rest_1_end_time end,
-      case when x.overtime_type_id is null then false else coalesce(x.overtime_use_rest_2,false) end,
-      case when x.overtime_type_id is null or not coalesce(x.overtime_use_rest_2,false) then null else x.overtime_rest_2_start_time end,
-      case when x.overtime_type_id is null or not coalesce(x.overtime_use_rest_2,false) then null else x.overtime_rest_2_end_time end,
-      case when x.overtime_type_id is null then null else x.overtime_reason end,
-      x.note
-    from incoming x
-    where not coalesce(x.delete_entry,false)
-      and (x.shift_type_id is not null or x.leave_type_id is not null or x.overtime_type_id is not null)
+    select item.member_id,item.work_date,item.support_department_id,item.shift_type_id,item.leave_type_id,coalesce(item.leave_all_day,true),
+      case when item.leave_type_id is null then null else item.leave_start_time end,
+      case when item.leave_type_id is null then null else item.leave_end_time end,
+      case when item.leave_type_id is null then null else item.leave_reason end,
+      item.overtime_type_id,
+      case when item.overtime_type_id is null then null else item.overtime_start_time end,
+      case when item.overtime_type_id is null then null else item.overtime_end_time end,
+      case when item.overtime_type_id is null then false else coalesce(item.overtime_use_rest_1,false) end,
+      case when item.overtime_type_id is null or not coalesce(item.overtime_use_rest_1,false) then null else item.overtime_rest_1_start_time end,
+      case when item.overtime_type_id is null or not coalesce(item.overtime_use_rest_1,false) then null else item.overtime_rest_1_end_time end,
+      case when item.overtime_type_id is null then false else coalesce(item.overtime_use_rest_2,false) end,
+      case when item.overtime_type_id is null or not coalesce(item.overtime_use_rest_2,false) then null else item.overtime_rest_2_start_time end,
+      case when item.overtime_type_id is null or not coalesce(item.overtime_use_rest_2,false) then null else item.overtime_rest_2_end_time end,
+      case when item.overtime_type_id is null then null else item.overtime_reason end,
+      item.note
+    from incoming item
+    where not coalesce(item.delete_entry,false)
+      and (item.shift_type_id is not null or item.leave_type_id is not null or item.overtime_type_id is not null)
     on conflict(member_id,work_date) do update set
       support_department_id=excluded.support_department_id,
       shift_type_id=excluded.shift_type_id,leave_type_id=excluded.leave_type_id,leave_all_day=excluded.leave_all_day,
@@ -1740,48 +1790,18 @@ before insert or update on public.set_departments
 for each row execute function public.protect_department_attendance_fields();
 
 drop policy if exists write_holidays on public.holidays;
-create policy write_holidays on public.holidays
-for all to authenticated
-using(public.has_access_permission(auth.uid(),'schedule_manage'))
-with check(public.has_access_permission(auth.uid(),'schedule_manage'));
 
 drop policy if exists write_scheduler_settings on public.scheduler_settings;
-create policy write_scheduler_settings on public.scheduler_settings
-for all to authenticated
-using(public.has_access_permission(auth.uid(),'schedule_manage'))
-with check(public.has_access_permission(auth.uid(),'schedule_manage'));
 
 drop policy if exists write_meal_products on public.meal_products;
-create policy write_meal_products on public.meal_products
-for all to authenticated
-using(public.has_access_permission(auth.uid(),'meal_admin'))
-with check(public.has_access_permission(auth.uid(),'meal_admin'));
 
 drop policy if exists write_meal_settings on public.meal_settings;
-create policy write_meal_settings on public.meal_settings
-for all to authenticated
-using(public.has_access_permission(auth.uid(),'meal_admin'))
-with check(public.has_access_permission(auth.uid(),'meal_admin'));
 
 drop policy if exists insert_set_leave on public.set_leave;
 drop policy if exists update_set_leave on public.set_leave;
-create policy insert_set_leave on public.set_leave
-for insert to authenticated
-with check(public.has_access_permission(auth.uid(),'leave_settings') and deleted_at is null);
-create policy update_set_leave on public.set_leave
-for update to authenticated
-using(public.has_access_permission(auth.uid(),'leave_settings') and deleted_at is null)
-with check(public.has_access_permission(auth.uid(),'leave_settings') and deleted_at is null);
 
 drop policy if exists insert_set_overtime on public.set_overtime;
 drop policy if exists update_set_overtime on public.set_overtime;
-create policy insert_set_overtime on public.set_overtime
-for insert to authenticated
-with check(public.has_access_permission(auth.uid(),'leave_settings') and deleted_at is null);
-create policy update_set_overtime on public.set_overtime
-for update to authenticated
-using(public.has_access_permission(auth.uid(),'leave_settings') and deleted_at is null)
-with check(public.has_access_permission(auth.uid(),'leave_settings') and deleted_at is null);
 
 drop trigger if exists attendance_days_touch_updated_at on public.attendance_days;
 drop function if exists public.touch_attendance_day_updated_at();
@@ -1794,4 +1814,26 @@ revoke all on function public.protect_employee_role_changes() from public,anon,a
 revoke all on function public.protect_department_attendance_fields() from public,anon,authenticated;
 grant execute on function public.is_admin(uuid),public.is_manager(uuid),public.is_employee_account_effective(date,date,date),public.is_employee_employed_on(date,date,date),public.protect_employee_role_changes(),public.protect_department_attendance_fields() to service_role;
 
+commit;
+
+
+begin;
+-- Canonical RPC-only table access: authenticated has no direct write policies.
+drop policy if exists write_holidays on public.holidays;
+drop policy if exists write_scheduler_settings on public.scheduler_settings;
+drop policy if exists write_meal_products on public.meal_products;
+drop policy if exists write_meal_settings on public.meal_settings;
+drop policy if exists insert_schedule_entries on public.schedule_entries;
+drop policy if exists update_schedule_entries on public.schedule_entries;
+drop policy if exists delete_schedule_entries on public.schedule_entries;
+drop policy if exists insert_set_departments_group on public.set_departments;
+drop policy if exists update_set_departments_group on public.set_departments;
+drop policy if exists insert_set_employee on public.set_employee;
+drop policy if exists update_set_employee on public.set_employee;
+drop policy if exists insert_set_leave on public.set_leave;
+drop policy if exists update_set_leave on public.set_leave;
+drop policy if exists insert_set_overtime on public.set_overtime;
+drop policy if exists update_set_overtime on public.set_overtime;
+drop policy if exists insert_set_shift_group on public.set_shift;
+drop policy if exists update_set_shift_group on public.set_shift;
 commit;

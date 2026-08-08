@@ -37,13 +37,12 @@ test("設定拖曳排序應只重排可見項目並保留缺漏項目", () => {
 test("人員設定篩選應同時套用姓名、單位、權限、在職與薪資條件", () => {
   const context = {
     state: { members: [
-      { id: "1", name: "王小明", deptId: "D1", role: "employee", payByDay: false, active: true },
-      { id: "2", name: "王小華", deptId: "D1", role: "manager", payByDay: true, active: true },
-      { id: "3", name: "李小明", deptId: "D2", role: "employee", payByDay: false, active: false }
+      { id: "1", name: "王小明", deptId: "D1", roleId: "ROLE-A", payByDay: false, active: true },
+      { id: "2", name: "王小華", deptId: "D1", roleId: "ROLE-B", payByDay: true, active: true },
+      { id: "3", name: "李小明", deptId: "D2", roleId: "ROLE-A", payByDay: false, active: false }
     ] },
-    memberSettingsFilters: { name: "王", department: "D1", role: "employee", employment: "active", salaryType: "monthly" },
+    memberSettingsFilters: { name: "王", department: "D1", role: "ROLE-A", employment: "active", salaryType: "monthly" },
     getMemberHomeDeptId: (member) => member.deptId,
-    normalizeRole: (role) => role,
     isMemberCurrentlyActive: (member) => member.active
   };
   const api = evaluate("renderer-settings-member.js", "({ getFilteredMemberSettingsMembers })", context);
