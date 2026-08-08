@@ -30,7 +30,8 @@ create table if not exists public.set_departments (
   attendance_settings_updated_by uuid,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 
 create table if not exists public.set_employee (
@@ -46,7 +47,8 @@ create table if not exists public.set_employee (
   fixed_rest_weekday integer not null default 0 check (fixed_rest_weekday between 0 and 6),
   monthly_rest_days integer not null default 0 check (monthly_rest_days between 0 and 31),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 
 
@@ -101,7 +103,8 @@ create table if not exists public.set_shift (
   hidden_from_toolbar boolean not null default false,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 
 create table if not exists public.set_leave (
@@ -116,7 +119,8 @@ create table if not exists public.set_leave (
   hidden_from_toolbar boolean not null default false,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 
 create table if not exists public.set_overtime (
@@ -136,7 +140,8 @@ create table if not exists public.set_overtime (
   hidden_from_toolbar boolean not null default false,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 
 create table if not exists public.holidays (

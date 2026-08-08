@@ -59,8 +59,9 @@ test("刪除班別應先保存位置，成功更新後再還原", async () => {
   const functionSource = catalogSource.slice(catalogSource.indexOf("async function deleteListItem"));
   const api = vm.runInNewContext(functionSource + "\n;({ deleteListItem })", context);
   await api.deleteListItem("shift", "S1");
-  assert.deepEqual(calls, ["capture", "confirm", "delete", "remove", "render", "reopen:180"]);
-  assert.deepEqual(Array.from(context.state.shifts, (item) => item.id), ["S2"]);
+  assert.deepEqual(calls, ["capture", "confirm", "delete", "render", "reopen:180"]);
+  assert.deepEqual(Array.from(context.state.shifts, (item) => item.id), ["S1", "S2"]);
+  assert.equal(context.state.shifts.find((item) => item.id === "S1")?.deleted, true);
   assert.deepEqual(Array.from(context.state.members[0].scheduleShiftIds), ["S2"]);
 });
 

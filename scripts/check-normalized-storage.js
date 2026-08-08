@@ -31,8 +31,10 @@ assert(!webApi.includes("savedScheduleRows"), "schedule entry cleanup should not
 assert(!webApi.includes('restInsert("schedule_documents"'), "saveState should not write schedule_documents JSON");
 assert(!webApi.includes('restSelect("schedule_documents"'), "loadState should not read schedule_documents JSON");
 assert(webApi.includes('parts.slice(0, -3).join("_")'), "schedule key parser should keep member ids containing underscores");
-assert(webApi.includes('clearScheduleEntriesByForeignIds("leave_type_id"'), "deleting leave settings should clear schedule entry leave references before deleting leave types");
-assert(webApi.includes('clearScheduleEntriesByForeignIds("overtime_type_id"'), "deleting overtime settings should clear schedule entry overtime references before deleting overtime types");
+assert(!webApi.includes('clearScheduleEntriesByForeignIds("leave_type_id"'), "soft-deleting leave settings should preserve historical schedule leave references");
+assert(!webApi.includes('clearScheduleEntriesByForeignIds("overtime_type_id"'), "soft-deleting overtime settings should preserve historical schedule overtime references");
+assert(!webApi.includes('deleteRowsNotIn("set_leave"'), "leave settings should not be physically deleted by state synchronization");
+assert(!webApi.includes('deleteRowsNotIn("set_overtime"'), "overtime settings should not be physically deleted by state synchronization");
 assert(webApi.includes("async function fetchRowsById") && webApi.includes("async function fetchRowById"), "catalog settings should resolve rows by uuid id");
 assert(webApi.includes("requiresTime: Boolean(row.requires_time)") && webApi.includes("requiresReason: Boolean(row.requires_reason)"), "leave catalog naming should match requires_time and requires_reason");
 assert(!webApi.includes("defaultAllDay: Boolean(row.requires_time)") && !webApi.includes("requireReason: Boolean(row.requires_reason)"), "web api should not keep the old leave catalog names");

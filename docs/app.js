@@ -2096,7 +2096,8 @@
         latitude: row.latitude ?? "",
         longitude: row.longitude ?? "",
         publicIp: hasAdminAccess(currentProfile?.role) ? row.public_ip || "" : "",
-        attendanceEnabled: Boolean(row.attendance_enabled)
+        attendanceEnabled: Boolean(row.attendance_enabled),
+        deleted: Boolean(row.deleted_at)
       }));
   }
 
@@ -2167,7 +2168,8 @@
         autoTextColor: row.auto_text_color !== false,
         startTime: (row.start_time || "").slice(0, 5),
         endTime: (row.end_time || "").slice(0, 5),
-        hiddenFromToolbar: Boolean(row.hidden_from_toolbar),
+        hiddenFromToolbar: Boolean(row.hidden_from_toolbar) || Boolean(row.deleted_at),
+        deleted: Boolean(row.deleted_at),
         requiredStaffCount: Math.max(0, Number(row.required_staff_count) || 0),
         applicableDeptId: row.applicable_department_id || "",
         positionRequirements: []
@@ -2185,7 +2187,8 @@
         color: row.color || "#888780",
         textColor: row.text_color || "",
         autoTextColor: row.auto_text_color !== false,
-        hiddenFromToolbar: Boolean(row.hidden_from_toolbar),
+        hiddenFromToolbar: Boolean(row.hidden_from_toolbar) || Boolean(row.deleted_at),
+        deleted: Boolean(row.deleted_at),
         requiresTime: Boolean(row.requires_time),
         requiresReason: Boolean(row.requires_reason)
       }));
@@ -2201,7 +2204,8 @@
         color: row.color || "#D85A30",
         textColor: row.text_color || "",
         autoTextColor: row.auto_text_color !== false,
-        hiddenFromToolbar: Boolean(row.hidden_from_toolbar),
+        hiddenFromToolbar: Boolean(row.hidden_from_toolbar) || Boolean(row.deleted_at),
+        deleted: Boolean(row.deleted_at),
         startTime: (row.start_time || "").slice(0, 5),
         endTime: (row.end_time || "").slice(0, 5),
         useRest1: Boolean(row.use_rest_1),
@@ -2241,7 +2245,8 @@
         payByDay: Boolean(row.pay_by_day),
         fixedRestWeekday: clampInteger(row.fixed_rest_weekday, 0, 6, 0),
         monthlyRestDays: Math.max(0, Number(row.monthly_rest_days) || 0),
-        role: normalizeRole(row.role)
+        role: normalizeRole(row.role),
+        deleted: Boolean(row.deleted_at)
       };
     });
   }
@@ -2340,7 +2345,7 @@
   }
 
   async function syncLeaveAndOvertimeCatalogs(state) {
-    const leaveItems = (state.leaves || []).filter((item) => item?.id && item?.code);
+    const leaveItems = (state.leaves || []).filter((item) => item?.id && item?.code && !item?.deleted);
     if (leaveItems.length) {
       await restInsert("set_leave", leaveItems.map((item, index) => ({
         id: item.id,
@@ -2360,7 +2365,7 @@
       });
     }
 
-    const overtimeItems = (state.overtime || []).filter((item) => item?.id && item?.name);
+    const overtimeItems = (state.overtime || []).filter((item) => item?.id && item?.name && !item?.deleted);
     if (overtimeItems.length) {
       await restInsert("set_overtime", overtimeItems.map((item, index) => ({
         id: item.id,
@@ -2425,7 +2430,7 @@
   }
 
   async function ensureMemberProfiles(state) {
-    const members = Array.isArray(state.members) ? state.members.filter((member) => member?.code && member?.name) : [];
+    const members = Array.isArray(state.members) ? state.members.filter((member) => member?.code && member?.name && !member?.deleted) : [];
     if (!members.length) {
       return new Map();
     }
@@ -2465,10 +2470,10 @@
 
   async function saveState(state) {
     ensureManager();
-    const departments = Array.isArray(state.departments) ? state.departments : [];
-    const shifts = Array.isArray(state.shifts) ? state.shifts : [];
-    const leaves = Array.isArray(state.leaves) ? state.leaves : [];
-    const overtime = Array.isArray(state.overtime) ? state.overtime : [];
+    const departments = Array.isArray(state.departments) ? state.departments.filter((item) => !item?.deleted) : [];
+    const shifts = Array.isArray(state.shifts) ? state.shifts.filter((item) => !item?.deleted) : [];
+    const leaves = Array.isArray(state.leaves) ? state.leaves.filter((item) => !item?.deleted) : [];
+    const overtime = Array.isArray(state.overtime) ? state.overtime.filter((item) => !item?.deleted) : [];
     const holidays = Array.isArray(state.holidays) ? state.holidays : [];
 
     if (departments.length) {
@@ -2495,17 +2500,6 @@
         prefer: "resolution=merge-duplicates,return=minimal"
       });
     }
-    const keptLeaveIds = leaves.map((item) => item.id);
-    const existingLeaveMap = await fetchRowsById("set_leave");
-    const removedLeaveRowIds = getRemovedRowIds(existingLeaveMap, keptLeaveIds);
-    await clearScheduleEntriesByForeignIds("leave_type_id", removedLeaveRowIds, {
-      leave_type_id: null,
-      leave_all_day: true,
-      leave_start_time: null,
-      leave_end_time: null,
-      leave_reason: null
-    });
-    await deleteRowsNotIn("set_leave", keptLeaveIds);
     const leaveMap = await fetchRowsById("set_leave");
 
     if (overtime.length) {
@@ -2531,22 +2525,6 @@
         prefer: "resolution=merge-duplicates,return=minimal"
       });
     }
-    const keptOvertimeIds = overtime.map((item) => item.id);
-    const existingOvertimeMap = await fetchRowsById("set_overtime");
-    const removedOvertimeRowIds = getRemovedRowIds(existingOvertimeMap, keptOvertimeIds);
-    await clearScheduleEntriesByForeignIds("overtime_type_id", removedOvertimeRowIds, {
-      overtime_type_id: null,
-      overtime_start_time: null,
-      overtime_end_time: null,
-      overtime_use_rest_1: false,
-      overtime_rest_1_start_time: null,
-      overtime_rest_1_end_time: null,
-      overtime_use_rest_2: false,
-      overtime_rest_2_start_time: null,
-      overtime_rest_2_end_time: null,
-      overtime_reason: null
-    });
-    await deleteRowsNotIn("set_overtime", keptOvertimeIds);
     const overtimeMap = await fetchRowsById("set_overtime");
 
     if (shifts.length) {
@@ -2568,7 +2546,6 @@
         prefer: "resolution=merge-duplicates,return=minimal"
       });
     }
-    await deleteRowsNotIn("set_shift", shifts.map((shift) => shift.id));
     const shiftMap = await fetchRowsById("set_shift");
     const shiftIds = new Set(shifts.map((shift) => shift.id));
 
@@ -2589,7 +2566,7 @@
     await deleteRowsNotIn("holidays", holidays.map((holiday) => holiday.id));
 
     const profileMap = await ensureMemberProfiles(state);
-    for (const member of state.members || []) {
+    for (const member of (state.members || []).filter((item) => !item?.deleted)) {
       const profile = profileMap.get(member.code);
       if (!profile?.id) {
         continue;
@@ -2636,12 +2613,17 @@
     });
 
     const scheduleEntries = [];
+    const preservedScheduleKeys = new Set();
     Object.entries(state.schedule || {}).forEach(([key, slot]) => {
       const parsed = parseScheduleKey(key);
       if (!parsed || !slot) {
         return;
       }
       const member = (state.members || []).find((item) => item.id === parsed.memberId);
+      if (member?.deleted) {
+        if (isUuid(parsed.memberId)) preservedScheduleKeys.add(makeScheduleEntryKey(parsed.memberId, parsed.workDate));
+        return;
+      }
       const profile = member ? profileMap.get(member.code) : null;
       if (!profile?.id) {
         return;
@@ -2670,7 +2652,10 @@
         overtime_reason: slot.overtimeMeta?.reason || null
       };
     }).filter((row) => row && (row.shift_type_id || row.leave_type_id || row.overtime_type_id));
-    const savedScheduleKeys = new Set(scheduleRows.map((row) => makeScheduleEntryKey(row.member_id, row.work_date)));
+    const savedScheduleKeys = new Set([
+      ...scheduleRows.map((row) => makeScheduleEntryKey(row.member_id, row.work_date)),
+      ...preservedScheduleKeys
+    ]);
     const existingScheduleRows = await fetchExistingScheduleRowsForRanges(state.scheduleLoadedRanges);
     const removedScheduleRows = (existingScheduleRows || [])
       .filter((row) => row?.id && !savedScheduleKeys.has(makeScheduleEntryKey(row.member_id, row.work_date)))
@@ -6094,9 +6079,9 @@ function openListSettings(category) {
     leave: "假別設定",
     overtime: "加班設定"
   };
-  const list = getItemList(category);
+  const list = getItemList(category).filter((item) => !item.deleted);
   const renderShiftMemberNames = (shift) => {
-    const members = getMembersForScheduleShift(shift.id);
+    const members = getMembersForScheduleShift(shift.id).filter((member) => !member.deleted);
     if (!members.length) {
       return "-";
     }
@@ -6294,7 +6279,7 @@ function openShiftFormModal(mode, shiftId = "") {
       ${renderColorPreviewFields("shift", shift.name || "班別")}
       <div class="form-row">
         <label for="shiftApplicableDept">適用單位</label>
-        <select id="shiftApplicableDept">${buildSelectOptions(state.departments, "id", (item) => item.name, shift.applicableDeptId || "")}</select>
+        <select id="shiftApplicableDept">${buildSelectOptions(state.departments.filter((item) => !item.deleted), "id", (item) => item.name, shift.applicableDeptId || "")}</select>
       </div>
       <div class="form-grid">
         <div class="form-row">
@@ -6345,7 +6330,7 @@ async function saveShiftFromModal(mode) {
     return;
   }
   const applicableDeptId = readApplicableDepartmentInput();
-  if (!state.departments.some((department) => department.id === applicableDeptId)) {
+  if (!state.departments.some((department) => department.id === applicableDeptId && !department.deleted)) {
     reportValidationError("請選擇適用單位");
     return;
   }
@@ -6632,15 +6617,14 @@ async function deleteListItem(category, id) {
   }
 
   if (category === "shift") {
-    state.shifts = state.shifts.filter((item) => item.id !== id);
-    state.members = state.members.map((member) => ({
+    state.shifts = state.shifts.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item);
+    state.members = state.members.map((member) => member.deleted ? member : ({
       ...member,
       scheduleShiftIds: getMemberScheduleShiftIds(member).filter((shiftId) => shiftId !== id)
     }));
   }
-  if (category === "leave") state.leaves = state.leaves.filter((item) => item.id !== id);
-  if (category === "overtime") state.overtime = state.overtime.filter((item) => item.id !== id);
-  removeAssignmentsByItem(category, id);
+  if (category === "leave") state.leaves = state.leaves.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item);
+  if (category === "overtime") state.overtime = state.overtime.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item);
   renderAll();
   await reopenSettingsModalPreservingScroll(returnTo);
 }
@@ -6679,8 +6663,9 @@ async function openDepartmentSettings() {
   }
   departmentSettingsView = "department";
   modalContext = { category: "department-settings", view: "department" };
-  const activeMembers = state.members.filter(isMemberCurrentlyActive);
-  const departmentRows = state.departments.map((department) => {
+  const activeMembers = state.members.filter((member) => !member.deleted && isMemberCurrentlyActive(member));
+  const activeDepartments = state.departments.filter((department) => !department.deleted);
+  const departmentRows = activeDepartments.map((department) => {
     const homeMembers = activeMembers.filter((member) => getMemberHomeDeptId(member) === department.id);
     const startDate = department.startDate || "-";
     const endDate = department.endDate || "-";
@@ -6708,7 +6693,7 @@ async function openDepartmentSettings() {
       </div>
     `;
   }).join("");
-  const body = state.departments.length
+  const body = activeDepartments.length
     ? `
       <div class="department-settings-table-wrap">
         <div class="department-settings-table department-settings-table-department">
@@ -6914,12 +6899,12 @@ function removeScheduleByMember(memberId) {
 }
 
 async function deleteDepartment(departmentId) {
-  const memberIds = state.members.filter((member) => getMemberHomeDeptId(member) === departmentId).map((member) => member.id);
+  const memberIds = state.members.filter((member) => !member.deleted && getMemberHomeDeptId(member) === departmentId).map((member) => member.id);
   if (memberIds.length) {
     showInfoMessage("這個單位還有人員，請先將人員移轉到其他單位後再刪除。");
     return;
   }
-  const usedShifts = state.shifts.filter((shift) => shift.applicableDeptId === departmentId);
+  const usedShifts = state.shifts.filter((shift) => !shift.deleted && shift.applicableDeptId === departmentId);
   if (usedShifts.length) {
     showInfoMessage(`這個單位仍有班別使用，請先修改有使用的班別：${usedShifts.map((shift) => shift.name).join("、")}`);
     return;
@@ -6935,8 +6920,9 @@ async function deleteDepartment(departmentId) {
     showInfoMessage(formatSchedulerError(error, "單位刪除失敗"));
     return;
   }
-  state.departments = state.departments.filter((department) => department.id !== departmentId);
-  memberIds.forEach(removeScheduleByMember);
+  state.departments = state.departments.map((department) => department.id === departmentId
+    ? { ...department, deleted: true }
+    : department);
   if (state.deptFilter === departmentId) {
     state.deptFilter = "all";
   }
@@ -6945,7 +6931,6 @@ async function deleteDepartment(departmentId) {
   }
   renderAll();
   await reopenSettingsModalPreservingScroll(returnTo);
-  queueSave();
 }
 
 async function moveMemberToDepartment(memberId, departmentId, targetMemberId = "") {
@@ -7223,7 +7208,7 @@ function buildSelectOptions(items, valueField, labelBuilder, selectedValue, incl
 
 function renderScheduleShiftSelector(member) {
   const selectedIds = getMemberScheduleShiftIds(member);
-  const visibleShifts = state.shifts.filter((shift) => !shift.hiddenFromToolbar);
+  const visibleShifts = state.shifts.filter((shift) => !shift.deleted && !shift.hiddenFromToolbar);
   const orderedShifts = [
     ...selectedIds.map((shiftId) => visibleShifts.find((shift) => shift.id === shiftId)).filter(Boolean),
     ...visibleShifts.filter((shift) => !selectedIds.includes(shift.id))
@@ -7279,7 +7264,7 @@ function syncScheduleShiftSelectorRanks() {
 
 function getFilteredMemberSettingsMembers() {
   const normalizedName = memberSettingsFilters.name.trim().toLowerCase();
-  const sourceMembers = state.members;
+  const sourceMembers = state.members.filter((member) => !member.deleted);
   const filteredMembers = sourceMembers.filter((member) => {
     const matchesName = !normalizedName || member.name.toLowerCase().includes(normalizedName);
     const matchesDepartment = memberSettingsFilters.department === "all"
@@ -7398,7 +7383,7 @@ async function openMemberSettings() {
           <label for="memberSettingsDepartmentFilter">單位</label>
           <select id="memberSettingsDepartmentFilter" data-member-settings-filter-field="department">
             <option value="all" ${memberSettingsFilters.department === "all" ? "selected" : ""}>全部</option>
-            ${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${memberSettingsFilters.department === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}
+            ${state.departments.filter((department) => !department.deleted).map((department) => `<option value="${escapeHtml(department.id)}" ${memberSettingsFilters.department === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}
             <option value="__none__" ${memberSettingsFilters.department === "__none__" ? "selected" : ""}>未指定</option>
           </select>
         </div>

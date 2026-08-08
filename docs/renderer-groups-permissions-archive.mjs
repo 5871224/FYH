@@ -16,7 +16,7 @@ const GROUP_PERMISSION_LABELS = {
 
 const groupFeatureState = {
   bundle: { actor: {}, groups: [], roles: [] },
-  entityMap: { departments: [], members: [], shifts: [], archiveRanges: [] },
+  entityMap: { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] },
   currentGroupId: "",
   allDepartments: [],
   allMembers: [],
@@ -58,7 +58,7 @@ async function loadGroupAccessData() {
     groupRpc("get_group_entity_map_v1")
   ]);
   groupFeatureState.bundle = bundle && typeof bundle === "object" ? bundle : { actor: {}, groups: [], roles: [] };
-  groupFeatureState.entityMap = entityMap && typeof entityMap === "object" ? entityMap : { departments: [], members: [], shifts: [], archiveRanges: [] };
+  groupFeatureState.entityMap = entityMap && typeof entityMap === "object" ? entityMap : { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] };
   return { bundle: groupFeatureState.bundle, entityMap: groupFeatureState.entityMap };
 }
 
@@ -93,20 +93,50 @@ function makeIdMap(rows, valueKey) {
   return new Map((Array.isArray(rows) ? rows : []).map((row) => [row.id, row[valueKey]]));
 }
 
+function appendDeletedLabel(value, deleted) {
+  const text = String(value || "");
+  if (!deleted || text.endsWith("（已刪除）")) return text;
+  return `${text}（已刪除）`;
+}
+
 function enrichNormalizedState(normalized) {
   const departmentGroups = makeIdMap(groupFeatureState.entityMap.departments, "groupId");
+  const departmentDeleted = makeIdMap(groupFeatureState.entityMap.departments, "deleted");
   const memberGroups = makeIdMap(groupFeatureState.entityMap.members, "groupId");
   const memberRoles = makeIdMap(groupFeatureState.entityMap.members, "roleId");
+  const memberDeleted = makeIdMap(groupFeatureState.entityMap.members, "deleted");
   const shiftGroups = makeIdMap(groupFeatureState.entityMap.shifts, "groupId");
-  normalized.departments = (normalized.departments || []).map((department) => ({ ...department, groupId: departmentGroups.get(department.id) || "" }));
+  const shiftDeleted = makeIdMap(groupFeatureState.entityMap.shifts, "deleted");
+  const leaveDeleted = makeIdMap(groupFeatureState.entityMap.leaves, "deleted");
+  const overtimeDeleted = makeIdMap(groupFeatureState.entityMap.overtime, "deleted");
+
+  normalized.departments = (normalized.departments || []).map((department) => {
+    const deleted = Boolean(department.deleted || departmentDeleted.get(department.id));
+    return { ...department, name: appendDeletedLabel(department.name, deleted), groupId: departmentGroups.get(department.id) || "", deleted };
+  });
   normalized.members = (normalized.members || []).map((member) => {
     const roleId = memberRoles.get(member.id) || getRoleByLegacyRole(member.role)?.id || "";
-    return { ...member, groupId: memberGroups.get(member.id) || "", roleId, role: roleId || member.role };
+    const deleted = Boolean(member.deleted || memberDeleted.get(member.id));
+    return { ...member, name: appendDeletedLabel(member.name, deleted), groupId: memberGroups.get(member.id) || "", roleId, role: roleId || member.role, deleted };
   });
-  normalized.shifts = (normalized.shifts || []).map((shift) => ({
-    ...shift,
-    groupId: shiftGroups.get(shift.id) || normalized.departments.find((department) => department.id === shift.applicableDeptId)?.groupId || ""
-  }));
+  normalized.shifts = (normalized.shifts || []).map((shift) => {
+    const deleted = Boolean(shift.deleted || shiftDeleted.get(shift.id));
+    return {
+      ...shift,
+      name: appendDeletedLabel(shift.name, deleted),
+      groupId: shiftGroups.get(shift.id) || normalized.departments.find((department) => department.id === shift.applicableDeptId)?.groupId || "",
+      hiddenFromToolbar: deleted || Boolean(shift.hiddenFromToolbar),
+      deleted
+    };
+  });
+  normalized.leaves = (normalized.leaves || []).map((leave) => {
+    const deleted = Boolean(leave.deleted || leaveDeleted.get(leave.id));
+    return { ...leave, name: appendDeletedLabel(leave.name, deleted), hiddenFromToolbar: deleted || Boolean(leave.hiddenFromToolbar), deleted };
+  });
+  normalized.overtime = (normalized.overtime || []).map((overtime) => {
+    const deleted = Boolean(overtime.deleted || overtimeDeleted.get(overtime.id));
+    return { ...overtime, name: appendDeletedLabel(overtime.name, deleted), hiddenFromToolbar: deleted || Boolean(overtime.hiddenFromToolbar), deleted };
+  });
   normalized.groups = getAllGroups();
   normalized.accessRoles = getAllRoles();
   normalized.access = getAccessActor();
@@ -234,6 +264,10 @@ async function reloadGroupApplicationState() {
 
 function isArchivedDate(dateString, groupId = groupFeatureState.currentGroupId) {
   return (groupFeatureState.entityMap.archiveRanges || []).some((range) => range.groupId === groupId && dateString >= range.startDate && dateString <= range.endDate);
+}
+
+function isDeletedScheduleMember(memberId) {
+  return Boolean((state.members || []).find((member) => member.id === memberId)?.deleted);
 }
 
 function markArchivedScheduleCells() {
@@ -489,7 +523,7 @@ async function openScheduleArchive() {
   openEntityListModal({
     title: "班表封存",
     modalClass: "modal modal-wide schedule-archive-modal settings-list-modal",
-    body: `${hasPermission("schedule_manage") && currentGroup ? `<div class="archive-create-row"><div class="form-row"><label>群組</label><div class="readonly-pill">${escapeHtml(currentGroup.name)}</div></div><div class="form-row"><label for="archiveStartDate">開始日期</label><input id="archiveStartDate" type="date" value="${escapeHtml(startDate)}"></div><div class="form-row"><label for="archiveEndDate">結束日期</label><input id="archiveEndDate" type="date" value="${escapeHtml(endDate)}"></div><button class="btn-primary" type="button" data-create-schedule-archive="true">封存</button></div>` : ""}<div class="records-table-wrap"><table class="records-table archive-list-table"><thead><tr><th>群組</th><th>日期範圍</th><th>封存時間</th><th>封存人員</th><th>人員數</th><th>資料筆數</th><th>操作</th></tr></thead><tbody>${(archives || []).map((archive) => `<tr><td>${escapeHtml(archive.group_name || "")}</td><td>${escapeHtml(archive.start_date)}～${escapeHtml(archive.end_date)}</td><td>${escapeHtml(String(archive.archived_at || "").replace("T", " ").slice(0,16))}</td><td>${escapeHtml(archive.archived_by_name || "")}</td><td>${Number(archive.member_count || 0)}</td><td>${Number(archive.entry_count || 0)}</td><td><button class="ghost-btn compact-btn" type="button" data-view-schedule-archive="${escapeHtml(archive.id)}">查看</button></td></tr>`).join("") || '<tr><td colspan="7">尚無封存班表</td></tr>'}</tbody></table></div>`,
+    body: `${hasPermission("schedule_manage") && currentGroup ? `<div class="archive-create-row"><div class="form-row"><label>群組</label><div class="readonly-pill">${escapeHtml(currentGroup.name)}</div></div><div class="form-row"><label for="archiveStartDate">開始日期</label><input id="archiveStartDate" type="date" value="${escapeHtml(startDate)}"></div><div class="form-row"><label for="archiveEndDate">結束日期</label><input id="archiveEndDate" type="date" value="${escapeHtml(endDate)}"></div><button class="btn-primary" type="button" data-create-schedule-archive="true">封存</button></div>` : ""}<div class="records-table-wrap"><table class="records-table archive-list-table"><thead><tr><th>群組</th><th>日期範圍</th><th>封存時間</th><th>封存人員</th><th>人員數</th><th>資料筆數</th><th>操作</th></tr></thead><tbody>${(archives || []).map((archive) => `<tr><td>${escapeHtml(archive.group_name || "")}</td><td>${escapeHtml(archive.start_date)}～${escapeHtml(archive.end_date)}</td><td>${escapeHtml(String(archive.archived_at || "").replace("T", " ").slice(0,16))}</td><td>${escapeHtml(archive.archived_by_name || "")}</td><td>${Number(archive.member_count || 0)}</td><td>${Number(archive.entry_count || 0)}</td><td><button class="ghost-btn compact-btn" type="button" data-view-schedule-archive="${escapeHtml(archive.id)}">查看</button>${hasPermission("schedule_manage") && roleAppliesToGroup(archive.group_id) ? `<button class="ghost-btn compact-btn" type="button" data-unarchive-schedule="${escapeHtml(archive.id)}">解除封存</button>` : ""}</td></tr>`).join("") || '<tr><td colspan="7">尚無封存班表</td></tr>'}</tbody></table></div>`,
     hideFooterClose: true
   });
 }
@@ -508,6 +542,18 @@ async function createScheduleArchive() {
   await openScheduleArchive();
 }
 
+async function unarchiveSchedule(archiveId) {
+  const archive = (await loadArchiveList(null) || []).find((item) => item.id === archiveId);
+  if (!archive) return;
+  if (!await confirmAction(`確定解除「${archive.group_name || ""}」${archive.start_date || ""}～${archive.end_date || ""} 的班表封存嗎？解除後可重新修改班表。`)) return;
+  await groupRpc("unarchive_schedule_v1", { p_archive_id: archiveId });
+  groupFeatureState.entityMap = await groupRpc("get_group_entity_map_v1");
+  scheduleUndoStack = [];
+  scheduleRedoStack = [];
+  await reloadGroupApplicationState();
+  await openScheduleArchive();
+}
+
 async function viewScheduleArchive(archiveId) {
   const result = await groupRpc("get_schedule_archive_detail_v1", { p_archive_id: archiveId });
   const archive = result?.archive || {};
@@ -521,8 +567,8 @@ async function viewScheduleArchive(archiveId) {
   });
 }
 
-function getDepartmentsForGroup(groupId) { return groupFeatureState.allDepartments.filter((department) => department.groupId === groupId); }
-function getShiftsForGroup(groupId) { return groupFeatureState.allShifts.filter((shift) => shift.groupId === groupId); }
+function getDepartmentsForGroup(groupId) { return groupFeatureState.allDepartments.filter((department) => department.groupId === groupId && !department.deleted); }
+function getShiftsForGroup(groupId) { return groupFeatureState.allShifts.filter((shift) => shift.groupId === groupId && !shift.deleted); }
 function renderMemberGroupOptions(selectedGroupId) { return getSelectableGroups().map((group) => `<option value="${escapeHtml(group.id)}" ${group.id === selectedGroupId ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join(""); }
 function renderMemberUnitOptions(groupId, selectedDeptId = "") { return getDepartmentsForGroup(groupId).map((department) => `<option value="${escapeHtml(department.id)}" ${department.id === selectedDeptId ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join(""); }
 function renderMemberGroupShiftSelector(groupId, selectedIds = []) {
@@ -648,7 +694,8 @@ function bindGroupFeatureEvents() {
     if (button.dataset.saveAccessRole !== undefined) { void saveAccessRoleFromForm().catch((error) => reportValidationError(error.message)); return; }
     if (button.dataset.deleteAccessRole) { void deleteAccessRole(button.dataset.deleteAccessRole).catch((error) => showInfoMessage(error.message)); return; }
     if (button.dataset.createScheduleArchive !== undefined) { void createScheduleArchive().catch((error) => reportValidationError(error.message)); return; }
-    if (button.dataset.viewScheduleArchive) { void viewScheduleArchive(button.dataset.viewScheduleArchive).catch((error) => showInfoMessage(error.message)); }
+    if (button.dataset.viewScheduleArchive) { void viewScheduleArchive(button.dataset.viewScheduleArchive).catch((error) => showInfoMessage(error.message)); return; }
+    if (button.dataset.unarchiveSchedule) { void unarchiveSchedule(button.dataset.unarchiveSchedule).catch((error) => showInfoMessage(error.message)); }
   });
   document.addEventListener("dragstart", (event) => {
     const row = event.target.closest?.("[data-group-row]");
@@ -748,9 +795,9 @@ function bindGroupFeatureEvents() {
   saveMember = saveMemberWithGroups;
   renderMemberRoleOptions = renderMemberCustomRoleOptions;
   const originalApplySelectionToCell = applySelectionToCell;
-  applySelectionToCell = async function applySelectionToCellArchiveAware(memberId, day) { const dateString = normalizeScheduleDateInput(day); if (isArchivedDate(dateString)) return; return originalApplySelectionToCell(memberId, day); };
+  applySelectionToCell = async function applySelectionToCellArchiveAware(memberId, day) { const dateString = normalizeScheduleDateInput(day); if (isArchivedDate(dateString) || isDeletedScheduleMember(memberId)) return; return originalApplySelectionToCell(memberId, day); };
   const originalApplyClipboardSlot = applyClipboardSlotToScheduleCell;
-  applyClipboardSlotToScheduleCell = async function applyClipboardSlotArchiveAware(memberId, dateString, clipboardSlot) { if (isArchivedDate(dateString)) return false; return originalApplyClipboardSlot(memberId, dateString, clipboardSlot); };
+  applyClipboardSlotToScheduleCell = async function applyClipboardSlotArchiveAware(memberId, dateString, clipboardSlot) { if (isArchivedDate(dateString) || isDeletedScheduleMember(memberId)) return false; return originalApplyClipboardSlot(memberId, dateString, clipboardSlot); };
   const originalGetSelectedScheduleCells = getSelectedScheduleCells;
   getSelectedScheduleCells = function getSelectedScheduleCellsArchiveAware() { return originalGetSelectedScheduleCells().filter((cell) => !cell.dataset.readonly && !isArchivedDate(cell.dataset.date || "")); };
   bindGroupFeatureEvents();

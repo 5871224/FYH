@@ -30,8 +30,9 @@ async function openDepartmentSettings() {
   }
   departmentSettingsView = "department";
   modalContext = { category: "department-settings", view: "department" };
-  const activeMembers = state.members.filter(isMemberCurrentlyActive);
-  const departmentRows = state.departments.map((department) => {
+  const activeMembers = state.members.filter((member) => !member.deleted && isMemberCurrentlyActive(member));
+  const activeDepartments = state.departments.filter((department) => !department.deleted);
+  const departmentRows = activeDepartments.map((department) => {
     const homeMembers = activeMembers.filter((member) => getMemberHomeDeptId(member) === department.id);
     const startDate = department.startDate || "-";
     const endDate = department.endDate || "-";
@@ -59,7 +60,7 @@ async function openDepartmentSettings() {
       </div>
     `;
   }).join("");
-  const body = state.departments.length
+  const body = activeDepartments.length
     ? `
       <div class="department-settings-table-wrap">
         <div class="department-settings-table department-settings-table-department">
@@ -265,12 +266,12 @@ function removeScheduleByMember(memberId) {
 }
 
 async function deleteDepartment(departmentId) {
-  const memberIds = state.members.filter((member) => getMemberHomeDeptId(member) === departmentId).map((member) => member.id);
+  const memberIds = state.members.filter((member) => !member.deleted && getMemberHomeDeptId(member) === departmentId).map((member) => member.id);
   if (memberIds.length) {
     showInfoMessage("這個單位還有人員，請先將人員移轉到其他單位後再刪除。");
     return;
   }
-  const usedShifts = state.shifts.filter((shift) => shift.applicableDeptId === departmentId);
+  const usedShifts = state.shifts.filter((shift) => !shift.deleted && shift.applicableDeptId === departmentId);
   if (usedShifts.length) {
     showInfoMessage(`這個單位仍有班別使用，請先修改有使用的班別：${usedShifts.map((shift) => shift.name).join("、")}`);
     return;
@@ -286,8 +287,9 @@ async function deleteDepartment(departmentId) {
     showInfoMessage(formatSchedulerError(error, "單位刪除失敗"));
     return;
   }
-  state.departments = state.departments.filter((department) => department.id !== departmentId);
-  memberIds.forEach(removeScheduleByMember);
+  state.departments = state.departments.map((department) => department.id === departmentId
+    ? { ...department, deleted: true }
+    : department);
   if (state.deptFilter === departmentId) {
     state.deptFilter = "all";
   }
@@ -296,7 +298,6 @@ async function deleteDepartment(departmentId) {
   }
   renderAll();
   await reopenSettingsModalPreservingScroll(returnTo);
-  queueSave();
 }
 
 async function moveMemberToDepartment(memberId, departmentId, targetMemberId = "") {

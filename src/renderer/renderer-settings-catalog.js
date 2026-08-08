@@ -12,9 +12,9 @@ function openListSettings(category) {
     leave: "假別設定",
     overtime: "加班設定"
   };
-  const list = getItemList(category);
+  const list = getItemList(category).filter((item) => !item.deleted);
   const renderShiftMemberNames = (shift) => {
-    const members = getMembersForScheduleShift(shift.id);
+    const members = getMembersForScheduleShift(shift.id).filter((member) => !member.deleted);
     if (!members.length) {
       return "-";
     }
@@ -212,7 +212,7 @@ function openShiftFormModal(mode, shiftId = "") {
       ${renderColorPreviewFields("shift", shift.name || "班別")}
       <div class="form-row">
         <label for="shiftApplicableDept">適用單位</label>
-        <select id="shiftApplicableDept">${buildSelectOptions(state.departments, "id", (item) => item.name, shift.applicableDeptId || "")}</select>
+        <select id="shiftApplicableDept">${buildSelectOptions(state.departments.filter((item) => !item.deleted), "id", (item) => item.name, shift.applicableDeptId || "")}</select>
       </div>
       <div class="form-grid">
         <div class="form-row">
@@ -263,7 +263,7 @@ async function saveShiftFromModal(mode) {
     return;
   }
   const applicableDeptId = readApplicableDepartmentInput();
-  if (!state.departments.some((department) => department.id === applicableDeptId)) {
+  if (!state.departments.some((department) => department.id === applicableDeptId && !department.deleted)) {
     reportValidationError("請選擇適用單位");
     return;
   }
@@ -550,15 +550,14 @@ async function deleteListItem(category, id) {
   }
 
   if (category === "shift") {
-    state.shifts = state.shifts.filter((item) => item.id !== id);
-    state.members = state.members.map((member) => ({
+    state.shifts = state.shifts.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item);
+    state.members = state.members.map((member) => member.deleted ? member : ({
       ...member,
       scheduleShiftIds: getMemberScheduleShiftIds(member).filter((shiftId) => shiftId !== id)
     }));
   }
-  if (category === "leave") state.leaves = state.leaves.filter((item) => item.id !== id);
-  if (category === "overtime") state.overtime = state.overtime.filter((item) => item.id !== id);
-  removeAssignmentsByItem(category, id);
+  if (category === "leave") state.leaves = state.leaves.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item);
+  if (category === "overtime") state.overtime = state.overtime.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item);
   renderAll();
   await reopenSettingsModalPreservingScroll(returnTo);
 }

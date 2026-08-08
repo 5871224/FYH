@@ -9,7 +9,7 @@ function buildSelectOptions(items, valueField, labelBuilder, selectedValue, incl
 
 function renderScheduleShiftSelector(member) {
   const selectedIds = getMemberScheduleShiftIds(member);
-  const visibleShifts = state.shifts.filter((shift) => !shift.hiddenFromToolbar);
+  const visibleShifts = state.shifts.filter((shift) => !shift.deleted && !shift.hiddenFromToolbar);
   const orderedShifts = [
     ...selectedIds.map((shiftId) => visibleShifts.find((shift) => shift.id === shiftId)).filter(Boolean),
     ...visibleShifts.filter((shift) => !selectedIds.includes(shift.id))
@@ -65,7 +65,7 @@ function syncScheduleShiftSelectorRanks() {
 
 function getFilteredMemberSettingsMembers() {
   const normalizedName = memberSettingsFilters.name.trim().toLowerCase();
-  const sourceMembers = state.members;
+  const sourceMembers = state.members.filter((member) => !member.deleted);
   const filteredMembers = sourceMembers.filter((member) => {
     const matchesName = !normalizedName || member.name.toLowerCase().includes(normalizedName);
     const matchesDepartment = memberSettingsFilters.department === "all"
@@ -184,7 +184,7 @@ async function openMemberSettings() {
           <label for="memberSettingsDepartmentFilter">單位</label>
           <select id="memberSettingsDepartmentFilter" data-member-settings-filter-field="department">
             <option value="all" ${memberSettingsFilters.department === "all" ? "selected" : ""}>全部</option>
-            ${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${memberSettingsFilters.department === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}
+            ${state.departments.filter((department) => !department.deleted).map((department) => `<option value="${escapeHtml(department.id)}" ${memberSettingsFilters.department === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}
             <option value="__none__" ${memberSettingsFilters.department === "__none__" ? "selected" : ""}>未指定</option>
           </select>
         </div>

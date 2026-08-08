@@ -826,3 +826,570 @@ grant execute on function public.access_role_legacy_role(text[]),public.current_
 grant execute on function public.assign_member_access_v1(text,uuid,uuid,uuid,uuid[]),public.assign_department_group_v1(uuid,uuid),public.validate_member_group_change_v1(text,uuid),public.save_schedule_group_v1(jsonb),public.reorder_schedule_groups_v1(uuid[]),public.delete_schedule_group_v1(uuid,text),public.save_access_role_v1(jsonb),public.delete_access_role_v1(uuid),public.get_group_access_bundle_v1(),public.get_group_entity_map_v1(),public.archive_schedule_v1(uuid,date,date),public.get_schedule_archives_v1(uuid),public.get_schedule_archive_detail_v1(uuid) to authenticated,service_role;
 
 commit;
+
+-- 2026-08-08 班表解除封存與共用主檔軟刪除
+begin;
+
+alter table public.set_leave add column if not exists deleted_at timestamptz;
+alter table public.set_overtime add column if not exists deleted_at timestamptz;
+
+create index if not exists idx_set_leave_active_sort on public.set_leave(sort_order, code, id) where deleted_at is null;
+create index if not exists idx_set_overtime_active_sort on public.set_overtime(sort_order, name, id) where deleted_at is null;
+
+create or replace function public.delete_member_account_v4(p_target_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path=public,auth,pg_temp
+as $$
+declare
+  v_profile public.set_employee%rowtype;
+  v_unarchived_schedule_count bigint := 0;
+begin
+  select * into v_profile
+  from public.set_employee
+  where id=p_target_id and deleted_at is null
+  for update;
+
+  if not found then
+    return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'blocked',false);
+  end if;
+
+  select count(*) into v_unarchived_schedule_count
+  from public.schedule_entries entry
+  where entry.member_id=p_target_id
+    and not public.is_schedule_date_archived(entry.group_id,entry.work_date);
+
+  if v_unarchived_schedule_count>0 then
+    return jsonb_build_object(
+      'ok',false,
+      'deleted',false,
+      'softDeleted',false,
+      'blocked',true,
+      'code','MEMBER_HAS_UNARCHIVED_SCHEDULE',
+      'message','此人員仍有未封存班表，請先完成班表封存或清除相關排班。',
+      'history',jsonb_build_object('unarchivedSchedule',v_unarchived_schedule_count)
+    );
+  end if;
+
+  update public.set_employee
+  set deleted_at=now(), updated_at=now()
+  where id=p_target_id;
+
+  return jsonb_build_object(
+    'ok',true,
+    'deleted',true,
+    'softDeleted',true,
+    'blocked',false,
+    'employeeCode',v_profile.employee_code
+  );
+end;
+$$;
+
+create or replace function public.archive_schedule_v1(p_group_id uuid,p_start_date date,p_end_date date)
+returns jsonb
+language plpgsql
+security definer
+set search_path=public,pg_catalog
+as $$
+declare
+  v_group public.schedule_groups%rowtype;
+  v_actor_name text;
+  v_archive_id uuid;
+  v_entry_count integer;
+  v_member_count integer;
+begin
+  if not public.can_access_group(auth.uid(),p_group_id,'schedule_manage') then
+    raise exception '沒有班表管理權限' using errcode='42501';
+  end if;
+  if p_start_date is null or p_end_date is null or p_start_date>p_end_date then
+    raise exception '封存日期範圍不正確';
+  end if;
+  if exists(
+    select 1 from public.schedule_archives
+    where group_id=p_group_id
+      and daterange(start_date,end_date,'[]')&&daterange(p_start_date,p_end_date,'[]')
+  ) then
+    raise exception '封存日期範圍不可重疊';
+  end if;
+
+  select * into v_group
+  from public.schedule_groups
+  where id=p_group_id and deleted_at is null;
+  if not found then raise exception '找不到群組'; end if;
+
+  select full_name into v_actor_name from public.set_employee where id=auth.uid();
+
+  insert into public.schedule_archives(
+    group_id,group_code_snapshot,group_name_snapshot,start_date,end_date,archived_by,archived_by_name_snapshot
+  ) values(
+    p_group_id,v_group.code,v_group.name,p_start_date,p_end_date,auth.uid(),coalesce(v_actor_name,'')
+  ) returning id into v_archive_id;
+
+  insert into public.schedule_archive_entries(
+    archive_id,source_schedule_entry_id,source_member_id,source_department_id,source_shift_id,source_leave_id,source_overtime_id,
+    work_date,employee_code_snapshot,employee_name_snapshot,member_sort_order,department_name_snapshot,department_sort_order,
+    shift_name_snapshot,shift_start_time_snapshot,shift_end_time_snapshot,shift_color_snapshot,shift_text_color_snapshot,
+    leave_code_snapshot,leave_name_snapshot,leave_color_snapshot,overtime_name_snapshot,overtime_color_snapshot,
+    leave_all_day,leave_start_time,leave_end_time,leave_reason,overtime_start_time,overtime_end_time,overtime_reason,note
+  )
+  select
+    v_archive_id,entry.id,member.id,coalesce(entry.support_department_id,member.home_department_id),entry.shift_type_id,entry.leave_type_id,entry.overtime_type_id,
+    archive_date.work_date,coalesce(member.employee_code,''),coalesce(member.full_name,''),coalesce(member.sort_order,0),
+    coalesce(department.name,''),coalesce(department.sort_order,0),coalesce(shift.name,''),shift.start_time,shift.end_time,shift.color,shift.text_color,
+    coalesce(leave_type.code,''),coalesce(leave_type.name,''),leave_type.color,coalesce(overtime_type.name,''),overtime_type.color,
+    coalesce(entry.leave_all_day,true),entry.leave_start_time,entry.leave_end_time,entry.leave_reason,
+    entry.overtime_start_time,entry.overtime_end_time,entry.overtime_reason,null
+  from public.set_employee member
+  cross join lateral(
+    select generated_date::date work_date
+    from generate_series(p_start_date,p_end_date,interval '1 day') generated_date
+  ) archive_date
+  left join public.schedule_entries entry
+    on entry.member_id=member.id and entry.work_date=archive_date.work_date and entry.group_id=p_group_id
+  left join public.set_departments department on department.id=coalesce(entry.support_department_id,member.home_department_id)
+  left join public.set_shift shift on shift.id=entry.shift_type_id
+  left join public.set_leave leave_type on leave_type.id=entry.leave_type_id
+  left join public.set_overtime overtime_type on overtime_type.id=entry.overtime_type_id
+  where member.group_id=p_group_id
+    and (
+      (member.deleted_at is null and public.is_employee_employed_on(member.hire_date,member.leave_date,archive_date.work_date))
+      or entry.id is not null
+    );
+
+  select count(*),count(distinct source_member_id)
+  into v_entry_count,v_member_count
+  from public.schedule_archive_entries
+  where archive_id=v_archive_id;
+
+  update public.schedule_archives
+  set entry_count=v_entry_count,member_count=v_member_count
+  where id=v_archive_id;
+
+  return jsonb_build_object('ok',true,'archiveId',v_archive_id,'entryCount',v_entry_count,'memberCount',v_member_count);
+end;
+$$;
+
+create or replace function public.unarchive_schedule_v1(p_archive_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path=public,pg_catalog
+as $$
+declare
+  v_archive public.schedule_archives%rowtype;
+begin
+  select * into v_archive
+  from public.schedule_archives
+  where id=p_archive_id
+  for update;
+
+  if not found then raise exception '找不到封存班表'; end if;
+  if not public.can_access_group(auth.uid(),v_archive.group_id,'schedule_manage') then
+    raise exception '沒有解除封存權限' using errcode='42501';
+  end if;
+  if not exists(
+    select 1 from public.schedule_groups
+    where id=v_archive.group_id and deleted_at is null
+  ) then
+    raise exception '群組已刪除，無法解除封存';
+  end if;
+
+  delete from public.schedule_archives where id=p_archive_id;
+
+  return jsonb_build_object(
+    'ok',true,
+    'groupId',v_archive.group_id,
+    'startDate',v_archive.start_date,
+    'endDate',v_archive.end_date
+  );
+end;
+$$;
+
+create or replace function public.set_schedule_entry_group_v1()
+returns trigger
+language plpgsql
+security definer
+set search_path=public,pg_catalog
+as $$
+declare
+  v_member public.set_employee%rowtype;
+  v_existing public.schedule_entries%rowtype;
+begin
+  select * into v_member from public.set_employee where id=new.member_id;
+  if not found or v_member.group_id is null then
+    raise exception '排班人員尚未設定群組或已刪除';
+  end if;
+  if v_member.deleted_at is not null then
+    raise exception '已刪除人員不可新增或修改班表；只能刪除原有班表';
+  end if;
+
+  if new.group_id is not null and new.group_id<>v_member.group_id then
+    raise exception '班表群組必須與人員所屬群組一致';
+  end if;
+
+  select * into v_existing
+  from public.schedule_entries
+  where member_id=new.member_id and work_date=new.work_date;
+
+  if new.support_department_id is not null and not exists(
+    select 1 from public.set_departments d
+    where d.id=new.support_department_id
+      and d.group_id=v_member.group_id
+      and (d.deleted_at is null or (v_existing.id is not null and v_existing.support_department_id=d.id))
+  ) then
+    raise exception '支援單位不在人員所屬群組或已刪除';
+  end if;
+
+  if new.shift_type_id is not null and not exists(
+    select 1 from public.set_shift s
+    where s.id=new.shift_type_id
+      and s.group_id=v_member.group_id
+      and (s.deleted_at is null or (v_existing.id is not null and v_existing.shift_type_id=s.id))
+  ) then
+    raise exception '班別不在人員所屬群組或已刪除';
+  end if;
+
+  if new.leave_type_id is not null and not exists(
+    select 1 from public.set_leave l
+    where l.id=new.leave_type_id
+      and (l.deleted_at is null or (v_existing.id is not null and v_existing.leave_type_id=l.id))
+  ) then
+    raise exception '假別已刪除，不可重新選用';
+  end if;
+
+  if new.overtime_type_id is not null and not exists(
+    select 1 from public.set_overtime o
+    where o.id=new.overtime_type_id
+      and (o.deleted_at is null or (v_existing.id is not null and v_existing.overtime_type_id=o.id))
+  ) then
+    raise exception '加班設定已刪除，不可重新選用';
+  end if;
+
+  new.group_id:=v_member.group_id;
+  return new;
+end;
+$$;
+
+create or replace function public.save_schedule_entries_bulk(entries jsonb)
+returns setof public.schedule_entries
+language plpgsql
+security invoker
+set search_path=public,pg_catalog
+as $$
+begin
+  if auth.uid() is null or not public.has_access_permission(auth.uid(),'schedule_manage') then
+    raise exception '沒有班表管理權限' using errcode='42501';
+  end if;
+  if entries is null or jsonb_typeof(entries)<>'array' then
+    raise exception 'entries must be a json array' using errcode='22023';
+  end if;
+  if exists(
+    select 1 from jsonb_to_recordset(entries) as item(member_id uuid,work_date date)
+    where item.member_id is null or item.work_date is null
+  ) then
+    raise exception 'member_id and work_date are required' using errcode='23502';
+  end if;
+
+  if exists(
+    select 1
+    from jsonb_to_recordset(entries) as item(
+      member_id uuid,work_date date,delete_entry boolean,shift_type_id uuid,leave_type_id uuid,overtime_type_id uuid
+    )
+    left join public.set_employee member on member.id=item.member_id
+    where member.id is null
+       or member.group_id is null
+       or not public.can_access_group(auth.uid(),member.group_id,'schedule_manage')
+       or (
+         member.deleted_at is not null
+         and not (
+           item.delete_entry is true
+           or (item.shift_type_id is null and item.leave_type_id is null and item.overtime_type_id is null)
+         )
+       )
+  ) then
+    raise exception '包含無權管理的人員、群組，或嘗試修改已刪除人員班表' using errcode='42501';
+  end if;
+
+  return query
+  with incoming as(
+    select * from jsonb_to_recordset(entries) as item(
+      member_id uuid,work_date date,delete_entry boolean,shift_type_id uuid,leave_type_id uuid,
+      leave_all_day boolean,leave_start_time time,leave_end_time time,leave_reason text,
+      overtime_type_id uuid,overtime_start_time time,overtime_end_time time,
+      overtime_use_rest_1 boolean,overtime_rest_1_start_time time,overtime_rest_1_end_time time,
+      overtime_use_rest_2 boolean,overtime_rest_2_start_time time,overtime_rest_2_end_time time,overtime_reason text
+    )
+  ),
+  deleted as(
+    delete from public.schedule_entries schedule
+    using incoming item
+    where schedule.member_id=item.member_id
+      and schedule.work_date=item.work_date
+      and (
+        item.delete_entry is true
+        or (item.shift_type_id is null and item.leave_type_id is null and item.overtime_type_id is null)
+      )
+    returning schedule.*
+  ),
+  upserted as(
+    insert into public.schedule_entries(
+      member_id,work_date,shift_type_id,leave_type_id,leave_all_day,leave_start_time,leave_end_time,leave_reason,
+      overtime_type_id,overtime_start_time,overtime_end_time,overtime_use_rest_1,overtime_rest_1_start_time,overtime_rest_1_end_time,
+      overtime_use_rest_2,overtime_rest_2_start_time,overtime_rest_2_end_time,overtime_reason
+    )
+    select
+      item.member_id,item.work_date,item.shift_type_id,item.leave_type_id,coalesce(item.leave_all_day,true),
+      case when item.leave_type_id is null then null else item.leave_start_time end,
+      case when item.leave_type_id is null then null else item.leave_end_time end,
+      case when item.leave_type_id is null then null else item.leave_reason end,
+      item.overtime_type_id,
+      case when item.overtime_type_id is null then null else item.overtime_start_time end,
+      case when item.overtime_type_id is null then null else item.overtime_end_time end,
+      case when item.overtime_type_id is null then false else coalesce(item.overtime_use_rest_1,false) end,
+      case when item.overtime_type_id is null or coalesce(item.overtime_use_rest_1,false) is false then null else item.overtime_rest_1_start_time end,
+      case when item.overtime_type_id is null or coalesce(item.overtime_use_rest_1,false) is false then null else item.overtime_rest_1_end_time end,
+      case when item.overtime_type_id is null then false else coalesce(item.overtime_use_rest_2,false) end,
+      case when item.overtime_type_id is null or coalesce(item.overtime_use_rest_2,false) is false then null else item.overtime_rest_2_start_time end,
+      case when item.overtime_type_id is null or coalesce(item.overtime_use_rest_2,false) is false then null else item.overtime_rest_2_end_time end,
+      case when item.overtime_type_id is null then null else item.overtime_reason end
+    from incoming item
+    where coalesce(item.delete_entry,false) is false
+      and (item.shift_type_id is not null or item.leave_type_id is not null or item.overtime_type_id is not null)
+    on conflict(member_id,work_date) do update set
+      shift_type_id=excluded.shift_type_id,
+      leave_type_id=excluded.leave_type_id,
+      leave_all_day=excluded.leave_all_day,
+      leave_start_time=excluded.leave_start_time,
+      leave_end_time=excluded.leave_end_time,
+      leave_reason=excluded.leave_reason,
+      overtime_type_id=excluded.overtime_type_id,
+      overtime_start_time=excluded.overtime_start_time,
+      overtime_end_time=excluded.overtime_end_time,
+      overtime_use_rest_1=excluded.overtime_use_rest_1,
+      overtime_rest_1_start_time=excluded.overtime_rest_1_start_time,
+      overtime_rest_1_end_time=excluded.overtime_rest_1_end_time,
+      overtime_use_rest_2=excluded.overtime_use_rest_2,
+      overtime_rest_2_start_time=excluded.overtime_rest_2_start_time,
+      overtime_rest_2_end_time=excluded.overtime_rest_2_end_time,
+      overtime_reason=excluded.overtime_reason,
+      updated_at=now()
+    returning *
+  )
+  select * from upserted;
+end;
+$$;
+
+create or replace function public.get_group_entity_map_v1()
+returns jsonb
+language sql
+stable
+security definer
+set search_path=public,pg_catalog
+as $$
+with actor as(
+  select access_role_id
+  from public.set_employee
+  where id=auth.uid() and deleted_at is null
+    and public.is_employee_account_effective(hire_date,leave_date,(timezone('Asia/Taipei',now()))::date)
+),
+allowed_groups as(
+  select group_id from actor join public.access_role_groups on role_id=actor.access_role_id
+),
+visible_schedule as(
+  select entry.*
+  from public.schedule_entries entry
+  where entry.group_id in(select group_id from allowed_groups)
+    and not public.is_schedule_date_archived(entry.group_id,entry.work_date)
+)
+select jsonb_build_object(
+  'departments',coalesce((
+    select jsonb_agg(jsonb_build_object('id',d.id,'groupId',d.group_id,'deleted',d.deleted_at is not null))
+    from public.set_departments d
+    where d.group_id in(select group_id from allowed_groups)
+      and (
+        d.deleted_at is null
+        or exists(
+          select 1 from visible_schedule entry
+          join public.set_employee member on member.id=entry.member_id
+          where entry.support_department_id=d.id
+             or (entry.support_department_id is null and member.home_department_id=d.id)
+        )
+      )
+  ),'[]'::jsonb),
+  'members',coalesce((
+    select jsonb_agg(jsonb_build_object('id',m.id,'groupId',m.group_id,'roleId',m.access_role_id,'deleted',m.deleted_at is not null))
+    from public.set_employee m
+    where m.group_id in(select group_id from allowed_groups)
+      and (m.deleted_at is null or exists(select 1 from visible_schedule entry where entry.member_id=m.id))
+  ),'[]'::jsonb),
+  'shifts',coalesce((
+    select jsonb_agg(jsonb_build_object('id',s.id,'groupId',s.group_id,'deleted',s.deleted_at is not null))
+    from public.set_shift s
+    where s.group_id in(select group_id from allowed_groups)
+      and (s.deleted_at is null or exists(select 1 from visible_schedule entry where entry.shift_type_id=s.id))
+  ),'[]'::jsonb),
+  'leaves',coalesce((
+    select jsonb_agg(jsonb_build_object('id',l.id,'deleted',l.deleted_at is not null))
+    from public.set_leave l
+    where l.deleted_at is null or exists(select 1 from visible_schedule entry where entry.leave_type_id=l.id)
+  ),'[]'::jsonb),
+  'overtime',coalesce((
+    select jsonb_agg(jsonb_build_object('id',o.id,'deleted',o.deleted_at is not null))
+    from public.set_overtime o
+    where o.deleted_at is null or exists(select 1 from visible_schedule entry where entry.overtime_type_id=o.id)
+  ),'[]'::jsonb),
+  'archiveRanges',coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'id',a.id,'groupId',a.group_id,'startDate',a.start_date,'endDate',a.end_date,'groupName',a.group_name_snapshot,'entryCount',a.entry_count
+    ) order by a.start_date desc)
+    from public.schedule_archives a
+    where a.group_id in(select group_id from allowed_groups)
+      and public.has_access_permission(auth.uid(),'schedule_view')
+  ),'[]'::jsonb)
+)
+$$;
+
+drop function if exists public.get_schedule_directory_v2();
+create function public.get_schedule_directory_v2()
+returns table(
+  id uuid,employee_code text,full_name text,home_department_id uuid,hire_date date,leave_date date,pay_by_day boolean,
+  schedule_shift_ids uuid[],sort_order integer,deleted_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path=public,pg_catalog
+as $$
+  select m.id,m.employee_code,m.full_name,m.home_department_id,m.hire_date,m.leave_date,m.pay_by_day,
+         coalesce(m.schedule_shift_ids,'{}'::uuid[]),m.sort_order,m.deleted_at
+  from public.set_employee m
+  where public.is_effective_user(auth.uid())
+    and public.role_applies_to_group(auth.uid(),m.group_id)
+    and (
+      m.deleted_at is null
+      or exists(
+        select 1 from public.schedule_entries entry
+        where entry.member_id=m.id
+          and not public.is_schedule_date_archived(entry.group_id,entry.work_date)
+      )
+    )
+  order by m.sort_order,m.full_name,m.id
+$$;
+
+drop function if exists public.get_department_directory_v2();
+create function public.get_department_directory_v2()
+returns table(
+  id uuid,name text,created_at timestamptz,updated_at timestamptz,start_date date,end_date date,
+  hidden_from_schedule boolean,sort_order integer,deleted_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path=public,pg_catalog
+as $$
+  select d.id,d.name,d.created_at,d.updated_at,d.start_date,d.end_date,d.hidden_from_schedule,d.sort_order,d.deleted_at
+  from public.set_departments d
+  where public.is_effective_user(auth.uid())
+    and public.role_applies_to_group(auth.uid(),d.group_id)
+    and (
+      d.deleted_at is null
+      or exists(
+        select 1
+        from public.schedule_entries entry
+        join public.set_employee member on member.id=entry.member_id
+        where entry.group_id=d.group_id
+          and not public.is_schedule_date_archived(entry.group_id,entry.work_date)
+          and (entry.support_department_id=d.id or (entry.support_department_id is null and member.home_department_id=d.id))
+      )
+    )
+  order by d.sort_order,d.name,d.id
+$$;
+
+-- 軟刪除主檔不得由一般 REST 實體刪除。
+drop policy if exists delete_set_departments_group on public.set_departments;
+drop policy if exists delete_set_employee on public.set_employee;
+drop policy if exists delete_set_shift_group on public.set_shift;
+
+-- 已刪除班別只有在未封存歷史班表仍引用時可讀，且不可再新增／修改成已刪除狀態。
+drop policy if exists read_set_shift on public.set_shift;
+create policy read_set_shift on public.set_shift
+for select to authenticated
+using(
+  public.role_applies_to_group(auth.uid(),group_id)
+  and (
+    deleted_at is null
+    or exists(
+      select 1 from public.schedule_entries entry
+      where entry.shift_type_id=set_shift.id
+        and not public.is_schedule_date_archived(entry.group_id,entry.work_date)
+        and public.role_applies_to_group(auth.uid(),entry.group_id)
+    )
+  )
+);
+
+-- 假別與加班設定採軟刪除；歷史引用仍可顯示，但已刪除項目不可由 REST 寫回。
+drop policy if exists read_set_leave on public.set_leave;
+drop policy if exists write_set_leave on public.set_leave;
+drop policy if exists insert_set_leave on public.set_leave;
+drop policy if exists update_set_leave on public.set_leave;
+create policy read_set_leave on public.set_leave
+for select to authenticated
+using(
+  public.is_effective_user(auth.uid())
+  and (
+    deleted_at is null
+    or exists(
+      select 1 from public.schedule_entries entry
+      where entry.leave_type_id=set_leave.id
+        and not public.is_schedule_date_archived(entry.group_id,entry.work_date)
+        and public.role_applies_to_group(auth.uid(),entry.group_id)
+    )
+  )
+);
+create policy insert_set_leave on public.set_leave
+for insert to authenticated
+with check(public.is_manager(auth.uid()) and deleted_at is null);
+create policy update_set_leave on public.set_leave
+for update to authenticated
+using(public.is_manager(auth.uid()) and deleted_at is null)
+with check(public.is_manager(auth.uid()) and deleted_at is null);
+
+drop policy if exists read_set_overtime on public.set_overtime;
+drop policy if exists write_set_overtime on public.set_overtime;
+drop policy if exists insert_set_overtime on public.set_overtime;
+drop policy if exists update_set_overtime on public.set_overtime;
+create policy read_set_overtime on public.set_overtime
+for select to authenticated
+using(
+  public.is_effective_user(auth.uid())
+  and (
+    deleted_at is null
+    or exists(
+      select 1 from public.schedule_entries entry
+      where entry.overtime_type_id=set_overtime.id
+        and not public.is_schedule_date_archived(entry.group_id,entry.work_date)
+        and public.role_applies_to_group(auth.uid(),entry.group_id)
+    )
+  )
+);
+create policy insert_set_overtime on public.set_overtime
+for insert to authenticated
+with check(public.is_manager(auth.uid()) and deleted_at is null);
+create policy update_set_overtime on public.set_overtime
+for update to authenticated
+using(public.is_manager(auth.uid()) and deleted_at is null)
+with check(public.is_manager(auth.uid()) and deleted_at is null);
+
+revoke all on function public.unarchive_schedule_v1(uuid) from public,anon;
+grant execute on function public.unarchive_schedule_v1(uuid) to authenticated,service_role;
+revoke all on function public.get_schedule_directory_v2() from public,anon;
+revoke all on function public.get_department_directory_v2() from public,anon;
+grant execute on function public.get_schedule_directory_v2() to authenticated,service_role;
+grant execute on function public.get_department_directory_v2() to authenticated,service_role;
+revoke all on function public.save_schedule_entries_bulk(jsonb) from public,anon;
+grant execute on function public.save_schedule_entries_bulk(jsonb) to authenticated,service_role;
+revoke all on function public.set_schedule_entry_group_v1() from public,anon,authenticated;
+grant execute on function public.archive_schedule_v1(uuid,date,date),public.get_group_entity_map_v1() to authenticated,service_role;
+
+commit;

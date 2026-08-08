@@ -15,7 +15,7 @@ assert(renderer.includes("function renderActionIconButton"), "action icon helper
 assert(renderer.includes('renderActionIconButton("edit"'), "edit actions should use the shared icon helper");
 assert(renderer.includes('renderActionIconButton("delete"'), "delete actions should use the shared icon helper");
 assert(renderer.includes('data-sort-category="department"'), "department settings should support drag sorting");
-assert(renderer.includes("const activeMembers = state.members.filter(isMemberCurrentlyActive);"), "department settings should filter members by active status");
+assert(renderer.includes("const activeMembers = state.members.filter((member) => !member.deleted && isMemberCurrentlyActive(member));"), "department settings should filter members by active and non-deleted status");
 assert(renderer.includes("const homeMembers = activeMembers.filter"), "department view should show active home members");
 assert(renderer.includes("departmentAddress") && renderer.includes("departmentLatitude") && renderer.includes("departmentLongitude"), "department form should expose attendance address and coordinates");
 assert(renderer.includes("departmentPublicIp") && renderer.includes("departmentAttendanceEnabled"), "department form should expose attendance IP and enabled flag");
