@@ -61,6 +61,7 @@ jobs:
           sql_path = Path('supabase/002_current_updates.sql')
           sql = sql_path.read_text(encoding='utf-8')
           sql = re.sub(r'^.*get_group_entity_map_v1\s*\(\).*$\n?', '', sql, flags=re.I | re.M)
+          sql = re.sub(r'\n-- Performance Advisor: remaining public RLS auth context uses init-plan evaluation\.[\s\S]*?\nend \$\$;\s*', '\n', sql, flags=re.I)
           sql_path.write_text(sql, encoding='utf-8')
 
           for name in ['renderer-settings.test.js', 'renderer-department-settings.test.js']:
