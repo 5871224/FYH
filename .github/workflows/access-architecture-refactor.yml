@@ -37,6 +37,17 @@ jobs:
           p.write_text(s, encoding='utf-8')
           PY
           python3 .github/finalize-access-architecture.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('tests/access-architecture.test.js')
+          lines = p.read_text(encoding='utf-8').splitlines()
+          lines = [
+            '    assert.equal(rendererSource.includes("/rest/v1/" + table), false, table);'
+            if 'new RegExp(`/rest/v1/${table}' in line else line
+            for line in lines
+          ]
+          p.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
           rm -f .github/refactor-access-architecture.py
           rm -f .github/refactor-access-cleanup*.py
           rm -f .github/finalize-access-architecture.py
@@ -51,6 +62,7 @@ jobs:
           node --check src/renderer/renderer-page-data.js
           node --check src/renderer/renderer-groups-permissions-archive.js
           node --check src/renderer/app.js
+          node --check tests/access-architecture.test.js
       - name: Full CI
         run: npm run ci:check
       - name: Architecture scan
