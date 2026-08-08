@@ -84,6 +84,7 @@ FYH/
 - 人員登入帳號的新增、修改、重設密碼與刪除統一由 `member-auth-admin` 處理。
 - 簽到與訂餐使用各自的 Edge Function；Edge Function 以 `access_role_id`、權限項目與適用群組判斷，不以舊 `admin/manager` 文字角色做授權。
 - `anon` / `authenticated` 不具核心資料表直接權限；RLS 保留為第二層防護。
+- `has_access_permission`、`can_access_group` 等內部權限 helper 不作為瀏覽器公開 RPC，正式執行權只保留給後端／`service_role`；瀏覽器只能呼叫有明確領域用途且自行驗證權限的公開 RPC。
 - 不使用通用整包 `saveState`、資料表名稱型 REST helper、runtime monkey patch 或舊版相容橋接。
 
 ## Edge Functions
@@ -96,6 +97,8 @@ FYH/
 - `meal-order`：訂餐與訂餐管理。
 - `meal-report-v2`：訂餐統計報表。
 - `meal-cancel-v2`：訂餐取消。
+
+`supabase/functions/` 是 Edge Function 唯一正式清單。正式上線前，Supabase 遠端已部署函式也必須與此清單一致；不在清單內的歷史端點不得繼續提供舊邏輯，應直接刪除。若部署工具當下無刪除能力，至少先停用舊端點，之後由 Supabase Dashboard 或 CLI 完成實體刪除。
 
 ## 本機執行
 
@@ -144,7 +147,7 @@ npm run ci:check
 2. 執行 `npm run web:publish`。
 3. 執行 `npm run ci:check`。
 4. 依順序套用 SQL。
-5. 部署正式 Edge Functions。
+5. 部署正式 Edge Functions，並確認 Supabase 遠端清單沒有仍可執行舊邏輯的歷史端點。
 6. 合併至 `main`。
 7. GitHub Pages 由內建 `pages-build-deployment` 發布 `main/docs`。
 8. 以員工、主管與管理員測試登入、簽到簿、群組班表、封存、訂餐與主要管理入口。
