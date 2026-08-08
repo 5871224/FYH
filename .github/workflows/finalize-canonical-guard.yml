@@ -1,0 +1,114 @@
+name: Finalize Canonical Guard
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Preserve last permission administrator when editing roles
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          sql_path = Path('supabase/002_current_updates.sql')
+          sql = sql_path.read_text(encoding='utf-8')
+          pattern = re.compile(r"create or replace function public\.save_access_role_v1\(p_role jsonb\)\nreturns jsonb language plpgsql security definer set search_path=public,pg_catalog as \$\$[\s\S]*?\nend \$\$;", re.M)
+          replacement = '''create or replace function public.save_access_role_v1(p_role jsonb)
+returns jsonb language plpgsql security definer set search_path=public,pg_catalog as $$
+declare
+  v_id uuid; v_code text; v_name text; v_permissions text[]; v_group_ids uuid[];
+  v_role public.access_roles%rowtype; v_existing public.access_roles%rowtype;
+  v_was_privileged boolean:=false; v_will_be_privileged boolean:=false;
+  v_today date:=(timezone('Asia/Taipei',now()))::date;
+begin
+  if not public.has_access_permission((select auth.uid()),'permission_settings') then raise exception '沒有權限設定權限' using errcode='42501'; end if;
+  begin v_id:=nullif(btrim(p_role->>'id'),'')::uuid; exception when invalid_text_representation then raise exception '角色識別碼格式錯誤'; end;
+  v_name:=btrim(coalesce(p_role->>'name',''));
+  v_code:=lower(regexp_replace(btrim(coalesce(p_role->>'code','')),'[^A-Za-z0-9_-]+','-','g'));
+  if v_name='' then raise exception '角色名稱不可空白'; end if;
+  if v_id is null then v_id:=gen_random_uuid(); end if;
+  if v_code='' then v_code:='role-'||replace(v_id::text,'-',''); end if;
+  select coalesce(array_agg(distinct value),'{}') into v_permissions
+  from jsonb_array_elements_text(coalesce(p_role->'permissions','[]')) value
+  where value=any(array['schedule_view','schedule_manage','group_settings','department_settings','member_settings','leave_settings','permission_settings','attendance_review','meal_admin']);
+  if 'schedule_manage'=any(v_permissions) and not 'schedule_view'=any(v_permissions) then v_permissions:=array_append(v_permissions,'schedule_view'); end if;
+  select coalesce(array_agg(distinct value::uuid),'{}') into v_group_ids
+  from jsonb_array_elements_text(coalesce(p_role->'groupIds','[]')) value
+  join public.schedule_groups grp on grp.id=value::uuid and grp.deleted_at is null;
+  if v_permissions && array['schedule_view','schedule_manage','group_settings','department_settings','member_settings','attendance_review','meal_admin']::text[]
+     and cardinality(v_group_ids)=0 then raise exception '請至少選擇一個適用群組'; end if;
+
+  select * into v_existing from public.access_roles where id=v_id for update;
+  if found then v_was_privileged:='permission_settings'=any(coalesce(v_existing.permissions,'{}'::text[])); end if;
+  v_will_be_privileged:='permission_settings'=any(coalesce(v_permissions,'{}'::text[]));
+  if v_was_privileged and not v_will_be_privileged
+     and exists(
+       select 1 from public.set_employee employee
+       where employee.access_role_id=v_id and employee.deleted_at is null
+         and public.is_employee_account_effective(employee.hire_date,employee.leave_date,v_today)
+     )
+     and not exists(
+       select 1 from public.set_employee employee
+       join public.access_roles other_role on other_role.id=employee.access_role_id
+       where employee.access_role_id<>v_id and employee.deleted_at is null
+         and 'permission_settings'=any(coalesce(other_role.permissions,'{}'::text[]))
+         and public.is_employee_account_effective(employee.hire_date,employee.leave_date,v_today)
+     ) then raise exception '系統必須保留至少一個有效的權限管理帳號' using errcode='23514'; end if;
+
+  insert into public.access_roles(id,code,name,permissions,is_system)
+  values(v_id,v_code,v_name,v_permissions,false)
+  on conflict(id) do update set name=excluded.name,permissions=excluded.permissions,updated_at=now()
+  returning * into v_role;
+  delete from public.access_role_groups where role_id=v_id and group_id in(select id from public.schedule_groups where deleted_at is null);
+  insert into public.access_role_groups(role_id,group_id) select v_id,unnest(v_group_ids) on conflict do nothing;
+  return jsonb_build_object('ok',true,'role',jsonb_build_object(
+    'id',v_role.id,'code',v_role.code,'name',v_role.name,'permissions',v_role.permissions,
+    'isSystem',v_role.is_system,'groupIds',v_group_ids));
+end $$;'''
+          sql, count = pattern.subn(lambda _: replacement, sql, count=1)
+          if count != 1:
+              raise SystemExit('save_access_role_v1 canonical block not found')
+          sql = sql.replace('最終授權只依 access_role_id + permissions + access_role_groups；舊文字角色\n-- 僅為顯示相容資料。此區段可重複執行。', '最終授權只依 access_role_id + permissions + access_role_groups；不保留舊文字角色\n-- 相容欄位或相容授權。此區段可重複執行。')
+          sql_path.write_text(sql, encoding='utf-8')
+
+          test_path = Path('tests/canonical-cleanup.test.js')
+          test = test_path.read_text(encoding='utf-8')
+          marker = '  assert.match(updates, /get_schedule_archive_ranges_v1/);\n'
+          addition = marker + '  assert.match(updates, /v_was_privileged/);\n  assert.match(updates, /系統必須保留至少一個有效的權限管理帳號/);\n'
+          if 'assert.match(updates, /v_was_privileged/);' not in test:
+              if marker not in test:
+                  raise SystemExit('canonical cleanup test marker not found')
+              test = test.replace(marker, addition, 1)
+          test_path.write_text(test, encoding='utf-8')
+          PY
+      - name: Remove temporary workflow
+        run: rm -f .github/workflows/finalize-canonical-guard.yml
+      - name: Install dependencies
+        run: npm ci
+      - name: Rebuild web artifacts
+        run: npm run web:publish
+      - name: Validate
+        run: npm run ci:check
+      - name: Commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "補強權限角色最後管理帳號守門"
+          git push origin HEAD:main
