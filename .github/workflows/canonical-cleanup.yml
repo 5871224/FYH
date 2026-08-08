@@ -63,6 +63,18 @@ jobs:
       - name: Rebuild web artifacts
         run: npm run web:publish
 
+      - name: Diagnose unit tests
+        run: |
+          failed=0
+          for file in tests/*.test.js; do
+            if ! node --test "$file" > /tmp/unit-test-output.txt 2>&1; then
+              summary=$(tail -n 25 /tmp/unit-test-output.txt | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+              echo "::error file=$file,title=Unit test failed::$summary"
+              failed=1
+            fi
+          done
+          exit "$failed"
+
       - name: Unit tests
         run: npm test
 
