@@ -1,0 +1,16 @@
+from pathlib import Path
+
+path = Path("scripts/check-normalized-storage.js")
+text = path.read_text(encoding="utf-8")
+old = '''assert(webApi.includes('clearScheduleEntriesByForeignIds("leave_type_id"'), "deleting leave settings should clear schedule entry leave references before deleting leave types");
+assert(webApi.includes('clearScheduleEntriesByForeignIds("overtime_type_id"'), "deleting overtime settings should clear schedule entry overtime references before deleting overtime types");
+'''
+new = '''assert(!webApi.includes('clearScheduleEntriesByForeignIds("leave_type_id"'), "soft-deleting leave settings should preserve historical schedule leave references");
+assert(!webApi.includes('clearScheduleEntriesByForeignIds("overtime_type_id"'), "soft-deleting overtime settings should preserve historical schedule overtime references");
+assert(!webApi.includes('deleteRowsNotIn("set_leave"'), "leave settings should not be physically deleted by state synchronization");
+assert(!webApi.includes('deleteRowsNotIn("set_overtime"'), "overtime settings should not be physically deleted by state synchronization");
+'''
+if old not in text:
+    raise RuntimeError("normalized-storage soft-delete assertions not found")
+path.write_text(text.replace(old, new, 1), encoding="utf-8")
+print("patched scripts/check-normalized-storage.js")
