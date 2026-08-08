@@ -3,7 +3,8 @@ import { withSupabase } from "npm:@supabase/server@^1";
 type MemberPayload = {
   employeeCode?: string;
   fullName?: string;
-  role?: string;
+  groupId?: string;
+  accessRoleId?: string;
   hireDate?: string | null;
   leaveDate?: string | null;
   payByDay?: boolean;
@@ -13,7 +14,17 @@ type MemberPayload = {
   monthlyRestDays?: number;
 };
 
+type AccessRole = {
+  id: string;
+  code: string;
+  name: string;
+  permissions: string[];
+  legacy_role: string;
+};
+
 const DEFAULT_PASSWORD = "0000";
+const MEMBER_PERMISSION = "member_settings";
+const PRIVILEGED_PERMISSION = "permission_settings";
 
 function taipeiDateString(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -34,10 +45,14 @@ function addDaysToDateString(dateString: string, count: number) {
 
 function isProfileEffective(profile: any, today = taipeiDateString()) {
   const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
-  return Boolean((!profile.hire_date || today >= profile.hire_date) && (!effectiveEndDate || today <= effectiveEndDate));
+  return Boolean(
+    !profile?.deleted_at
+      && (!profile?.hire_date || today >= profile.hire_date)
+      && (!effectiveEndDate || today <= effectiveEndDate)
+  );
 }
 
-function isUuid(value: string) {
+function isUuid(value: unknown) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || "").trim());
 }
 
@@ -51,63 +66,77 @@ function buildLoginEmail(employeeCode: string) {
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  if (!normalized) {
-    throw new Error("工號無法建立登入帳號");
-  }
+  if (!normalized) throw new Error("工號無法建立登入帳號");
   return `${normalized}@local.invalid`;
 }
 
-function normalizeRole(role: string | undefined) {
-  return role === "admin" || role === "manager" ? role : "employee";
+function actorIdOf(ctx: any) {
+  const actorId = String(ctx.userClaims?.sub || ctx.userClaims?.id || "").trim();
+  if (!isUuid(actorId)) throw new Error("缺少有效登入身分");
+  return actorId;
 }
 
-function hasManagerAccess(role: string | undefined) {
-  const normalizedRole = normalizeRole(role);
-  return normalizedRole === "admin" || normalizedRole === "manager";
+async function rpcBoolean(ctx: any, name: string, payload: Record<string, unknown>) {
+  const { data, error } = await ctx.supabaseAdmin.rpc(name, payload);
+  if (error) throw error;
+  return data === true;
 }
 
-function hasAdminAccess(role: string | undefined) {
-  return normalizeRole(role) === "admin";
+async function hasPermission(ctx: any, actorId: string, permission: string) {
+  return rpcBoolean(ctx, "has_access_permission", {
+    p_user_id: actorId,
+    p_permission: permission
+  });
+}
+
+async function canAccessGroup(ctx: any, actorId: string, groupId: string, permission = MEMBER_PERMISSION) {
+  if (!isUuid(groupId)) return false;
+  return rpcBoolean(ctx, "can_access_group", {
+    p_user_id: actorId,
+    p_group_id: groupId,
+    p_permission: permission
+  });
+}
+
+async function requireMemberManager(ctx: any) {
+  const actorId = actorIdOf(ctx);
+  if (!await hasPermission(ctx, actorId, MEMBER_PERMISSION)) {
+    throw new Error("沒有管理人員的權限");
+  }
+  return {
+    actorId,
+    canManagePermissions: await hasPermission(ctx, actorId, PRIVILEGED_PERMISSION)
+  };
 }
 
 function normalizeMember(member: MemberPayload) {
   const employeeCode = String(member?.employeeCode || "").trim();
   const fullName = String(member?.fullName || "").trim();
-  if (!employeeCode || !fullName) {
-    throw new Error("缺少工號或姓名");
-  }
+  const groupId = String(member?.groupId || "").trim();
+  const accessRoleId = String(member?.accessRoleId || "").trim();
+  if (!employeeCode || !fullName) throw new Error("缺少工號或姓名");
+  if (!isUuid(groupId)) throw new Error("請指定有效群組");
+  if (!isUuid(accessRoleId)) throw new Error("請指定有效權限角色");
+
+  const scheduleShiftIds = Array.isArray(member?.scheduleShiftIds)
+    ? [...new Set(member.scheduleShiftIds.map((value) => String(value || "").trim()).filter(Boolean))]
+    : [];
+  if (scheduleShiftIds.some((id) => !isUuid(id))) throw new Error("排班班別資料格式錯誤");
+
   return {
     employeeCode,
     fullName,
-    role: normalizeRole(member?.role),
+    groupId,
+    accessRoleId,
     hireDate: member?.hireDate || null,
     leaveDate: member?.leaveDate || null,
     payByDay: Boolean(member?.payByDay),
     fixedRestWeekday: Math.min(6, Math.max(0, Number(member?.fixedRestWeekday) || 0)),
     homeDepartmentId: String(member?.homeDepartmentId || "").trim(),
-    scheduleShiftIds: Array.isArray(member?.scheduleShiftIds)
-      ? member.scheduleShiftIds.map((value) => String(value || "").trim()).filter(Boolean)
-      : [],
+    scheduleShiftIds,
     monthlyRestDays: Math.max(0, Number(member?.monthlyRestDays) || 0),
     authEmail: buildLoginEmail(employeeCode)
   };
-}
-
-async function getActorRole(ctx: any) {
-  const actorId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
-  if (!actorId) {
-    throw new Error("缺少登入身分");
-  }
-  const { data, error } = await ctx.supabaseAdmin
-    .from("set_employee")
-    .select("role, hire_date, leave_date")
-    .eq("id", actorId)
-    .single();
-  if (error) throw error;
-  if (!isProfileEffective(data)) {
-    throw new Error("此帳號目前不在有效期間，無法管理人員");
-  }
-  return data?.role || "";
 }
 
 async function findProfileByCode(ctx: any, employeeCode: string) {
@@ -115,90 +144,178 @@ async function findProfileByCode(ctx: any, employeeCode: string) {
   if (!key) return null;
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id, employee_code, full_name, role, hire_date, leave_date");
+    .select("id,employee_code,full_name,role,access_role_id,group_id,hire_date,leave_date,deleted_at")
+    .ilike("employee_code", employeeCode.trim())
+    .limit(10);
   if (error) throw error;
   return (data || []).find((row: any) => normalizeCodeKey(row.employee_code) === key) || null;
 }
 
-async function countEffectiveAdmins(ctx: any) {
+async function getAccessRole(ctx: any, roleId: string): Promise<AccessRole> {
+  const { data, error } = await ctx.supabaseAdmin
+    .from("access_roles")
+    .select("id,code,name,permissions,legacy_role")
+    .eq("id", roleId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("找不到權限角色");
+  return {
+    ...data,
+    permissions: Array.isArray(data.permissions) ? data.permissions : []
+  } as AccessRole;
+}
+
+async function roleAppliesToGroup(ctx: any, roleId: string, groupId: string) {
+  const { data, error } = await ctx.supabaseAdmin
+    .from("access_role_groups")
+    .select("group_id")
+    .eq("role_id", roleId)
+    .eq("group_id", groupId)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data?.group_id);
+}
+
+async function validateGroup(ctx: any, groupId: string) {
+  const { data, error } = await ctx.supabaseAdmin
+    .from("schedule_groups")
+    .select("id,status,deleted_at")
+    .eq("id", groupId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data || data.deleted_at || data.status !== "active") throw new Error("找不到可使用的群組");
+}
+
+async function resolveDepartment(ctx: any, departmentId: string, groupId: string) {
+  const itemId = String(departmentId || "").trim();
+  if (!itemId) return null;
+  if (!isUuid(itemId)) throw new Error("所屬單位格式錯誤");
+  const { data, error } = await ctx.supabaseAdmin
+    .from("set_departments")
+    .select("id,group_id,deleted_at")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data || data.deleted_at || data.group_id !== groupId) throw new Error("所屬單位不在指定群組或已刪除");
+  return data.id;
+}
+
+async function validateScheduleShifts(ctx: any, shiftIds: string[], groupId: string) {
+  if (!shiftIds.length) return;
+  const { data, error } = await ctx.supabaseAdmin
+    .from("set_shift")
+    .select("id,group_id,deleted_at")
+    .in("id", shiftIds);
+  if (error) throw error;
+  const valid = new Set((data || [])
+    .filter((row: any) => !row.deleted_at && row.group_id === groupId)
+    .map((row: any) => row.id));
+  if (shiftIds.some((id) => !valid.has(id))) throw new Error("排班班別不在指定群組或已刪除");
+}
+
+async function roleHasPrivilegedPermission(ctx: any, roleId: string | null | undefined) {
+  if (!roleId || !isUuid(roleId)) return false;
+  const role = await getAccessRole(ctx, roleId);
+  return role.permissions.includes(PRIVILEGED_PERMISSION);
+}
+
+async function countEffectivePrivilegedAccounts(ctx: any) {
+  const { data: roles, error: roleError } = await ctx.supabaseAdmin
+    .from("access_roles")
+    .select("id,permissions");
+  if (roleError) throw roleError;
+  const privilegedRoleIds = (roles || [])
+    .filter((role: any) => Array.isArray(role.permissions) && role.permissions.includes(PRIVILEGED_PERMISSION))
+    .map((role: any) => role.id);
+  if (!privilegedRoleIds.length) return 0;
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id, role, hire_date, leave_date")
-    .eq("role", "admin");
+    .select("id,access_role_id,hire_date,leave_date,deleted_at")
+    .in("access_role_id", privilegedRoleIds);
   if (error) throw error;
   return (data || []).filter((profile: any) => isProfileEffective(profile)).length;
 }
 
-async function assertLastAdminProtected(ctx: any, existingProfile: any, nextMember: any) {
-  if (normalizeRole(existingProfile?.role) !== "admin") return;
-  const nextProfile = {
-    ...existingProfile,
-    role: nextMember.role,
-    hire_date: nextMember.hireDate,
-    leave_date: nextMember.leaveDate
-  };
-  const remainsEffectiveAdmin = normalizeRole(nextProfile.role) === "admin" && isProfileEffective(nextProfile);
-  if (!remainsEffectiveAdmin && await countEffectiveAdmins(ctx) <= 1) {
-    throw new Error("系統必須保留至少一個有效管理員");
+async function assertLastPrivilegedAccountProtected(ctx: any, existingProfile: any, nextRole: AccessRole, nextMember: any) {
+  const wasPrivileged = await roleHasPrivilegedPermission(ctx, existingProfile?.access_role_id);
+  if (!wasPrivileged) return;
+  const remainsPrivileged = nextRole.permissions.includes(PRIVILEGED_PERMISSION)
+    && isProfileEffective({
+      ...existingProfile,
+      deleted_at: null,
+      hire_date: nextMember.hireDate,
+      leave_date: nextMember.leaveDate
+    });
+  if (!remainsPrivileged && await countEffectivePrivilegedAccounts(ctx) <= 1) {
+    throw new Error("系統必須保留至少一個有效的權限管理帳號");
   }
 }
 
-async function resolveDepartmentUuid(ctx: any, departmentId: string) {
-  const itemId = String(departmentId || "").trim();
-  if (!isUuid(itemId)) return null;
-  const { data, error } = await ctx.supabaseAdmin
-    .from("set_departments")
-    .select("id")
-    .eq("id", itemId)
-    .maybeSingle();
-  if (error) throw error;
-  return data?.id || null;
+async function assertActorMayManageTarget(ctx: any, actor: { actorId: string; canManagePermissions: boolean }, profile: any) {
+  if (!profile) return;
+  if (!profile.group_id || !await canAccessGroup(ctx, actor.actorId, profile.group_id)) {
+    throw new Error("沒有管理此人員所屬群組的權限");
+  }
+  if (await roleHasPrivilegedPermission(ctx, profile.access_role_id) && !actor.canManagePermissions) {
+    throw new Error("只有權限管理者可以修改此帳號");
+  }
 }
 
 async function upsertMember(ctx: any, body: any) {
+  const actor = await requireMemberManager(ctx);
   const member = normalizeMember(body?.member || {});
   const previousEmployeeCode = String(body?.previousEmployeeCode || "").trim();
-  const password = String(body?.defaultPassword || DEFAULT_PASSWORD);
-  const actorRole = normalizeRole(body?.actorRole);
   const targetProfile = await findProfileByCode(ctx, member.employeeCode);
   let profile = null;
 
+  if (!await canAccessGroup(ctx, actor.actorId, member.groupId)) {
+    throw new Error("沒有管理指定群組人員的權限");
+  }
+  await validateGroup(ctx, member.groupId);
+
   if (previousEmployeeCode) {
     profile = await findProfileByCode(ctx, previousEmployeeCode);
-    if (!profile) {
-      throw new Error("找不到原人員資料，請重新整理後再試");
-    }
-    if (targetProfile && targetProfile.id !== profile.id) {
-      throw new Error(`工號 ${member.employeeCode} 已存在，不能重複使用`);
-    }
+    if (!profile || profile.deleted_at) throw new Error("找不到原人員資料，請重新整理後再試");
+    if (targetProfile && targetProfile.id !== profile.id) throw new Error(`工號 ${member.employeeCode} 已存在，不能重複使用`);
   } else if (targetProfile) {
     throw new Error(`工號 ${member.employeeCode} 已存在，不能重複使用`);
   }
 
-  const homeDepartmentUuid = await resolveDepartmentUuid(ctx, member.homeDepartmentId || "");
-  if (profile) await assertLastAdminProtected(ctx, profile, member);
-
-  if (!hasAdminAccess(actorRole)) {
-    if (!profile && member.role !== "employee") {
-      throw new Error("只有管理員可以新增主管或管理員");
-    }
-    if (profile?.role === "admin") {
-      throw new Error("只有管理員可以修改管理員帳號");
-    }
-    if (profile && member.role !== normalizeRole(profile.role)) {
-      throw new Error("只有管理員可以修改人員權限");
-    }
+  await assertActorMayManageTarget(ctx, actor, profile);
+  const accessRole = await getAccessRole(ctx, member.accessRoleId);
+  if (!await roleAppliesToGroup(ctx, accessRole.id, member.groupId)) {
+    throw new Error("此權限角色不適用指定群組");
   }
+  if (accessRole.permissions.includes(PRIVILEGED_PERMISSION) && !actor.canManagePermissions) {
+    throw new Error("只有權限管理者可以指定此權限角色");
+  }
+  if (profile) await assertLastPrivilegedAccountProtected(ctx, profile, accessRole, member);
+
+  const homeDepartmentId = await resolveDepartment(ctx, member.homeDepartmentId, member.groupId);
+  await validateScheduleShifts(ctx, member.scheduleShiftIds, member.groupId);
+
+  const profileValues = {
+    employee_code: member.employeeCode,
+    full_name: member.fullName,
+    role: accessRole.legacy_role || "employee",
+    access_role_id: accessRole.id,
+    group_id: member.groupId,
+    hire_date: member.hireDate,
+    leave_date: member.leaveDate,
+    pay_by_day: member.payByDay,
+    fixed_rest_weekday: member.fixedRestWeekday,
+    home_department_id: homeDepartmentId,
+    schedule_shift_ids: member.scheduleShiftIds,
+    monthly_rest_days: member.monthlyRestDays,
+    deleted_at: null
+  };
 
   if (!profile) {
     const { data, error } = await ctx.supabaseAdmin.auth.admin.createUser({
       email: member.authEmail,
-      password,
+      password: DEFAULT_PASSWORD,
       email_confirm: true,
-      user_metadata: {
-        employee_code: member.employeeCode,
-        full_name: member.fullName
-      }
+      user_metadata: { employee_code: member.employeeCode, full_name: member.fullName }
     });
     if (error) throw error;
     const userId = data.user?.id;
@@ -206,19 +323,7 @@ async function upsertMember(ctx: any, body: any) {
 
     const { error: insertError } = await ctx.supabaseAdmin
       .from("set_employee")
-      .insert({
-        id: userId,
-        employee_code: member.employeeCode,
-        full_name: member.fullName,
-        role: member.role,
-        hire_date: member.hireDate,
-        leave_date: member.leaveDate,
-        pay_by_day: member.payByDay,
-        fixed_rest_weekday: member.fixedRestWeekday,
-        home_department_id: homeDepartmentUuid,
-        schedule_shift_ids: member.scheduleShiftIds,
-        monthly_rest_days: member.monthlyRestDays,
-      });
+      .insert({ id: userId, ...profileValues });
     if (insertError) {
       await ctx.supabaseAdmin.auth.admin.deleteUser(userId).catch(() => undefined);
       throw insertError;
@@ -230,39 +335,21 @@ async function upsertMember(ctx: any, body: any) {
   const { error: updateAuthError } = await ctx.supabaseAdmin.auth.admin.updateUserById(profile.id, {
     email: member.authEmail,
     email_confirm: true,
-    user_metadata: {
-      employee_code: member.employeeCode,
-      full_name: member.fullName
-    }
+    user_metadata: { employee_code: member.employeeCode, full_name: member.fullName }
   });
-  if (updateAuthError && !/not found/i.test(String(updateAuthError.message || updateAuthError))) {
-    throw updateAuthError;
-  }
+  if (updateAuthError && !/not found/i.test(String(updateAuthError.message || updateAuthError))) throw updateAuthError;
 
   const { error: updateProfileError } = await ctx.supabaseAdmin
     .from("set_employee")
-    .update({
-      employee_code: member.employeeCode,
-      full_name: member.fullName,
-      role: member.role,
-      hire_date: member.hireDate,
-      leave_date: member.leaveDate,
-      pay_by_day: member.payByDay,
-      fixed_rest_weekday: member.fixedRestWeekday,
-      home_department_id: homeDepartmentUuid,
-      schedule_shift_ids: member.scheduleShiftIds,
-      monthly_rest_days: member.monthlyRestDays,
-    })
-    .eq("id", profile.id);
+    .update(profileValues)
+    .eq("id", profile.id)
+    .is("deleted_at", null);
   if (updateProfileError) {
     if (!updateAuthError) {
       await ctx.supabaseAdmin.auth.admin.updateUserById(profile.id, {
         email: oldAuthEmail,
         email_confirm: true,
-        user_metadata: {
-          employee_code: profile.employee_code,
-          full_name: profile.full_name || ""
-        }
+        user_metadata: { employee_code: profile.employee_code, full_name: profile.full_name || "" }
       }).catch(() => undefined);
     }
     throw updateProfileError;
@@ -272,43 +359,38 @@ async function upsertMember(ctx: any, body: any) {
 }
 
 async function resetPassword(ctx: any, body: any) {
+  const actor = await requireMemberManager(ctx);
   const employeeCode = String(body?.employeeCode || "").trim();
   const password = String(body?.password || DEFAULT_PASSWORD);
   if (!employeeCode) throw new Error("缺少工號");
+  if (!password) throw new Error("密碼不可空白");
   const profile = await findProfileByCode(ctx, employeeCode);
-  if (!profile?.id) {
+  if (!profile?.id || profile.deleted_at) {
     return new Response(JSON.stringify({ message: "找不到這位人員的登入帳號" }), {
       status: 404,
       headers: { "Content-Type": "application/json" }
     });
   }
-  if (normalizeRole(profile.role) === "admin" && !hasAdminAccess(body?.actorRole)) {
-    throw new Error("只有管理員可以重設管理員密碼");
-  }
+  await assertActorMayManageTarget(ctx, actor, profile);
   const { error } = await ctx.supabaseAdmin.auth.admin.updateUserById(profile.id, { password });
   if (error) throw error;
-  return { ok: true, employeeCode, password };
+  return { ok: true, employeeCode };
 }
 
 async function deleteMember(ctx: any, body: any) {
+  const actor = await requireMemberManager(ctx);
   const employeeCode = String(body?.employeeCode || "").trim();
-  const actorRole = normalizeRole(body?.actorRole);
   if (!employeeCode) throw new Error("請提供人員工號");
 
   const profile = await findProfileByCode(ctx, employeeCode);
-  if (!profile?.id) return { ok: true, deleted: false, softDeleted: false };
-  if (normalizeRole(profile.role) === "admin" && !hasAdminAccess(actorRole)) {
-    throw new Error("只有管理員可以刪除管理員帳號");
-  }
-  if (normalizeRole(profile.role) === "admin" && await countEffectiveAdmins(ctx) <= 1) {
-    throw new Error("系統必須保留至少一個有效管理員");
+  if (!profile?.id || profile.deleted_at) return { ok: true, deleted: false, softDeleted: false };
+  await assertActorMayManageTarget(ctx, actor, profile);
+  if (await roleHasPrivilegedPermission(ctx, profile.access_role_id) && await countEffectivePrivilegedAccounts(ctx) <= 1) {
+    throw new Error("系統必須保留至少一個有效的權限管理帳號");
   }
 
-  const { data, error } = await ctx.supabaseAdmin.rpc("delete_member_account_v4", {
-    p_target_id: profile.id
-  });
+  const { data, error } = await ctx.supabaseAdmin.rpc("delete_member_account_v4", { p_target_id: profile.id });
   if (error) throw error;
-
   const result = data || { ok: true, deleted: false, softDeleted: false };
   if (result?.blocked) {
     return new Response(JSON.stringify(result), {
@@ -331,16 +413,7 @@ export default {
     }
 
     try {
-      const actorRole = await getActorRole(ctx);
-      if (!hasManagerAccess(actorRole)) {
-        return new Response(JSON.stringify({ message: "此功能限主管使用" }), {
-          status: 403,
-          headers: { "Content-Type": "application/json" }
-        });
-      }
-
       const body = await req.json();
-      body.actorRole = actorRole;
       if (body?.action === "upsert_member") return Response.json(await upsertMember(ctx, body));
       if (body?.action === "reset_password") {
         const result = await resetPassword(ctx, body);
@@ -350,14 +423,15 @@ export default {
         const result = await deleteMember(ctx, body);
         return result instanceof Response ? result : Response.json(result);
       }
-
       return new Response(JSON.stringify({ message: "不支援的操作" }), {
         status: 400,
         headers: { "Content-Type": "application/json" }
       });
     } catch (error) {
-      return new Response(JSON.stringify({ message: error instanceof Error ? error.message : "系統錯誤" }), {
-        status: 400,
+      const message = error instanceof Error ? error.message : "系統錯誤";
+      const forbidden = /沒有|只有權限管理者|權限/.test(message);
+      return new Response(JSON.stringify({ message }), {
+        status: forbidden ? 403 : 400,
         headers: { "Content-Type": "application/json" }
       });
     }
