@@ -19,6 +19,17 @@ jobs:
           cache: npm
       - name: Finalize canonical architecture
         run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('.github/finalize-access-architecture.py')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace("start = t.index('## Edge Functions')", "start = t.index('## 正式 Edge Functions')")
+          s = s.replace("end = t.index('## 測試資料', start)", "end = t.index('## 本機執行', start)")
+          s = s.replace("start = t.index('## 9.2 Edge Functions')", "start = t.index('## 9.5 正式 Edge Functions')")
+          s = s.replace("end = t.index('## 9.3 PC 桌面版部署', start)", "end = t.index('## 9.6 交易與冪等', start)")
+          s = s.replace("replacement = '''## 9.2 權限與資料存取架構", "replacement = '''## 9.5 權限與資料存取架構")
+          p.write_text(s, encoding='utf-8')
+          PY
           python3 .github/finalize-access-architecture.py
           rm -f .github/refactor-access-architecture.py
           rm -f .github/refactor-access-cleanup*.py
