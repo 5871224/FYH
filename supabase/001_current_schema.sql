@@ -511,44 +511,7 @@ create policy write_meal_orders on public.meal_orders for all to authenticated u
 drop function if exists public.get_department_attendance_settings();
 drop function if exists public.save_department_attendance_settings_bulk(jsonb);
 
-create or replace function public.save_department_attendance_fields_bulk(settings jsonb)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if auth.uid() is null or not public.is_admin(auth.uid()) then
-    raise exception 'admin permission required' using errcode = '42501';
-  end if;
-  if settings is null or jsonb_typeof(settings) <> 'array' then
-    raise exception 'settings must be a json array' using errcode = '22023';
-  end if;
 
-  update public.set_departments d
-  set
-    address = nullif(btrim(coalesce(item.address, '')), ''),
-    latitude = item.latitude,
-    longitude = item.longitude,
-    public_ip = nullif(btrim(coalesce(item.public_ip, '')), ''),
-    attendance_enabled = coalesce(item.attendance_enabled, false),
-    attendance_settings_updated_at = now(),
-    attendance_settings_updated_by = auth.uid()
-  from jsonb_to_recordset(settings) as item(
-    department_id uuid,
-    address text,
-    latitude double precision,
-    longitude double precision,
-    public_ip text,
-    attendance_enabled boolean
-  )
-  where item.department_id is not null
-    and d.id = item.department_id;
-end;
-$$;
-
-revoke all on function public.save_department_attendance_fields_bulk(jsonb) from public, anon;
-grant execute on function public.save_department_attendance_fields_bulk(jsonb) to authenticated;
 
 revoke all on function public.save_attendance_clock(uuid, date, text, jsonb) from public, anon, authenticated;
 grant execute on function public.save_attendance_clock(uuid, date, text, jsonb) to service_role;
@@ -607,94 +570,9 @@ as $$
   where employee.id = auth.uid()
 $$;
 
-create or replace function public.get_schedule_directory_v2()
-returns table (
-  id uuid,
-  full_name text,
-  home_department_id uuid,
-  hire_date date,
-  leave_date date,
-  pay_by_day boolean,
-  sort_order integer
-)
-language sql
-stable
-security definer
-set search_path = public, pg_catalog
-as $$
-  with actor as (
-    select public.is_effective_user(auth.uid()) as effective
-  )
-  select
-    employee.id,
-    employee.full_name,
-    employee.home_department_id,
-    employee.hire_date,
-    employee.leave_date,
-    employee.pay_by_day,
-    employee.sort_order
-  from actor
-  cross join public.set_employee employee
-  where actor.effective
-  order by employee.sort_order, employee.full_name, employee.id
-$$;
-
-create or replace function public.get_employee_admin_directory_v2()
-returns table (
-  id uuid,
-  employee_code text,
-  full_name text,
-  role text,
-  home_department_id uuid,
-  position_name text,
-  hire_date date,
-  leave_date date,
-  pay_by_day boolean,
-  created_at timestamptz,
-  updated_at timestamptz,
-  schedule_department_ids text[],
-  monthly_rest_days integer,
-  fixed_rest_weekday integer,
-  schedule_shift_ids uuid[],
-  sort_order integer
-)
-language sql
-stable
-security definer
-set search_path = public, pg_catalog
-as $$
-  with actor as (
-    select public.is_manager(auth.uid()) as manager_access
-  )
-  select
-    employee.id,
-    employee.employee_code,
-    employee.full_name,
-    employee.role,
-    employee.home_department_id,
-    employee.position_name,
-    employee.hire_date,
-    employee.leave_date,
-    employee.pay_by_day,
-    employee.created_at,
-    employee.updated_at,
-    employee.schedule_department_ids,
-    employee.monthly_rest_days,
-    employee.fixed_rest_weekday,
-    employee.schedule_shift_ids,
-    employee.sort_order
-  from actor
-  cross join public.set_employee employee
-  where actor.manager_access
-  order by employee.sort_order, employee.full_name, employee.id
-$$;
-
 revoke all on function public.get_my_profile_v2() from public, anon;
-revoke all on function public.get_schedule_directory_v2() from public, anon;
-revoke all on function public.get_employee_admin_directory_v2() from public, anon;
+
 grant execute on function public.get_my_profile_v2() to authenticated, service_role;
-grant execute on function public.get_schedule_directory_v2() to authenticated, service_role;
-grant execute on function public.get_employee_admin_directory_v2() to authenticated, service_role;
 
 commit;
 
@@ -704,94 +582,6 @@ commit;
 -- ============================================================================================
 
 begin;
-
-create or replace function public.save_departments_general_v2(p_departments jsonb)
-returns void
-language plpgsql
-security definer
-set search_path = public, pg_catalog
-as $$
-declare
-  item jsonb;
-  v_id uuid;
-  v_name text;
-  v_start_date date;
-  v_end_date date;
-  v_hidden boolean;
-  v_sort_order integer;
-begin
-  if not public.is_manager(auth.uid()) then
-    raise exception '此功能限主管或管理員使用' using errcode = '42501';
-  end if;
-  if jsonb_typeof(coalesce(p_departments, '[]'::jsonb)) <> 'array' then
-    raise exception '單位資料格式錯誤';
-  end if;
-
-  for item in select value from jsonb_array_elements(coalesce(p_departments, '[]'::jsonb)) loop
-    begin
-      v_id := nullif(btrim(item->>'id'), '')::uuid;
-      v_start_date := nullif(btrim(item->>'start_date'), '')::date;
-      v_end_date := nullif(btrim(item->>'end_date'), '')::date;
-    exception when invalid_text_representation or datetime_field_overflow then
-      raise exception '單位識別碼或日期格式錯誤';
-    end;
-    v_name := btrim(coalesce(item->>'name', ''));
-    v_hidden := coalesce((item->>'hidden_from_schedule')::boolean, false);
-    v_sort_order := greatest(0, coalesce((item->>'sort_order')::integer, 0));
-
-    if v_id is null or v_name = '' then
-      raise exception '單位名稱與識別碼不可空白';
-    end if;
-    if length(v_name) > 12 then
-      raise exception '單位名稱不可超過 12 個字';
-    end if;
-    if v_start_date is not null and v_end_date is not null and v_start_date > v_end_date then
-      raise exception '單位開始日期不得晚於結束日期';
-    end if;
-
-    insert into public.set_departments (
-      id, name, start_date, end_date, hidden_from_schedule, sort_order
-    ) values (
-      v_id, v_name, v_start_date, v_end_date, v_hidden, v_sort_order
-    )
-    on conflict (id) do update set
-      name = excluded.name,
-      start_date = excluded.start_date,
-      end_date = excluded.end_date,
-      hidden_from_schedule = excluded.hidden_from_schedule,
-      sort_order = excluded.sort_order,
-      updated_at = now();
-  end loop;
-end;
-$$;
-
-create or replace function public.delete_department_general_v2(p_department_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public, pg_catalog
-as $$
-begin
-  if not public.is_manager(auth.uid()) then
-    raise exception '此功能限主管或管理員使用' using errcode = '42501';
-  end if;
-  if p_department_id is null then
-    raise exception '缺少單位識別碼';
-  end if;
-  if exists (select 1 from public.set_employee where home_department_id = p_department_id) then
-    raise exception '這個單位仍有人員，請先將人員移轉到其他單位';
-  end if;
-  if exists (select 1 from public.set_shift where applicable_department_id = p_department_id) then
-    raise exception '這個單位仍有班別使用，請先修改相關班別';
-  end if;
-
-  begin
-    delete from public.set_departments where id = p_department_id;
-  exception when foreign_key_violation then
-    raise exception '這個單位已有班表、打卡或訂餐歷史，為保留歷史關聯不可刪除';
-  end;
-end;
-$$;
 
 create or replace function public.get_schedule_export_rows_v2(
   p_start_date date,
@@ -878,11 +668,9 @@ begin
 end;
 $$;
 
-revoke all on function public.save_departments_general_v2(jsonb) from public, anon;
-revoke all on function public.delete_department_general_v2(uuid) from public, anon;
+
 revoke all on function public.get_schedule_export_rows_v2(date, date) from public, anon;
-grant execute on function public.save_departments_general_v2(jsonb) to authenticated, service_role;
-grant execute on function public.delete_department_general_v2(uuid) to authenticated, service_role;
+
 grant execute on function public.get_schedule_export_rows_v2(date, date) to authenticated, service_role;
 
 commit;

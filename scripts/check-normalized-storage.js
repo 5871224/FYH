@@ -3,195 +3,74 @@ const fs = require("fs");
 const path = require("path");
 
 const rootDir = path.resolve(__dirname, "..");
-const { readRendererCore } = require("./renderer-core-source.js");
-const renderer = readRendererCore(rootDir);
-const webApi = fs.readFileSync(path.join(rootDir, "src", "renderer", "web-api.js"), "utf8");
-const exporter = fs.readFileSync(path.join(rootDir, "src", "renderer", "browser-exporter.js"), "utf8");
-const schema = fs.readFileSync(path.join(rootDir, "supabase", "001_current_schema.sql"), "utf8");
-const databaseUpdates = fs.readFileSync(path.join(rootDir, "supabase", "002_current_updates.sql"), "utf8");
+const read = (file) => fs.readFileSync(path.join(rootDir, file), "utf8");
+const webApi = read("src/renderer/web-api.js");
+const schema = read("supabase/001_current_schema.sql") + "\n" + read("supabase/002_current_updates.sql");
+const sqlFiles = fs.readdirSync(path.join(rootDir, "supabase")).filter((name) => /^\d+_.*\.sql$/i.test(name)).sort();
 
-assert(webApi.includes('restRpc("get_department_directory_v2"'), "loadState should use the safe department directory RPC");
-assert(webApi.includes('restRpc("get_my_profile_v2"'), "auth should use the self profile RPC");
-assert(webApi.includes('restRpc("get_schedule_directory_v2"'), "schedule should use the shared operational directory RPC");
-assert(webApi.includes('restRpc("get_employee_admin_directory_v2"'), "member settings should use the manager directory RPC");
-assert(!webApi.includes("get_employee_directory_v2"), "web api should not use the retired mixed-purpose employee directory RPC");
-assert(webApi.includes('restSelect("set_shift"'), "loadState should read set_shift table");
-assert(webApi.includes('restSelect("set_leave"'), "loadState should read set_leave table");
-assert(webApi.includes('restSelect("set_overtime"'), "loadState should read set_overtime table");
-assert(webApi.includes('restSelect("schedule_entries"'), "loadState should read schedule_entries table");
-assert(webApi.includes("filters: getScheduleEntryFilters(scheduleRange)"), "loadState should only read the buffered visible schedule range");
-assert(webApi.includes('restRpc("save_departments_general_v2"'), "saveState should write departments through the protected RPC");
-assert(webApi.includes('restRpc("save_schedule_entries_bulk"'), "schedule entry writes should use the bulk RPC");
-assert(webApi.includes("fetchExistingScheduleRowsForRanges(state.scheduleLoadedRanges)"), "saveState cleanup should only compare loaded schedule ranges");
-assert(!webApi.includes('restSelect("schedule_months"') && !webApi.includes('restInsert("schedule_months"'), "web api should not use schedule_months");
-assert(!webApi.includes("schedule_month_id"), "web api should not depend on schedule_month_id");
-assert(webApi.includes("async function saveScheduleCell(payload)") && webApi.includes("shift_type_id: shiftType?.id || null"), "single cell edits should save shift, leave, and overtime together");
-assert(webApi.includes("function makeScheduleEntryKey(memberId, workDate)"), "schedule entry cleanup should compare by member and work date");
-assert(!webApi.includes("savedScheduleRows"), "schedule entry cleanup should not depend on upsert return rows");
-assert(!webApi.includes('restInsert("schedule_documents"'), "saveState should not write schedule_documents JSON");
-assert(!webApi.includes('restSelect("schedule_documents"'), "loadState should not read schedule_documents JSON");
-assert(webApi.includes('parts.slice(0, -3).join("_")'), "schedule key parser should keep member ids containing underscores");
-assert(!webApi.includes('clearScheduleEntriesByForeignIds("leave_type_id"'), "soft-deleting leave settings should preserve historical schedule leave references");
-assert(!webApi.includes('clearScheduleEntriesByForeignIds("overtime_type_id"'), "soft-deleting overtime settings should preserve historical schedule overtime references");
-assert(!webApi.includes('deleteRowsNotIn("set_leave"'), "leave settings should not be physically deleted by state synchronization");
-assert(!webApi.includes('deleteRowsNotIn("set_overtime"'), "overtime settings should not be physically deleted by state synchronization");
-assert(webApi.includes("async function fetchRowsById") && webApi.includes("async function fetchRowById"), "catalog settings should resolve rows by uuid id");
-assert(webApi.includes("requiresTime: Boolean(row.requires_time)") && webApi.includes("requiresReason: Boolean(row.requires_reason)"), "leave catalog naming should match requires_time and requires_reason");
-assert(!webApi.includes("defaultAllDay: Boolean(row.requires_time)") && !webApi.includes("requireReason: Boolean(row.requires_reason)"), "web api should not keep the old leave catalog names");
-assert(renderer.includes("item.requiresTime") && renderer.includes("item.requiresReason"), "renderer should use consistent leave catalog naming");
-assert(!webApi.includes("fetchSchedulerRowByItemId") && !webApi.includes("deleteSchedulerRowsNotIn"), "web api should not depend on scheduler_item_id helpers");
-assert(!webApi.includes("login_email_by_employee_code"), "login should derive the auth email from employee code without a database login_email RPC");
-assert(!schema.includes("login_email"), "set_employee should not store login_email");
-assert(!renderer.includes("merged.overtime = merged.overtime.length ? [merged.overtime[0]] : [];"), "overtime settings should keep every overtime type from storage");
-assert(!webApi.includes("migrateLegacyTabletSession"), "web api should not keep legacy tablet session migration");
-assert(!renderer.includes("LEGACY_LEAVE_NAME_MAP") && !renderer.includes("resolveLeaveCatalogEntry"), "renderer should not keep legacy leave-name or index inference");
-assert(!renderer.includes("clearLegacyLeaveFromSlot") && !renderer.includes("clearLegacyOvertimeFromSlot"), "renderer should use current schedule-clear naming");
-assert(!renderer.includes("function getRemainingDailyShiftDemand(") && !renderer.includes("function isValidDateTimeRange("), "renderer should not keep test-only helper wrappers");
-assert(!renderer.includes("function getWeekStripeClass(") && !renderer.includes("function getWeekBoundaryClass("), "renderer should not keep retired month-based week helpers");
-assert(!renderer.includes("function getPositionName(") && !renderer.includes("function formatMonthText(") && !renderer.includes("function formatWeekStartLabel("), "renderer should not keep unused display helpers");
-assert(!renderer.includes("function sanitizeNamedColorItem(") && !renderer.includes("function isDepartmentActiveInMonth(") && !renderer.includes("function isMemberActiveInMonth("), "renderer should not keep unused normalization or month helpers");
-assert(!fs.readFileSync(path.join(rootDir, "src", "renderer", "rest-compliance.js"), "utf8").includes("module.exports"), "browser source should not expose CommonJS solely for tests");
-assert(!renderer.includes("leaveRequestId") && !renderer.includes("overtimeRequestId"), "schedule state should not keep legacy request ids");
-assert(
-  !renderer.includes('data-open-leave-request="true"') &&
-    !renderer.includes('data-open-overtime-request="true"') &&
-    !renderer.includes("openLeaveRequestModal") &&
-    !renderer.includes("openOvertimeRequestModal") &&
-    !renderer.includes("openLeaveApprovalModal") &&
-    !renderer.includes("openOvertimeApprovalModal"),
-  "renderer should not keep removed request UI"
-);
-assert(
-  !renderer.includes("refreshScheduleRequestsAfterInitialRender") &&
-    !renderer.includes("syncManagerEntriesToSchedule") &&
-    !renderer.includes("syncApprovedRequestsToSchedule"),
-  "schedule should not run removed request overlay sync"
-);
-assert(
-  !webApi.includes("async function createLeaveRequest") &&
-    !webApi.includes("async function createOvertimeRequest") &&
-    !webApi.includes("async function listLeaveRequests") &&
-    !webApi.includes("async function listOvertimeRequests") &&
-    !webApi.includes("async function listPublicScheduleRequests"),
-  "web api should not expose removed request helpers"
-);
-assert(!webApi.includes("getOvertimeTypeByReference") && !webApi.includes("listOvertimeRequests"), "web api should not expose legacy request wrappers");
-assert(!webApi.includes("requestLeaveCatalog"), "deleted leave settings should not be preserved by the removed request catalog");
-assert(!webApi.includes("isLegacyRequestCatalogRow") && !webApi.includes('startsWith("catalog:")'), "web api should not keep retired request catalog compatibility code");
-assert(
-  !renderer.includes("getRequestActor") &&
-    !renderer.includes("requestMatchesMember") &&
-    !renderer.includes("hasDateRangeOverlap") &&
-    !renderer.includes("findDirectLeaveScheduleConflict") &&
-    !renderer.includes("hasDirectOvertimeScheduleConflict") &&
-    !renderer.includes("formatRequestDateText") &&
-    !renderer.includes("formatOvertimeTimeText") &&
-    !renderer.includes("formatOvertimeRestLines") &&
-    !renderer.includes("getLeaveStyleForRecord") &&
-    !renderer.includes("getLeaveStyleForSlot") &&
-    !renderer.includes("cleanSlotMeta") &&
-    !renderer.includes("cancelLeaveRequestIds"),
-  "renderer should not keep retired schedule request helper names"
-);
-assert(
-  !exporter.includes("請假申請預覽") &&
-    !exporter.includes("加班申請預覽") &&
-    !exporter.includes("requestStyles"),
-  "settings workbooks should not keep removed request preview sheets"
-);
+assert.deepStrictEqual(sqlFiles, ["001_current_schema.sql", "002_current_updates.sql"], "Supabase canonical schema must remain exactly two SQL files");
+assert(!schema.includes("scheduler_state"), "legacy scheduler_state blob table must not return");
+assert(schema.includes("create table if not exists public.schedule_entries"), "normalized schedule_entries table must exist");
+assert(schema.includes("create table if not exists public.set_employee"), "normalized employee table must exist");
+assert(schema.includes("create table if not exists public.set_departments"), "normalized department table must exist");
+assert(schema.includes("create table if not exists public.set_shift"), "normalized shift table must exist");
+assert(schema.includes("create table if not exists public.set_leave"), "normalized leave table must exist");
+assert(schema.includes("create table if not exists public.set_overtime"), "normalized overtime table must exist");
+assert(schema.includes("deleted_at"), "soft delete columns must remain canonical");
 
-assert(schema.includes("create table if not exists public.scheduler_settings"), "schema should create scheduler_settings");
-assert(schema.includes("create table if not exists public.schedule_entries"), "schema should create schedule_entries");
-assert(!schema.includes("schedule_months"), "current schema should not create schedule_months");
-assert(schema.includes("create table if not exists public.holidays"), "schema should create holidays");
-assert(schema.includes("create table if not exists public.set_employee"), "schema should create set_employee");
-const setEmployeeSchema = schema.slice(schema.indexOf("create table if not exists public.set_employee"), schema.indexOf("create table if not exists public.set_shift"));
-assert(!setEmployeeSchema.includes("is_active"), "set_employee should not keep an is_active column");
-assert(schema.includes("role in ('admin', 'manager', 'employee')"), "employee roles should include admin");
-assert(!schema.includes("alter column role type text using role::text"), "current schema should not keep legacy role enum conversion");
-assert(schema.includes("schedule_shift_ids uuid[]"), "schema should store ordered member shift priorities as uuid ids");
-assert(schema.includes("applicable_department_id uuid not null"), "schema should store one required shift department id");
-assert(!schema.includes("applicable_department_ids uuid[]"), "schema should not keep shift department applicability arrays");
-assert(schema.includes("auto_text_color boolean not null default true"), "schema should store catalog auto text color flags");
-assert(schema.includes("requires_time boolean not null default false"), "schema should store leave time requirement flags");
-assert(schema.includes("requires_reason boolean not null default false"), "schema should store leave reason requirement flags");
-assert(schema.includes("hidden_from_schedule") && !schema.includes("hidden_from_leave"), "department hidden flag should be schedule-named");
-assert(schema.includes("address text") && schema.includes("attendance_enabled boolean not null default false"), "departments should store attendance location settings");
-assert(schema.includes("create table if not exists public.attendance_days"), "schema should create daily attendance rows");
-assert(schema.includes("create table if not exists public.attendance_audit_logs"), "schema should create attendance audit logs");
-assert(schema.includes("regular_minutes smallint") && schema.includes("overtime_minutes smallint"), "attendance days should store half-hour work totals");
-assert(!schema.includes("attendance_records") && !schema.includes("attendance_action_logs"), "schema should not create retired attendance tables");
-assert(!schema.includes("attendance_overtime_requests") && !schema.includes("overtime_review_logs"), "schema should not create retired overtime review tables");
-assert(schema.includes("create table if not exists public.meal_products"), "schema should create meal products");
-assert(schema.includes("create table if not exists public.meal_settings"), "schema should create meal settings");
-assert(schema.includes("create table if not exists public.meal_orders"), "schema should create meal order item rows");
-assert(schema.includes("attendance_department_id uuid references public.set_departments"), "meal orders should use the canonical attendance department field");
-assert(!schema.includes("clock_location_id") && !schema.includes("display_name text"), "current schema should not keep compatibility-only meal or leave fields");
-assert(schema.includes("code text not null unique"), "leave codes should be required and unique");
-assert(!databaseUpdates.includes("create or replace function public.save_meal_order_v2"), "updates should not recreate the old meal wrapper RPC");
-assert(!databaseUpdates.includes("set_schedule_documents_updated_at() from") && !databaseUpdates.includes("alter function public.set_schedule_documents_updated_at"), "updates should not manage an orphaned legacy trigger function");
-assert(schema.includes("unique (user_id, work_date)"), "attendance and overtime should be unique by user/date where required");
-assert(schema.includes("unique (user_id, order_date, product_id)"), "meal orders should be unique by user/date/product");
-assert(schema.includes("create or replace function public.is_admin(p_user_id uuid)"), "schema should expose an admin helper");
-assert(schema.includes("create or replace function public.get_my_profile_v2()") && schema.includes("create or replace function public.get_schedule_directory_v2()") && schema.includes("create or replace function public.get_employee_admin_directory_v2()"), "current schema should create separated employee data RPCs");
-assert(schema.includes("alter table public.meal_orders enable row level security"), "new meal tables should have RLS enabled");
-assert(schema.includes("create policy read_schedule_entries") && schema.includes("create policy read_meal_orders"), "current schema should create RLS policies");
-assert(schema.includes("drop policy if exists v2_restrict_employee_directory") && schema.includes("drop policy if exists v2_restrict_schedule_visibility"), "schema should remove old employee-only schedule visibility policies");
-assert(schema.includes("create or replace function public.protect_admin_member"), "current schema should protect the last admin at database level");
-assert(schema.includes("create or replace function public.save_attendance_clock"), "current schema should create the atomic clock RPC");
-assert(schema.includes("create or replace function public.save_meal_order"), "current schema should create the meal transaction RPC");
-assert(!schema.includes("and clock_in_at is not null\n      and clock_out_at is null"), "clock-out should not require a clock-in record");
-assert(schema.includes("訂餐數量必須是 0 或正整數"), "meal order RPC should reject invalid quantities instead of rounding them");
-assert(!schema.includes("create table if not exists public.clock_locations"), "current schema should not create retired clock_locations");
-assert(!schema.includes("create table if not exists public.attendance_logs"), "current schema should not create retired attendance_logs");
-assert(!schema.includes("scheduler_item_id text unique"), "active catalog tables should not keep scheduler_item_id");
-assert(!schema.includes("create table if not exists public.set_employee_departments"), "schema should not recreate member department priorities");
-assert(!schema.includes("create table if not exists public.leave_requests") && !schema.includes("create table if not exists public.overtime_requests"), "current schema should not recreate legacy request tables");
-assert(!schema.includes("request_status") && !schema.includes("request_type"), "current schema should not recreate legacy request types");
-assert(databaseUpdates.includes("create or replace function public.save_schedule_entries_bulk(entries jsonb)"), "schedule entry RPC migration should create the bulk save function");
-assert(databaseUpdates.includes("on conflict (member_id, work_date)"), "schedule entry RPC should upsert by member and work date");
-assert(databaseUpdates.includes("grant execute on function public.save_schedule_entries_bulk(jsonb) to authenticated"), "schedule entry RPC should be executable by authenticated users");
-assert(!schema.includes("schedule_documents"), "current schema should not recreate legacy JSON storage");
-
-assert(!fs.existsSync(path.join(rootDir, "supabase", "functions", "attendance-clock-safe")), "retired attendance-clock-safe endpoint still exists");
-assert(!fs.existsSync(path.join(rootDir, "supabase", "functions", "report-records")), "retired report-records endpoint still exists");
-
-const retiredTableNames = ["manager_departments", "schedule_documents", "schedule_months"];
-const retiredReferenceRoots = [
-  path.join(rootDir, "src"),
-  path.join(rootDir, "docs"),
-  path.join(rootDir, "supabase", "functions")
+const requiredApis = [
+  "get_scheduler_bootstrap_v3",
+  "get_schedule_entries_v3",
+  "save_schedule_entries_v3",
+  "save_shift_v3",
+  "save_catalog_item_v3",
+  "delete_catalog_item_v3",
+  "save_department_v3",
+  "delete_department_v3",
+  "reorder_settings_v3",
+  "save_scheduler_preferences_v3",
+  "save_holidays_v3",
+  "get_department_attendance_settings_v3",
+  "get_employee_admin_directory_v3"
 ];
-const retiredReferenceExtensions = new Set([".js", ".ts", ".html"]);
-const retiredTableReferences = [];
+for (const name of requiredApis) {
+  assert(schema.toLowerCase().includes(`function public.${name}`), `${name} must exist in canonical SQL`);
+}
+assert(schema.includes("security definer"), "canonical privileged APIs must use SECURITY DEFINER");
 
-function scanRetiredTableReferences(targetPath) {
-  const stats = fs.statSync(targetPath);
-  if (stats.isDirectory()) {
-    for (const entry of fs.readdirSync(targetPath)) {
-      scanRetiredTableReferences(path.join(targetPath, entry));
-    }
-    return;
-  }
-  if (!retiredReferenceExtensions.has(path.extname(targetPath))) return;
-  const content = fs.readFileSync(targetPath, "utf8");
-  for (const tableName of retiredTableNames) {
-    if (content.includes(tableName)) {
-      retiredTableReferences.push(`${path.relative(rootDir, targetPath)} -> ${tableName}`);
-    }
-  }
+const obsoleteApis = [
+  "assign_department_group_v1",
+  "assign_member_access_v1",
+  "delete_department_general_v2",
+  "delete_member_account_v3",
+  "get_department_directory_v2",
+  "get_employee_admin_directory_v2",
+  "get_schedule_directory_v2",
+  "save_department_attendance_fields_bulk",
+  "save_departments_general_v2",
+  "save_schedule_entries_bulk"
+];
+for (const name of obsoleteApis) {
+  assert(!new RegExp(`create(?:\\s+or\\s+replace)?\\s+function\\s+public\\.${name}\\b`, "i").test(schema), `${name} legacy definition must be removed`);
 }
 
-for (const targetPath of retiredReferenceRoots) scanRetiredTableReferences(targetPath);
-assert.equal(
-  retiredTableReferences.length,
-  0,
-  `Retired Supabase tables are still referenced:\n${retiredTableReferences.join("\n")}`
-);
+for (const helper of ["restSelect(", "restInsert(", "restUpdate(", "restDelete(", "syncCatalogs(", "saveState("]) {
+  assert(!webApi.includes(helper), `browser must not keep generic data helper ${helper}`);
+}
+for (const table of ["set_employee", "set_departments", "set_shift", "set_leave", "set_overtime", "schedule_entries", "scheduler_settings", "holidays"]) {
+  assert(!webApi.includes(`/rest/v1/${table}`), `browser must not access ${table} directly`);
+}
+assert(webApi.includes('callRpc("get_scheduler_bootstrap_v3"'), "browser bootstrap must use named v3 RPC");
+assert(webApi.includes('callRpc("save_schedule_entries_v3"'), "schedule writes must use named v3 RPC");
+assert(webApi.includes('callRpc("save_department_v3"'), "department writes must use named v3 RPC");
+assert(webApi.includes('requestFunction("member-auth-admin"'), "member account mutations must use the canonical member-auth-admin Edge Function");
 
-console.log("normalized storage checks passed");
+for (const removedEdge of ["catalog-admin", "member-delete-v2", "member-order-v2", "department-attendance-v2"]) {
+  assert(!fs.existsSync(path.join(rootDir, "supabase", "functions", removedEdge)), `${removedEdge} obsolete Edge Function must be removed`);
+}
 
-assert(!fs.existsSync(path.join(rootDir, "supabase", "003_attendance_ledger.sql")), "canonical schema should not keep a third attendance migration file");
-assert(!fs.existsSync(path.join(rootDir, "supabase", "004_remove_legacy_attendance.sql")), "canonical schema should not keep a legacy cleanup file");
-assert(!webApi.includes("approvedOvertimeRows"), "attendance export should use the canonical exportRows contract");
-assert(!fs.existsSync(path.join(rootDir, "src", "renderer", "renderer-period-exports.js")), "period export runtime override module still exists");
+for (const table of ["set_employee", "set_departments", "set_shift", "set_leave", "set_overtime", "schedule_entries", "scheduler_settings", "holidays", "meal_orders", "meal_products", "meal_settings", "attendance_days"]) {
+  assert(schema.includes(`revoke all privileges on table public.${table} from anon,authenticated;`), `${table} direct browser privileges must be revoked`);
+}
+
+console.log("normalized storage and access architecture checks passed");

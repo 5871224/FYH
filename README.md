@@ -74,24 +74,28 @@ FYH/
 
 `001_current_schema.sql` 必須直接建立目前正式資料表、索引、RLS、限制、Trigger 與核心 RPC；不得先建立已淘汰結構再刪除。`002_current_updates.sql` 只保存仍有效且可重複執行的正式更新，包含群組、角色權限及班表封存的資料模型與安全規則。Edge Function 部署不會自動執行 SQL。
 
-## 正式 Edge Functions
+## 權限與資料存取架構
 
-部署清單以 `scripts/deploy-edge-functions.ps1` 為準，目前包括：
+瀏覽器不直接 CRUD 核心資料表。正式資料流固定為：
 
-- `member-auth-admin`
-- `catalog-admin`
-- `attendance-clock`
-- `attendance-ledger`
-- `attendance-ledger-export`
-- `attendance-review-groups`
-- `meal-order`
-- `department-attendance-v2`
-- `member-delete-v2`
-- `member-order-v2`
-- `meal-report-v2`
-- `meal-cancel-v2`
+`瀏覽器 → 具名 RPC / Edge Function → 權限與適用群組檢查 → 資料表`
 
-未列入部署清單的端點不得保留原始碼、代理包裝或呼叫分支。
+- 核心班表、人員、單位、班別、假別與設定的讀寫使用具名 `SECURITY DEFINER` RPC。
+- 人員登入帳號的新增、修改、重設密碼與刪除統一由 `member-auth-admin` 處理。
+- 簽到與訂餐使用各自的 Edge Function；Edge Function 以 `access_role_id`、權限項目與適用群組判斷，不以舊 `admin/manager` 文字角色做授權。
+- `anon` / `authenticated` 不具核心資料表直接權限；RLS 保留為第二層防護。
+- 不使用通用整包 `saveState`、資料表名稱型 REST helper、runtime monkey patch 或舊版相容橋接。
+
+## Edge Functions
+
+- `member-auth-admin`：人員登入帳號新增、修改、密碼重設、軟刪除與權限角色驗證。
+- `attendance-clock`：本人打卡。
+- `attendance-ledger`：本人簽到簿資料。
+- `attendance-review-groups`：依 `attendance_review` 與適用群組進行簽到審核、編輯與歷程查詢。
+- `attendance-ledger-export`：依 `attendance_review` 與適用群組匯出已審簽到資料。
+- `meal-order`：訂餐與訂餐管理。
+- `meal-report-v2`：訂餐統計報表。
+- `meal-cancel-v2`：訂餐取消。
 
 ## 本機執行
 

@@ -119,6 +119,11 @@ npm run js:architecture
 7. 權限必須由 RPC、RLS 或 Edge Function 實作，不得以純前端限制作為安全邊界。
 8. 新增或重構 API 時，需直接更新唯一正式的錯誤碼、角色與 Request／Response 契約；本系統尚未上線，不保留切換期雙軌、舊端點、舊欄位、相容代理或回滾分支。
 9. SQL Editor 發生錯誤時立即停止，不可略過後續區段。
+10. 瀏覽器不得直接 CRUD 核心資料表；資料層只允許具名 RPC / Edge Function。
+11. 不得新增通用 `restSelect/restInsert/restUpdate/restDelete`、整包 `saveState/syncCatalogs` 或依資料表名稱分派的寫入器。
+12. 權限判斷以 `access_role_id + access_roles.permissions + access_role_groups` 為唯一來源，不得用 `set_employee.role` 的 `admin/manager` 字串授權。
+13. 需要受保護主檔的 mutation RPC 必須 `SECURITY DEFINER`，並在函式內先驗證 `auth.uid()`、功能權限與適用群組。
+14. 資料存取架構不得以後載入 script、runtime monkey patch 或 API wrapper 覆寫修補；必須直接修改正式模組。
 
 ## 文件維護原則
 

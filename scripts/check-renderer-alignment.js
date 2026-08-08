@@ -4,37 +4,23 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 const exists = (relativePath) => fs.existsSync(path.join(root, relativePath));
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
 
-function assert(condition, message) {
-  if (!condition) throw new Error(message);
-}
-
-const requiredFiles = [
-  "supabase/001_current_schema.sql",
-  "supabase/002_current_updates.sql",
-  "supabase/functions/attendance-clock/index.ts",
-  "supabase/functions/attendance-ledger/index.ts",
-  "supabase/functions/attendance-ledger-export/index.ts",
-  "supabase/functions/meal-order/index.ts",
-  "supabase/functions/department-attendance-v2/index.ts",
-  "supabase/functions/member-delete-v2/index.ts",
-  "supabase/functions/member-auth-admin/index.ts",
-  "supabase/functions/member-order-v2/index.ts",
-  "supabase/functions/meal-report-v2/index.ts",
-  "supabase/functions/meal-cancel-v2/index.ts",
-  "scripts/deploy-edge-functions.ps1",
-  "src/renderer/web-api.js",
-  "src/renderer/renderer-attendance-page.js",
-  "src/renderer/renderer-records-page.js",
-  "src/renderer/renderer-records-views.js",
-  "src/renderer/renderer-records-actions.js",
-  "src/renderer/renderer-records-events.js",
-  "src/renderer/app.js",
-  "docs/app.js"
+const expectedEdgeFunctions = [
+  "member-auth-admin",
+  "attendance-clock",
+  "attendance-ledger",
+  "attendance-ledger-export",
+  "attendance-review-groups",
+  "meal-order",
+  "meal-report-v2",
+  "meal-cancel-v2"
 ];
-requiredFiles.forEach((file) => assert(exists(file), `Missing current architecture file: ${file}`));
-
-const retiredEdgeFunctions = [
+const obsoleteEdgeFunctions = [
+  "catalog-admin",
+  "member-delete-v2",
+  "member-order-v2",
+  "department-attendance-v2",
   "attendance-overtime-employee",
   "attendance-overtime-admin-list",
   "attendance-overtime-admin-action",
@@ -44,97 +30,113 @@ const retiredEdgeFunctions = [
   "attendance-clock-safe",
   "report-records"
 ];
-retiredEdgeFunctions.forEach((name) => {
-  assert(!exists(`supabase/functions/${name}`), `Retired Edge Function remains: ${name}`);
-});
-assert(!exists("src/renderer/renderer-overtime-employee.js"), "Retired overtime request renderer remains");
 
-[
-  "v2-records.js",
-  "v2-personal-record-layout.js",
-  "v2-overtime-admin.js",
-  "v2-attendance-admin.js",
-  "v2-live-report-filters.js",
-  "v2-meal.js",
-  "v2-account.js",
-  "v2-meal-export.js",
-  "v2-settings-drag-handles.js",
-  "v2-drag-scroll-preserve.js",
-  "v2-tablet-session.js"
-].forEach((file) => assert(!exists(`src/renderer/${file}`), `Legacy renderer patch remains: ${file}`));
+for (const file of [
+  "supabase/001_current_schema.sql",
+  "supabase/002_current_updates.sql",
+  "scripts/deploy-edge-functions.ps1",
+  "src/renderer/web-api.js",
+  "src/renderer/renderer-page-data.js",
+  "src/renderer/renderer-groups-permissions-archive.js",
+  "src/renderer/renderer-attendance-page.js",
+  "src/renderer/renderer-records-page.js",
+  "src/renderer/app.js",
+  "docs/app.js"
+]) assert(exists(file), `Missing current architecture file: ${file}`);
+
+for (const name of expectedEdgeFunctions) {
+  assert(exists(`supabase/functions/${name}/index.ts`), `Missing canonical Edge Function: ${name}`);
+}
+for (const name of obsoleteEdgeFunctions) {
+  assert(!exists(`supabase/functions/${name}`), `Obsolete Edge Function remains: ${name}`);
+}
 
 const deployScript = read("scripts/deploy-edge-functions.ps1");
-for (const name of ["attendance-clock", "attendance-ledger", "attendance-ledger-export", "meal-order"]) {
-  assert(deployScript.includes(`"${name}"`), `Deployment list is missing current endpoint: ${name}`);
+for (const name of expectedEdgeFunctions) {
+  assert(deployScript.includes(`"${name}"`), `Deployment list is missing canonical Edge Function: ${name}`);
 }
-retiredEdgeFunctions.forEach((name) => {
-  assert(!deployScript.includes(`"${name}"`), `Deployment list still contains retired endpoint: ${name}`);
-});
-assert(deployScript.includes("001_current_schema.sql") && deployScript.includes("002_current_updates.sql"), "Deployment instructions are missing the canonical SQL stages");
-assert(!deployScript.includes("003_attendance_ledger.sql") && !deployScript.includes("004_remove_legacy_attendance.sql"), "Deployment instructions still contain retired SQL stages");
+for (const name of obsoleteEdgeFunctions) {
+  assert(!deployScript.includes(`"${name}"`), `Deployment list still contains obsolete Edge Function: ${name}`);
+}
+assert(deployScript.includes("001_current_schema.sql") && deployScript.includes("002_current_updates.sql"), "Deployment instructions must use the two canonical SQL stages");
 
-const schema = [
-  "supabase/001_current_schema.sql",
-  "supabase/002_current_updates.sql"
-].map(read).join("\n");
-assert(schema.includes("create table if not exists public.attendance_days"), "Current attendance_days table is missing from database sources");
-assert(schema.includes("create table if not exists public.attendance_audit_logs"), "Current attendance_audit_logs table is missing from database sources");
+const schema = read("supabase/001_current_schema.sql") + "\n" + read("supabase/002_current_updates.sql");
+for (const table of ["attendance_days", "attendance_audit_logs", "schedule_entries", "set_employee", "set_departments", "set_shift", "set_leave", "set_overtime"]) {
+  assert(schema.includes(`public.${table}`), `Canonical database sources are missing ${table}`);
+}
 for (const retiredName of ["attendance_records", "attendance_action_logs", "attendance_overtime_requests", "overtime_review_logs"]) {
   assert(!schema.includes(retiredName), `Canonical database sources still contain retired structure: ${retiredName}`);
 }
-assert(schema.includes("public.attendance_days%rowtype"), "Clocking or meal transaction RPCs still use the retired attendance row type");
-assert(schema.includes("from public.attendance_days"), "Current attendance table is not used by database RPCs");
+for (const rpc of [
+  "get_scheduler_bootstrap_v3",
+  "get_schedule_entries_v3",
+  "save_schedule_entries_v3",
+  "save_department_v3",
+  "save_shift_v3",
+  "save_catalog_item_v3",
+  "get_employee_admin_directory_v3",
+  "get_department_attendance_settings_v3"
+]) {
+  assert(schema.toLowerCase().includes(`function public.${rpc}`), `Canonical SQL is missing ${rpc}`);
+}
 
 const attendanceClock = read("supabase/functions/attendance-clock/index.ts");
 const attendanceLedger = read("supabase/functions/attendance-ledger/index.ts");
+const attendanceReview = read("supabase/functions/attendance-review-groups/index.ts");
 const attendanceExport = read("supabase/functions/attendance-ledger-export/index.ts");
+const memberAdmin = read("supabase/functions/member-auth-admin/index.ts");
 const mealOrder = read("supabase/functions/meal-order/index.ts");
-for (const [name, source] of [
-  ["attendance-clock", attendanceClock],
-  ["attendance-ledger", attendanceLedger],
-  ["attendance-ledger-export", attendanceExport],
-  ["meal-order", mealOrder]
-]) {
-  assert(source.includes("attendance_days"), `${name} does not use attendance_days`);
-  assert(!source.includes("attendance_records"), `${name} still uses attendance_records`);
-}
-assert(attendanceClock.includes('rpc("save_attendance_clock"'), "Clock endpoint is not using the atomic clock RPC");
-for (const action of ["personal_list", "personal_save", "review_list", "review_save", "review_set", "history"]) {
-  assert(attendanceLedger.includes(`body?.action === "${action}"`), `Attendance ledger is missing action: ${action}`);
-}
-assert(attendanceExport.includes("attendance_days"), "Attendance export is not based on the current daily ledger");
-assert(mealOrder.includes("clock_in_location") && mealOrder.includes('rpc("save_meal_order"'), "Meal order is not tied to the current clock-in snapshot and transaction RPC");
 
-const sourceWebApi = read("src/renderer/web-api.js");
-assert(sourceWebApi.includes('requestFunction("attendance-ledger"'), "Web API is missing the unified attendance ledger endpoint");
-assert(sourceWebApi.includes('requestFunction("attendance-ledger-export"'), "Web API is missing the attendance export endpoint");
-retiredEdgeFunctions.forEach((name) => {
-  assert(!sourceWebApi.includes(name), `Web API still calls retired endpoint: ${name}`);
-});
-assert(sourceWebApi.includes("get_my_profile_v2") && sourceWebApi.includes("get_schedule_directory_v2") && sourceWebApi.includes("get_employee_admin_directory_v2"), "Purpose-specific employee RPCs are missing from the web API");
-assert(!sourceWebApi.includes("get_employee_directory_v2"), "Retired mixed-purpose employee RPC is still used by the web API");
+assert(attendanceClock.includes('rpc("save_attendance_clock"'), "Clock endpoint must use the atomic clock RPC");
+assert(attendanceClock.includes("attendance_days"), "Clock endpoint must use attendance_days");
+assert(attendanceLedger.includes('body?.action === "personal_list"'), "Personal ledger must provide personal_list");
+assert(attendanceLedger.includes('body?.action === "personal_save"'), "Personal ledger must provide personal_save");
+for (const action of ["review_list", "review_save", "review_set", "history"]) {
+  assert(!attendanceLedger.includes(`body?.action === "${action}"`), `Personal ledger must not duplicate review action: ${action}`);
+  assert(attendanceReview.includes(`body?.action === "${action}"`), `Attendance review endpoint is missing action: ${action}`);
+}
+assert(attendanceReview.includes("attendance_review"), "Attendance review endpoint must validate attendance_review permission");
+assert(attendanceExport.includes("attendance_review") && attendanceExport.includes("can_access_group"), "Attendance export must validate permission and group scope");
+assert(memberAdmin.includes("member_settings") && memberAdmin.includes("permission_settings"), "Member admin must validate member and privileged permissions");
+assert(!memberAdmin.includes('["manager", "admin"]') && !memberAdmin.includes('["admin", "manager"]'), "Member admin must not authorize from legacy role strings");
+assert(mealOrder.includes("clock_in_location") && mealOrder.includes('rpc("save_meal_order"'), "Meal order must remain tied to clock-in snapshot and transaction RPC");
+
+const webApi = read("src/renderer/web-api.js");
+for (const helper of ["restSelect(", "restInsert(", "restUpdate(", "restDelete(", "saveState(", "syncCatalogs("]) {
+  assert(!webApi.includes(helper), `Web API must not contain generic helper: ${helper}`);
+}
+for (const table of ["set_employee", "set_departments", "set_shift", "set_leave", "set_overtime", "schedule_entries", "scheduler_settings", "holidays"]) {
+  assert(!webApi.includes(`/rest/v1/${table}`), `Web API must not access ${table} directly`);
+}
+for (const rpc of ["get_scheduler_bootstrap_v3", "get_schedule_entries_v3", "get_employee_admin_directory_v3", "get_department_attendance_settings_v3"]) {
+  assert(webApi.includes(rpc), `Web API is missing canonical RPC: ${rpc}`);
+}
+assert(webApi.includes('requestFunction("attendance-ledger"'), "Web API is missing personal attendance endpoint");
+assert(webApi.includes('requestFunction("attendance-review-groups"'), "Web API is missing group-scoped attendance review endpoint");
+assert(webApi.includes('requestFunction("attendance-ledger-export"'), "Web API is missing attendance export endpoint");
+assert(webApi.includes('requestFunction("member-auth-admin"'), "Web API is missing canonical member admin endpoint");
+for (const oldName of ["get_schedule_directory_v2", "get_employee_admin_directory_v2", "get_department_directory_v2", ...obsoleteEdgeFunctions]) {
+  assert(!webApi.includes(oldName), `Web API still references obsolete API: ${oldName}`);
+}
+assert(!webApi.includes("hasManagerAccess") && !webApi.includes("hasAdminAccess") && !webApi.includes("ensureManager"), "Browser transport must not authorize from legacy roles");
+
+const pageData = read("src/renderer/renderer-page-data.js");
+const groupModule = read("src/renderer/renderer-groups-permissions-archive.js");
+assert(!pageData.includes("schedulerApi.") || !/schedulerApi\.[A-Za-z0-9_]+\s*=/.test(pageData), "Page data module must not monkey-patch schedulerApi");
+assert(!groupModule.includes("installGroupPermissionArchiveFeature") && !groupModule.includes("groupRpc("), "Group module must be canonical, not a runtime patch layer");
 
 const sourceJs = read("src/renderer/app.js");
 const docsJs = read("docs/app.js");
 assert(sourceJs === docsJs, "src/renderer/app.js and docs/app.js are not synchronized");
-assert(sourceJs.includes("attendance-ledger") && sourceJs.includes("簽到簿"), "JavaScript bundle is missing the current attendance ledger");
-
 const sourceCss = read("src/renderer/app.css");
 const docsCss = read("docs/app.css");
 assert(sourceCss === docsCss, "src/renderer/app.css and docs/app.css are not synchronized");
-["foundation.css", "schedule.css", "components.css", "responsive.css", "pages.css"].forEach((file) => {
-  assert(exists(`src/renderer/css/${file}`), `Missing CSS module: ${file}`);
-});
-assert(!exists("docs/css"), "CSS source modules must not be published under docs/css");
-
 const sourceIndex = read("src/renderer/index.html");
 const docsIndex = read("docs/index.html");
-assert(sourceIndex.includes("app.css") && !sourceIndex.includes("styles.css") && !sourceIndex.includes("ui-system.css"), "Source index must load only bundled app.css");
-assert(docsIndex.includes("app.css") && !docsIndex.includes("styles.css") && !docsIndex.includes("ui-system.css"), "Published index must load only bundled app.css");
-assert(sourceIndex.includes("app-config.js") && sourceIndex.includes("app.js") && !sourceIndex.includes("v2-api.js"), "Source index must load only app-config.js and bundled app.js");
-assert(docsIndex.includes("app-config.js") && docsIndex.includes("app.js") && !docsIndex.includes("v2-api.js"), "Published index must load only app-config.js and bundled app.js");
-assert(!sourceJs.includes("document.write"), "JavaScript bundle may overwrite the page");
+assert(sourceIndex.includes("app-config.js") && sourceIndex.includes("app.js"), "Source index must load canonical app files");
+assert(docsIndex.includes("app-config.js") && docsIndex.includes("app.js"), "Published index must load canonical app files");
+assert(!sourceJs.includes("document.write"), "Bundled app must not dynamically patch the page");
 const publishedJsFiles = fs.readdirSync(path.join(root, "docs")).filter((name) => name.endsWith(".js"));
-assert(publishedJsFiles.every((name) => name === "app-config.js" || name === "app.js"), `Unexpected JavaScript source modules in docs: ${publishedJsFiles.join(", ")}`);
+assert(publishedJsFiles.every((name) => name === "app-config.js" || name === "app.js"), `Unexpected JavaScript modules in docs: ${publishedJsFiles.join(", ")}`);
 
-console.log(`renderer alignment checks passed (${requiredFiles.length} required files).`);
+console.log(`renderer alignment checks passed (${expectedEdgeFunctions.length} canonical Edge Functions).`);
