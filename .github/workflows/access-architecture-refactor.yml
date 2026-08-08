@@ -1,4 +1,4 @@
-# canonical access architecture final validation
+# canonical access architecture final validation after settings role guard update
 name: Access architecture refactor
 on:
   push:
