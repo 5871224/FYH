@@ -5,42 +5,50 @@ const path = require("path");
 const rootDir = path.resolve(__dirname, "..");
 const read = (...parts) => fs.readFileSync(path.join(rootDir, ...parts), "utf8");
 
-const schema = read("supabase", "001_current_schema.sql");
+const schema = read("supabase", "001_current_schema.sql") + "\n" + read("supabase", "002_current_updates.sql");
 const index = read("src", "renderer", "index.html");
 const { readRendererCore } = require("./renderer-core-source.js");
 const renderer = readRendererCore(rootDir);
 const styles = read("src", "renderer", "app.css");
 const webApi = read("src", "renderer", "web-api.js");
+const pageData = read("src", "renderer", "renderer-page-data.js");
 const attendanceClock = read("supabase", "functions", "attendance-clock", "index.ts");
 const attendanceLedger = read("supabase", "functions", "attendance-ledger", "index.ts");
+const attendanceReview = read("supabase", "functions", "attendance-review-groups", "index.ts");
 const attendanceLedgerExport = read("supabase", "functions", "attendance-ledger-export", "index.ts");
+const memberAdmin = read("supabase", "functions", "member-auth-admin", "index.ts");
 const mealOrder = read("supabase", "functions", "meal-order", "index.ts");
 const deployScript = read("scripts", "deploy-edge-functions.ps1");
 
-assert(schema.includes("role in ('admin', 'manager', 'employee')"), "database should support admin, manager, employee roles");
 assert(schema.includes("create table if not exists public.meal_orders"), "database should include meal orders");
-assert(schema.includes("create policy read_schedule_entries"), "database should include RLS policies");
-assert(schema.includes("create or replace function public.protect_admin_member"), "database should protect the last admin");
-assert(schema.includes("create or replace function public.protect_department_attendance_fields"), "database should protect attendance settings from manager writes");
+assert(schema.includes("create policy read_schedule_entries"), "database should retain RLS as defense in depth");
+assert(schema.includes("access_role_id") && schema.includes("access_roles") && schema.includes("access_role_groups"), "database should use role ids, permissions, and applicable groups");
+assert(schema.toLowerCase().includes("function public.get_scheduler_bootstrap_v3"), "database should expose the canonical schedule bootstrap API");
+assert(schema.toLowerCase().includes("function public.save_schedule_entries_v3"), "database should expose the canonical schedule write API");
+assert(schema.includes("revoke all privileges on table public.set_employee from anon,authenticated;"), "browser roles should not receive direct employee table privileges");
 
-assert(renderer.includes("function isAdmin()") && renderer.includes("function canEditMemberAccount"), "permissions should distinguish admin from manager");
+assert(renderer.includes("function isAdmin()") && renderer.includes("function canEditMemberAccount"), "UI should expose permission-derived capabilities");
+assert(renderer.includes('hasPermission("permission_settings")'), "administrator UI capability should derive from permission_settings");
+assert(renderer.includes('hasPermission("schedule_manage")'), "schedule editing should derive from schedule_manage");
 assert(webApi.includes("mobileSessionMaxIdleMs") && webApi.includes("desktopSessionMaxIdleMs"), "login should have device-specific idle windows");
 assert(webApi.includes("function assertSessionActive"), "authenticated requests should enforce idle timeout");
 assert(index.includes('id="homeCard"') && renderer.includes("function renderHomeDashboard"), "login should land on the home dashboard");
 assert(index.includes('id="scheduleCard" hidden'), "schedule table should be hidden until the schedule page is opened");
+assert(pageData.includes("async function initializeAuthenticatedHome") && pageData.includes("async function ensureScheduleApplicationLoaded"), "home and schedule loading should use the canonical page-data lifecycle");
+assert(!pageData.includes("stopImmediatePropagation") && !/schedulerApi\.[A-Za-z0-9_]+\s*=/.test(pageData), "page loading must not use interception or runtime API patches");
 assert(renderer.includes('window.addEventListener("popstate", handleAppBackNavigation)') && renderer.includes("function hasClosableModal") && renderer.includes('appView = "home";'), "Android back should close modal first, then return home");
 assert(renderer.includes('[hidden]') || styles.includes("[hidden]"), "hidden sections should stay hidden on mobile");
 assert(styles.includes("@media (max-width: 640px)") && styles.includes(".calendar-nav {\n    flex-wrap: wrap;") && styles.includes(".nav-actions {\n    justify-content: flex-start;"), "mobile schedule navigation should wrap instead of forcing one row");
 assert(renderer.includes('toggle.textContent = "功能"'), "schedule top-right menu should be labelled function");
 assert(index.includes('id="coreHomeButton"') && !index.includes('data-home-action="home">首頁</button>\n              <button'), "schedule home button should sit outside the function menu");
 assert(renderer.includes("home-password-btn") && !index.includes('data-open-change-password="true">修改密碼</button>'), "change password should live on the home dashboard");
-assert(renderer.includes("const showToolbar = showSchedule && isManager()"), "schedule floating toolbar should be manager-only");
+assert(renderer.includes("const showToolbar = showSchedule && isManager()"), "schedule floating toolbar should respect derived management capability");
 
 assert(!index.includes('id="clockCard"'), "standalone clock page should be removed");
 assert(!renderer.includes('data-home-action="clock"'), "home dashboard should not expose a clock page button");
 assert(renderer.includes('<span class="home-action-title">簽到簿</span>'), "records entry should be named attendance ledger");
 assert(renderer.includes('aria-label="簽到簿分頁"'), "records tabs should use the attendance ledger name");
-assert(renderer.includes('["review", "簽到審核", isAdmin()]'), "attendance review should be the single admin attendance tab");
+assert(renderer.includes('hasPermission("attendance_review")'), "attendance review tab should derive from attendance_review permission");
 assert(!renderer.includes("renderTodayOvertimePanel"), "standalone overtime request panel should be removed");
 assert(!renderer.includes("renderAttendanceAdminSection"), "standalone attendance admin tab should be removed");
 
@@ -51,15 +59,25 @@ assert(attendanceClock.includes('.from("attendance_days")'), "clocking should re
 assert(attendanceClock.includes('rpc("save_attendance_clock"') && attendanceClock.includes('body?.action === "clock_in"') && attendanceClock.includes('body?.action === "clock_out"'), "clocking should call the atomic clock RPC for clock in and out");
 assert(!attendanceClock.includes("attendance_records"), "clocking should not retain the retired attendance table");
 
-for (const action of ["personal_list", "personal_save", "review_list", "review_save", "review_set", "history"]) {
-  assert(attendanceLedger.includes(`body?.action === "${action}"`), `attendance ledger should support ${action}`);
+for (const action of ["personal_list", "personal_save"]) {
+  assert(attendanceLedger.includes(`body?.action === "${action}"`), `personal attendance ledger should support ${action}`);
+}
+for (const action of ["review_list", "review_save", "review_set", "history"]) {
+  assert(!attendanceLedger.includes(`body?.action === "${action}"`), `personal attendance ledger should not duplicate ${action}`);
+  assert(attendanceReview.includes(`body?.action === "${action}"`), `group-scoped attendance review should support ${action}`);
 }
 assert(attendanceLedger.includes('.from("attendance_days")'), "attendance ledger should use daily records");
 assert(attendanceLedger.includes('.from("attendance_audit_logs")'), "attendance ledger should retain audit history");
 assert(attendanceLedger.includes("工時必須以 0.5 小時為單位"), "regular and overtime hours should use half-hour increments");
-assert(attendanceLedger.includes("reviewed_at: null") && attendanceLedger.includes("reviewed_by: null"), "editing reviewed data should return it to unreviewed");
+assert(attendanceLedger.includes("reviewed_at: null") && attendanceLedger.includes("reviewed_by: null"), "editing personal data should return it to unreviewed");
+assert(attendanceReview.includes("attendance_review") && attendanceReview.includes("can_access_group"), "attendance review should validate permission and applicable group");
 assert(attendanceLedgerExport.includes('.not("reviewed_at", "is", null)'), "attendance export should include reviewed records only");
-assert(webApi.includes('requestFunction("attendance-ledger"') && webApi.includes('requestFunction("attendance-ledger-export"'), "frontend should use only the consolidated attendance APIs");
+assert(attendanceLedgerExport.includes("attendance_review") && attendanceLedgerExport.includes("can_access_group"), "attendance export should enforce review permission and group scope");
+assert(webApi.includes('requestFunction("attendance-ledger"') && webApi.includes('requestFunction("attendance-review-groups"') && webApi.includes('requestFunction("attendance-ledger-export"'), "frontend should use the canonical attendance endpoints");
+
+assert(memberAdmin.includes("member_settings") && memberAdmin.includes("permission_settings"), "member account administration should validate explicit permissions");
+assert(memberAdmin.includes("accessRoleId") && memberAdmin.includes("roleAppliesToGroup"), "member account administration should validate the chosen access role and group");
+assert(!memberAdmin.includes('["manager", "admin"]') && !memberAdmin.includes('["admin", "manager"]'), "member administration should not authorize from legacy role strings");
 
 assert(index.includes('id="mealCard"') && renderer.includes("function renderMealPage"), "meal order page should be present");
 assert(renderer.includes('data-meal-tab="stats"') && renderer.includes("renderMealReportSection()"), "meal stats should live on the meal page");
@@ -70,14 +88,18 @@ assert(mealOrder.includes('.from("attendance_days")') && mealOrder.includes("clo
 assert(renderer.includes("data-meal-note-product-id"), "meal ordering should support per-item notes");
 
 assert(index.includes('id="recordsCard"') && renderer.includes("function renderRecordsPage"), "attendance ledger page should be present");
-assert(renderer.includes("function loadRecordsPage") && renderer.includes("function loadAttendanceReview"), "attendance ledger should load personal and review data");
+assert(renderer.includes("function loadRecordsPage") && renderer.includes("function loadAttendanceReview"), "attendance ledger should load personal and permitted review data");
 assert(!webApi.includes('requestFunction("personal-records-v2"'), "frontend should not call the retired personal records endpoint");
 
-for (const name of ["attendance-clock", "attendance-ledger", "attendance-ledger-export", "meal-order"]) {
+for (const name of ["member-auth-admin", "attendance-clock", "attendance-ledger", "attendance-review-groups", "attendance-ledger-export", "meal-order"]) {
   assert(deployScript.includes(`"${name}"`), `deployment list should include ${name}`);
 }
-for (const oldName of ["attendance-overtime-employee", "attendance-overtime-admin-list", "attendance-overtime-admin-action", "attendance-admin-list-v2", "attendance-admin-action-v2", "personal-records-v2"]) {
+for (const oldName of ["catalog-admin", "member-delete-v2", "member-order-v2", "department-attendance-v2", "attendance-overtime-employee", "attendance-overtime-admin-list", "attendance-overtime-admin-action", "attendance-admin-list-v2", "attendance-admin-action-v2", "personal-records-v2"]) {
   assert(!deployScript.includes(oldName), `deployment list should not include ${oldName}`);
+}
+
+for (const generic of ["restSelect(", "restInsert(", "restUpdate(", "restDelete(", "saveState(", "syncCatalogs("]) {
+  assert(!webApi.includes(generic), `frontend should not retain generic data access: ${generic}`);
 }
 
 console.log("expansion acceptance checks passed");
