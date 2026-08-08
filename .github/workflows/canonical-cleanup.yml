@@ -12,12 +12,12 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: canonical-cleanup-20260808
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -58,8 +58,29 @@ jobs:
       - name: Rebuild web artifacts
         run: npm run web:publish
 
-      - name: Full CI
-        run: npm run ci:check
+      - name: Unit tests
+        run: npm test
+
+      - name: Public Supabase contract
+        run: npm run web:check
+
+      - name: Normalized storage check
+        run: node scripts/check-normalized-storage.js
+
+      - name: Expansion acceptance
+        run: node scripts/check-expansion-acceptance.js
+
+      - name: Settings lists check
+        run: node scripts/check-settings-lists.js
+
+      - name: Renderer checks
+        run: npm run renderer:check
+
+      - name: CSS architecture
+        run: npm run css:architecture
+
+      - name: JS architecture
+        run: npm run js:architecture
 
       - name: Static Edge sanity
         run: |
