@@ -22,13 +22,14 @@ test("權限設定的權限項目使用可換行膠囊標籤並取得主要寬�
 });
 
 test("首次載入班表顯示圓形載入動畫", () => {
-  const lazy = read("src/renderer/page-lazy-data.mjs");
+  const pageData = read("src/renderer/renderer-page-data.js");
+  const events = read("src/renderer/renderer-events-click.js");
   const css = read("src/renderer/groups.css");
 
-  assert.match(lazy, /function getScheduleLoadingIndicator\(\)/);
-  assert.match(lazy, /schedule-page-loading-spinner/);
-  assert.match(lazy, /if \(shouldShowLoading\) await showScheduleLoadingIndicator\(\)/);
-  assert.match(lazy, /if \(shouldShowLoading\) hideScheduleLoadingIndicator\(\)/);
+  assert.match(pageData, /function getScheduleLoadingIndicator\(\)/);
+  assert.match(pageData, /schedule-page-loading-spinner/);
+  assert.match(events, /if \(firstLoad\) await showScheduleLoadingIndicator\(\)/);
+  assert.match(events, /if \(firstLoad\) hideScheduleLoadingIndicator\(\)/);
   assert.match(css, /\.schedule-page-loading-spinner \{[^}]*border-radius:\s*50%/);
   assert.match(css, /@keyframes schedule-page-loading-spin/);
 });
