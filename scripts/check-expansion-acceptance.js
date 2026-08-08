@@ -69,7 +69,7 @@ for (const action of ["review_list", "review_save", "review_set", "history"]) {
 assert(attendanceLedger.includes('.from("attendance_days")'), "attendance ledger should use daily records");
 assert(attendanceLedger.includes('.from("attendance_audit_logs")'), "attendance ledger should retain audit history");
 assert(attendanceLedger.includes("工時必須以 0.5 小時為單位"), "regular and overtime hours should use half-hour increments");
-assert(attendanceLedger.includes("reviewed_at: null") && attendanceLedger.includes("reviewed_by: null"), "editing personal data should return it to unreviewed");
+assert(attendanceLedger.includes("if (old.reviewed_at)") && attendanceLedger.includes("此日簽到紀錄已審，無法修改"), "reviewed personal attendance records should be immutable");
 assert(attendanceReview.includes("attendance_review") && attendanceReview.includes("can_access_group"), "attendance review should validate permission and applicable group");
 assert(attendanceLedgerExport.includes('.not("reviewed_at", "is", null)'), "attendance export should include reviewed records only");
 assert(attendanceLedgerExport.includes("attendance_review") && attendanceLedgerExport.includes("can_access_group"), "attendance export should enforce review permission and group scope");
