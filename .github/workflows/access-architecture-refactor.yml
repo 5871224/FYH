@@ -21,6 +21,7 @@ jobs:
         run: |
           python3 .github/refactor-access-cleanup.py
           python3 .github/refactor-access-cleanup2.py
+          python3 .github/refactor-access-cleanup3.py
       - name: Install
         run: npm ci
       - name: Build and syntax check
