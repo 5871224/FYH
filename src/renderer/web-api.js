@@ -994,8 +994,7 @@
         scheduleShiftIds: Array.isArray(member?.scheduleShiftIds) ? member.scheduleShiftIds : [],
         monthlyRestDays: Math.max(0, Number(member?.monthlyRestDays) || 0)
       },
-      previousEmployeeCode: String(previousEmployeeCode || "").trim(),
-      defaultPassword: "0000"
+      previousEmployeeCode: String(previousEmployeeCode || "").trim()
     });
   }
 
@@ -1011,7 +1010,8 @@
 
   async function deleteMemberProfile(employeeCode, currentPassword = "") {
     ensureManager();
-    return requestFunction("member-delete-v2", {
+    return requestFunction("member-auth-admin", {
+      action: "delete_member",
       employeeCode: String(employeeCode || "").trim(),
       currentPassword: String(currentPassword || "")
     });

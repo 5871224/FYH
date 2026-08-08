@@ -377,6 +377,19 @@ async function resetPassword(ctx: any, body: any) {
   return { ok: true, employeeCode };
 }
 
+async function verifyCurrentPassword(employeeCode: string, password: string) {
+  if (!password) throw new Error("刪除自己的帳號前，請輸入目前密碼");
+  const url = Deno.env.get("SUPABASE_URL") || "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+  if (!url || !anonKey) throw new Error("伺服器缺少登入驗證設定");
+  const response = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: anonKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ email: buildLoginEmail(employeeCode), password })
+  });
+  if (!response.ok) throw new Error("目前密碼不正確");
+}
+
 async function deleteMember(ctx: any, body: any) {
   const actor = await requireMemberManager(ctx);
   const employeeCode = String(body?.employeeCode || "").trim();
@@ -385,6 +398,8 @@ async function deleteMember(ctx: any, body: any) {
   const profile = await findProfileByCode(ctx, employeeCode);
   if (!profile?.id || profile.deleted_at) return { ok: true, deleted: false, softDeleted: false };
   await assertActorMayManageTarget(ctx, actor, profile);
+  const selfDelete = profile.id === actor.actorId;
+  if (selfDelete) await verifyCurrentPassword(profile.employee_code, String(body?.currentPassword || ""));
   if (await roleHasPrivilegedPermission(ctx, profile.access_role_id) && await countEffectivePrivilegedAccounts(ctx) <= 1) {
     throw new Error("系統必須保留至少一個有效的權限管理帳號");
   }
@@ -398,7 +413,7 @@ async function deleteMember(ctx: any, body: any) {
       headers: { "Content-Type": "application/json" }
     });
   }
-  return { ...result, employeeCode };
+  return { ...result, selfDelete, employeeCode };
 }
 
 console.assert(buildLoginEmail("SELF_CHECK") === "self_check@local.invalid", "member-auth-admin buildLoginEmail failed");
