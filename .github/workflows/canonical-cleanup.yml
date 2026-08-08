@@ -40,6 +40,10 @@ jobs:
               if group_write not in text:
                   raise SystemExit('group write marker not found')
               text = text.replace(group_write, group_cleanup, 1)
+          assertion = 'assert \'legacy_role\' not in read("supabase/002_current_updates.sql")'
+          diagnostic = '''_sql_final = read("supabase/002_current_updates.sql")\nif "legacy_role" in _sql_final:\n    print("Residual legacy_role lines:")\n    for _line in _sql_final.splitlines():\n        if "legacy_role" in _line:\n            print(_line)\nassert "legacy_role" not in _sql_final'''
+          if assertion in text:
+              text = text.replace(assertion, diagnostic, 1)
           path.write_text(text, encoding='utf-8')
           PY
 
