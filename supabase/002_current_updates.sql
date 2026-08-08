@@ -264,8 +264,6 @@ returns boolean language sql stable security definer set search_path=public,pg_c
       and public.is_employee_account_effective(employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date))
 $$;
 
-
-
 create or replace function public.set_shift_group_v1()
 returns trigger language plpgsql set search_path=public,pg_catalog as $$
 declare v_group_id uuid;
@@ -509,9 +507,6 @@ begin
  select coalesce(jsonb_agg(to_jsonb(entry) order by entry.department_sort_order,entry.department_name_snapshot,entry.member_sort_order,entry.employee_name_snapshot,entry.work_date),'[]') into v_rows from public.schedule_archive_entries entry where archive_id=p_archive_id;
  return jsonb_build_object('archive',to_jsonb(v_archive),'entries',v_rows);
 end $$;
-
-
-
 
 create or replace function public.get_schedule_export_rows_v2(p_start_date date,p_end_date date)
 returns table(member_id uuid,employee_code text,employee_name text,home_department_id uuid,department_name text,pay_by_day boolean,work_date date,leave_type_id uuid,leave_code text,leave_name text,leave_all_day boolean,leave_start_time time,leave_end_time time,leave_reason text,overtime_type_id uuid,overtime_name text,overtime_start_time time,overtime_end_time time,overtime_use_rest_1 boolean,overtime_rest_1_start_time time,overtime_rest_1_end_time time,overtime_use_rest_2 boolean,overtime_rest_2_start_time time,overtime_rest_2_end_time time,overtime_reason text)
@@ -918,7 +913,6 @@ select jsonb_build_object(
 )
 $$;
 
-
 -- 軟刪除主檔不得由一般 REST 實體刪除。
 drop policy if exists delete_set_departments_group on public.set_departments;
 drop policy if exists delete_set_employee on public.set_employee;
@@ -996,9 +990,6 @@ with check(public.is_manager(auth.uid()) and deleted_at is null);
 
 revoke all on function public.unarchive_schedule_v1(uuid) from public,anon;
 grant execute on function public.unarchive_schedule_v1(uuid) to authenticated,service_role;
-
-
-
 
 revoke all on function public.set_schedule_entry_group_v1() from public,anon,authenticated;
 grant execute on function public.archive_schedule_v1(uuid,date,date),public.get_group_entity_map_v1() to authenticated,service_role;
@@ -1559,3 +1550,248 @@ grant execute on function public.get_schedule_archive_detail_v1(uuid) to authent
 
 revoke all on function public.delete_member_account_v4(uuid) from public,anon,authenticated;
 grant execute on function public.delete_member_account_v4(uuid) to service_role;
+
+-- ============================================================================
+-- 2026-08-08 全系統權限守門收斂
+-- 最終授權只依 access_role_id + permissions + access_role_groups；舊文字角色
+-- 僅為顯示相容資料。此區段可重複執行。
+-- ============================================================================
+
+begin;
+
+create or replace function public.is_admin(p_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path=public,pg_catalog
+as $$
+  select public.has_access_permission(p_user_id,'permission_settings')
+$$;
+
+create or replace function public.is_manager(p_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path=public,pg_catalog
+as $$
+  select exists(
+    select 1
+    from public.set_employee employee
+    join public.access_roles role on role.id=employee.access_role_id
+    where employee.id=p_user_id
+      and employee.deleted_at is null
+      and role.permissions && array[
+        'schedule_manage','group_settings','department_settings','member_settings',
+        'leave_settings','permission_settings','attendance_review','meal_admin'
+      ]::text[]
+      and public.is_employee_account_effective(
+        employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date
+      )
+  )
+$$;
+
+create or replace function public.protect_employee_role_changes()
+returns trigger
+language plpgsql
+security definer
+set search_path=public,pg_catalog
+as $$
+declare
+  v_new_role public.access_roles%rowtype;
+  v_old_role public.access_roles%rowtype;
+  v_actor_can_permissions boolean:=false;
+  v_today date:=(timezone('Asia/Taipei',now()))::date;
+  v_old_privileged boolean:=false;
+  v_new_privileged boolean:=false;
+begin
+  select * into v_new_role from public.access_roles where id=new.access_role_id;
+  if not found then raise exception '找不到權限角色'; end if;
+
+  if tg_op='UPDATE' then
+    select * into v_old_role from public.access_roles where id=old.access_role_id;
+    v_old_privileged:=old.deleted_at is null
+      and v_old_role.id is not null
+      and 'permission_settings'=any(coalesce(v_old_role.permissions,'{}'::text[]))
+      and public.is_employee_account_effective(old.hire_date,old.leave_date,v_today);
+    v_new_privileged:=new.deleted_at is null
+      and 'permission_settings'=any(coalesce(v_new_role.permissions,'{}'::text[]))
+      and public.is_employee_account_effective(new.hire_date,new.leave_date,v_today);
+
+    if v_old_privileged and not v_new_privileged and not exists(
+      select 1
+      from public.set_employee other_employee
+      join public.access_roles other_role on other_role.id=other_employee.access_role_id
+      where other_employee.id<>old.id
+        and other_employee.deleted_at is null
+        and 'permission_settings'=any(coalesce(other_role.permissions,'{}'::text[]))
+        and public.is_employee_account_effective(other_employee.hire_date,other_employee.leave_date,v_today)
+    ) then
+      raise exception '系統必須保留至少一個有效的權限管理帳號' using errcode='23514';
+    end if;
+  end if;
+
+  if auth.uid() is not null
+     and auth.role()<>'service_role'
+     and current_setting('fyh.group_delete',true)<>'on' then
+    if not public.has_access_permission(auth.uid(),'member_settings') then
+      raise exception '沒有人員設定權限' using errcode='42501';
+    end if;
+    if tg_op='UPDATE' and old.group_id is not null
+       and not public.role_applies_to_group(auth.uid(),old.group_id) then
+      raise exception '此角色不可管理人員原群組' using errcode='42501';
+    end if;
+    if new.group_id is null or not public.role_applies_to_group(auth.uid(),new.group_id) then
+      raise exception '此角色不可管理人員所屬群組' using errcode='42501';
+    end if;
+    if new.home_department_id is null or not exists(
+      select 1 from public.set_departments department
+      where department.id=new.home_department_id
+        and department.group_id=new.group_id
+        and department.deleted_at is null
+    ) then
+      raise exception '所屬單位不在所選群組';
+    end if;
+    if exists(
+      select 1 from unnest(coalesce(new.schedule_shift_ids,'{}'::uuid[])) shift_id
+      where not exists(
+        select 1 from public.set_shift shift
+        where shift.id=shift_id and shift.group_id=new.group_id and shift.deleted_at is null
+      )
+    ) then
+      raise exception '排班班別不在人員所屬群組';
+    end if;
+    if tg_op='UPDATE' and new.group_id is distinct from old.group_id then
+      perform public.validate_member_group_change_v1(old.employee_code,new.group_id);
+    end if;
+
+    v_actor_can_permissions:=public.has_access_permission(auth.uid(),'permission_settings');
+    if not v_actor_can_permissions then
+      if tg_op='UPDATE' and new.access_role_id is distinct from old.access_role_id then
+        raise exception '沒有變更權限角色的權限' using errcode='42501';
+      end if;
+      if tg_op='INSERT' and 'permission_settings'=any(coalesce(v_new_role.permissions,'{}'::text[])) then
+        raise exception '沒有指派權限管理角色的權限' using errcode='42501';
+      end if;
+    end if;
+  end if;
+
+  new.role:=public.access_role_legacy_role(v_new_role.permissions);
+  return new;
+end
+$$;
+
+drop trigger if exists protect_admin_member_trigger on public.set_employee;
+drop trigger if exists trg_protect_last_effective_admin_v2 on public.set_employee;
+drop function if exists public.protect_admin_member();
+drop function if exists public.protect_last_effective_admin_v2();
+drop function if exists public.is_effective_admin_row(text,date,date);
+
+drop trigger if exists trg_protect_employee_role_changes on public.set_employee;
+create trigger trg_protect_employee_role_changes
+before insert or update on public.set_employee
+for each row execute function public.protect_employee_role_changes();
+
+create or replace function public.protect_department_attendance_fields()
+returns trigger
+language plpgsql
+security definer
+set search_path=public,pg_catalog
+as $$
+declare
+  v_group_id uuid;
+  v_sensitive_changed boolean:=false;
+begin
+  if auth.uid() is null or auth.role()='service_role' then return new; end if;
+  v_group_id:=coalesce(new.group_id,old.group_id);
+
+  if tg_op='INSERT' then
+    v_sensitive_changed:=new.address is not null
+      or new.latitude is not null
+      or new.longitude is not null
+      or new.public_ip is not null
+      or new.attendance_enabled is true
+      or new.attendance_settings_updated_at is not null
+      or new.attendance_settings_updated_by is not null;
+  else
+    v_sensitive_changed:=new.address is distinct from old.address
+      or new.latitude is distinct from old.latitude
+      or new.longitude is distinct from old.longitude
+      or new.public_ip is distinct from old.public_ip
+      or new.attendance_enabled is distinct from old.attendance_enabled
+      or new.attendance_settings_updated_at is distinct from old.attendance_settings_updated_at
+      or new.attendance_settings_updated_by is distinct from old.attendance_settings_updated_by;
+  end if;
+
+  if v_sensitive_changed and (
+    not public.has_access_permission(auth.uid(),'permission_settings')
+    or not public.can_access_group(auth.uid(),v_group_id,'department_settings')
+  ) then
+    raise exception '沒有修改打卡設定的權限' using errcode='42501';
+  end if;
+  return new;
+end
+$$;
+
+drop trigger if exists trg_protect_department_attendance_fields on public.set_departments;
+create trigger trg_protect_department_attendance_fields
+before insert or update on public.set_departments
+for each row execute function public.protect_department_attendance_fields();
+
+drop policy if exists write_holidays on public.holidays;
+create policy write_holidays on public.holidays
+for all to authenticated
+using(public.has_access_permission(auth.uid(),'schedule_manage'))
+with check(public.has_access_permission(auth.uid(),'schedule_manage'));
+
+drop policy if exists write_scheduler_settings on public.scheduler_settings;
+create policy write_scheduler_settings on public.scheduler_settings
+for all to authenticated
+using(public.has_access_permission(auth.uid(),'schedule_manage'))
+with check(public.has_access_permission(auth.uid(),'schedule_manage'));
+
+drop policy if exists write_meal_products on public.meal_products;
+create policy write_meal_products on public.meal_products
+for all to authenticated
+using(public.has_access_permission(auth.uid(),'meal_admin'))
+with check(public.has_access_permission(auth.uid(),'meal_admin'));
+
+drop policy if exists write_meal_settings on public.meal_settings;
+create policy write_meal_settings on public.meal_settings
+for all to authenticated
+using(public.has_access_permission(auth.uid(),'meal_admin'))
+with check(public.has_access_permission(auth.uid(),'meal_admin'));
+
+drop policy if exists insert_set_leave on public.set_leave;
+drop policy if exists update_set_leave on public.set_leave;
+create policy insert_set_leave on public.set_leave
+for insert to authenticated
+with check(public.has_access_permission(auth.uid(),'leave_settings') and deleted_at is null);
+create policy update_set_leave on public.set_leave
+for update to authenticated
+using(public.has_access_permission(auth.uid(),'leave_settings') and deleted_at is null)
+with check(public.has_access_permission(auth.uid(),'leave_settings') and deleted_at is null);
+
+drop policy if exists insert_set_overtime on public.set_overtime;
+drop policy if exists update_set_overtime on public.set_overtime;
+create policy insert_set_overtime on public.set_overtime
+for insert to authenticated
+with check(public.has_access_permission(auth.uid(),'leave_settings') and deleted_at is null);
+create policy update_set_overtime on public.set_overtime
+for update to authenticated
+using(public.has_access_permission(auth.uid(),'leave_settings') and deleted_at is null)
+with check(public.has_access_permission(auth.uid(),'leave_settings') and deleted_at is null);
+
+drop trigger if exists attendance_days_touch_updated_at on public.attendance_days;
+drop function if exists public.touch_attendance_day_updated_at();
+
+revoke all on function public.is_admin(uuid) from public,anon,authenticated;
+revoke all on function public.is_manager(uuid) from public,anon,authenticated;
+revoke all on function public.is_employee_account_effective(date,date,date) from public,anon,authenticated;
+revoke all on function public.is_employee_employed_on(date,date,date) from public,anon,authenticated;
+revoke all on function public.protect_employee_role_changes() from public,anon,authenticated;
+revoke all on function public.protect_department_attendance_fields() from public,anon,authenticated;
+grant execute on function public.is_admin(uuid),public.is_manager(uuid),public.is_employee_account_effective(date,date,date),public.is_employee_employed_on(date,date,date),public.protect_employee_role_changes(),public.protect_department_attendance_fields() to service_role;
+
+commit;
