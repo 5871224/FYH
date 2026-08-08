@@ -19,6 +19,16 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
+      - name: Fix temporary script quoting
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/perf-refactor-temp.cjs')
+          text = path.read_text()
+          text = text.replace('new RegExp(`create policy ${name} `)', 'new RegExp("create policy " + name + " ")')
+          path.write_text(text)
+          PY
       - name: Apply canonical performance refactor
         run: node scripts/perf-refactor-temp.cjs
       - name: Build static web
