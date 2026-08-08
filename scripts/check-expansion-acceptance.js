@@ -27,7 +27,7 @@ assert(schema.toLowerCase().includes("function public.get_scheduler_bootstrap_v3
 assert(schema.toLowerCase().includes("function public.save_schedule_entries_v3"), "database should expose the canonical schedule write API");
 assert(schema.includes("revoke all privileges on table public.set_employee from anon,authenticated;"), "browser roles should not receive direct employee table privileges");
 
-assert(renderer.includes("function isAdmin()") && renderer.includes("function canEditMemberAccount"), "UI should expose permission-derived capabilities");
+assert(renderer.includes("function canManagePermissions()") && renderer.includes("function canEditMemberAccount"), "UI should expose permission-derived capabilities");
 assert(renderer.includes('hasPermission("permission_settings")'), "administrator UI capability should derive from permission_settings");
 assert(renderer.includes('hasPermission("schedule_manage")'), "schedule editing should derive from schedule_manage");
 assert(webApi.includes("mobileSessionMaxIdleMs") && webApi.includes("desktopSessionMaxIdleMs"), "login should have device-specific idle windows");
@@ -42,7 +42,7 @@ assert(styles.includes("@media (max-width: 640px)") && styles.includes(".calenda
 assert(renderer.includes('toggle.textContent = "功能"'), "schedule top-right menu should be labelled function");
 assert(index.includes('id="coreHomeButton"') && !index.includes('data-home-action="home">首頁</button>\n              <button'), "schedule home button should sit outside the function menu");
 assert(renderer.includes("home-password-btn") && !index.includes('data-open-change-password="true">修改密碼</button>'), "change password should live on the home dashboard");
-assert(renderer.includes("const showToolbar = showSchedule && isManager()"), "schedule floating toolbar should respect derived management capability");
+assert(renderer.includes("const showToolbar = showSchedule && hasManagementAccess()"), "schedule floating toolbar should respect derived management capability");
 
 assert(!index.includes('id="clockCard"'), "standalone clock page should be removed");
 assert(!renderer.includes('data-home-action="clock"'), "home dashboard should not expose a clock page button");
