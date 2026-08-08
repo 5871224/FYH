@@ -88,9 +88,10 @@ function readModule(fileName) {
   const filePath = path.join(rendererDir, fileName);
   if (!fs.existsSync(filePath)) throw new Error(`Missing JavaScript module: ${fileName}`);
   const content = normalizeText(fs.readFileSync(filePath, "utf8")).trimEnd();
-  const hasDynamicLoader = /document\.createElement\(["']script["']\)/.test(content)
-    || /\.src\s*=\s*["'`]\.\/[^"'`]+\.js/.test(content);
-  if (hasDynamicLoader) {
+  // Local renderer modules must stay in the canonical build manifest. Runtime loading is
+  // allowed only for external dependencies (for example ExcelJS on an export action).
+  const hasDynamicLocalLoader = /\.src\s*=\s*["'`]\.\/[^"'`]+\.js/.test(content);
+  if (hasDynamicLocalLoader) {
     throw new Error(`JavaScript module must not dynamically load another local module: ${fileName}`);
   }
   return content;
