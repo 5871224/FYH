@@ -1,0 +1,59 @@
+name: Finalize Member Role Selects
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Remove dropped role columns from member admin queries
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('supabase/functions/member-auth-admin/index.ts')
+          text = path.read_text(encoding='utf-8')
+          old_profile = '.select("id,employee_code,full_name,role,access_role_id,group_id,hire_date,leave_date,deleted_at")'
+          new_profile = '.select("id,employee_code,full_name,access_role_id,group_id,hire_date,leave_date,deleted_at")'
+          old_role = '.select("id,code,name,permissions,legacy_role")'
+          new_role = '.select("id,code,name,permissions")'
+          if old_profile not in text or old_role not in text:
+              raise SystemExit('legacy member role select marker missing')
+          text = text.replace(old_profile, new_profile, 1).replace(old_role, new_role, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Canonical static scan
+        run: |
+          ! grep -R -nE 'legacy_role|access_role_legacy_role' supabase/functions src/renderer
+          ! grep -n 'full_name,role,access_role_id' supabase/functions/member-auth-admin/index.ts
+      - name: Deno check member admin
+        run: deno check --node-modules-dir=auto supabase/functions/member-auth-admin/index.ts
+      - name: Remove temporary workflow
+        run: rm -f .github/workflows/finalize-member-role-selects.yml
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate
+        run: npm run ci:check
+      - name: Commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "移除 Edge 舊角色欄位查詢"
+          git push origin HEAD:main
