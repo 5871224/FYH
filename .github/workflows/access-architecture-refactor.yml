@@ -1,4 +1,4 @@
-# rerun after settings permission contract update
+# rerun after canonical settings guard became the source of truth
 name: Access architecture refactor
 on:
   push:
@@ -35,6 +35,7 @@ jobs:
           s = s.replace('14. 權限判斷以 `access_role_id + access_roles.permissions + access_role_groups`', '12. 權限判斷以 `access_role_id + access_roles.permissions + access_role_groups`')
           s = s.replace('15. 需要受保護主檔的 mutation RPC', '13. 需要受保護主檔的 mutation RPC')
           s = s.replace('16. 資料存取架構不得以後載入 script', '14. 資料存取架構不得以後載入 script')
+          s = s.replace("if old not in t:\n    raise RuntimeError('old department settings guard not found')\nt = t.replace(old, new, 1)", "if old in t:\n    t = t.replace(old, new, 1)")
           p.write_text(s, encoding='utf-8')
           PY
           python3 .github/finalize-access-architecture.py
