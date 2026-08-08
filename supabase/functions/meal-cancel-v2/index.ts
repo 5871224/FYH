@@ -13,8 +13,12 @@ export default {
     if (req.method !== "POST") return Response.json({ message: "Method Not Allowed" }, { status: 405 });
     try {
       const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
+      if (!userId) throw new Error("請先登入");
       const profile = await ctx.supabaseAdmin.from("set_employee")
-        .select("hire_date,leave_date").eq("id", userId).single();
+        .select("hire_date,leave_date,deleted_at")
+        .eq("id", userId)
+        .is("deleted_at", null)
+        .single();
       if (profile.error) throw profile.error;
       const today = localDate();
       const leaveEnd = profile.data.leave_date
@@ -24,7 +28,9 @@ export default {
       const effectiveEnd = leaveEnd
         ? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(leaveEnd)
         : "";
-      if ((profile.data.hire_date && today < profile.data.hire_date) || (effectiveEnd && today > effectiveEnd)) {
+      if (profile.data.deleted_at
+        || (profile.data.hire_date && today < profile.data.hire_date)
+        || (effectiveEnd && today > effectiveEnd)) {
         throw new Error("此帳號目前不在有效期間");
       }
 
