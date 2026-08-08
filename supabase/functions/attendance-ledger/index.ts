@@ -30,7 +30,9 @@ function pageNumber(value: unknown) {
 
 function effective(profile: any, today = taipeiDate()) {
   const end = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
-  return Boolean((!profile.hire_date || today >= profile.hire_date) && (!end || today <= end));
+  return Boolean(profile && !profile.deleted_at
+    && (!profile.hire_date || today >= profile.hire_date)
+    && (!end || today <= end));
 }
 
 function employedOn(profile: any, date: string) {
@@ -146,8 +148,10 @@ async function getActor(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!userId) throw new Error("請先登入");
   const result = await ctx.supabaseAdmin.from("set_employee")
-    .select("id,employee_code,full_name,hire_date,leave_date")
-    .eq("id", userId).single();
+    .select("id,employee_code,full_name,hire_date,leave_date,deleted_at")
+    .eq("id", userId)
+    .is("deleted_at", null)
+    .single();
   if (result.error) throw result.error;
   if (!effective(result.data)) throw new Error("此帳號目前不在有效期間");
   return result.data;
