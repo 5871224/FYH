@@ -28,6 +28,12 @@ jobs:
           s = s.replace("start = t.index('## 9.2 Edge Functions')", "start = t.index('## 9.5 正式 Edge Functions')")
           s = s.replace("end = t.index('## 9.3 PC 桌面版部署', start)", "end = t.index('## 9.6 交易與冪等', start)")
           s = s.replace("replacement = '''## 9.2 權限與資料存取架構", "replacement = '''## 9.5 權限與資料存取架構")
+          s = s.replace("needle = '11. `main` workflow 必須只有 `.github/workflows/deploy-pages.yml`。\\n'", "needle = '9. SQL Editor 發生錯誤時立即停止，不可略過後續區段。\\n'")
+          s = s.replace('12. 瀏覽器不得直接 CRUD 核心資料表', '10. 瀏覽器不得直接 CRUD 核心資料表')
+          s = s.replace('13. 不得新增通用 `restSelect/restInsert/restUpdate/restDelete`', '11. 不得新增通用 `restSelect/restInsert/restUpdate/restDelete`')
+          s = s.replace('14. 權限判斷以 `access_role_id + access_roles.permissions + access_role_groups`', '12. 權限判斷以 `access_role_id + access_roles.permissions + access_role_groups`')
+          s = s.replace('15. 需要受保護主檔的 mutation RPC', '13. 需要受保護主檔的 mutation RPC')
+          s = s.replace('16. 資料存取架構不得以後載入 script', '14. 資料存取架構不得以後載入 script')
           p.write_text(s, encoding='utf-8')
           PY
           python3 .github/finalize-access-architecture.py
