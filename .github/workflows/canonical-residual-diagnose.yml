@@ -1,0 +1,43 @@
+name: Canonical Residual Diagnose
+
+on:
+  push:
+    branches:
+      - canonical-cleanup-20260808
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: canonical-cleanup-20260808
+      - name: Apply cleanup transformer
+        run: python .github/canonical-cleanup.py
+      - name: Report forbidden SQL residues
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          schema = Path('supabase/001_current_schema.sql').read_text(encoding='utf-8')
+          updates = Path('supabase/002_current_updates.sql').read_text(encoding='utf-8')
+          combined = schema + '\n' + updates
+          checks = [
+            ('legacy/text-role token', combined, r'legacy_role|access_role_legacy_role|employee\.role|new\.role|ROLE_OPTIONS'),
+            ('base role column', schema, r"\brole text not null default 'employee'"),
+            ('dynamic RLS advisor block', updates, r'Performance Advisor: remaining public RLS auth context uses init-plan evaluation'),
+            ('old group entity map RPC', updates, r'get_group_entity_map_v1\s*\(\)'),
+          ]
+          failed = False
+          for label, text, pattern in checks:
+            match = re.search(pattern, text, re.I)
+            if match:
+              line = text.count('\n', 0, match.start()) + 1
+              snippet = text[max(0, match.start()-120):match.end()+180].replace('\n', ' ')
+              print(f'::error title=Canonical residual::{label}; line={line}; {snippet}')
+              failed = True
+          raise SystemExit(1 if failed else 0)
+          PY
