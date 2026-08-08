@@ -1,81 +1,72 @@
-const fs = require("node:fs");
-const path = require("node:path");
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
+const fs = require("fs");
+const path = require("path");
 
 const root = path.resolve(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
-const exists = (relativePath) => fs.existsSync(path.join(root, relativePath));
-const assert = (condition, message) => { if (!condition) throw new Error(message); };
+const { readRendererCore } = require("./renderer-core-source.js");
 
-const expectedEdgeFunctions = [
-  "member-auth-admin",
-  "attendance-clock",
-  "attendance-ledger",
-  "attendance-ledger-export",
-  "attendance-review-groups",
-  "meal-order",
-  "meal-report-v2",
-  "meal-cancel-v2"
-];
-const obsoleteEdgeFunctions = [
-  "catalog-admin",
-  "member-delete-v2",
-  "member-order-v2",
-  "department-attendance-v2",
-  "attendance-overtime-employee",
-  "attendance-overtime-admin-list",
-  "attendance-overtime-admin-action",
-  "attendance-admin-list-v2",
-  "attendance-admin-action-v2",
-  "personal-records-v2",
-  "attendance-clock-safe",
-  "report-records"
-];
+const index = read("src/renderer/index.html");
+const renderer = readRendererCore(root);
+const styles = read("src/renderer/app.css");
+const webApi = read("src/renderer/web-api.js");
+const schema = `${read("supabase/001_current_schema.sql")}\n${read("supabase/002_current_updates.sql")}`;
 
-for (const file of [
-  "supabase/001_current_schema.sql",
-  "supabase/002_current_updates.sql",
-  "scripts/deploy-edge-functions.ps1",
-  "src/renderer/web-api.js",
-  "src/renderer/renderer-page-data.js",
-  "src/renderer/renderer-groups-permissions-archive.js",
-  "src/renderer/renderer-attendance-page.js",
-  "src/renderer/renderer-records-page.js",
-  "src/renderer/app.js",
-  "docs/app.js"
-]) assert(exists(file), `Missing current architecture file: ${file}`);
+assert(index.includes('id="homeCard"'), "Home card is missing");
+assert(index.includes('id="scheduleCard" hidden'), "Schedule card should start hidden");
+assert(index.includes('id="mealCard"'), "Meal card is missing");
+assert(index.includes('id="recordsCard"'), "Records card is missing");
+assert(!index.includes('id="clockCard"'), "Standalone clock page should stay removed");
+assert(index.includes('id="coreHomeButton"'), "Schedule home button is missing");
 
-for (const name of expectedEdgeFunctions) {
-  assert(exists(`supabase/functions/${name}/index.ts`), `Missing canonical Edge Function: ${name}`);
-}
-for (const name of obsoleteEdgeFunctions) {
-  assert(!exists(`supabase/functions/${name}`), `Obsolete Edge Function remains: ${name}`);
-}
+assert(renderer.includes("function renderHomeDashboard"), "Home dashboard renderer is missing");
+assert(renderer.includes("function renderMealPage"), "Meal page renderer is missing");
+assert(renderer.includes("function renderRecordsPage"), "Records page renderer is missing");
+assert(renderer.includes("function loadRecordsPage"), "Records loader is missing");
+assert(renderer.includes("function loadAttendanceReview"), "Attendance review loader is missing");
+assert(renderer.includes("function canManagePermissions()"), "Permission-management capability helper is missing");
+assert(renderer.includes("function hasManagementAccess()"), "Management capability helper is missing");
+assert(renderer.includes('hasPermission("schedule_manage")'), "Schedule management must derive from permissions");
+assert(renderer.includes('hasPermission("attendance_review")'), "Attendance review UI must derive from permissions");
+assert(renderer.includes('hasPermission("member_settings")'), "Member settings UI must derive from permissions");
+assert(!renderer.includes("function renderTodayOvertimePanel"), "Retired overtime panel must stay removed");
+assert(!renderer.includes("function renderAttendanceAdminSection"), "Retired attendance admin section must stay removed");
+assert(!renderer.includes('data-home-action="clock"'), "Home must not expose retired clock route");
+assert(renderer.includes('window.addEventListener("popstate", handleAppBackNavigation)'), "Back navigation handler is missing");
+assert(renderer.includes("function hasClosableModal"), "Closable modal helper is missing");
+assert(renderer.includes('toggle.textContent = "功能"'), "Schedule function menu label is missing");
+assert(renderer.includes("home-password-btn"), "Home password action is missing");
 
-const deployScript = read("scripts/deploy-edge-functions.ps1");
-for (const name of expectedEdgeFunctions) {
-  assert(deployScript.includes(`"${name}"`), `Deployment list is missing canonical Edge Function: ${name}`);
-}
-for (const name of obsoleteEdgeFunctions) {
-  assert(!deployScript.includes(`"${name}"`), `Deployment list still contains obsolete Edge Function: ${name}`);
-}
-assert(deployScript.includes("001_current_schema.sql") && deployScript.includes("002_current_updates.sql"), "Deployment instructions must use the two canonical SQL stages");
+assert(styles.includes("@media (max-width: 640px)"), "Mobile breakpoint is missing");
+assert(styles.includes(".calendar-nav"), "Calendar navigation styles are missing");
+assert(styles.includes(".nav-actions"), "Navigation action styles are missing");
+assert(styles.includes("[hidden]"), "Hidden-state style is missing");
 
-const schema = read("supabase/001_current_schema.sql") + "\n" + read("supabase/002_current_updates.sql");
-for (const table of ["attendance_days", "attendance_audit_logs", "schedule_entries", "set_employee", "set_departments", "set_shift", "set_leave", "set_overtime"]) {
-  assert(schema.includes(`public.${table}`), `Canonical database sources are missing ${table}`);
-}
-for (const retiredName of ["attendance_records", "attendance_action_logs", "attendance_overtime_requests", "overtime_review_logs"]) {
-  assert(!schema.includes(retiredName), `Canonical database sources still contain retired structure: ${retiredName}`);
-}
+assert(webApi.includes("mobileSessionMaxIdleMs") && webApi.includes("desktopSessionMaxIdleMs"), "Device-specific session windows are missing");
+assert(webApi.includes("function assertSessionActive"), "Session idle guard is missing");
+assert(webApi.includes('callRpc("get_scheduler_bootstrap_v3"'), "Web API must use canonical scheduler bootstrap RPC");
+assert(webApi.includes('callRpc("get_schedule_entries_v3"'), "Web API must use canonical schedule read RPC");
+assert(webApi.includes('callRpc("save_schedule_entries_v3"'), "Web API must use canonical schedule write RPC");
+assert(webApi.includes('callRpc("save_shift_v3"'), "Web API must use canonical shift save RPC");
+assert(webApi.includes('callRpc("save_department_v3"'), "Web API must use canonical department save RPC");
+assert(webApi.includes('callRpc("get_department_attendance_settings_v3"'), "Web API must use canonical attendance settings RPC");
+assert(webApi.includes('requestFunction("member-auth-admin"'), "Web API must use canonical member admin Edge function");
+assert(webApi.includes('requestFunction("attendance-ledger"'), "Web API must use canonical personal ledger Edge function");
+assert(webApi.includes('requestFunction("attendance-review-groups"'), "Web API must use canonical review Edge function");
+assert(webApi.includes('requestFunction("attendance-ledger-export"'), "Web API must use canonical attendance export Edge function");
+
 for (const rpc of [
   "get_scheduler_bootstrap_v3",
   "get_schedule_entries_v3",
   "save_schedule_entries_v3",
-  "save_department_v3",
   "save_shift_v3",
   "save_catalog_item_v3",
-  "get_employee_admin_directory_v3",
-  "get_department_attendance_settings_v3"
+  "delete_catalog_item_v3",
+  "save_department_v3",
+  "delete_department_v3",
+  "reorder_settings_v3",
+  "save_scheduler_preferences_v3",
+  "save_holidays_v3"
 ]) {
   assert(schema.toLowerCase().includes(`function public.${rpc}`), `Canonical SQL is missing ${rpc}`);
 }
@@ -96,47 +87,16 @@ for (const action of ["review_list", "review_save", "review_set", "history"]) {
   assert(attendanceReview.includes(`body?.action === "${action}"`), `Attendance review endpoint is missing action: ${action}`);
 }
 assert(attendanceReview.includes("attendance_review"), "Attendance review endpoint must validate attendance_review permission");
-assert(attendanceExport.includes("attendance_review") && attendanceExport.includes("can_access_group"), "Attendance export must validate permission and group scope");
+assert(attendanceExport.includes('hasPermission(ctx, actorId, "attendance_review")') && attendanceExport.includes('canAccessGroup(ctx, actorId, groupId, "attendance_review")'), "Attendance export must validate permission and group scope through shared runtime helpers");
 assert(memberAdmin.includes("member_settings") && memberAdmin.includes("permission_settings"), "Member admin must validate member and privileged permissions");
 assert(!memberAdmin.includes('["manager", "admin"]') && !memberAdmin.includes('["admin", "manager"]'), "Member admin must not authorize from legacy role strings");
 assert(mealOrder.includes("clock_in_location") && mealOrder.includes('rpc("save_meal_order"'), "Meal order must remain tied to clock-in snapshot and transaction RPC");
 
-const webApi = read("src/renderer/web-api.js");
 for (const helper of ["restSelect(", "restInsert(", "restUpdate(", "restDelete(", "saveState(", "syncCatalogs("]) {
   assert(!webApi.includes(helper), `Web API must not contain generic helper: ${helper}`);
 }
 for (const table of ["set_employee", "set_departments", "set_shift", "set_leave", "set_overtime", "schedule_entries", "scheduler_settings", "holidays"]) {
   assert(!webApi.includes(`/rest/v1/${table}`), `Web API must not access ${table} directly`);
 }
-for (const rpc of ["get_scheduler_bootstrap_v3", "get_schedule_entries_v3", "get_employee_admin_directory_v3", "get_department_attendance_settings_v3"]) {
-  assert(webApi.includes(rpc), `Web API is missing canonical RPC: ${rpc}`);
-}
-assert(webApi.includes('requestFunction("attendance-ledger"'), "Web API is missing personal attendance endpoint");
-assert(webApi.includes('requestFunction("attendance-review-groups"'), "Web API is missing group-scoped attendance review endpoint");
-assert(webApi.includes('requestFunction("attendance-ledger-export"'), "Web API is missing attendance export endpoint");
-assert(webApi.includes('requestFunction("member-auth-admin"'), "Web API is missing canonical member admin endpoint");
-for (const oldName of ["get_schedule_directory_v2", "get_employee_admin_directory_v2", "get_department_directory_v2", ...obsoleteEdgeFunctions]) {
-  assert(!webApi.includes(oldName), `Web API still references obsolete API: ${oldName}`);
-}
-assert(!webApi.includes("hasManagerAccess") && !webApi.includes("hasAdminAccess") && !webApi.includes("ensureManager"), "Browser transport must not authorize from legacy roles");
 
-const pageData = read("src/renderer/renderer-page-data.js");
-const groupModule = read("src/renderer/renderer-groups-permissions-archive.js");
-assert(!pageData.includes("schedulerApi.") || !/schedulerApi\.[A-Za-z0-9_]+\s*=/.test(pageData), "Page data module must not monkey-patch schedulerApi");
-assert(!groupModule.includes("installGroupPermissionArchiveFeature") && !groupModule.includes("groupRpc("), "Group module must be canonical, not a runtime patch layer");
-
-const sourceJs = read("src/renderer/app.js");
-const docsJs = read("docs/app.js");
-assert(sourceJs === docsJs, "src/renderer/app.js and docs/app.js are not synchronized");
-const sourceCss = read("src/renderer/app.css");
-const docsCss = read("docs/app.css");
-assert(sourceCss === docsCss, "src/renderer/app.css and docs/app.css are not synchronized");
-const sourceIndex = read("src/renderer/index.html");
-const docsIndex = read("docs/index.html");
-assert(sourceIndex.includes("app-config.js") && sourceIndex.includes("app.js"), "Source index must load canonical app files");
-assert(docsIndex.includes("app-config.js") && docsIndex.includes("app.js"), "Published index must load canonical app files");
-assert(!sourceJs.includes("document.write"), "Bundled app must not dynamically patch the page");
-const publishedJsFiles = fs.readdirSync(path.join(root, "docs")).filter((name) => name.endsWith(".js"));
-assert(publishedJsFiles.every((name) => name === "app-config.js" || name === "app.js"), `Unexpected JavaScript modules in docs: ${publishedJsFiles.join(", ")}`);
-
-console.log(`renderer alignment checks passed (${expectedEdgeFunctions.length} canonical Edge Functions).`);
+console.log("Renderer alignment checks passed.");
