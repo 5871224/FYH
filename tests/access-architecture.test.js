@@ -48,3 +48,24 @@ test("舊通用 API 與重複 Edge Function 不得存在", () => {
     assert.equal(deploy.includes(`\"${name}\"`), false, name);
   }
 });
+
+test("本人 Edge Function 必須拒絕已軟刪除帳號", () => {
+  for (const file of [
+    "supabase/functions/attendance-clock/index.ts",
+    "supabase/functions/attendance-ledger/index.ts",
+    "supabase/functions/meal-order/index.ts",
+    "supabase/functions/meal-cancel-v2/index.ts"
+  ]) {
+    const source = read(file);
+    assert.match(source, /deleted_at/, `${file} 缺少 deleted_at 驗證`);
+    assert.match(source, /\.is\(\"deleted_at\", null\)/, `${file} 未限制有效人員資料列`);
+  }
+});
+
+test("打卡地點只能使用本人所屬群組的有效單位", () => {
+  const source = read("supabase/functions/attendance-clock/index.ts");
+  assert.match(source, /\.eq\(\"group_id\", groupId\)/);
+  assert.match(source, /\.eq\(\"attendance_enabled\", true\)/);
+  assert.match(source, /\.is\(\"deleted_at\", null\)/);
+  assert.match(source, /resolveClockLocation\(ctx, req, body, profile\.group_id\)/);
+});
