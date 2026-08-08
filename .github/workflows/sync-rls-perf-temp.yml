@@ -29,14 +29,29 @@ jobs:
           text = path.read_text()
           marker = '-- Performance Advisor: remaining public RLS auth context uses init-plan evaluation.'
           if marker not in text:
-              text = text.rstrip() + '''\n\n\n-- Performance Advisor: remaining public RLS auth context uses init-plan evaluation.\n-- Browser writes remain RPC-only; this keeps the RLS second line of defense efficient.\ndo $$\ndeclare\n  p record;\n  q text;\n  c text;\n  stmt text;\nbegin\n  for p in\n    select schemaname,tablename,policyname,qual,with_check\n    from pg_policies\n    where schemaname='public'\n  loop\n    q:=p.qual;\n    c:=p.with_check;\n    if q is not null then\n      q:=replace(replace(q,'auth.uid()','(select auth.uid())'),'auth.role()','(select auth.role())');\n    end if;\n    if c is not null then\n      c:=replace(replace(c,'auth.uid()','(select auth.uid())'),'auth.role()','(select auth.role())');\n    end if;\n    if q is distinct from p.qual or c is distinct from p.with_check then\n      stmt:=format('alter policy %I on %I.%I',p.policyname,p.schemaname,p.tablename);\n      if q is not null then stmt:=stmt||' using ('||q||')'; end if;\n      if c is not null then stmt:=stmt||' with check ('||c||')'; end if;\n      execute stmt;\n    end if;\n  end loop;\nend $$;\n'''
+              text = text.rstrip() + '''\n\n\n-- Performance Advisor: remaining public RLS auth context uses init-plan evaluation.\n-- Browser writes remain RPC-only; this keeps the RLS second line of defense efficient.\ndo $$\ndeclare\n  p record;\n  q text;\n  c text;\n  stmt text;\nbegin\n  for p in\n    select schemaname,tablename,policyname,qual,with_check\n    from pg_policies\n    where schemaname='public'\n  loop\n    q:=p.qual; c:=p.with_check;\n    if q is not null then q:=replace(replace(q,'auth.uid()','(select auth.uid())'),'auth.role()','(select auth.role())'); end if;\n    if c is not null then c:=replace(replace(c,'auth.uid()','(select auth.uid())'),'auth.role()','(select auth.role())'); end if;\n    if q is distinct from p.qual or c is distinct from p.with_check then\n      stmt:=format('alter policy %I on %I.%I',p.policyname,p.schemaname,p.tablename);\n      if q is not null then stmt:=stmt||' using ('||q||')'; end if;\n      if c is not null then stmt:=stmt||' with check ('||c||')'; end if;\n      execute stmt;\n    end if;\n  end loop;\nend $$;\n'''
               path.write_text(text)
           PY
       - name: Run complete CI
-        run: npm run ci:check
+        shell: bash
+        run: |
+          set +e
+          npm run ci:check 2>&1 | tee /tmp/ci.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/ci.log RLS_CI_FAILURE.log
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -f RLS_CI_FAILURE.log
+            git commit -m "chore: preserve RLS CI diagnostics" || true
+            git push origin HEAD:perf-optimization-pass-20260808
+            exit "$status"
+          fi
       - name: Remove temporary workflow and commit
         shell: bash
         run: |
+          rm -f RLS_CI_FAILURE.log
           git rm -f .github/workflows/sync-rls-perf-temp.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
