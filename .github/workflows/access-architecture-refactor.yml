@@ -5,19 +5,34 @@ on:
     paths:
       - .github/workflows/access-architecture-refactor.yml
 permissions:
-  contents: read
+  contents: write
 jobs:
-  inspect:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect permission architecture
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply access cleanup
+        run: python3 .github/refactor-access-cleanup7.py
+      - run: npm ci
+      - name: Build and syntax check
         run: |
-          echo '--- Edge legacy role checks ---'
-          grep -RInE 'role[^a-zA-Z0-9_].*(admin|manager)|(admin|manager).*role|\["manager", "admin"\]|\["admin", "manager"\]' supabase/functions || true
-          echo '--- Edge direct employee profile role reads ---'
-          grep -RInE 'select\("[^"]*role|\.select\(`[^`]*role' supabase/functions || true
-          echo '--- browser transport guards ---'
-          grep -nE 'ensureManager|hasManagerAccess|hasAdminAccess|getScheduleDirectoryRows|get_schedule_directory_v2|getDepartmentAttendanceSettings|member-order-v2' src/renderer/web-api.js || true
-          echo '--- source generic access ---'
-          grep -RInE 'restSelect\(|restInsert\(|restUpdate\(|restDelete\(|saveState\(|syncCatalogs\(' src/renderer || true
+          npm run web:publish
+          node --check src/renderer/web-api.js
+          node --check src/renderer/app.js
+      - name: Commit access cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "收斂權限存取入口"
+          git push origin refactor/access-architecture-v3
+      - name: Unit tests
+        run: |
+          mv .github/workflows/access-architecture-refactor.yml /tmp/access-architecture-refactor.yml
+          npm test
