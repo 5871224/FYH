@@ -1,4 +1,4 @@
-# rerun after canonical settings guard became the source of truth
+# split final checks to identify any remaining stale contract
 name: Access architecture refactor
 on:
   push:
@@ -44,20 +44,12 @@ jobs:
           from pathlib import Path
           p = Path('tests/access-architecture.test.js')
           lines = p.read_text(encoding='utf-8').splitlines()
-          lines = [
-            '    assert.equal(rendererSource.includes("/rest/v1/" + table), false, table);'
-            if 'new RegExp(`/rest/v1/${table}' in line else line
-            for line in lines
-          ]
+          lines = ['    assert.equal(rendererSource.includes("/rest/v1/" + table), false, table);' if 'new RegExp(`/rest/v1/${table}' in line else line for line in lines]
           p.write_text('\n'.join(lines) + '\n', encoding='utf-8')
           PY
-          rm -f .github/refactor-access-architecture.py
-          rm -f .github/refactor-access-cleanup*.py
-          rm -f .github/finalize-access-architecture.py
-          rm -f .github/access-v3-canonical.sqlpart
-          rm -f .github/workflows/access-architecture-refactor.yml
+          rm -f .github/refactor-access-architecture.py .github/refactor-access-cleanup*.py .github/finalize-access-architecture.py .github/access-v3-canonical.sqlpart .github/workflows/access-architecture-refactor.yml
       - run: npm ci
-      - name: Build
+      - name: Build published web
         run: npm run web:publish
       - name: Syntax checks
         run: |
@@ -67,8 +59,29 @@ jobs:
           node --check src/renderer/app.js
           node --check tests/access-architecture.test.js
           node --check scripts/check-renderer-alignment.js
-      - name: Full CI
-        run: npm run ci:check
+      - name: Unit tests
+        run: npm test
+      - name: Public Supabase contract
+        run: npm run web:check
+      - name: Normalized storage
+        run: node scripts/check-normalized-storage.js
+      - name: Expansion acceptance
+        run: node scripts/check-expansion-acceptance.js
+      - name: Settings lists
+        run: node scripts/check-settings-lists.js
+      - name: Renderer build checks
+        run: |
+          node scripts/build-css.js --check
+          node scripts/build-js.js --check
+          node --check src/renderer/app.js
+      - name: Renderer alignment
+        run: node scripts/check-renderer-alignment.js
+      - name: Renderer contracts
+        run: node scripts/check-renderer-contracts.js
+      - name: CSS architecture
+        run: npm run css:architecture
+      - name: JS architecture
+        run: npm run js:architecture
       - name: Architecture scan
         run: |
           test "$(find .github/workflows -maxdepth 1 -type f -printf '%f\n' | sort)" = "deploy-pages.yml"
