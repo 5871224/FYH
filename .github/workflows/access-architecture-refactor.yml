@@ -1,0 +1,35 @@
+name: Access architecture refactor
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/access-architecture-refactor.yml
+permissions:
+  contents: write
+jobs:
+  refactor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply refactor
+        run: python3 .github/refactor-access-architecture.py
+      - name: Install
+        run: npm ci
+      - name: Build
+        run: npm run web:publish
+      - name: Run CI
+        run: npm run ci:check
+      - name: Commit refactor result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/refactor-access-architecture.py .github/workflows/access-architecture-refactor.yml
+          git add -A
+          git commit -m "重構權限存取架構"
+          git push origin main
