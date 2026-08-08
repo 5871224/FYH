@@ -1774,3 +1774,6 @@ select case when exists(select 1 from actor) then jsonb_build_object(
   'accessBundle',public.get_group_access_bundle_v1(),
 ) else null end
 $$;
+-- 內部群組異動驗證只由 Trigger / 後端呼叫，不作為瀏覽器公開 RPC。
+revoke all on function public.validate_member_group_change_v1(text,uuid) from public,anon,authenticated;
+grant execute on function public.validate_member_group_change_v1(text,uuid) to service_role;
