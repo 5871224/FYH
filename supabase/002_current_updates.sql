@@ -1300,8 +1300,8 @@ grant execute on function public.delete_member_account_v4(uuid) to service_role;
 
 -- ============================================================================
 -- 2026-08-08 全系統權限守門收斂
--- 最終授權只依 access_role_id + permissions + access_role_groups；舊文字角色
--- 僅為顯示相容資料。此區段可重複執行。
+-- 最終授權只依 access_role_id + permissions + access_role_groups；不保留舊文字角色
+-- 相容欄位或相容授權。此區段可重複執行。
 -- ============================================================================
 
 begin;
@@ -1462,7 +1462,10 @@ $$;
 create or replace function public.save_access_role_v1(p_role jsonb)
 returns jsonb language plpgsql security definer set search_path=public,pg_catalog as $$
 declare
-  v_id uuid; v_code text; v_name text; v_permissions text[]; v_group_ids uuid[]; v_role public.access_roles%rowtype;
+  v_id uuid; v_code text; v_name text; v_permissions text[]; v_group_ids uuid[];
+  v_role public.access_roles%rowtype; v_existing public.access_roles%rowtype;
+  v_was_privileged boolean:=false; v_will_be_privileged boolean:=false;
+  v_today date:=(timezone('Asia/Taipei',now()))::date;
 begin
   if not public.has_access_permission((select auth.uid()),'permission_settings') then raise exception '沒有權限設定權限' using errcode='42501'; end if;
   begin v_id:=nullif(btrim(p_role->>'id'),'')::uuid; exception when invalid_text_representation then raise exception '角色識別碼格式錯誤'; end;
@@ -1480,6 +1483,23 @@ begin
   join public.schedule_groups grp on grp.id=value::uuid and grp.deleted_at is null;
   if v_permissions && array['schedule_view','schedule_manage','group_settings','department_settings','member_settings','attendance_review','meal_admin']::text[]
      and cardinality(v_group_ids)=0 then raise exception '請至少選擇一個適用群組'; end if;
+  select * into v_existing from public.access_roles where id=v_id for update;
+  if found then v_was_privileged:='permission_settings'=any(coalesce(v_existing.permissions,'{}'::text[])); end if;
+  v_will_be_privileged:='permission_settings'=any(coalesce(v_permissions,'{}'::text[]));
+  if v_was_privileged and not v_will_be_privileged
+     and exists(
+       select 1 from public.set_employee employee
+       where employee.access_role_id=v_id and employee.deleted_at is null
+         and public.is_employee_account_effective(employee.hire_date,employee.leave_date,v_today)
+     )
+     and not exists(
+       select 1 from public.set_employee employee
+       join public.access_roles other_role on other_role.id=employee.access_role_id
+       where employee.access_role_id<>v_id and employee.deleted_at is null
+         and 'permission_settings'=any(coalesce(other_role.permissions,'{}'::text[]))
+         and public.is_employee_account_effective(employee.hire_date,employee.leave_date,v_today)
+     ) then raise exception '系統必須保留至少一個有效的權限管理帳號' using errcode='23514'; end if;
+
   insert into public.access_roles(id,code,name,permissions,is_system)
   values(v_id,v_code,v_name,v_permissions,false)
   on conflict(id) do update set name=excluded.name,permissions=excluded.permissions,updated_at=now()
