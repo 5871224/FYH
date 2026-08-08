@@ -121,9 +121,14 @@ npm run js:architecture
 9. SQL Editor 發生錯誤時立即停止，不可略過後續區段。
 10. 瀏覽器不得直接 CRUD 核心資料表；資料層只允許具名 RPC / Edge Function。
 11. 不得新增通用 `restSelect/restInsert/restUpdate/restDelete`、整包 `saveState/syncCatalogs` 或依資料表名稱分派的寫入器。
-12. 權限判斷以 `access_role_id + access_roles.permissions + access_role_groups` 為唯一來源，不得用 `set_employee.role` 的 `admin/manager` 字串授權。
+12. 權限判斷以 `access_role_id + access_roles.permissions + access_role_groups` 為唯一來源，不得用 `set_employee.role`、`access_roles.legacy_role` 或 `admin/manager` 字串授權。
 13. 需要受保護主檔的 mutation RPC 必須 `SECURITY DEFINER`，並在函式內先驗證 `auth.uid()`、功能權限與適用群組。
 14. 資料存取架構不得以後載入 script、runtime monkey patch 或 API wrapper 覆寫修補；必須直接修改正式模組。
+15. RLS 與 Trigger 必須使用與正式 API 相同的明確權限鍵；不得用泛化 `is_manager()` / `is_admin()` 代替 `schedule_manage`、`member_settings`、`leave_settings`、`meal_admin` 等領域權限。
+16. Trigger、內部 helper 與資料完整性函式不得授予 `authenticated` 直接 EXECUTE；瀏覽器只允許呼叫正式具名 RPC。
+17. 同一完整性規則只保留一個正式 Trigger；修改前需檢查是否已有舊版 Trigger，避免重複執行同一守門或 `updated_at` 邏輯。
+18. 所有本人 Edge Function 都必須同時檢查任職日期與 `deleted_at`；軟刪除後即使舊 Session 尚未失效，也不得再通過受保護操作。
+19. 涉及群組實體的 Edge Function 必須先限制資料列至本人所屬群組或角色適用群組，再進行 GPS、IP、日期或其他業務判斷；不得先讀全公司資料再只靠前端篩選。
 
 ## 文件維護原則
 
