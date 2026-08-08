@@ -1,0 +1,42 @@
+name: Performance Refactor Temp
+
+on:
+  push:
+    branches:
+      - perf-optimization-pass-20260808
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Apply canonical performance refactor
+        run: node scripts/perf-refactor-temp.cjs
+      - name: Build static web
+        run: npm run web:publish
+      - name: Run complete CI
+        run: npm run ci:check
+      - name: Remove temporary refactor tooling
+        run: git rm scripts/perf-refactor-temp.cjs .github/workflows/perf-refactor-temp.yml
+      - name: Commit finalized source and generated artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "整體效能與班表存取優化"
+          git push origin HEAD:perf-optimization-pass-20260808
