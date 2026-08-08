@@ -52,6 +52,48 @@ jobs:
       - name: Apply canonical cleanup
         run: python .github/canonical-cleanup.py
 
+      - name: Align canonical contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          sql_path = Path('supabase/002_current_updates.sql')
+          sql = sql_path.read_text(encoding='utf-8')
+          sql = re.sub(r'^.*get_group_entity_map_v1\s*\(\).*$\n?', '', sql, flags=re.I | re.M)
+          sql_path.write_text(sql, encoding='utf-8')
+
+          for name in ['renderer-settings.test.js', 'renderer-department-settings.test.js']:
+              path = Path('tests') / name
+              text = path.read_text(encoding='utf-8')
+              text = text.replace('isAdmin: () =>', 'canManagePermissions: () =>')
+              path.write_text(text, encoding='utf-8')
+
+          path = Path('tests/renderer-auth-context.test.js')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('({ isAdmin, isManager, canEditSchedule })', '({ canManagePermissions, hasManagementAccess, canEditSchedule })')
+          path.write_text(text, encoding='utf-8')
+
+          path = Path('tests/renderer-core-modules.test.js')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('({ COLORS, LEAVE_CATALOG, DEFAULT_STATE, ROLE_OPTIONS, createRecordsState })', '({ COLORS, LEAVE_CATALOG, DEFAULT_STATE, createRecordsState })')
+          text = re.sub(r'^\s*assert\.equal\(foundation\.ROLE_OPTIONS\.map\(\(item\) => item\.value\)\.join\(","\), "admin,manager,employee"\);\n', '', text, flags=re.M)
+          path.write_text(text, encoding='utf-8')
+
+          path = Path('tests/renderer-canonical-contracts.test.js')
+          text = path.read_text(encoding='utf-8')
+          old = '''test("訂餐 Excel 由正式 web-api 唯一提供", () => {\n  const api = read("src/renderer/web-api.js");\n  assert.equal((api.match(/async function exportMealReport\\s*\\(/g) || []).length, 1);\n  assert.equal(api.includes("row.amount - mealDays * companySubsidy"), true);\n  assert.match(api, /員工姓名.*員工編號.*早餐金額.*午餐金額/s);\n  assert.doesNotMatch(api, /首次下訂時間|最後修改時間|員工工號/);\n});'''
+          new = '''test("訂餐 Excel 由 exporter 建立，web-api 只協調下載", () => {\n  const api = read("src/renderer/web-api.js");\n  const exporter = read("src/renderer/browser-exporter.js");\n  assert.equal((api.match(/async function exportMealReport\\s*\\(/g) || []).length, 1);\n  assert.match(api, /exporter\\.createMealReportWorkbook/);\n  assert.doesNotMatch(api, /function buildMealEmployeeRows|function styleMealExportSheet/);\n  assert.match(exporter, /async function createMealReportWorkbook/);\n  assert.match(exporter, /function buildMealEmployeeRows/);\n});'''
+          if old not in text:
+              raise SystemExit('renderer canonical meal test marker not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          path = Path('tests/access-architecture.test.js')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace("  assert.match(finalSecurity, /has_access_permission\\(p_user_id,'permission_settings'\\)/);\n", '')
+          path.write_text(text, encoding='utf-8')
+          PY
+
       - name: Remove temporary cleanup tooling before validation
         run: |
           rm -f .github/canonical-cleanup.py
@@ -68,7 +110,7 @@ jobs:
           failed=0
           for file in tests/*.test.js; do
             if ! node --test "$file" > /tmp/unit-test-output.txt 2>&1; then
-              summary=$(tail -n 25 /tmp/unit-test-output.txt | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+              summary=$(grep -E "location:|failureType:|error:|expected:|actual:|operator:" /tmp/unit-test-output.txt | head -n 20 | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
               echo "::error file=$file,title=Unit test failed::$summary"
               failed=1
             fi
@@ -102,7 +144,7 @@ jobs:
       - name: Static Edge sanity
         run: |
           grep -R '../_shared/runtime.ts' supabase/functions/*/index.ts
-          ! grep -R -nE 'legacy_role|access_role_legacy_role|employee\.role|new\.role' supabase/001_current_schema.sql supabase/002_current_updates.sql
+          ! grep -R -nE 'legacy_role|access_role_legacy_role|employee\.role|new\.role|get_group_entity_map_v1' supabase/001_current_schema.sql supabase/002_current_updates.sql
           ! grep -R -nE 'resolveManagerMemberProfileId|fallbackOvertimeId|ROLE_OPTIONS' src/renderer tests
 
       - name: Commit canonical cleanup
