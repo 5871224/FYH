@@ -146,12 +146,14 @@ jobs:
           deno check --node-modules-dir=auto supabase/functions/meal-cancel-v2/index.ts
           deno check --node-modules-dir=auto supabase/functions/member-auth-admin/index.ts
 
-      - name: Check canonical Edge access model
+      - name: Check canonical access model
         if: steps.changes.outputs.docs_only != 'true'
         run: |
           ! grep -R -nE 'legacy_role|access_role_legacy_role' supabase/functions
           ! grep -n 'full_name,role,access_role_id' supabase/functions/member-auth-admin/index.ts
           grep -R '../_shared/runtime.ts' supabase/functions/*/index.ts
+          grep -F "revoke all on function public.validate_member_group_change_v1(text,uuid) from public,anon,authenticated;" supabase/002_current_updates.sql
+          ! grep -R -nE 'alter table public\.set_employee add column.*\brole\b|alter table public\.access_roles add column.*legacy_role' supabase/001_current_schema.sql supabase/002_current_updates.sql
 
       - name: Check public Supabase settings
         if: steps.changes.outputs.docs_only != 'true'
