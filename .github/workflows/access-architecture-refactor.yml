@@ -1,4 +1,4 @@
-# rerun after expansion acceptance contract update
+# rerun after settings permission contract update
 name: Access architecture refactor
 on:
   push:
