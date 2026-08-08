@@ -11,13 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect residual access patterns
+      - name: Inspect permission architecture
         run: |
-          echo '--- web-api legacy role gates ---'
-          grep -nE 'ensureManager|hasManagerAccess|hasAdminAccess|getScheduleDirectoryRows|get_schedule_directory_v2' src/renderer/web-api.js || true
+          echo '--- Edge legacy role checks ---'
+          grep -RInE 'role[^a-zA-Z0-9_].*(admin|manager)|(admin|manager).*role|\["manager", "admin"\]|\["admin", "manager"\]' supabase/functions || true
+          echo '--- Edge direct employee profile role reads ---'
+          grep -RInE 'select\("[^"]*role|\.select\(`[^`]*role' supabase/functions || true
+          echo '--- browser transport guards ---'
+          grep -nE 'ensureManager|hasManagerAccess|hasAdminAccess|getScheduleDirectoryRows|get_schedule_directory_v2|getDepartmentAttendanceSettings|member-order-v2' src/renderer/web-api.js || true
           echo '--- source generic access ---'
           grep -RInE 'restSelect\(|restInsert\(|restUpdate\(|restDelete\(|saveState\(|syncCatalogs\(' src/renderer || true
-          echo '--- old api names ---'
-          grep -RInE 'save_schedule_entries_bulk|get_schedule_directory_v2|get_department_directory_v2|get_employee_admin_directory_v2|save_departments_general_v2|delete_department_general_v2|save_department_attendance_fields_bulk|assign_member_access_v1|assign_department_group_v1|catalog-admin|member-delete-v2' src scripts supabase/functions tests README.md AGENTS.md 規格書.md || true
-          echo '--- canonical SQL old api definitions ---'
-          grep -nE 'create( or replace)? function public\.(save_schedule_entries_bulk|get_schedule_directory_v2|get_department_directory_v2|get_employee_admin_directory_v2|save_departments_general_v2|delete_department_general_v2|save_department_attendance_fields_bulk|assign_member_access_v1|assign_department_group_v1)' supabase/*.sql || true
