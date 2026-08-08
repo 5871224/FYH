@@ -42,7 +42,7 @@ function renderStickyHeaderTitleCells() {
   const renderCell = (label, dataAttr = "") => `
     <div class="table-sticky-cell-title">
       <span class="table-sticky-cell-label">${label}</span>
-      ${isManager() && dataAttr ? renderActionIconButton("edit", `${dataAttr}=\"true\"`, "table-header-settings-btn") : ""}
+      ${hasManagementAccess() && dataAttr ? renderActionIconButton("edit", `${dataAttr}=\"true\"`, "table-header-settings-btn") : ""}
     </div>
   `;
   if (state.tableView === "shift") {
@@ -219,7 +219,7 @@ function syncScheduleColumnWidths() {
   const deptStyle = getComputedStyle(deptSample);
   const personStyle = getComputedStyle(personSample);
   const headerStyle = getComputedStyle(document.querySelector(".table-sticky-cell") || deptSample);
-  const managerButtonAllowance = isManager() && state.tableView !== "shift" ? 28 : 0;
+  const managerButtonAllowance = hasManagementAccess() && state.tableView !== "shift" ? 28 : 0;
   let deptWidth = 72;
   let personWidth = 92;
   const statsWidth = state.tableView === "member" && state.tableStatsVisible ? 86 : 0;

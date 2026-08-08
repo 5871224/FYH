@@ -22,12 +22,14 @@ test("帳號刪除由正式 API 與人員模組提供", () => {
   assert.doesNotMatch(members, /deleteMember\s*=\s*async function/);
 });
 
-test("訂餐 Excel 由正式 web-api 唯一提供", () => {
+test("訂餐 Excel 由 exporter 建立，web-api 只協調下載", () => {
   const api = read("src/renderer/web-api.js");
+  const exporter = read("src/renderer/browser-exporter.js");
   assert.equal((api.match(/async function exportMealReport\s*\(/g) || []).length, 1);
-  assert.equal(api.includes("row.amount - mealDays * companySubsidy"), true);
-  assert.match(api, /員工姓名.*員工編號.*早餐金額.*午餐金額/s);
-  assert.doesNotMatch(api, /首次下訂時間|最後修改時間|員工工號/);
+  assert.match(api, /exporter\.createMealReportWorkbook/);
+  assert.doesNotMatch(api, /function buildMealEmployeeRows|function styleMealExportSheet/);
+  assert.match(exporter, /async function createMealReportWorkbook/);
+  assert.match(exporter, /function buildMealEmployeeRows/);
 });
 
 test("設定拖曳把手直接由正式畫面產生", () => {

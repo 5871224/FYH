@@ -38,7 +38,6 @@ create table if not exists public.set_employee (
   id uuid primary key default gen_random_uuid(),
   employee_code text not null unique,
   full_name text not null,
-  role text not null default 'employee' check (role in ('admin', 'manager', 'employee')),
   home_department_id uuid references public.set_departments (id) on delete set null,
   schedule_shift_ids uuid[] not null default '{}',
   hire_date date,
@@ -286,168 +285,7 @@ as $$
   )
 $$;
 
-create or replace function public.is_manager(p_user_id uuid)
-returns boolean
-language sql
-security definer
-set search_path = public, pg_catalog
-stable
-as $$
-  select exists (
-    select 1
-    from public.set_employee employee
-    where employee.id = p_user_id
-      and employee.role in ('admin', 'manager')
-      and public.is_employee_account_effective(
-        employee.hire_date,
-        employee.leave_date,
-        (timezone('Asia/Taipei', now()))::date
-      )
-  )
-$$;
-
-create or replace function public.is_admin(p_user_id uuid)
-returns boolean
-language sql
-security definer
-set search_path = public, pg_catalog
-stable
-as $$
-  select exists (
-    select 1
-    from public.set_employee employee
-    where employee.id = p_user_id
-      and employee.role = 'admin'
-      and public.is_employee_account_effective(
-        employee.hire_date,
-        employee.leave_date,
-        (timezone('Asia/Taipei', now()))::date
-      )
-  )
-$$;
-
-create or replace function public.protect_admin_member()
-returns trigger
-language plpgsql
-security definer
-set search_path = public, pg_catalog
-as $$
-declare
-  v_today date := (timezone('Asia/Taipei', now()))::date;
-  v_old_effective boolean;
-  v_new_effective boolean;
-  v_changed_admin_row boolean;
-begin
-  if TG_OP = 'INSERT' then
-    if auth.uid() is not null and NEW.role <> 'employee' and not public.is_admin(auth.uid()) then
-      raise exception '只有管理員可以新增主管或管理員帳號' using errcode = '42501';
-    end if;
-    return NEW;
-  end if;
-
-  v_old_effective := OLD.role = 'admin'
-    and public.is_employee_account_effective(OLD.hire_date, OLD.leave_date, v_today);
-
-  if TG_OP = 'UPDATE' then
-    v_new_effective := NEW.role = 'admin'
-      and public.is_employee_account_effective(NEW.hire_date, NEW.leave_date, v_today);
-    v_changed_admin_row := OLD.role = 'admin' and (
-      NEW.employee_code is distinct from OLD.employee_code
-      or NEW.full_name is distinct from OLD.full_name
-      or NEW.role is distinct from OLD.role
-      or NEW.home_department_id is distinct from OLD.home_department_id
-      or NEW.schedule_shift_ids is distinct from OLD.schedule_shift_ids
-      or NEW.hire_date is distinct from OLD.hire_date
-      or NEW.leave_date is distinct from OLD.leave_date
-      or NEW.pay_by_day is distinct from OLD.pay_by_day
-      or NEW.fixed_rest_weekday is distinct from OLD.fixed_rest_weekday
-      or NEW.monthly_rest_days is distinct from OLD.monthly_rest_days
-    );
-  else
-    v_new_effective := false;
-    v_changed_admin_row := OLD.role = 'admin';
-  end if;
-
-  if TG_OP = 'UPDATE'
-    and auth.uid() is not null
-    and NEW.role is distinct from OLD.role
-    and not public.is_admin(auth.uid()) then
-    raise exception '只有管理員可以變更帳號權限' using errcode = '42501';
-  end if;
-
-  if auth.uid() is not null
-    and (v_changed_admin_row or (TG_OP = 'UPDATE' and NEW.role = 'admin'))
-    and not public.is_admin(auth.uid()) then
-    raise exception '只有管理員可以修改管理員帳號' using errcode = '42501';
-  end if;
-
-  if v_old_effective and not v_new_effective and not exists (
-    select 1
-    from public.set_employee employee
-    where employee.id <> OLD.id
-      and employee.role = 'admin'
-      and public.is_employee_account_effective(employee.hire_date, employee.leave_date, v_today)
-  ) then
-    raise exception '至少需保留一位有效管理員' using errcode = '23514';
-  end if;
-
-  if TG_OP = 'DELETE' then
-    return OLD;
-  end if;
-  return NEW;
-end;
-$$;
-
-drop trigger if exists protect_admin_member_trigger on public.set_employee;
-create trigger protect_admin_member_trigger
-before update or delete on public.set_employee
-for each row execute function public.protect_admin_member();
-
-create or replace function public.protect_department_attendance_fields()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if TG_OP = 'UPDATE'
-    and auth.uid() is not null
-    and not public.is_admin(auth.uid())
-    and (
-      NEW.address is distinct from OLD.address
-      or NEW.latitude is distinct from OLD.latitude
-      or NEW.longitude is distinct from OLD.longitude
-      or NEW.public_ip is distinct from OLD.public_ip
-      or NEW.attendance_enabled is distinct from OLD.attendance_enabled
-      or NEW.attendance_settings_updated_at is distinct from OLD.attendance_settings_updated_at
-      or NEW.attendance_settings_updated_by is distinct from OLD.attendance_settings_updated_by
-    ) then
-    raise exception '只有管理員可以修改打卡設定' using errcode = '42501';
-  end if;
-  if TG_OP = 'INSERT'
-    and auth.uid() is not null
-    and not public.is_admin(auth.uid())
-    and (
-      NEW.address is not null
-      or NEW.latitude is not null
-      or NEW.longitude is not null
-      or NEW.public_ip is not null
-      or NEW.attendance_enabled is true
-      or NEW.attendance_settings_updated_at is not null
-      or NEW.attendance_settings_updated_by is not null
-    ) then
-    raise exception '只有管理員可以新增打卡設定' using errcode = '42501';
-  end if;
-  return NEW;
-end;
-$$;
-
 drop trigger if exists protect_department_attendance_settings_trigger on public.set_departments;
-drop trigger if exists trg_protect_department_attendance_fields on public.set_departments;
-create trigger trg_protect_department_attendance_fields
-before insert or update on public.set_departments
-for each row execute function public.protect_department_attendance_fields();
-
 drop policy if exists read_scheduler_settings on public.scheduler_settings;
 drop policy if exists write_scheduler_settings on public.scheduler_settings;
 drop policy if exists read_set_departments on public.set_departments;
@@ -474,39 +312,39 @@ drop policy if exists write_meal_settings on public.meal_settings;
 drop policy if exists read_meal_orders on public.meal_orders;
 drop policy if exists write_meal_orders on public.meal_orders;
 
-create policy read_scheduler_settings on public.scheduler_settings for select to authenticated using (true);
-create policy write_scheduler_settings on public.scheduler_settings for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
 
-create policy read_set_departments on public.set_departments for select to authenticated using (true);
-create policy write_set_departments on public.set_departments for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
 
-create policy read_set_employee on public.set_employee for select to authenticated using (true);
-create policy insert_set_employee on public.set_employee for insert to authenticated with check (public.is_manager(auth.uid()));
-create policy update_set_employee on public.set_employee for update to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
 
-create policy read_set_shift on public.set_shift for select to authenticated using (true);
-create policy write_set_shift on public.set_shift for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
 
-create policy read_set_leave on public.set_leave for select to authenticated using (true);
-create policy write_set_leave on public.set_leave for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
 
-create policy read_set_overtime on public.set_overtime for select to authenticated using (true);
-create policy write_set_overtime on public.set_overtime for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
 
-create policy read_holidays on public.holidays for select to authenticated using (true);
-create policy write_holidays on public.holidays for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
 
-create policy read_schedule_entries on public.schedule_entries for select to authenticated using (true);
-create policy write_schedule_entries on public.schedule_entries for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
 
-create policy read_meal_products on public.meal_products for select to authenticated using (true);
-create policy write_meal_products on public.meal_products for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
 
-create policy read_meal_settings on public.meal_settings for select to authenticated using (true);
-create policy write_meal_settings on public.meal_settings for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
 
-create policy read_meal_orders on public.meal_orders for select to authenticated using (user_id = auth.uid() or public.is_manager(auth.uid()));
-create policy write_meal_orders on public.meal_orders for all to authenticated using (public.is_manager(auth.uid())) with check (public.is_manager(auth.uid()));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 drop function if exists public.get_department_attendance_settings();
 drop function if exists public.save_department_attendance_settings_bulk(jsonb);
@@ -525,54 +363,7 @@ commit;
 begin;
 
 -- 人員資料依本人、共同班表與管理用途分流
-create or replace function public.get_my_profile_v2()
-returns table (
-  id uuid,
-  employee_code text,
-  full_name text,
-  role text,
-  home_department_id uuid,
-  position_name text,
-  hire_date date,
-  leave_date date,
-  pay_by_day boolean,
-  created_at timestamptz,
-  updated_at timestamptz,
-  schedule_department_ids text[],
-  monthly_rest_days integer,
-  fixed_rest_weekday integer,
-  schedule_shift_ids uuid[],
-  sort_order integer
-)
-language sql
-stable
-security definer
-set search_path = public, pg_catalog
-as $$
-  select
-    employee.id,
-    employee.employee_code,
-    employee.full_name,
-    employee.role,
-    employee.home_department_id,
-    employee.position_name,
-    employee.hire_date,
-    employee.leave_date,
-    employee.pay_by_day,
-    employee.created_at,
-    employee.updated_at,
-    employee.schedule_department_ids,
-    employee.monthly_rest_days,
-    employee.fixed_rest_weekday,
-    employee.schedule_shift_ids,
-    employee.sort_order
-  from public.set_employee employee
-  where employee.id = auth.uid()
-$$;
 
-revoke all on function public.get_my_profile_v2() from public, anon;
-
-grant execute on function public.get_my_profile_v2() to authenticated, service_role;
 
 commit;
 

@@ -75,7 +75,6 @@ const LEAVE_CATALOG = [
 ];
 
 const DEFAULT_STATE = {
-  role: "manager",
   year: new Date().getFullYear(),
   month: new Date().getMonth(),
   selected: { type: null, id: null },
@@ -101,11 +100,6 @@ const DEFAULT_STATE = {
   scheduleLoadedRanges: []
 };
 
-const ROLE_OPTIONS = [
-  { value: "admin", label: "管理員" },
-  { value: "manager", label: "主管" },
-  { value: "employee", label: "員工" }
-];
 
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 const MONTH_LABELS = ["1 月", "2 月", "3 月", "4 月", "5 月", "6 月", "7 月", "8 月", "9 月", "10 月", "11 月", "12 月"];

@@ -257,10 +257,7 @@ async function importMembersFromSettings() {
       accessRoleMap.set(String(role.code || "").trim().toLowerCase(), role.id);
       accessRoleMap.set(String(role.name || "").trim().toLowerCase(), role.id);
     });
-    const defaultAccessRoleId = getAllRoles().find((role) => {
-      const permissions = Array.isArray(role.permissions) ? role.permissions : [];
-      return permissions.length === 1 && permissions.includes("schedule_view");
-    })?.id || "";
+    const defaultAccessRoleId = getDefaultAccessRoleId();
     let imported = 0;
     let updated = 0;
     let skipped = 0;
@@ -291,7 +288,11 @@ async function importMembersFromSettings() {
       const existing = state.members.find((member) => member.code === code) || null;
       const importedRoleKey = String(row.roleName || "").trim().toLowerCase();
       const importedRoleId = accessRoleMap.get(importedRoleKey) || "";
-      const roleId = isAdmin()
+      if (canManagePermissions() && importedRoleKey && !importedRoleId) {
+        skipped += 1;
+        continue;
+      }
+      const roleId = canManagePermissions()
         ? (importedRoleId || existing?.roleId || defaultAccessRoleId)
         : (existing?.roleId || defaultAccessRoleId);
       if (!roleId) {
@@ -302,6 +303,7 @@ async function importMembersFromSettings() {
         id: existing?.id || uid("m"),
         code,
         name,
+        groupId: existing?.groupId || groupFeatureState.currentGroupId,
         deptId,
         scheduleShiftIds,
         positionId: existing?.positionId || "",

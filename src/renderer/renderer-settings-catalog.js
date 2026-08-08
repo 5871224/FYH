@@ -436,95 +436,94 @@ function openNamedColorFormModal(category, mode, targetId = "") {
   syncNamedColorUi();
 }
 
-async function saveNamedColorItem(category, mode) {
-  const returnTo = modalContext.returnTo || null;
-  if (category === "shift") {
-    void saveShiftFromModal(mode);
-    return;
-  }
-  const selectedLeave = category === "leave"
-    ? LEAVE_CATALOG.find((entry) => entry.code === (document.getElementById("leaveCatalogCode")?.value || ""))
-    : null;
-  const name = category === "leave"
-    ? (document.getElementById("leaveCatalogName")?.value.trim() || "")
-    : (document.getElementById("namedItemName")?.value.trim() || "");
-  if (!name) {
-    document.getElementById(category === "leave" ? "leaveCatalogName" : "namedItemName")?.focus();
-    return;
-  }
-  if (category === "overtime") {
-    const startTime = readTimeInputValue("overtimeStartTime");
-    const endTime = readTimeInputValue("overtimeEndTime");
-    if (!isValidTimeRange(startTime, endTime)) {
-      reportValidationError("上班時間必須早於下班時間");
-      return;
-    }
-    const useRest1 = Boolean(document.getElementById("overtimeUseRest1")?.checked);
-    const useRest2 = Boolean(document.getElementById("overtimeUseRest2")?.checked) && useRest1;
-    if (useRest1) {
-      const rest1Start = readTimeInputValue("overtimeRest1StartTime");
-      const rest1End = readTimeInputValue("overtimeRest1EndTime");
-      if (!isValidTimeRange(rest1Start, rest1End)) {
-        reportValidationError("休息1開始時間必須早於結束時間");
-        return;
-      }
-      if (useRest2) {
-        const rest2Start = readTimeInputValue("overtimeRest2StartTime");
-        const rest2End = readTimeInputValue("overtimeRest2EndTime");
-        if (!isValidTimeRange(rest2Start, rest2End)) {
-          reportValidationError("休息2開始時間必須早於結束時間");
-          return;
-        }
-      }
-    }
-  }
-  const payload = {
+function readNamedColorPayloadBase(category, mode) {
+  return {
     id: mode === "edit" ? modalContext.targetId : uid(category[0]),
-    code: category === "leave" ? selectedLeave?.code : undefined,
-    name,
     color: modalColor,
     textColor: modalTextColor,
     autoTextColor: modalTextColorAuto,
-    requiresTime: category === "leave" ? document.getElementById("leaveRequiresTime")?.checked : undefined,
-    requiresReason: category === "leave" ? document.getElementById("leaveRequiresReason")?.checked : undefined,
-    hiddenFromToolbar: Boolean(document.getElementById(`${category}HiddenFromToolbar`)?.checked),
-    startTime: category === "overtime" ? readTimeInputValue("overtimeStartTime") : undefined,
-    endTime: category === "overtime" ? readTimeInputValue("overtimeEndTime") : undefined,
-    useRest1: category === "overtime" ? Boolean(document.getElementById("overtimeUseRest1")?.checked) : undefined,
-    rest1StartTime: category === "overtime" ? readTimeInputValue("overtimeRest1StartTime") : undefined,
-    rest1EndTime: category === "overtime" ? readTimeInputValue("overtimeRest1EndTime") : undefined,
-    useRest2: category === "overtime" ? Boolean(document.getElementById("overtimeUseRest2")?.checked) : undefined,
-    rest2StartTime: category === "overtime" ? readTimeInputValue("overtimeRest2StartTime") : undefined,
-    rest2EndTime: category === "overtime" ? readTimeInputValue("overtimeRest2EndTime") : undefined
+    hiddenFromToolbar: Boolean(document.getElementById(`${category}HiddenFromToolbar`)?.checked)
   };
-  if (category === "overtime" && payload.useRest1 === false) {
-    payload.useRest2 = false;
-    payload.rest1StartTime = "";
-    payload.rest1EndTime = "";
-    payload.rest2StartTime = "";
-    payload.rest2EndTime = "";
-  } else if (category === "overtime" && payload.useRest2 === false) {
-    payload.rest2StartTime = "";
-    payload.rest2EndTime = "";
-  }
+}
+
+async function persistNamedCatalogItem(category, mode, payload, returnTo) {
   const currentList = getItemList(category);
   const nextList = mode === "edit"
     ? currentList.map((item) => item.id === payload.id ? payload : item)
     : [...currentList, payload];
-  const sortOrder = mode === "edit"
-    ? currentList.findIndex((item) => item.id === payload.id)
-    : currentList.length;
+  const sortOrder = mode === "edit" ? currentList.findIndex((item) => item.id === payload.id) : currentList.length;
   try {
     await window.schedulerApi.saveCatalogItem(category, payload, Math.max(0, sortOrder));
   } catch (error) {
     setSaveStatus(`${category === "leave" ? "假別" : "加班"}儲存失敗：${error.message}`);
-    return;
+    return false;
   }
   if (category === "leave") state.leaves = nextList;
   if (category === "overtime") state.overtime = nextList;
   closeModal();
   renderAll();
   await reopenSettingsModalPreservingScroll(returnTo || { category: "list-settings", listCategory: category, scrollTop: 0 });
+  return true;
+}
+
+async function saveLeaveItem(mode) {
+  const returnTo = modalContext.returnTo || null;
+  const selectedLeave = LEAVE_CATALOG.find((entry) => entry.code === (document.getElementById("leaveCatalogCode")?.value || ""));
+  const name = document.getElementById("leaveCatalogName")?.value.trim() || "";
+  if (!name) {
+    document.getElementById("leaveCatalogName")?.focus();
+    return;
+  }
+  const payload = {
+    ...readNamedColorPayloadBase("leave", mode),
+    code: selectedLeave?.code,
+    name,
+    requiresTime: Boolean(document.getElementById("leaveRequiresTime")?.checked),
+    requiresReason: Boolean(document.getElementById("leaveRequiresReason")?.checked)
+  };
+  await persistNamedCatalogItem("leave", mode, payload, returnTo);
+}
+
+async function saveOvertimeItem(mode) {
+  const returnTo = modalContext.returnTo || null;
+  const name = document.getElementById("namedItemName")?.value.trim() || "";
+  if (!name) {
+    document.getElementById("namedItemName")?.focus();
+    return;
+  }
+  const startTime = readTimeInputValue("overtimeStartTime");
+  const endTime = readTimeInputValue("overtimeEndTime");
+  if (!isValidTimeRange(startTime, endTime)) return reportValidationError("上班時間必須早於下班時間");
+
+  const useRest1 = Boolean(document.getElementById("overtimeUseRest1")?.checked);
+  const useRest2 = Boolean(document.getElementById("overtimeUseRest2")?.checked) && useRest1;
+  const rest1StartTime = useRest1 ? readTimeInputValue("overtimeRest1StartTime") : "";
+  const rest1EndTime = useRest1 ? readTimeInputValue("overtimeRest1EndTime") : "";
+  const rest2StartTime = useRest2 ? readTimeInputValue("overtimeRest2StartTime") : "";
+  const rest2EndTime = useRest2 ? readTimeInputValue("overtimeRest2EndTime") : "";
+  if (useRest1 && !isValidTimeRange(rest1StartTime, rest1EndTime)) return reportValidationError("休息1開始時間必須早於結束時間");
+  if (useRest2 && !isValidTimeRange(rest2StartTime, rest2EndTime)) return reportValidationError("休息2開始時間必須早於結束時間");
+
+  const payload = {
+    ...readNamedColorPayloadBase("overtime", mode),
+    name,
+    startTime,
+    endTime,
+    useRest1,
+    rest1StartTime,
+    rest1EndTime,
+    useRest2,
+    rest2StartTime,
+    rest2EndTime
+  };
+  await persistNamedCatalogItem("overtime", mode, payload, returnTo);
+}
+
+async function saveNamedColorItem(category, mode) {
+  if (category === "shift") return saveShiftFromModal(mode);
+  if (category === "leave") return saveLeaveItem(mode);
+  if (category === "overtime") return saveOvertimeItem(mode);
+  throw new Error(`unsupported catalog category: ${category}`);
 }
 
 async function deleteListItem(category, id) {

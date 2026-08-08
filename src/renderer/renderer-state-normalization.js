@@ -35,7 +35,9 @@ function sanitizeDepartment(department, fallbackIndex) {
     latitude: department?.latitude ?? "",
     longitude: department?.longitude ?? "",
     publicIp: department?.publicIp || "",
-    attendanceEnabled: Boolean(department?.attendanceEnabled)
+    attendanceEnabled: Boolean(department?.attendanceEnabled),
+    groupId: department?.groupId || "",
+    deleted: Boolean(department?.deleted)
   };
 }
 
@@ -75,7 +77,9 @@ function sanitizeMember(member, fallbackIndex, merged) {
     payByDay: Boolean(member?.payByDay),
     fixedRestWeekday: normalizeRestWeekday(member?.fixedRestWeekday),
     monthlyRestDays: Math.max(0, Number(member?.monthlyRestDays) || 0),
-    roleId: member?.roleId || ""
+    roleId: member?.roleId || "",
+    groupId: member?.groupId || "",
+    deleted: Boolean(member?.deleted)
   };
 }
 
@@ -100,7 +104,9 @@ function sanitizeShift(shift, fallbackIndex, merged) {
         ? shift.positionRequirements
         .filter((item) => item && item.positionId)
         .map((item) => ({ positionId: item.positionId, count: Math.max(0, Number(item.count) || 0) }))
-      : []
+      : [],
+      groupId: shift?.groupId || "",
+      deleted: Boolean(shift?.deleted)
   };
 }
 
@@ -121,7 +127,8 @@ function sanitizeLeaveItem(item, index) {
     autoTextColor: Boolean(autoText),
     hiddenFromToolbar: Boolean(item?.hiddenFromToolbar),
     requiresTime: Boolean(item?.requiresTime),
-    requiresReason: Boolean(item?.requiresReason)
+    requiresReason: Boolean(item?.requiresReason),
+    deleted: Boolean(item?.deleted)
   };
 }
 
@@ -142,7 +149,8 @@ function sanitizeOvertimeItem(item, fallbackIndex) {
       rest1EndTime: item?.rest1EndTime || "",
       useRest2: Boolean(item?.useRest2),
       rest2StartTime: item?.rest2StartTime || "",
-      rest2EndTime: item?.rest2EndTime || ""
+      rest2EndTime: item?.rest2EndTime || "",
+      deleted: Boolean(item?.deleted)
     };
   }
 
@@ -158,16 +166,11 @@ function cleanupScheduleEntries(schedule, merged) {
   const validShiftIds = new Set(merged.shifts.map((shift) => shift.id));
   const validLeaveIds = new Set(merged.leaves.map((leave) => leave.id));
   const validOvertimeIds = new Set(merged.overtime.map((item) => item.id));
-  const fallbackOvertimeId = merged.overtime[0]?.id || null;
   const nextSchedule = {};
 
   Object.entries(schedule || {}).forEach(([key, slot]) => {
     const hasOvertimeMeta = slot?.overtimeMeta && typeof slot.overtimeMeta === "object";
-    const overtimeId = validOvertimeIds.has(slot?.overtime)
-      ? slot.overtime
-      : hasOvertimeMeta
-        ? fallbackOvertimeId
-        : null;
+    const overtimeId = validOvertimeIds.has(slot?.overtime) ? slot.overtime : null;
     const nextSlot = {
       shift: validShiftIds.has(slot?.shift) ? slot.shift : null,
       leave: validLeaveIds.has(slot?.leave) ? slot.leave : null,
@@ -216,7 +219,6 @@ function normalizeState(payload) {
   }
 
   const merged = createEmptyState();
-  merged.role = "manager";
   merged.year = Number.isInteger(payload.year) ? payload.year : merged.year;
   merged.month = Number.isInteger(payload.month) ? payload.month : merged.month;
   merged.departments = Array.isArray(payload.departments)

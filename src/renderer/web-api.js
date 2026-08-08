@@ -277,13 +277,13 @@
   }
 
   async function getMyProfileRow() {
-    const rows = await callRpc("get_my_profile_v2", {}, { auth: true }) || [];
+    const rows = await callRpc("get_my_profile_v3", {}, { auth: true }) || [];
     return rows[0] || null;
   }
 
       async function getEmployeeAdminDirectoryRows() {
     ensureSignedIn();
-    return await callRpc("get_employee_admin_directory_v3", {}) || [];
+    return callRpc("get_employee_admin_directory_v3", {}) || [];
   }
 
 
@@ -774,7 +774,7 @@
     if (!normalizedStart || !normalizedEnd || normalizedStart > normalizedEnd) {
       throw new Error("匯出日期範圍不正確");
     }
-    return await callRpc("get_schedule_export_rows_v2", {
+    return callRpc("get_schedule_export_rows_v2", {
       p_start_date: normalizedStart,
       p_end_date: normalizedEnd
     }, { auth: true }) || [];
@@ -932,7 +932,7 @@
       schedule: mapScheduleRows(scheduleEntryRows, members),
       scheduleLoadedRanges: [scheduleRange],
       accessBundle: bootstrap.accessBundle || { actor: {}, groups: [], roles: [] },
-      entityMap: bootstrap.entityMap || { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] }
+      archiveRanges: Array.isArray(bootstrap.archiveRanges) ? bootstrap.archiveRanges : []
     };
   }
 
@@ -997,7 +997,7 @@
 
   async function saveDepartmentItem(department, sortOrder = 0) {
     ensureSignedIn();
-    return await callRpc("save_department_v3", {
+    return callRpc("save_department_v3", {
       p_department: { ...department, sortOrder }
     });
   }
@@ -1005,7 +1005,7 @@
 
     async function deleteDepartmentItem(departmentId) {
     ensureSignedIn();
-    return await callRpc("delete_department_v3", {
+    return callRpc("delete_department_v3", {
       p_department_id: String(departmentId || "").trim()
     });
   }
@@ -1013,7 +1013,7 @@
 
     async function saveShiftItem(shift, sortOrder = 0) {
     ensureSignedIn();
-    return await callRpc("save_shift_v3", {
+    return callRpc("save_shift_v3", {
       p_shift: { ...shift, sortOrder }
     });
   }
@@ -1021,7 +1021,7 @@
 
     async function saveCatalogItem(category, item, sortOrder = 0) {
     ensureSignedIn();
-    return await callRpc("save_catalog_item_v3", {
+    return callRpc("save_catalog_item_v3", {
       p_category: String(category || ""),
       p_item: { ...item, sortOrder }
     });
@@ -1030,34 +1030,17 @@
 
     async function deleteCatalogItem(category, itemId) {
     ensureSignedIn();
-    return await callRpc("delete_catalog_item_v3", {
+    return callRpc("delete_catalog_item_v3", {
       p_category: String(category || ""),
       p_item_id: String(itemId || "")
     });
   }
 
 
-  async function resolveManagerMemberProfileId(memberId, memberCode) {
-    const normalizedMemberId = String(memberId || "").trim();
-    if (isUuid(normalizedMemberId)) {
-      return normalizedMemberId;
-    }
-    const normalizedMemberCode = String(memberCode || "").trim();
-    if (!normalizedMemberCode) {
-      throw new Error("找不到人員工號");
-    }
-    const profile = (await getEmployeeAdminDirectoryRows())
-      .find((row) => String(row.employee_code || "").trim() === normalizedMemberCode);
-    if (!profile?.id) {
-      throw new Error(`找不到對應的人員資料：${normalizedMemberCode}`);
-    }
-    return profile.id;
-  }
-
     async function saveScheduleEntryRows(rows) {
     const entries = (Array.isArray(rows) ? rows : []).filter((row) => row?.member_id && row?.work_date);
     if (!entries.length) return [];
-    return await callRpc("save_schedule_entries_v3", { entries }) || [];
+    return callRpc("save_schedule_entries_v3", { entries }) || [];
   }
 
 
@@ -1065,9 +1048,9 @@
     ensureSignedIn();
     const rows = [];
     for (const payload of Array.isArray(payloads) ? payloads : []) {
-      const profileMemberId = await resolveManagerMemberProfileId(payload.memberId, payload.memberCode);
+      const profileMemberId = String(payload.memberId || "").trim();
       const workDate = nullableDate(payload.dateString || payload.workDate);
-      if (!profileMemberId || !workDate) throw new Error("schedule cell member and date are required");
+      if (!isUuid(profileMemberId) || !workDate) throw new Error("schedule cell member UUID and date are required");
       const slot = payload.slot || {};
       const shiftId = isUuid(slot.shift) ? slot.shift : null;
       const leaveId = isUuid(slot.leave) ? slot.leave : null;
@@ -1105,7 +1088,7 @@
 
   async function reorderSettings(category, ids = []) {
     ensureSignedIn();
-    return await callRpc("reorder_settings_v3", {
+    return callRpc("reorder_settings_v3", {
       p_category: String(category || ""),
       p_ids: (Array.isArray(ids) ? ids : []).filter(isUuid)
     });
@@ -1113,7 +1096,7 @@
 
   async function saveSchedulerPreferences(state) {
     ensureSignedIn();
-    return await callRpc("save_scheduler_preferences_v3", {
+    return callRpc("save_scheduler_preferences_v3", {
       p_document_id: documentId,
       p_settings: {
         currentYear: Number(state?.year) || new Date().getFullYear(),
@@ -1132,7 +1115,7 @@
 
   async function saveHolidays(holidays = []) {
     ensureSignedIn();
-    return await callRpc("save_holidays_v3", {
+    return callRpc("save_holidays_v3", {
       p_holidays: (Array.isArray(holidays) ? holidays : []).map((holiday) => ({
         id: holiday.id,
         date: holiday.date,
@@ -1146,8 +1129,8 @@
     return { ok: true, row: result.rows?.[0] || null };
   }
 
-  async function getGroupAccessBundle() { return await callRpc("get_group_access_bundle_v1", {}) || {}; }
-  async function getGroupEntityMap() { return await callRpc("get_group_entity_map_v1", {}) || {}; }
+  async function getGroupAccessBundle() { return callRpc("get_group_access_bundle_v1", {}) || {}; }
+  async function getScheduleArchiveRanges() { return callRpc("get_schedule_archive_ranges_v1", {}) || []; }
   async function saveScheduleGroup(group) { return callRpc("save_schedule_group_v1", { p_group: group }); }
   async function deleteScheduleGroup(groupId, confirmName) { return callRpc("delete_schedule_group_v1", { p_group_id: groupId, p_confirm_name: confirmName }); }
   async function reorderScheduleGroups(groupIds) { return callRpc("reorder_schedule_groups_v1", { p_group_ids: groupIds }); }
@@ -1192,75 +1175,12 @@
     return { canceled: false, empty: false, filePath: fileName };
   }
 
-  function compactMealExportDate(value) {
-    return String(value || "").replace(/[^0-9]/g, "").slice(0, 8);
-  }
-
-  function buildMealEmployeeRows(report, details) {
-    const companySubsidy = Number(report.companySubsidy || 55);
-    const employees = new Map();
-    details.forEach((row) => {
-      const key = String(row.employeeId || row.employeeCode || row.employeeName || "");
-      if (!key) return;
-      const current = employees.get(key) || {
-        employeeName: row.employeeName || "",
-        employeeCode: row.employeeCode || "",
-        dates: new Set(),
-        amount: 0
-      };
-      const quantity = Number(row.quantity || 0);
-      const amount = Number(row.amount ?? (quantity * Number(row.unitPrice || 0))) || 0;
-      if (quantity > 0 && row.date) current.dates.add(row.date);
-      current.amount += amount;
-      if (!current.employeeName && row.employeeName) current.employeeName = row.employeeName;
-      if (!current.employeeCode && row.employeeCode) current.employeeCode = row.employeeCode;
-      employees.set(key, current);
-    });
-    return [...employees.values()].map((row) => {
-      const mealDays = row.dates.size;
-      return {
-        employeeName: row.employeeName,
-        employeeCode: row.employeeCode,
-        lunchAmount: row.amount - mealDays * companySubsidy,
-        lunchCount: mealDays
-      };
-    }).sort((a, b) => (
-      String(a.employeeName).localeCompare(String(b.employeeName), "zh-Hant")
-      || String(a.employeeCode).localeCompare(String(b.employeeCode))
-    ));
-  }
-
-  function styleMealExportSheet(sheet) {
-    sheet.views = [{ state: "frozen", ySplit: 1 }];
-    sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 10 } };
-    sheet.columns = Array.from({ length: 10 }, (_, index) => ({ width: index === 0 ? 18 : index === 1 ? 16 : 14 }));
-    sheet.getColumn(2).numFmt = "@";
-    sheet.getColumn(10).numFmt = "@";
-    sheet.getRow(1).font = { bold: true };
-    sheet.getRow(1).alignment = { vertical: "middle", horizontal: "center", wrapText: true };
-    sheet.eachRow((row, rowNumber) => {
-      if (rowNumber > 1) row.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
-    });
-  }
-
   async function exportMealReport(report = {}) {
-    const details = Array.isArray(report.exportDetails) ? report.exportDetails : [];
-    if (!details.length) return { canceled: true, empty: true };
-    const rows = buildMealEmployeeRows(report, details);
-    if (!rows.length) return { canceled: true, empty: true };
-    const reportDate = compactMealExportDate(report.toDate);
-    await exporter.ensureExcelJS();
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = "福圓號";
-    workbook.created = new Date();
-    const sheet = workbook.addWorksheet("訂餐統計");
-    sheet.addRow(["員工姓名", "員工編號", "早餐金額", "午餐金額", "晚餐金額", "早餐份數", "午餐份數", "晚餐份數", "總計", "日期"]);
-    rows.forEach((row) => {
-      sheet.addRow([row.employeeName, row.employeeCode, "", row.lunchAmount, "", "", row.lunchCount, "", "", reportDate]);
-    });
-    styleMealExportSheet(sheet);
+    const workbook = await exporter.createMealReportWorkbook(report);
+    if (!workbook) return { canceled: true, empty: true };
+    const reportDate = compactExportDate(report.toDate);
     const blob = await exporter.workbookToBlob(workbook);
-    const fileName = `訂餐統計_${compactMealExportDate(report.fromDate)}-${reportDate}.xlsx`;
+    const fileName = `訂餐統計_${compactExportDate(report.fromDate)}-${reportDate}.xlsx`;
     downloadBlob(blob, fileName);
     return { canceled: false, filePath: fileName };
   }
@@ -1421,7 +1341,7 @@
     saveSchedulerPreferences,
     saveHolidays,
     getGroupAccessBundle,
-    getGroupEntityMap,
+    getScheduleArchiveRanges,
     saveScheduleGroup,
     deleteScheduleGroup,
     reorderScheduleGroups,

@@ -166,7 +166,7 @@ async function loadAttendanceReview(shouldRender = true) {
 }
 
 async function loadMealReport(shouldRender = true) {
-  if (!isManager()) return;
+  if (!hasManagementAccess()) return;
   ensureRecordsState();
   recordsState = { ...recordsState, mealStats: { ...(recordsState.mealStats || {}), loading: true, error: "" } };
   if (shouldRender) renderAll();
@@ -183,7 +183,7 @@ async function loadMealReport(shouldRender = true) {
 }
 
 async function loadMealAdminSettings(shouldRender = true) {
-  if (!isManager()) return;
+  if (!hasManagementAccess()) return;
   recordsState = {
     ...recordsState,
     mealAdmin: { ...recordsState.mealAdmin, loading: true, error: "" }

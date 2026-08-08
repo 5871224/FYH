@@ -166,3 +166,12 @@ npm run ci:check
 - 班表高頻 RPC 先一次解析目前使用者的角色與適用群組，再以集合式 JOIN 篩選；禁止在每一列班表上重複呼叫 can_access_group/has_access_permission。
 - 核心資料表維持 anon/authenticated 無直接 GRANT；因此不建立 authenticated 直接 INSERT/UPDATE/DELETE RLS policy。RLS 只作唯讀防線，正式寫入一律走具名 RPC／Edge Function。
 - 資料庫 DDL 或權限調整後，需重新檢查 Supabase Performance Advisor；auth RLS init-plan 與 multiple permissive policy 警告不可無理由新增。
+
+## Canonical 程式簡化原則
+
+- 正式狀態只保存目前功能真正需要的欄位；群組／角色／刪除狀態由 canonical API 直接提供，不再透過第二份 entity map 補值。
+- 前端排班人員主鍵一律為 UUID；不得以工號或臨時字串 ID 猜測／二次查詢主鍵。
+- 已刪除的歷史班別、假別、加班由後端明確回傳歷史項目；不存在的 ID 不得自動替換成第一個可用項目。
+- Edge Functions 的台北日期、帳號有效期間、UUID 與權限 helper 統一放在 `supabase/functions/_shared/`。
+- XLSX 建立與格式由 `browser-exporter.js` 負責；`web-api.js` 僅處理 transport、RPC／Edge 呼叫與下載協調。
+- SQL 正式來源不保留文字角色相容欄位、動態文字改寫 policy、重複 policy 定義或瀏覽器直接寫入 policy。

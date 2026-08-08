@@ -1,4 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@^1";
+import { actorIdOf, addDaysToDateString as addDays, hasPermission, isProfileEffective as effective, pageNumber, positiveInteger, taipeiDateString as taipeiDate, validDate } from "../_shared/runtime.ts";
 
 const PAGE_SIZE = 50;
 
@@ -8,13 +9,6 @@ function taipeiDate(date = new Date()) {
   }).format(date);
 }
 
-function addDays(value: string, count: number) {
-  const [year, month, day] = String(value || "").split("-").map(Number);
-  if (!year || !month || !day) return "";
-  const date = new Date(year, month - 1, day);
-  date.setDate(date.getDate() + count);
-  return taipeiDate(date);
-}
 
 function effective(profile: any, today = taipeiDate()) {
   const end = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
@@ -23,35 +17,17 @@ function effective(profile: any, today = taipeiDate()) {
     && (!end || today <= end));
 }
 
-function validDate(value: unknown, fallback: string) {
-  const text = String(value || "");
-  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : fallback;
-}
 
-function pageNumber(value: unknown) {
-  const number = Number(value || 1);
-  return Number.isFinite(number) && number > 0 ? Math.floor(number) : 1;
-}
 
-function positiveInteger(value: unknown, fallback = 55) {
-  const number = Number(value);
-  return Number.isInteger(number) && number > 0 ? number : fallback;
-}
 
 async function getActor(ctx: any) {
-  const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
-  if (!userId) throw new Error("請先登入");
+  const userId = actorIdOf(ctx);
   const result = await ctx.supabaseAdmin.from("set_employee")
     .select("id,access_role_id,hire_date,leave_date,deleted_at")
     .eq("id", userId).is("deleted_at", null).single();
   if (result.error) throw result.error;
   if (!effective(result.data)) throw new Error("此帳號目前不在有效期間");
-  const permission = await ctx.supabaseAdmin.rpc("has_access_permission", {
-    p_user_id: userId,
-    p_permission: "meal_admin"
-  });
-  if (permission.error) throw permission.error;
-  if (!permission.data) throw new Error("沒有訂餐管理權限");
+  if (!await hasPermission(ctx, userId, "meal_admin")) throw new Error("沒有訂餐管理權限");
   return result.data;
 }
 

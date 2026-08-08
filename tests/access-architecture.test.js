@@ -70,21 +70,15 @@ test("打卡地點只能使用本人所屬群組的有效單位", () => {
   assert.match(source, /resolveClockLocation\(ctx, req, body, profile\.group_id\)/);
 });
 
-test("正式 SQL 最終守門使用權限項目而非文字角色", () => {
+test("正式 SQL 只保留 canonical 權限模型", () => {
   const sql = read("supabase/002_current_updates.sql");
-  const marker = sql.lastIndexOf("-- 2026-08-08 全系統權限守門收斂");
-  assert.notEqual(marker, -1, "缺少全系統權限守門收斂區段");
-  const finalSecurity = sql.slice(marker);
-  assert.match(finalSecurity, /has_access_permission\(p_user_id,'permission_settings'\)/);
-  assert.match(finalSecurity, /drop trigger if exists protect_admin_member_trigger/);
-  assert.match(finalSecurity, /drop trigger if exists trg_protect_last_effective_admin_v2/);
-  assert.match(finalSecurity, /drop trigger if exists attendance_days_touch_updated_at/);
-  assert.match(finalSecurity, /'meal_admin'/);
-  assert.match(finalSecurity, /'leave_settings'/);
-  assert.match(finalSecurity, /has_access_permission/);
-  assert.match(finalSecurity, /系統必須保留至少一個有效的權限管理帳號/);
-  assert.doesNotMatch(finalSecurity, /role\.legacy_role\s+in\s*\('admin','manager'\)/);
-  assert.doesNotMatch(finalSecurity, /employee\.role\s*=\s*'admin'/);
+  assert.match(sql, /has_access_permission/);
+  assert.match(sql, /'permission_settings'/);
+  assert.match(sql, /'meal_admin'/);
+  assert.match(sql, /'leave_settings'/);
+  assert.match(sql, /系統必須保留至少一個有效的權限管理帳號/);
+  assert.doesNotMatch(sql, /role\.legacy_role\s+in\s*\('admin','manager'\)/);
+  assert.doesNotMatch(sql, /employee\.role\s*=\s*'admin'/);
 });
 
 test("前端角色只使用 access_role_id 與權限資料，不保留文字角色相容層", () => {

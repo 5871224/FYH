@@ -1,35 +1,9 @@
 import { withSupabase } from "npm:@supabase/server@^1";
+import { addDaysToDateString, isProfileEffective, taipeiDateString } from "../_shared/runtime.ts";
 
 const MAX_GPS_DISTANCE_METERS = 300;
 const MAX_GPS_ACCURACY_METERS = 300;
 
-function taipeiDateString(date = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Taipei",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(date);
-}
-
-function addDaysToDateString(dateString: string, count: number) {
-  const [year, month, day] = String(dateString || "").split("-").map(Number);
-  if (!year || !month || !day) return "";
-  const date = new Date(year, month - 1, day);
-  date.setDate(date.getDate() + count);
-  return taipeiDateString(date);
-}
-
-function isProfileEffective(profile: any, today = taipeiDateString()) {
-  const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
-  return Boolean(
-    profile
-      && !profile.deleted_at
-      && profile.group_id
-      && (!profile.hire_date || today >= profile.hire_date)
-      && (!effectiveEndDate || today <= effectiveEndDate)
-  );
-}
 
 function getClientIp(req: Request) {
   return String(
@@ -112,7 +86,7 @@ async function getProfile(ctx: any) {
     .is("deleted_at", null)
     .single();
   if (error) throw error;
-  if (!isProfileEffective(data)) throw new Error("帳號不在有效任職期間或尚未設定群組，無法打卡");
+  if (!isProfileEffective(data) || !data?.group_id) throw new Error("帳號不在有效任職期間或尚未設定群組，無法打卡");
   return data;
 }
 

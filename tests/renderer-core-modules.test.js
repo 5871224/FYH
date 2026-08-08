@@ -14,7 +14,7 @@ function evaluateModule(fileName, exportExpression, context = {}) {
 test("renderer foundation 應保留目錄與每日簽到預設狀態", () => {
   const foundation = evaluateModule(
     "renderer-foundation.js",
-    "({ COLORS, LEAVE_CATALOG, DEFAULT_STATE, ROLE_OPTIONS, createRecordsState })",
+    "({ COLORS, LEAVE_CATALOG, DEFAULT_STATE, createRecordsState })",
     {
       getTodayDateString: () => "2026-07-12",
       addDaysToDateString: (value, days) => days === -30 ? "2026-06-12" : days === -49 ? "2026-05-24" : value
@@ -24,7 +24,6 @@ test("renderer foundation 應保留目錄與每日簽到預設狀態", () => {
   assert.equal(foundation.COLORS.length, 23);
   assert.equal(foundation.LEAVE_CATALOG.some((item) => item.code === "0036" && item.name === "例假"), true);
   assert.equal(foundation.DEFAULT_STATE.rules.maxConsecutiveWorkDays, 6);
-  assert.equal(foundation.ROLE_OPTIONS.map((item) => item.value).join(","), "admin,manager,employee");
 
   const records = foundation.createRecordsState();
   assert.equal(records.mealFilters.fromDate, "2026-07-12");

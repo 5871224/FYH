@@ -16,12 +16,9 @@ const GROUP_PERMISSION_LABELS = {
 
 const groupFeatureState = {
   bundle: { actor: {}, groups: [], roles: [] },
-  entityMap: { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] },
+  archiveRanges: [],
   currentGroupId: "",
-  allDepartments: [],
-  allMembers: [],
-  allShifts: [],
-  allSchedule: {},
+  catalog: { departments: [], members: [], shifts: [], schedule: {} },
   initialized: false,
   dragGroupId: ""
 };
@@ -30,10 +27,10 @@ async function loadGroupAccessData(payload = {}) {
   groupFeatureState.bundle = payload.accessBundle && typeof payload.accessBundle === "object"
     ? payload.accessBundle
     : await window.schedulerApi.getGroupAccessBundle();
-  groupFeatureState.entityMap = payload.entityMap && typeof payload.entityMap === "object"
-    ? payload.entityMap
-    : await window.schedulerApi.getGroupEntityMap();
-  return { bundle: groupFeatureState.bundle, entityMap: groupFeatureState.entityMap };
+  groupFeatureState.archiveRanges = Array.isArray(payload.archiveRanges)
+    ? payload.archiveRanges
+    : await window.schedulerApi.getScheduleArchiveRanges();
+  return { bundle: groupFeatureState.bundle, archiveRanges: groupFeatureState.archiveRanges };
 }
 
 
@@ -51,6 +48,12 @@ function getCurrentGroup() { return getAllGroups().find((group) => group.id === 
 function getActorGroup() { return getAllGroups().find((group) => group.id === getAccessActor().groupId) || null; }
 function getAllRoles() { return Array.isArray(groupFeatureState.bundle?.roles) ? groupFeatureState.bundle.roles : []; }
 function getRoleById(roleId) { return getAllRoles().find((role) => role.id === roleId) || null; }
+function getDefaultAccessRoleId() {
+  return getAllRoles().find((role) => {
+    const permissions = Array.isArray(role.permissions) ? role.permissions : [];
+    return permissions.length <= 1 && permissions.every((permission) => permission === "schedule_view");
+  })?.id || getAllRoles()[0]?.id || "";
+}
 
 function chooseCurrentGroupId() {
   const selectable = getSelectableGroups();
@@ -62,10 +65,6 @@ function chooseCurrentGroupId() {
   return selectable[0].id;
 }
 
-function makeIdMap(rows, valueKey) {
-  return new Map((Array.isArray(rows) ? rows : []).map((row) => [row.id, row[valueKey]]));
-}
-
 function appendDeletedLabel(value, deleted) {
   const text = String(value || "");
   if (!deleted || text.endsWith("（已刪除）")) return text;
@@ -73,43 +72,29 @@ function appendDeletedLabel(value, deleted) {
 }
 
 function enrichNormalizedState(normalized) {
-  const departmentGroups = makeIdMap(groupFeatureState.entityMap.departments, "groupId");
-  const departmentDeleted = makeIdMap(groupFeatureState.entityMap.departments, "deleted");
-  const memberGroups = makeIdMap(groupFeatureState.entityMap.members, "groupId");
-  const memberRoles = makeIdMap(groupFeatureState.entityMap.members, "roleId");
-  const memberDeleted = makeIdMap(groupFeatureState.entityMap.members, "deleted");
-  const shiftGroups = makeIdMap(groupFeatureState.entityMap.shifts, "groupId");
-  const shiftDeleted = makeIdMap(groupFeatureState.entityMap.shifts, "deleted");
-  const leaveDeleted = makeIdMap(groupFeatureState.entityMap.leaves, "deleted");
-  const overtimeDeleted = makeIdMap(groupFeatureState.entityMap.overtime, "deleted");
-
-  normalized.departments = (normalized.departments || []).map((department) => {
-    const deleted = Boolean(department.deleted || departmentDeleted.get(department.id));
-    return { ...department, name: appendDeletedLabel(department.name, deleted), groupId: departmentGroups.get(department.id) || "", deleted };
-  });
-  normalized.members = (normalized.members || []).map((member) => {
-    const roleId = memberRoles.get(member.id) || member.roleId || "";
-    const deleted = Boolean(member.deleted || memberDeleted.get(member.id));
-    return { ...member, name: appendDeletedLabel(member.name, deleted), groupId: memberGroups.get(member.id) || "", roleId, deleted };
-  });
-  normalized.shifts = (normalized.shifts || []).map((shift) => {
-    const deleted = Boolean(shift.deleted || shiftDeleted.get(shift.id));
-    return {
-      ...shift,
-      name: appendDeletedLabel(shift.name, deleted),
-      groupId: shiftGroups.get(shift.id) || normalized.departments.find((department) => department.id === shift.applicableDeptId)?.groupId || "",
-      hiddenFromToolbar: deleted || Boolean(shift.hiddenFromToolbar),
-      deleted
-    };
-  });
-  normalized.leaves = (normalized.leaves || []).map((leave) => {
-    const deleted = Boolean(leave.deleted || leaveDeleted.get(leave.id));
-    return { ...leave, name: appendDeletedLabel(leave.name, deleted), hiddenFromToolbar: deleted || Boolean(leave.hiddenFromToolbar), deleted };
-  });
-  normalized.overtime = (normalized.overtime || []).map((overtime) => {
-    const deleted = Boolean(overtime.deleted || overtimeDeleted.get(overtime.id));
-    return { ...overtime, name: appendDeletedLabel(overtime.name, deleted), hiddenFromToolbar: deleted || Boolean(overtime.hiddenFromToolbar), deleted };
-  });
+  normalized.departments = (normalized.departments || []).map((department) => ({
+    ...department,
+    name: appendDeletedLabel(department.name, department.deleted)
+  }));
+  normalized.members = (normalized.members || []).map((member) => ({
+    ...member,
+    name: appendDeletedLabel(member.name, member.deleted)
+  }));
+  normalized.shifts = (normalized.shifts || []).map((shift) => ({
+    ...shift,
+    name: appendDeletedLabel(shift.name, shift.deleted),
+    hiddenFromToolbar: Boolean(shift.deleted || shift.hiddenFromToolbar)
+  }));
+  normalized.leaves = (normalized.leaves || []).map((leave) => ({
+    ...leave,
+    name: appendDeletedLabel(leave.name, leave.deleted),
+    hiddenFromToolbar: Boolean(leave.deleted || leave.hiddenFromToolbar)
+  }));
+  normalized.overtime = (normalized.overtime || []).map((overtime) => ({
+    ...overtime,
+    name: appendDeletedLabel(overtime.name, overtime.deleted),
+    hiddenFromToolbar: Boolean(overtime.deleted || overtime.hiddenFromToolbar)
+  }));
   normalized.groups = getAllGroups();
   normalized.accessRoles = getAllRoles();
   normalized.access = getAccessActor();
@@ -124,49 +109,49 @@ function scheduleKeyMemberId(key) {
   return parts.join("_");
 }
 
-function snapshotAllState(normalized) {
-  groupFeatureState.allDepartments = deepClone(normalized.departments || []);
-  groupFeatureState.allMembers = deepClone(normalized.members || []);
-  groupFeatureState.allShifts = deepClone(normalized.shifts || []);
-  groupFeatureState.allSchedule = deepClone(normalized.schedule || {});
+function snapshotCanonicalState(normalized) {
+  groupFeatureState.catalog.departments = deepClone(normalized.departments || []);
+  groupFeatureState.catalog.members = deepClone(normalized.members || []);
+  groupFeatureState.catalog.shifts = deepClone(normalized.shifts || []);
+  groupFeatureState.catalog.schedule = deepClone(normalized.schedule || {});
 }
 
 function currentGroupMemberIds() {
-  return new Set(groupFeatureState.allMembers.filter((member) => member.groupId === groupFeatureState.currentGroupId).map((member) => member.id));
+  return new Set(groupFeatureState.catalog.members.filter((member) => member.groupId === groupFeatureState.currentGroupId).map((member) => member.id));
 }
 
-function syncCurrentScopeIntoAll() {
+function syncCurrentScopeIntoCatalog() {
   const groupId = groupFeatureState.currentGroupId;
   if (!groupId || !state || typeof state !== "object") return;
-  groupFeatureState.allDepartments = [
-    ...groupFeatureState.allDepartments.filter((item) => item.groupId !== groupId),
+  groupFeatureState.catalog.departments = [
+    ...groupFeatureState.catalog.departments.filter((item) => item.groupId !== groupId),
     ...(state.departments || []).map((item) => ({ ...deepClone(item), groupId }))
   ];
-  groupFeatureState.allMembers = [
-    ...groupFeatureState.allMembers.filter((item) => item.groupId !== groupId),
+  groupFeatureState.catalog.members = [
+    ...groupFeatureState.catalog.members.filter((item) => item.groupId !== groupId),
     ...(state.members || []).map((item) => ({ ...deepClone(item), groupId: item.groupId || groupId }))
   ];
-  groupFeatureState.allShifts = [
-    ...groupFeatureState.allShifts.filter((item) => item.groupId !== groupId),
+  groupFeatureState.catalog.shifts = [
+    ...groupFeatureState.catalog.shifts.filter((item) => item.groupId !== groupId),
     ...(state.shifts || []).map((item) => ({ ...deepClone(item), groupId: item.groupId || groupId }))
   ];
   const memberIds = currentGroupMemberIds();
   const nextSchedule = {};
-  Object.entries(groupFeatureState.allSchedule || {}).forEach(([key, slot]) => {
+  Object.entries(groupFeatureState.catalog.schedule || {}).forEach(([key, slot]) => {
     if (!memberIds.has(scheduleKeyMemberId(key))) nextSchedule[key] = slot;
   });
   Object.entries(state.schedule || {}).forEach(([key, slot]) => { nextSchedule[key] = deepClone(slot); });
-  groupFeatureState.allSchedule = nextSchedule;
+  groupFeatureState.catalog.schedule = nextSchedule;
 }
 
 function applyCurrentGroupScope(targetState = state) {
   const groupId = groupFeatureState.currentGroupId;
-  const departments = groupFeatureState.allDepartments.filter((item) => item.groupId === groupId);
-  const members = groupFeatureState.allMembers.filter((item) => item.groupId === groupId);
-  const shifts = groupFeatureState.allShifts.filter((item) => item.groupId === groupId);
+  const departments = groupFeatureState.catalog.departments.filter((item) => item.groupId === groupId);
+  const members = groupFeatureState.catalog.members.filter((item) => item.groupId === groupId);
+  const shifts = groupFeatureState.catalog.shifts.filter((item) => item.groupId === groupId);
   const memberIds = new Set(members.map((member) => member.id));
   const schedule = {};
-  Object.entries(groupFeatureState.allSchedule || {}).forEach(([key, slot]) => {
+  Object.entries(groupFeatureState.catalog.schedule || {}).forEach(([key, slot]) => {
     if (memberIds.has(scheduleKeyMemberId(key))) schedule[key] = deepClone(slot);
   });
   targetState.departments = deepClone(departments);
@@ -198,7 +183,7 @@ async function switchScheduleGroup(groupId) {
   if (!roleAppliesToGroup(groupId)) return;
   const group = getAllGroups().find((item) => item.id === groupId && item.status === "active");
   if (!group) return;
-  syncCurrentScopeIntoAll();
+  syncCurrentScopeIntoCatalog();
   groupFeatureState.currentGroupId = groupId;
   localStorage.setItem("fyh.schedule.groupId", groupId);
   applyCurrentGroupScope(state);
@@ -224,7 +209,7 @@ async function reloadGroupApplicationState() {
 }
 
 function isArchivedDate(dateString, groupId = groupFeatureState.currentGroupId) {
-  return (groupFeatureState.entityMap.archiveRanges || []).some((range) => range.groupId === groupId && dateString >= range.startDate && dateString <= range.endDate);
+  return (groupFeatureState.archiveRanges || []).some((range) => range.groupId === groupId && dateString >= range.startDate && dateString <= range.endDate);
 }
 
 function isDeletedScheduleMember(memberId) {
@@ -496,7 +481,7 @@ async function createScheduleArchive() {
   if (!group || !startDate || !endDate || startDate > endDate) { reportValidationError("封存日期範圍不正確"); return; }
   if (!await confirmAction(`確定封存「${group.name}」${startDate}～${endDate} 的班表嗎？封存後不可修改。`)) return;
   await window.schedulerApi.archiveSchedule(group.id, startDate, endDate);
-  groupFeatureState.entityMap = await window.schedulerApi.getGroupEntityMap();
+  groupFeatureState.archiveRanges = await window.schedulerApi.getScheduleArchiveRanges();
   scheduleUndoStack = [];
   scheduleRedoStack = [];
   renderAll();
@@ -508,7 +493,7 @@ async function unarchiveSchedule(archiveId) {
   if (!archive) return;
   if (!await confirmAction(`確定解除「${archive.group_name || ""}」${archive.start_date || ""}～${archive.end_date || ""} 的班表封存嗎？解除後可重新修改班表。`)) return;
   await window.schedulerApi.unarchiveSchedule(archiveId);
-  groupFeatureState.entityMap = await window.schedulerApi.getGroupEntityMap();
+  groupFeatureState.archiveRanges = await window.schedulerApi.getScheduleArchiveRanges();
   scheduleUndoStack = [];
   scheduleRedoStack = [];
   await reloadGroupApplicationState();
@@ -528,8 +513,8 @@ async function viewScheduleArchive(archiveId) {
   });
 }
 
-function getDepartmentsForGroup(groupId) { return groupFeatureState.allDepartments.filter((department) => department.groupId === groupId && !department.deleted); }
-function getShiftsForGroup(groupId) { return groupFeatureState.allShifts.filter((shift) => shift.groupId === groupId && !shift.deleted); }
+function getDepartmentsForGroup(groupId) { return groupFeatureState.catalog.departments.filter((department) => department.groupId === groupId && !department.deleted); }
+function getShiftsForGroup(groupId) { return groupFeatureState.catalog.shifts.filter((shift) => shift.groupId === groupId && !shift.deleted); }
 function renderMemberGroupOptions(selectedGroupId) { return getSelectableGroups().map((group) => `<option value="${escapeHtml(group.id)}" ${group.id === selectedGroupId ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join(""); }
 function renderMemberUnitOptions(groupId, selectedDeptId = "") { return getDepartmentsForGroup(groupId).map((department) => `<option value="${escapeHtml(department.id)}" ${department.id === selectedDeptId ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join(""); }
 function renderMemberGroupShiftSelector(groupId, selectedIds = []) {
@@ -541,25 +526,17 @@ function memberShiftNamesForGroup(groupId, selectedIds) {
   const names = (selectedIds || []).map((id) => map.get(id)).filter(Boolean);
   return names.length ? names.join("、") : "未指定";
 }
-function renderMemberRoleOptions(member) {
-  const selectedRoleId = member?.roleId || "";
-  const options = hasPermission("permission_settings") ? getAllRoles() : getAllRoles().filter((role) => role.id === selectedRoleId);
-  return options.map((role) => `<option value="${escapeHtml(role.id)}" ${role.id === selectedRoleId ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("");
-}
 
 function openMemberForm(mode, memberId = "") {
   const returnTo = modalContext?.category === "department-settings"
     ? captureSettingsReturnContext({ category: "department-settings", view: modalContext.view || departmentSettingsView })
     : modalContext?.category === "member-settings" ? captureSettingsReturnContext({ category: "member-settings" }) : null;
-  const defaultAccessRole = getAllRoles().find((role) => {
-    const permissions = Array.isArray(role.permissions) ? role.permissions : [];
-    return permissions.length === 1 && permissions.includes("schedule_view");
-  }) || getAllRoles()[0] || null;
+  const defaultAccessRoleId = getDefaultAccessRoleId();
   const member = mode === "edit" ? state.members.find((item) => item.id === memberId) : {
     id: "", code: "", name: "", groupId: groupFeatureState.currentGroupId,
     deptId: getDepartmentsForGroup(groupFeatureState.currentGroupId)[0]?.id || "",
     hireDate: "", leaveDate: "", payByDay: false, fixedRestWeekday: 0,
-    scheduleShiftIds: [], roleId: defaultAccessRole?.id || ""
+    scheduleShiftIds: [], roleId: defaultAccessRoleId
   };
   if (!member) return;
   if (!canEditMemberAccount(member)) { showInfoMessage("沒有權限修改此帳號"); return; }
@@ -691,13 +668,8 @@ function initializeGroupPermissionState(payload) {
   if (!groupFeatureState.currentGroupId || !getSelectableGroups().some((group) => group.id === groupFeatureState.currentGroupId)) {
     groupFeatureState.currentGroupId = chooseCurrentGroupId();
   }
-  snapshotAllState(normalized);
+  snapshotCanonicalState(normalized);
   groupFeatureState.initialized = true;
   return applyCurrentGroupScope(normalized);
 }
 
-function refreshGroupEntityMap(entityMap) {
-  groupFeatureState.entityMap = entityMap && typeof entityMap === "object"
-    ? entityMap
-    : { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] };
-}

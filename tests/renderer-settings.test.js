@@ -22,7 +22,7 @@ test("目錄設定應保留顏色預覽與共用操作按鈕", () => {
 });
 
 test("單位表單應保留有效期間、班表顯示與打卡欄位", () => {
-  const context = { escapeHtml: String, isAdmin: () => true };
+  const context = { escapeHtml: String, canManagePermissions: () => true };
   const api = evaluate("renderer-settings-department.js", "({ renderDepartmentFormBody })", context);
   const html = api.renderDepartmentFormBody({ name: "門市", startDate: "2026-01-01", endDate: "", hiddenFromSchedule: true, address: "台北", latitude: 25, longitude: 121, publicIp: "1.2.3.4", attendanceEnabled: true }, "");
   ["departmentStartDate", "departmentEndDate", "departmentHiddenFromSchedule", "departmentAddress", "departmentLatitude", "departmentLongitude", "departmentPublicIp", "departmentAttendanceEnabled"].forEach((id) => assert.equal(html.includes(id), true));

@@ -89,7 +89,7 @@ function showScheduleTooltip(memberId, day, category, anchorRect) {
           ? `${item?.code || ""} ${meta?.displayName || item?.name || ""}`.trim()
           : (meta?.displayName || item?.name || "加班")
       )}</div>
-      ${isManager()
+      ${hasManagementAccess()
         ? (isLeave
           ? renderActionIconButton("edit", `data-edit-leave-assignment="${memberId}:${day}"`, "leave-tooltip-btn")
           : renderActionIconButton("edit", `data-edit-overtime-assignment="${memberId}:${day}"`, "leave-tooltip-btn"))

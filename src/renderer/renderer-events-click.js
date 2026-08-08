@@ -212,7 +212,7 @@ function bindDelegatedClickEvents() {
       target.dataset.deleteMember ||
       target.dataset.resetMemberPassword
     );
-    if (managerOnlyAction && !isManager()) {
+    if (managerOnlyAction && !hasManagementAccess()) {
       promptManagerAccess("此功能需先登入主管帳號");
       return;
     }

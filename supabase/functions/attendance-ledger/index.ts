@@ -1,4 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@^1";
+import { addDaysToDateString as addDays, datesBetween, isProfileEffective as effective, isProfileEmployedOn as employedOn, pageNumber, taipeiDateString as taipeiDate, validDate } from "../_shared/runtime.ts";
 
 const PAGE_SIZE = 50;
 function taipeiDate(date = new Date()) {
@@ -10,23 +11,8 @@ function taipeiDate(date = new Date()) {
   }).format(date);
 }
 
-function addDays(value: string, count: number) {
-  const [year, month, day] = String(value || "").split("-").map(Number);
-  if (!year || !month || !day) return "";
-  const date = new Date(year, month - 1, day);
-  date.setDate(date.getDate() + count);
-  return taipeiDate(date);
-}
 
-function validDate(value: unknown, fallback: string) {
-  const text = String(value || "");
-  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : fallback;
-}
 
-function pageNumber(value: unknown) {
-  const number = Number(value || 1);
-  return Number.isFinite(number) && number > 0 ? Math.floor(number) : 1;
-}
 
 function effective(profile: any, today = taipeiDate()) {
   const end = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
@@ -35,16 +21,7 @@ function effective(profile: any, today = taipeiDate()) {
     && (!end || today <= end));
 }
 
-function employedOn(profile: any, date: string) {
-  return Boolean((!profile?.hire_date || date >= profile.hire_date)
-    && (!profile?.leave_date || date <= profile.leave_date));
-}
 
-function datesBetween(fromDate: string, toDate: string) {
-  const dates: string[] = [];
-  for (let date = fromDate; date && date <= toDate; date = addDays(date, 1)) dates.push(date);
-  return dates;
-}
 
 function shiftMinutes(value: string) {
   const match = String(value || "").match(/^(\d{1,2}):(\d{2})/);

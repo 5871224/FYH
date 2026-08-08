@@ -1,7 +1,7 @@
 let departmentAttendanceSettingsUserId = "";
 
 async function ensureDepartmentAttendanceSettingsLoaded() {
-  if (!isAdmin()) return;
+  if (!canManagePermissions()) return;
   const userId = currentProfile?.id || "";
   if (userId && departmentAttendanceSettingsUserId === userId) return;
   const settings = await window.schedulerApi.getDepartmentAttendanceSettings();
@@ -118,7 +118,7 @@ function renderDepartmentAttendanceFields(department, disabledAttr) {
           是否啟用打卡
         </label>
       </div>
-      ${isAdmin() ? "" : '<p class="modal-description">打卡地址、座標、固定 IP 與是否啟用打卡只有管理員可以修改。</p>'}
+      ${canManagePermissions() ? "" : '<p class="modal-description">打卡地址、座標、固定 IP 與是否啟用打卡只有管理員可以修改。</p>'}
   `;
 }
 
@@ -158,7 +158,7 @@ function openDepartmentForm(mode, departmentId = "") {
   if (!department) {
     return;
   }
-  const attendanceFieldsDisabled = isAdmin() ? "" : "disabled";
+  const attendanceFieldsDisabled = canManagePermissions() ? "" : "disabled";
   modalContext = { mode, category: "department", targetId: departmentId, returnTo };
   openEntityListModal({
     title: `${mode === "edit" ? "修改" : "新增"}單位`,
@@ -212,15 +212,15 @@ async function saveDepartment(mode) {
     reportValidationError("開始日期必須早於結束日期");
     return;
   }
-  if (isAdmin() && latitude !== "" && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) {
+  if (canManagePermissions() && latitude !== "" && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) {
     reportValidationError("緯度必須介於 -90 到 90");
     return;
   }
-  if (isAdmin() && longitude !== "" && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) {
+  if (canManagePermissions() && longitude !== "" && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) {
     reportValidationError("經度必須介於 -180 到 180");
     return;
   }
-  const attendancePayload = isAdmin()
+  const attendancePayload = canManagePermissions()
     ? {
       address: document.getElementById("departmentAddress")?.value.trim() || "",
       latitude,

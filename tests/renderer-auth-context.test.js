@@ -15,7 +15,7 @@ const coreSource = read("scripts/renderer-core-source.js");
 
 test("目前人員應優先依 profile id，再依工號解析", () => {
   const start = authContext.indexOf("function resolveCurrentMember");
-  const end = authContext.indexOf("function isAdmin", start);
+  const end = authContext.indexOf("function canManagePermissions", start);
   const context = {
     state: { members: [{ id: "M1", code: "001" }, { id: "M2", code: "002" }] },
     currentProfile: { id: "M2", employee_code: "001" }
@@ -27,7 +27,7 @@ test("目前人員應優先依 profile id，再依工號解析", () => {
 });
 
 test("管理能力應完全由權限項目與適用群組決定", () => {
-  const start = authContext.indexOf("function isAdmin");
+  const start = authContext.indexOf("function canManagePermissions");
   const end = authContext.indexOf("async function ensureManagerDirectoryLoaded", start);
   let permissions = [];
   const context = {
@@ -37,14 +37,14 @@ test("管理能力應完全由權限項目與適用群組決定", () => {
     hasPermission: (permission) => permissions.includes(permission),
     roleAppliesToGroup: (groupId) => groupId === "G1"
   };
-  const api = vm.runInNewContext(authContext.slice(start, end) + "\n;({ isAdmin, isManager, canEditSchedule })", context);
-  assert.equal(api.isManager(), false);
+  const api = vm.runInNewContext(authContext.slice(start, end) + "\n;({ canManagePermissions, hasManagementAccess, canEditSchedule })", context);
+  assert.equal(api.hasManagementAccess(), false);
   permissions = ["schedule_view", "schedule_manage"];
-  assert.equal(api.isManager(), true);
-  assert.equal(api.isAdmin(), false);
+  assert.equal(api.hasManagementAccess(), true);
+  assert.equal(api.canManagePermissions(), false);
   assert.equal(api.canEditSchedule(), true);
   permissions.push("permission_settings");
-  assert.equal(api.isAdmin(), true);
+  assert.equal(api.canManagePermissions(), true);
 });
 
 test("假別明細與設定輔助應位於對應責任模組", () => {

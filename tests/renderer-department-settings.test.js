@@ -18,7 +18,7 @@ test("單位設定最終畫面應直接由正式模組提供七欄", async () =>
     departmentSettingsView: "",
     modalContext: {},
     ensureManagerDirectoryLoaded: async () => {},
-    isAdmin: () => false,
+    canManagePermissions: () => false,
     showInfoMessage: () => {},
     isMemberCurrentlyActive: (member) => member.active,
     getMemberHomeDeptId: (member) => member.deptId,

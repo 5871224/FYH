@@ -1,4 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@^1";
+import { hasPermission, isProfileEffective, positiveInteger, taipeiDateString, taipeiTimeString } from "../_shared/runtime.ts";
 
 function taipeiDateString(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -9,13 +10,6 @@ function taipeiDateString(date = new Date()) {
   }).format(date);
 }
 
-function addDaysToDateString(dateString: string, count: number) {
-  const [year, month, day] = String(dateString || "").split("-").map(Number);
-  if (!year || !month || !day) return "";
-  const date = new Date(year, month - 1, day);
-  date.setDate(date.getDate() + count);
-  return taipeiDateString(date);
-}
 
 function isProfileEffective(profile: any, today = taipeiDateString()) {
   const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
@@ -36,19 +30,7 @@ function taipeiTimeString(date = new Date()) {
   }).format(date);
 }
 
-function positiveInteger(value: unknown, fallback = 55) {
-  const number = Number(value);
-  return Number.isInteger(number) && number > 0 ? number : fallback;
-}
 
-async function hasPermission(ctx: any, userId: string, permission: string) {
-  const result = await ctx.supabaseAdmin.rpc("has_access_permission", {
-    p_user_id: userId,
-    p_permission: permission
-  });
-  if (result.error) throw result.error;
-  return Boolean(result.data);
-}
 
 async function getProfile(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";

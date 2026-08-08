@@ -36,10 +36,10 @@ function clearScheduleApplicationState() {
   scheduleApplicationLoaded = false;
   scheduleApplicationLoading = null;
   groupFeatureState.entityMap = { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] };
-  groupFeatureState.allDepartments = [];
-  groupFeatureState.allMembers = [];
-  groupFeatureState.allShifts = [];
-  groupFeatureState.allSchedule = {};
+  groupFeatureState.catalog.departments = [];
+  groupFeatureState.catalog.members = [];
+  groupFeatureState.catalog.shifts = [];
+  groupFeatureState.catalog.schedule = {};
   groupFeatureState.initialized = false;
   hideScheduleLoadingIndicator();
 }

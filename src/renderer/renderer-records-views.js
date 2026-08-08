@@ -13,7 +13,7 @@ function renderHomeIconButton() {
 function renderRecordsTabs() {
   const tabs = [
     ["personal", "個人記錄", true],
-    ["review", "簽到審核", isAdmin()]
+    ["review", "簽到審核", canManagePermissions()]
   ].filter((tab) => tab[2]);
   if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
   return `<div class="record-tabs" role="tablist" aria-label="簽到簿分頁">${tabs.map(([id, label]) => `<button class="ghost-btn page-tab-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" role="tab" aria-selected="${recordsState.activeTab === id ? "true" : "false"}" data-records-tab="${id}">${label}</button>`).join("")}</div>`;

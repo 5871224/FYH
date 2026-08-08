@@ -33,7 +33,7 @@ function syncAppView() {
   const scheduleCard = document.getElementById("scheduleCard");
   const toolbarCard = document.querySelector(".toolbar-card");
   const showSchedule = loggedIn && appView === "schedule";
-  const showToolbar = showSchedule && isManager();
+  const showToolbar = showSchedule && hasManagementAccess();
   if (homeCard) homeCard.hidden = !loggedIn || appView !== "home";
   if (mealCard) mealCard.hidden = !loggedIn || appView !== "meal";
   if (recordsCard) recordsCard.hidden = !loggedIn || appView !== "records";

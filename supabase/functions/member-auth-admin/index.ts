@@ -1,4 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@^1";
+import { actorIdOf, addDaysToDateString, canAccessGroup, hasPermission, isProfileEffective, isUuid, rpcBoolean, taipeiDateString } from "../_shared/runtime.ts";
 
 type MemberPayload = {
   employeeCode?: string;
@@ -19,7 +20,6 @@ type AccessRole = {
   code: string;
   name: string;
   permissions: string[];
-  legacy_role: string;
 };
 
 const DEFAULT_PASSWORD = "0000";
@@ -35,13 +35,6 @@ function taipeiDateString(date = new Date()) {
   }).format(date);
 }
 
-function addDaysToDateString(dateString: string, count: number) {
-  const [year, month, day] = String(dateString || "").split("-").map(Number);
-  if (!year || !month || !day) return "";
-  const date = new Date(year, month - 1, day);
-  date.setDate(date.getDate() + count);
-  return taipeiDateString(date);
-}
 
 function isProfileEffective(profile: any, today = taipeiDateString()) {
   const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
@@ -52,9 +45,6 @@ function isProfileEffective(profile: any, today = taipeiDateString()) {
   );
 }
 
-function isUuid(value: unknown) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || "").trim());
-}
 
 function normalizeCodeKey(value: unknown) {
   return String(value || "").trim().toLocaleLowerCase("en-US");
@@ -70,33 +60,9 @@ function buildLoginEmail(employeeCode: string) {
   return `${normalized}@local.invalid`;
 }
 
-function actorIdOf(ctx: any) {
-  const actorId = String(ctx.userClaims?.sub || ctx.userClaims?.id || "").trim();
-  if (!isUuid(actorId)) throw new Error("缺少有效登入身分");
-  return actorId;
-}
 
-async function rpcBoolean(ctx: any, name: string, payload: Record<string, unknown>) {
-  const { data, error } = await ctx.supabaseAdmin.rpc(name, payload);
-  if (error) throw error;
-  return data === true;
-}
 
-async function hasPermission(ctx: any, actorId: string, permission: string) {
-  return rpcBoolean(ctx, "has_access_permission", {
-    p_user_id: actorId,
-    p_permission: permission
-  });
-}
 
-async function canAccessGroup(ctx: any, actorId: string, groupId: string, permission = MEMBER_PERMISSION) {
-  if (!isUuid(groupId)) return false;
-  return rpcBoolean(ctx, "can_access_group", {
-    p_user_id: actorId,
-    p_group_id: groupId,
-    p_permission: permission
-  });
-}
 
 async function requireMemberManager(ctx: any) {
   const actorId = actorIdOf(ctx);

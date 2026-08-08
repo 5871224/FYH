@@ -71,14 +71,14 @@ function renderMealPage() {
       </div>
       ${renderHomeIconButton()}
     </div>
-    ${isManager() ? `
+    ${hasManagementAccess() ? `
       <div class="meal-tabs" role="tablist" aria-label="訂餐頁分頁">
         <button class="ghost-btn page-tab-btn ${mealPageTab === "order" ? "active" : ""}" type="button" role="tab" aria-selected="${mealPageTab === "order" ? "true" : "false"}" data-meal-tab="order">今日訂餐</button>
         <button class="ghost-btn page-tab-btn ${mealPageTab === "stats" ? "active" : ""}" type="button" role="tab" aria-selected="${mealPageTab === "stats" ? "true" : "false"}" data-meal-tab="stats">訂餐統計</button>
         <button class="ghost-btn page-tab-btn ${mealPageTab === "settings" ? "active" : ""}" type="button" role="tab" aria-selected="${mealPageTab === "settings" ? "true" : "false"}" data-meal-tab="settings">訂餐設定</button>
       </div>
     ` : ""}
-    ${isManager() && mealPageTab === "settings" ? renderMealSettingsSection() : isManager() && mealPageTab === "stats" ? renderMealReportSection() : `
+    ${hasManagementAccess() && mealPageTab === "settings" ? renderMealSettingsSection() : hasManagementAccess() && mealPageTab === "stats" ? renderMealReportSection() : `
     <section class="records-section meal-order-section">
       ${mealOrderState.error ? `<div class="auth-error clock-error">${escapeHtml(mealOrderState.error)}</div>` : ""}
     ${unavailableReason ? `<div class="auth-error clock-error">${escapeHtml(unavailableReason)}</div>` : ""}

@@ -814,6 +814,69 @@
     return { items };
   }
 
+  function buildMealEmployeeRows(report, details) {
+    const companySubsidy = Number(report.companySubsidy || 55);
+    const employees = new Map();
+    details.forEach((row) => {
+      const key = String(row.employeeId || row.employeeCode || row.employeeName || "");
+      if (!key) return;
+      const current = employees.get(key) || {
+        employeeName: row.employeeName || "",
+        employeeCode: row.employeeCode || "",
+        dates: new Set(),
+        amount: 0
+      };
+      const quantity = Number(row.quantity || 0);
+      const amount = Number(row.amount ?? (quantity * Number(row.unitPrice || 0))) || 0;
+      if (quantity > 0 && row.date) current.dates.add(row.date);
+      current.amount += amount;
+      if (!current.employeeName && row.employeeName) current.employeeName = row.employeeName;
+      if (!current.employeeCode && row.employeeCode) current.employeeCode = row.employeeCode;
+      employees.set(key, current);
+    });
+    return [...employees.values()].map((row) => ({
+      employeeName: row.employeeName,
+      employeeCode: row.employeeCode,
+      lunchAmount: row.amount - row.dates.size * companySubsidy,
+      lunchCount: row.dates.size
+    })).sort((a, b) => (
+      String(a.employeeName).localeCompare(String(b.employeeName), "zh-Hant")
+      || String(a.employeeCode).localeCompare(String(b.employeeCode))
+    ));
+  }
+
+  function styleMealExportSheet(sheet) {
+    sheet.views = [{ state: "frozen", ySplit: 1 }];
+    sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 10 } };
+    sheet.columns = Array.from({ length: 10 }, (_, index) => ({ width: index === 0 ? 18 : index === 1 ? 16 : 14 }));
+    sheet.getColumn(2).numFmt = "@";
+    sheet.getColumn(10).numFmt = "@";
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) row.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    });
+  }
+
+  async function createMealReportWorkbook(report = {}) {
+    const details = Array.isArray(report.exportDetails) ? report.exportDetails : [];
+    if (!details.length) return null;
+    const rows = buildMealEmployeeRows(report, details);
+    if (!rows.length) return null;
+    await ensureExcelJS();
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "福圓號";
+    workbook.created = new Date();
+    const sheet = workbook.addWorksheet("訂餐統計");
+    const reportDate = String(report.toDate || "").replace(/[^0-9]/g, "").slice(0, 8);
+    sheet.addRow(["員工姓名", "員工編號", "早餐金額", "午餐金額", "晚餐金額", "早餐份數", "午餐份數", "晚餐份數", "總計", "日期"]);
+    rows.forEach((row) => {
+      sheet.addRow([row.employeeName, row.employeeCode, "", row.lunchAmount, "", "", row.lunchCount, "", "", reportDate]);
+    });
+    styleMealExportSheet(sheet);
+    return workbook;
+  }
+
   async function workbookToBlob(workbook) {
     const buffer = await workbook.xlsx.writeBuffer();
     return new Blob(
@@ -883,6 +946,7 @@
     createShiftWorkbook,
     createLeaveSettingsWorkbook,
     createOvertimeSettingsWorkbook,
+    createMealReportWorkbook,
     parseMemberWorkbook,
     parseDepartmentWorkbook,
     parseShiftWorkbook,
@@ -1418,13 +1482,13 @@
   }
 
   async function getMyProfileRow() {
-    const rows = await callRpc("get_my_profile_v2", {}, { auth: true }) || [];
+    const rows = await callRpc("get_my_profile_v3", {}, { auth: true }) || [];
     return rows[0] || null;
   }
 
       async function getEmployeeAdminDirectoryRows() {
     ensureSignedIn();
-    return await callRpc("get_employee_admin_directory_v3", {}) || [];
+    return callRpc("get_employee_admin_directory_v3", {}) || [];
   }
 
 
@@ -1915,7 +1979,7 @@
     if (!normalizedStart || !normalizedEnd || normalizedStart > normalizedEnd) {
       throw new Error("匯出日期範圍不正確");
     }
-    return await callRpc("get_schedule_export_rows_v2", {
+    return callRpc("get_schedule_export_rows_v2", {
       p_start_date: normalizedStart,
       p_end_date: normalizedEnd
     }, { auth: true }) || [];
@@ -2073,7 +2137,7 @@
       schedule: mapScheduleRows(scheduleEntryRows, members),
       scheduleLoadedRanges: [scheduleRange],
       accessBundle: bootstrap.accessBundle || { actor: {}, groups: [], roles: [] },
-      entityMap: bootstrap.entityMap || { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] }
+      archiveRanges: Array.isArray(bootstrap.archiveRanges) ? bootstrap.archiveRanges : []
     };
   }
 
@@ -2138,7 +2202,7 @@
 
   async function saveDepartmentItem(department, sortOrder = 0) {
     ensureSignedIn();
-    return await callRpc("save_department_v3", {
+    return callRpc("save_department_v3", {
       p_department: { ...department, sortOrder }
     });
   }
@@ -2146,7 +2210,7 @@
 
     async function deleteDepartmentItem(departmentId) {
     ensureSignedIn();
-    return await callRpc("delete_department_v3", {
+    return callRpc("delete_department_v3", {
       p_department_id: String(departmentId || "").trim()
     });
   }
@@ -2154,7 +2218,7 @@
 
     async function saveShiftItem(shift, sortOrder = 0) {
     ensureSignedIn();
-    return await callRpc("save_shift_v3", {
+    return callRpc("save_shift_v3", {
       p_shift: { ...shift, sortOrder }
     });
   }
@@ -2162,7 +2226,7 @@
 
     async function saveCatalogItem(category, item, sortOrder = 0) {
     ensureSignedIn();
-    return await callRpc("save_catalog_item_v3", {
+    return callRpc("save_catalog_item_v3", {
       p_category: String(category || ""),
       p_item: { ...item, sortOrder }
     });
@@ -2171,34 +2235,17 @@
 
     async function deleteCatalogItem(category, itemId) {
     ensureSignedIn();
-    return await callRpc("delete_catalog_item_v3", {
+    return callRpc("delete_catalog_item_v3", {
       p_category: String(category || ""),
       p_item_id: String(itemId || "")
     });
   }
 
 
-  async function resolveManagerMemberProfileId(memberId, memberCode) {
-    const normalizedMemberId = String(memberId || "").trim();
-    if (isUuid(normalizedMemberId)) {
-      return normalizedMemberId;
-    }
-    const normalizedMemberCode = String(memberCode || "").trim();
-    if (!normalizedMemberCode) {
-      throw new Error("找不到人員工號");
-    }
-    const profile = (await getEmployeeAdminDirectoryRows())
-      .find((row) => String(row.employee_code || "").trim() === normalizedMemberCode);
-    if (!profile?.id) {
-      throw new Error(`找不到對應的人員資料：${normalizedMemberCode}`);
-    }
-    return profile.id;
-  }
-
     async function saveScheduleEntryRows(rows) {
     const entries = (Array.isArray(rows) ? rows : []).filter((row) => row?.member_id && row?.work_date);
     if (!entries.length) return [];
-    return await callRpc("save_schedule_entries_v3", { entries }) || [];
+    return callRpc("save_schedule_entries_v3", { entries }) || [];
   }
 
 
@@ -2206,9 +2253,9 @@
     ensureSignedIn();
     const rows = [];
     for (const payload of Array.isArray(payloads) ? payloads : []) {
-      const profileMemberId = await resolveManagerMemberProfileId(payload.memberId, payload.memberCode);
+      const profileMemberId = String(payload.memberId || "").trim();
       const workDate = nullableDate(payload.dateString || payload.workDate);
-      if (!profileMemberId || !workDate) throw new Error("schedule cell member and date are required");
+      if (!isUuid(profileMemberId) || !workDate) throw new Error("schedule cell member UUID and date are required");
       const slot = payload.slot || {};
       const shiftId = isUuid(slot.shift) ? slot.shift : null;
       const leaveId = isUuid(slot.leave) ? slot.leave : null;
@@ -2246,7 +2293,7 @@
 
   async function reorderSettings(category, ids = []) {
     ensureSignedIn();
-    return await callRpc("reorder_settings_v3", {
+    return callRpc("reorder_settings_v3", {
       p_category: String(category || ""),
       p_ids: (Array.isArray(ids) ? ids : []).filter(isUuid)
     });
@@ -2254,7 +2301,7 @@
 
   async function saveSchedulerPreferences(state) {
     ensureSignedIn();
-    return await callRpc("save_scheduler_preferences_v3", {
+    return callRpc("save_scheduler_preferences_v3", {
       p_document_id: documentId,
       p_settings: {
         currentYear: Number(state?.year) || new Date().getFullYear(),
@@ -2273,7 +2320,7 @@
 
   async function saveHolidays(holidays = []) {
     ensureSignedIn();
-    return await callRpc("save_holidays_v3", {
+    return callRpc("save_holidays_v3", {
       p_holidays: (Array.isArray(holidays) ? holidays : []).map((holiday) => ({
         id: holiday.id,
         date: holiday.date,
@@ -2287,8 +2334,8 @@
     return { ok: true, row: result.rows?.[0] || null };
   }
 
-  async function getGroupAccessBundle() { return await callRpc("get_group_access_bundle_v1", {}) || {}; }
-  async function getGroupEntityMap() { return await callRpc("get_group_entity_map_v1", {}) || {}; }
+  async function getGroupAccessBundle() { return callRpc("get_group_access_bundle_v1", {}) || {}; }
+  async function getScheduleArchiveRanges() { return callRpc("get_schedule_archive_ranges_v1", {}) || []; }
   async function saveScheduleGroup(group) { return callRpc("save_schedule_group_v1", { p_group: group }); }
   async function deleteScheduleGroup(groupId, confirmName) { return callRpc("delete_schedule_group_v1", { p_group_id: groupId, p_confirm_name: confirmName }); }
   async function reorderScheduleGroups(groupIds) { return callRpc("reorder_schedule_groups_v1", { p_group_ids: groupIds }); }
@@ -2333,75 +2380,12 @@
     return { canceled: false, empty: false, filePath: fileName };
   }
 
-  function compactMealExportDate(value) {
-    return String(value || "").replace(/[^0-9]/g, "").slice(0, 8);
-  }
-
-  function buildMealEmployeeRows(report, details) {
-    const companySubsidy = Number(report.companySubsidy || 55);
-    const employees = new Map();
-    details.forEach((row) => {
-      const key = String(row.employeeId || row.employeeCode || row.employeeName || "");
-      if (!key) return;
-      const current = employees.get(key) || {
-        employeeName: row.employeeName || "",
-        employeeCode: row.employeeCode || "",
-        dates: new Set(),
-        amount: 0
-      };
-      const quantity = Number(row.quantity || 0);
-      const amount = Number(row.amount ?? (quantity * Number(row.unitPrice || 0))) || 0;
-      if (quantity > 0 && row.date) current.dates.add(row.date);
-      current.amount += amount;
-      if (!current.employeeName && row.employeeName) current.employeeName = row.employeeName;
-      if (!current.employeeCode && row.employeeCode) current.employeeCode = row.employeeCode;
-      employees.set(key, current);
-    });
-    return [...employees.values()].map((row) => {
-      const mealDays = row.dates.size;
-      return {
-        employeeName: row.employeeName,
-        employeeCode: row.employeeCode,
-        lunchAmount: row.amount - mealDays * companySubsidy,
-        lunchCount: mealDays
-      };
-    }).sort((a, b) => (
-      String(a.employeeName).localeCompare(String(b.employeeName), "zh-Hant")
-      || String(a.employeeCode).localeCompare(String(b.employeeCode))
-    ));
-  }
-
-  function styleMealExportSheet(sheet) {
-    sheet.views = [{ state: "frozen", ySplit: 1 }];
-    sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 10 } };
-    sheet.columns = Array.from({ length: 10 }, (_, index) => ({ width: index === 0 ? 18 : index === 1 ? 16 : 14 }));
-    sheet.getColumn(2).numFmt = "@";
-    sheet.getColumn(10).numFmt = "@";
-    sheet.getRow(1).font = { bold: true };
-    sheet.getRow(1).alignment = { vertical: "middle", horizontal: "center", wrapText: true };
-    sheet.eachRow((row, rowNumber) => {
-      if (rowNumber > 1) row.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
-    });
-  }
-
   async function exportMealReport(report = {}) {
-    const details = Array.isArray(report.exportDetails) ? report.exportDetails : [];
-    if (!details.length) return { canceled: true, empty: true };
-    const rows = buildMealEmployeeRows(report, details);
-    if (!rows.length) return { canceled: true, empty: true };
-    const reportDate = compactMealExportDate(report.toDate);
-    await exporter.ensureExcelJS();
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = "福圓號";
-    workbook.created = new Date();
-    const sheet = workbook.addWorksheet("訂餐統計");
-    sheet.addRow(["員工姓名", "員工編號", "早餐金額", "午餐金額", "晚餐金額", "早餐份數", "午餐份數", "晚餐份數", "總計", "日期"]);
-    rows.forEach((row) => {
-      sheet.addRow([row.employeeName, row.employeeCode, "", row.lunchAmount, "", "", row.lunchCount, "", "", reportDate]);
-    });
-    styleMealExportSheet(sheet);
+    const workbook = await exporter.createMealReportWorkbook(report);
+    if (!workbook) return { canceled: true, empty: true };
+    const reportDate = compactExportDate(report.toDate);
     const blob = await exporter.workbookToBlob(workbook);
-    const fileName = `訂餐統計_${compactMealExportDate(report.fromDate)}-${reportDate}.xlsx`;
+    const fileName = `訂餐統計_${compactExportDate(report.fromDate)}-${reportDate}.xlsx`;
     downloadBlob(blob, fileName);
     return { canceled: false, filePath: fileName };
   }
@@ -2562,7 +2546,7 @@
     saveSchedulerPreferences,
     saveHolidays,
     getGroupAccessBundle,
-    getGroupEntityMap,
+    getScheduleArchiveRanges,
     saveScheduleGroup,
     deleteScheduleGroup,
     reorderScheduleGroups,
@@ -2681,7 +2665,6 @@ const LEAVE_CATALOG = [
 ];
 
 const DEFAULT_STATE = {
-  role: "manager",
   year: new Date().getFullYear(),
   month: new Date().getMonth(),
   selected: { type: null, id: null },
@@ -2707,11 +2690,6 @@ const DEFAULT_STATE = {
   scheduleLoadedRanges: []
 };
 
-const ROLE_OPTIONS = [
-  { value: "admin", label: "管理員" },
-  { value: "manager", label: "主管" },
-  { value: "employee", label: "員工" }
-];
 
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 const MONTH_LABELS = ["1 月", "2 月", "3 月", "4 月", "5 月", "6 月", "7 月", "8 月", "9 月", "10 月", "11 月", "12 月"];
@@ -2913,7 +2891,7 @@ function renderStickyHeaderTitleCells() {
   const renderCell = (label, dataAttr = "") => `
     <div class="table-sticky-cell-title">
       <span class="table-sticky-cell-label">${label}</span>
-      ${isManager() && dataAttr ? renderActionIconButton("edit", `${dataAttr}=\"true\"`, "table-header-settings-btn") : ""}
+      ${hasManagementAccess() && dataAttr ? renderActionIconButton("edit", `${dataAttr}=\"true\"`, "table-header-settings-btn") : ""}
     </div>
   `;
   if (state.tableView === "shift") {
@@ -3090,7 +3068,7 @@ function syncScheduleColumnWidths() {
   const deptStyle = getComputedStyle(deptSample);
   const personStyle = getComputedStyle(personSample);
   const headerStyle = getComputedStyle(document.querySelector(".table-sticky-cell") || deptSample);
-  const managerButtonAllowance = isManager() && state.tableView !== "shift" ? 28 : 0;
+  const managerButtonAllowance = hasManagementAccess() && state.tableView !== "shift" ? 28 : 0;
   let deptWidth = 72;
   let personWidth = 92;
   const statsWidth = state.tableView === "member" && state.tableStatsVisible ? 86 : 0;
@@ -3608,7 +3586,9 @@ function sanitizeDepartment(department, fallbackIndex) {
     latitude: department?.latitude ?? "",
     longitude: department?.longitude ?? "",
     publicIp: department?.publicIp || "",
-    attendanceEnabled: Boolean(department?.attendanceEnabled)
+    attendanceEnabled: Boolean(department?.attendanceEnabled),
+    groupId: department?.groupId || "",
+    deleted: Boolean(department?.deleted)
   };
 }
 
@@ -3648,7 +3628,9 @@ function sanitizeMember(member, fallbackIndex, merged) {
     payByDay: Boolean(member?.payByDay),
     fixedRestWeekday: normalizeRestWeekday(member?.fixedRestWeekday),
     monthlyRestDays: Math.max(0, Number(member?.monthlyRestDays) || 0),
-    roleId: member?.roleId || ""
+    roleId: member?.roleId || "",
+    groupId: member?.groupId || "",
+    deleted: Boolean(member?.deleted)
   };
 }
 
@@ -3673,7 +3655,9 @@ function sanitizeShift(shift, fallbackIndex, merged) {
         ? shift.positionRequirements
         .filter((item) => item && item.positionId)
         .map((item) => ({ positionId: item.positionId, count: Math.max(0, Number(item.count) || 0) }))
-      : []
+      : [],
+      groupId: shift?.groupId || "",
+      deleted: Boolean(shift?.deleted)
   };
 }
 
@@ -3694,7 +3678,8 @@ function sanitizeLeaveItem(item, index) {
     autoTextColor: Boolean(autoText),
     hiddenFromToolbar: Boolean(item?.hiddenFromToolbar),
     requiresTime: Boolean(item?.requiresTime),
-    requiresReason: Boolean(item?.requiresReason)
+    requiresReason: Boolean(item?.requiresReason),
+    deleted: Boolean(item?.deleted)
   };
 }
 
@@ -3715,7 +3700,8 @@ function sanitizeOvertimeItem(item, fallbackIndex) {
       rest1EndTime: item?.rest1EndTime || "",
       useRest2: Boolean(item?.useRest2),
       rest2StartTime: item?.rest2StartTime || "",
-      rest2EndTime: item?.rest2EndTime || ""
+      rest2EndTime: item?.rest2EndTime || "",
+      deleted: Boolean(item?.deleted)
     };
   }
 
@@ -3731,16 +3717,11 @@ function cleanupScheduleEntries(schedule, merged) {
   const validShiftIds = new Set(merged.shifts.map((shift) => shift.id));
   const validLeaveIds = new Set(merged.leaves.map((leave) => leave.id));
   const validOvertimeIds = new Set(merged.overtime.map((item) => item.id));
-  const fallbackOvertimeId = merged.overtime[0]?.id || null;
   const nextSchedule = {};
 
   Object.entries(schedule || {}).forEach(([key, slot]) => {
     const hasOvertimeMeta = slot?.overtimeMeta && typeof slot.overtimeMeta === "object";
-    const overtimeId = validOvertimeIds.has(slot?.overtime)
-      ? slot.overtime
-      : hasOvertimeMeta
-        ? fallbackOvertimeId
-        : null;
+    const overtimeId = validOvertimeIds.has(slot?.overtime) ? slot.overtime : null;
     const nextSlot = {
       shift: validShiftIds.has(slot?.shift) ? slot.shift : null,
       leave: validLeaveIds.has(slot?.leave) ? slot.leave : null,
@@ -3789,7 +3770,6 @@ function normalizeState(payload) {
   }
 
   const merged = createEmptyState();
-  merged.role = "manager";
   merged.year = Number.isInteger(payload.year) ? payload.year : merged.year;
   merged.month = Number.isInteger(payload.month) ? payload.month : merged.month;
   merged.departments = Array.isArray(payload.departments)
@@ -5954,95 +5934,94 @@ function openNamedColorFormModal(category, mode, targetId = "") {
   syncNamedColorUi();
 }
 
-async function saveNamedColorItem(category, mode) {
-  const returnTo = modalContext.returnTo || null;
-  if (category === "shift") {
-    void saveShiftFromModal(mode);
-    return;
-  }
-  const selectedLeave = category === "leave"
-    ? LEAVE_CATALOG.find((entry) => entry.code === (document.getElementById("leaveCatalogCode")?.value || ""))
-    : null;
-  const name = category === "leave"
-    ? (document.getElementById("leaveCatalogName")?.value.trim() || "")
-    : (document.getElementById("namedItemName")?.value.trim() || "");
-  if (!name) {
-    document.getElementById(category === "leave" ? "leaveCatalogName" : "namedItemName")?.focus();
-    return;
-  }
-  if (category === "overtime") {
-    const startTime = readTimeInputValue("overtimeStartTime");
-    const endTime = readTimeInputValue("overtimeEndTime");
-    if (!isValidTimeRange(startTime, endTime)) {
-      reportValidationError("上班時間必須早於下班時間");
-      return;
-    }
-    const useRest1 = Boolean(document.getElementById("overtimeUseRest1")?.checked);
-    const useRest2 = Boolean(document.getElementById("overtimeUseRest2")?.checked) && useRest1;
-    if (useRest1) {
-      const rest1Start = readTimeInputValue("overtimeRest1StartTime");
-      const rest1End = readTimeInputValue("overtimeRest1EndTime");
-      if (!isValidTimeRange(rest1Start, rest1End)) {
-        reportValidationError("休息1開始時間必須早於結束時間");
-        return;
-      }
-      if (useRest2) {
-        const rest2Start = readTimeInputValue("overtimeRest2StartTime");
-        const rest2End = readTimeInputValue("overtimeRest2EndTime");
-        if (!isValidTimeRange(rest2Start, rest2End)) {
-          reportValidationError("休息2開始時間必須早於結束時間");
-          return;
-        }
-      }
-    }
-  }
-  const payload = {
+function readNamedColorPayloadBase(category, mode) {
+  return {
     id: mode === "edit" ? modalContext.targetId : uid(category[0]),
-    code: category === "leave" ? selectedLeave?.code : undefined,
-    name,
     color: modalColor,
     textColor: modalTextColor,
     autoTextColor: modalTextColorAuto,
-    requiresTime: category === "leave" ? document.getElementById("leaveRequiresTime")?.checked : undefined,
-    requiresReason: category === "leave" ? document.getElementById("leaveRequiresReason")?.checked : undefined,
-    hiddenFromToolbar: Boolean(document.getElementById(`${category}HiddenFromToolbar`)?.checked),
-    startTime: category === "overtime" ? readTimeInputValue("overtimeStartTime") : undefined,
-    endTime: category === "overtime" ? readTimeInputValue("overtimeEndTime") : undefined,
-    useRest1: category === "overtime" ? Boolean(document.getElementById("overtimeUseRest1")?.checked) : undefined,
-    rest1StartTime: category === "overtime" ? readTimeInputValue("overtimeRest1StartTime") : undefined,
-    rest1EndTime: category === "overtime" ? readTimeInputValue("overtimeRest1EndTime") : undefined,
-    useRest2: category === "overtime" ? Boolean(document.getElementById("overtimeUseRest2")?.checked) : undefined,
-    rest2StartTime: category === "overtime" ? readTimeInputValue("overtimeRest2StartTime") : undefined,
-    rest2EndTime: category === "overtime" ? readTimeInputValue("overtimeRest2EndTime") : undefined
+    hiddenFromToolbar: Boolean(document.getElementById(`${category}HiddenFromToolbar`)?.checked)
   };
-  if (category === "overtime" && payload.useRest1 === false) {
-    payload.useRest2 = false;
-    payload.rest1StartTime = "";
-    payload.rest1EndTime = "";
-    payload.rest2StartTime = "";
-    payload.rest2EndTime = "";
-  } else if (category === "overtime" && payload.useRest2 === false) {
-    payload.rest2StartTime = "";
-    payload.rest2EndTime = "";
-  }
+}
+
+async function persistNamedCatalogItem(category, mode, payload, returnTo) {
   const currentList = getItemList(category);
   const nextList = mode === "edit"
     ? currentList.map((item) => item.id === payload.id ? payload : item)
     : [...currentList, payload];
-  const sortOrder = mode === "edit"
-    ? currentList.findIndex((item) => item.id === payload.id)
-    : currentList.length;
+  const sortOrder = mode === "edit" ? currentList.findIndex((item) => item.id === payload.id) : currentList.length;
   try {
     await window.schedulerApi.saveCatalogItem(category, payload, Math.max(0, sortOrder));
   } catch (error) {
     setSaveStatus(`${category === "leave" ? "假別" : "加班"}儲存失敗：${error.message}`);
-    return;
+    return false;
   }
   if (category === "leave") state.leaves = nextList;
   if (category === "overtime") state.overtime = nextList;
   closeModal();
   renderAll();
   await reopenSettingsModalPreservingScroll(returnTo || { category: "list-settings", listCategory: category, scrollTop: 0 });
+  return true;
+}
+
+async function saveLeaveItem(mode) {
+  const returnTo = modalContext.returnTo || null;
+  const selectedLeave = LEAVE_CATALOG.find((entry) => entry.code === (document.getElementById("leaveCatalogCode")?.value || ""));
+  const name = document.getElementById("leaveCatalogName")?.value.trim() || "";
+  if (!name) {
+    document.getElementById("leaveCatalogName")?.focus();
+    return;
+  }
+  const payload = {
+    ...readNamedColorPayloadBase("leave", mode),
+    code: selectedLeave?.code,
+    name,
+    requiresTime: Boolean(document.getElementById("leaveRequiresTime")?.checked),
+    requiresReason: Boolean(document.getElementById("leaveRequiresReason")?.checked)
+  };
+  await persistNamedCatalogItem("leave", mode, payload, returnTo);
+}
+
+async function saveOvertimeItem(mode) {
+  const returnTo = modalContext.returnTo || null;
+  const name = document.getElementById("namedItemName")?.value.trim() || "";
+  if (!name) {
+    document.getElementById("namedItemName")?.focus();
+    return;
+  }
+  const startTime = readTimeInputValue("overtimeStartTime");
+  const endTime = readTimeInputValue("overtimeEndTime");
+  if (!isValidTimeRange(startTime, endTime)) return reportValidationError("上班時間必須早於下班時間");
+
+  const useRest1 = Boolean(document.getElementById("overtimeUseRest1")?.checked);
+  const useRest2 = Boolean(document.getElementById("overtimeUseRest2")?.checked) && useRest1;
+  const rest1StartTime = useRest1 ? readTimeInputValue("overtimeRest1StartTime") : "";
+  const rest1EndTime = useRest1 ? readTimeInputValue("overtimeRest1EndTime") : "";
+  const rest2StartTime = useRest2 ? readTimeInputValue("overtimeRest2StartTime") : "";
+  const rest2EndTime = useRest2 ? readTimeInputValue("overtimeRest2EndTime") : "";
+  if (useRest1 && !isValidTimeRange(rest1StartTime, rest1EndTime)) return reportValidationError("休息1開始時間必須早於結束時間");
+  if (useRest2 && !isValidTimeRange(rest2StartTime, rest2EndTime)) return reportValidationError("休息2開始時間必須早於結束時間");
+
+  const payload = {
+    ...readNamedColorPayloadBase("overtime", mode),
+    name,
+    startTime,
+    endTime,
+    useRest1,
+    rest1StartTime,
+    rest1EndTime,
+    useRest2,
+    rest2StartTime,
+    rest2EndTime
+  };
+  await persistNamedCatalogItem("overtime", mode, payload, returnTo);
+}
+
+async function saveNamedColorItem(category, mode) {
+  if (category === "shift") return saveShiftFromModal(mode);
+  if (category === "leave") return saveLeaveItem(mode);
+  if (category === "overtime") return saveOvertimeItem(mode);
+  throw new Error(`unsupported catalog category: ${category}`);
 }
 
 async function deleteListItem(category, id) {
@@ -6085,7 +6064,7 @@ async function deleteListItem(category, id) {
 let departmentAttendanceSettingsUserId = "";
 
 async function ensureDepartmentAttendanceSettingsLoaded() {
-  if (!isAdmin()) return;
+  if (!canManagePermissions()) return;
   const userId = currentProfile?.id || "";
   if (userId && departmentAttendanceSettingsUserId === userId) return;
   const settings = await window.schedulerApi.getDepartmentAttendanceSettings();
@@ -6202,7 +6181,7 @@ function renderDepartmentAttendanceFields(department, disabledAttr) {
           是否啟用打卡
         </label>
       </div>
-      ${isAdmin() ? "" : '<p class="modal-description">打卡地址、座標、固定 IP 與是否啟用打卡只有管理員可以修改。</p>'}
+      ${canManagePermissions() ? "" : '<p class="modal-description">打卡地址、座標、固定 IP 與是否啟用打卡只有管理員可以修改。</p>'}
   `;
 }
 
@@ -6242,7 +6221,7 @@ function openDepartmentForm(mode, departmentId = "") {
   if (!department) {
     return;
   }
-  const attendanceFieldsDisabled = isAdmin() ? "" : "disabled";
+  const attendanceFieldsDisabled = canManagePermissions() ? "" : "disabled";
   modalContext = { mode, category: "department", targetId: departmentId, returnTo };
   openEntityListModal({
     title: `${mode === "edit" ? "修改" : "新增"}單位`,
@@ -6296,15 +6275,15 @@ async function saveDepartment(mode) {
     reportValidationError("開始日期必須早於結束日期");
     return;
   }
-  if (isAdmin() && latitude !== "" && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) {
+  if (canManagePermissions() && latitude !== "" && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) {
     reportValidationError("緯度必須介於 -90 到 90");
     return;
   }
-  if (isAdmin() && longitude !== "" && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) {
+  if (canManagePermissions() && longitude !== "" && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) {
     reportValidationError("經度必須介於 -180 到 180");
     return;
   }
-  const attendancePayload = isAdmin()
+  const attendancePayload = canManagePermissions()
     ? {
       address: document.getElementById("departmentAddress")?.value.trim() || "",
       latitude,
@@ -6905,10 +6884,7 @@ async function importMembersFromSettings() {
       accessRoleMap.set(String(role.code || "").trim().toLowerCase(), role.id);
       accessRoleMap.set(String(role.name || "").trim().toLowerCase(), role.id);
     });
-    const defaultAccessRoleId = getAllRoles().find((role) => {
-      const permissions = Array.isArray(role.permissions) ? role.permissions : [];
-      return permissions.length === 1 && permissions.includes("schedule_view");
-    })?.id || "";
+    const defaultAccessRoleId = getDefaultAccessRoleId();
     let imported = 0;
     let updated = 0;
     let skipped = 0;
@@ -6939,7 +6915,11 @@ async function importMembersFromSettings() {
       const existing = state.members.find((member) => member.code === code) || null;
       const importedRoleKey = String(row.roleName || "").trim().toLowerCase();
       const importedRoleId = accessRoleMap.get(importedRoleKey) || "";
-      const roleId = isAdmin()
+      if (canManagePermissions() && importedRoleKey && !importedRoleId) {
+        skipped += 1;
+        continue;
+      }
+      const roleId = canManagePermissions()
         ? (importedRoleId || existing?.roleId || defaultAccessRoleId)
         : (existing?.roleId || defaultAccessRoleId);
       if (!roleId) {
@@ -6950,6 +6930,7 @@ async function importMembersFromSettings() {
         id: existing?.id || uid("m"),
         code,
         name,
+        groupId: existing?.groupId || groupFeatureState.currentGroupId,
         deptId,
         scheduleShiftIds,
         positionId: existing?.positionId || "",
@@ -7083,12 +7064,9 @@ const GROUP_PERMISSION_LABELS = {
 
 const groupFeatureState = {
   bundle: { actor: {}, groups: [], roles: [] },
-  entityMap: { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] },
+  archiveRanges: [],
   currentGroupId: "",
-  allDepartments: [],
-  allMembers: [],
-  allShifts: [],
-  allSchedule: {},
+  catalog: { departments: [], members: [], shifts: [], schedule: {} },
   initialized: false,
   dragGroupId: ""
 };
@@ -7097,10 +7075,10 @@ async function loadGroupAccessData(payload = {}) {
   groupFeatureState.bundle = payload.accessBundle && typeof payload.accessBundle === "object"
     ? payload.accessBundle
     : await window.schedulerApi.getGroupAccessBundle();
-  groupFeatureState.entityMap = payload.entityMap && typeof payload.entityMap === "object"
-    ? payload.entityMap
-    : await window.schedulerApi.getGroupEntityMap();
-  return { bundle: groupFeatureState.bundle, entityMap: groupFeatureState.entityMap };
+  groupFeatureState.archiveRanges = Array.isArray(payload.archiveRanges)
+    ? payload.archiveRanges
+    : await window.schedulerApi.getScheduleArchiveRanges();
+  return { bundle: groupFeatureState.bundle, archiveRanges: groupFeatureState.archiveRanges };
 }
 
 
@@ -7118,6 +7096,12 @@ function getCurrentGroup() { return getAllGroups().find((group) => group.id === 
 function getActorGroup() { return getAllGroups().find((group) => group.id === getAccessActor().groupId) || null; }
 function getAllRoles() { return Array.isArray(groupFeatureState.bundle?.roles) ? groupFeatureState.bundle.roles : []; }
 function getRoleById(roleId) { return getAllRoles().find((role) => role.id === roleId) || null; }
+function getDefaultAccessRoleId() {
+  return getAllRoles().find((role) => {
+    const permissions = Array.isArray(role.permissions) ? role.permissions : [];
+    return permissions.length <= 1 && permissions.every((permission) => permission === "schedule_view");
+  })?.id || getAllRoles()[0]?.id || "";
+}
 
 function chooseCurrentGroupId() {
   const selectable = getSelectableGroups();
@@ -7129,10 +7113,6 @@ function chooseCurrentGroupId() {
   return selectable[0].id;
 }
 
-function makeIdMap(rows, valueKey) {
-  return new Map((Array.isArray(rows) ? rows : []).map((row) => [row.id, row[valueKey]]));
-}
-
 function appendDeletedLabel(value, deleted) {
   const text = String(value || "");
   if (!deleted || text.endsWith("（已刪除）")) return text;
@@ -7140,43 +7120,29 @@ function appendDeletedLabel(value, deleted) {
 }
 
 function enrichNormalizedState(normalized) {
-  const departmentGroups = makeIdMap(groupFeatureState.entityMap.departments, "groupId");
-  const departmentDeleted = makeIdMap(groupFeatureState.entityMap.departments, "deleted");
-  const memberGroups = makeIdMap(groupFeatureState.entityMap.members, "groupId");
-  const memberRoles = makeIdMap(groupFeatureState.entityMap.members, "roleId");
-  const memberDeleted = makeIdMap(groupFeatureState.entityMap.members, "deleted");
-  const shiftGroups = makeIdMap(groupFeatureState.entityMap.shifts, "groupId");
-  const shiftDeleted = makeIdMap(groupFeatureState.entityMap.shifts, "deleted");
-  const leaveDeleted = makeIdMap(groupFeatureState.entityMap.leaves, "deleted");
-  const overtimeDeleted = makeIdMap(groupFeatureState.entityMap.overtime, "deleted");
-
-  normalized.departments = (normalized.departments || []).map((department) => {
-    const deleted = Boolean(department.deleted || departmentDeleted.get(department.id));
-    return { ...department, name: appendDeletedLabel(department.name, deleted), groupId: departmentGroups.get(department.id) || "", deleted };
-  });
-  normalized.members = (normalized.members || []).map((member) => {
-    const roleId = memberRoles.get(member.id) || member.roleId || "";
-    const deleted = Boolean(member.deleted || memberDeleted.get(member.id));
-    return { ...member, name: appendDeletedLabel(member.name, deleted), groupId: memberGroups.get(member.id) || "", roleId, deleted };
-  });
-  normalized.shifts = (normalized.shifts || []).map((shift) => {
-    const deleted = Boolean(shift.deleted || shiftDeleted.get(shift.id));
-    return {
-      ...shift,
-      name: appendDeletedLabel(shift.name, deleted),
-      groupId: shiftGroups.get(shift.id) || normalized.departments.find((department) => department.id === shift.applicableDeptId)?.groupId || "",
-      hiddenFromToolbar: deleted || Boolean(shift.hiddenFromToolbar),
-      deleted
-    };
-  });
-  normalized.leaves = (normalized.leaves || []).map((leave) => {
-    const deleted = Boolean(leave.deleted || leaveDeleted.get(leave.id));
-    return { ...leave, name: appendDeletedLabel(leave.name, deleted), hiddenFromToolbar: deleted || Boolean(leave.hiddenFromToolbar), deleted };
-  });
-  normalized.overtime = (normalized.overtime || []).map((overtime) => {
-    const deleted = Boolean(overtime.deleted || overtimeDeleted.get(overtime.id));
-    return { ...overtime, name: appendDeletedLabel(overtime.name, deleted), hiddenFromToolbar: deleted || Boolean(overtime.hiddenFromToolbar), deleted };
-  });
+  normalized.departments = (normalized.departments || []).map((department) => ({
+    ...department,
+    name: appendDeletedLabel(department.name, department.deleted)
+  }));
+  normalized.members = (normalized.members || []).map((member) => ({
+    ...member,
+    name: appendDeletedLabel(member.name, member.deleted)
+  }));
+  normalized.shifts = (normalized.shifts || []).map((shift) => ({
+    ...shift,
+    name: appendDeletedLabel(shift.name, shift.deleted),
+    hiddenFromToolbar: Boolean(shift.deleted || shift.hiddenFromToolbar)
+  }));
+  normalized.leaves = (normalized.leaves || []).map((leave) => ({
+    ...leave,
+    name: appendDeletedLabel(leave.name, leave.deleted),
+    hiddenFromToolbar: Boolean(leave.deleted || leave.hiddenFromToolbar)
+  }));
+  normalized.overtime = (normalized.overtime || []).map((overtime) => ({
+    ...overtime,
+    name: appendDeletedLabel(overtime.name, overtime.deleted),
+    hiddenFromToolbar: Boolean(overtime.deleted || overtime.hiddenFromToolbar)
+  }));
   normalized.groups = getAllGroups();
   normalized.accessRoles = getAllRoles();
   normalized.access = getAccessActor();
@@ -7191,49 +7157,49 @@ function scheduleKeyMemberId(key) {
   return parts.join("_");
 }
 
-function snapshotAllState(normalized) {
-  groupFeatureState.allDepartments = deepClone(normalized.departments || []);
-  groupFeatureState.allMembers = deepClone(normalized.members || []);
-  groupFeatureState.allShifts = deepClone(normalized.shifts || []);
-  groupFeatureState.allSchedule = deepClone(normalized.schedule || {});
+function snapshotCanonicalState(normalized) {
+  groupFeatureState.catalog.departments = deepClone(normalized.departments || []);
+  groupFeatureState.catalog.members = deepClone(normalized.members || []);
+  groupFeatureState.catalog.shifts = deepClone(normalized.shifts || []);
+  groupFeatureState.catalog.schedule = deepClone(normalized.schedule || {});
 }
 
 function currentGroupMemberIds() {
-  return new Set(groupFeatureState.allMembers.filter((member) => member.groupId === groupFeatureState.currentGroupId).map((member) => member.id));
+  return new Set(groupFeatureState.catalog.members.filter((member) => member.groupId === groupFeatureState.currentGroupId).map((member) => member.id));
 }
 
-function syncCurrentScopeIntoAll() {
+function syncCurrentScopeIntoCatalog() {
   const groupId = groupFeatureState.currentGroupId;
   if (!groupId || !state || typeof state !== "object") return;
-  groupFeatureState.allDepartments = [
-    ...groupFeatureState.allDepartments.filter((item) => item.groupId !== groupId),
+  groupFeatureState.catalog.departments = [
+    ...groupFeatureState.catalog.departments.filter((item) => item.groupId !== groupId),
     ...(state.departments || []).map((item) => ({ ...deepClone(item), groupId }))
   ];
-  groupFeatureState.allMembers = [
-    ...groupFeatureState.allMembers.filter((item) => item.groupId !== groupId),
+  groupFeatureState.catalog.members = [
+    ...groupFeatureState.catalog.members.filter((item) => item.groupId !== groupId),
     ...(state.members || []).map((item) => ({ ...deepClone(item), groupId: item.groupId || groupId }))
   ];
-  groupFeatureState.allShifts = [
-    ...groupFeatureState.allShifts.filter((item) => item.groupId !== groupId),
+  groupFeatureState.catalog.shifts = [
+    ...groupFeatureState.catalog.shifts.filter((item) => item.groupId !== groupId),
     ...(state.shifts || []).map((item) => ({ ...deepClone(item), groupId: item.groupId || groupId }))
   ];
   const memberIds = currentGroupMemberIds();
   const nextSchedule = {};
-  Object.entries(groupFeatureState.allSchedule || {}).forEach(([key, slot]) => {
+  Object.entries(groupFeatureState.catalog.schedule || {}).forEach(([key, slot]) => {
     if (!memberIds.has(scheduleKeyMemberId(key))) nextSchedule[key] = slot;
   });
   Object.entries(state.schedule || {}).forEach(([key, slot]) => { nextSchedule[key] = deepClone(slot); });
-  groupFeatureState.allSchedule = nextSchedule;
+  groupFeatureState.catalog.schedule = nextSchedule;
 }
 
 function applyCurrentGroupScope(targetState = state) {
   const groupId = groupFeatureState.currentGroupId;
-  const departments = groupFeatureState.allDepartments.filter((item) => item.groupId === groupId);
-  const members = groupFeatureState.allMembers.filter((item) => item.groupId === groupId);
-  const shifts = groupFeatureState.allShifts.filter((item) => item.groupId === groupId);
+  const departments = groupFeatureState.catalog.departments.filter((item) => item.groupId === groupId);
+  const members = groupFeatureState.catalog.members.filter((item) => item.groupId === groupId);
+  const shifts = groupFeatureState.catalog.shifts.filter((item) => item.groupId === groupId);
   const memberIds = new Set(members.map((member) => member.id));
   const schedule = {};
-  Object.entries(groupFeatureState.allSchedule || {}).forEach(([key, slot]) => {
+  Object.entries(groupFeatureState.catalog.schedule || {}).forEach(([key, slot]) => {
     if (memberIds.has(scheduleKeyMemberId(key))) schedule[key] = deepClone(slot);
   });
   targetState.departments = deepClone(departments);
@@ -7265,7 +7231,7 @@ async function switchScheduleGroup(groupId) {
   if (!roleAppliesToGroup(groupId)) return;
   const group = getAllGroups().find((item) => item.id === groupId && item.status === "active");
   if (!group) return;
-  syncCurrentScopeIntoAll();
+  syncCurrentScopeIntoCatalog();
   groupFeatureState.currentGroupId = groupId;
   localStorage.setItem("fyh.schedule.groupId", groupId);
   applyCurrentGroupScope(state);
@@ -7291,7 +7257,7 @@ async function reloadGroupApplicationState() {
 }
 
 function isArchivedDate(dateString, groupId = groupFeatureState.currentGroupId) {
-  return (groupFeatureState.entityMap.archiveRanges || []).some((range) => range.groupId === groupId && dateString >= range.startDate && dateString <= range.endDate);
+  return (groupFeatureState.archiveRanges || []).some((range) => range.groupId === groupId && dateString >= range.startDate && dateString <= range.endDate);
 }
 
 function isDeletedScheduleMember(memberId) {
@@ -7563,7 +7529,7 @@ async function createScheduleArchive() {
   if (!group || !startDate || !endDate || startDate > endDate) { reportValidationError("封存日期範圍不正確"); return; }
   if (!await confirmAction(`確定封存「${group.name}」${startDate}～${endDate} 的班表嗎？封存後不可修改。`)) return;
   await window.schedulerApi.archiveSchedule(group.id, startDate, endDate);
-  groupFeatureState.entityMap = await window.schedulerApi.getGroupEntityMap();
+  groupFeatureState.archiveRanges = await window.schedulerApi.getScheduleArchiveRanges();
   scheduleUndoStack = [];
   scheduleRedoStack = [];
   renderAll();
@@ -7575,7 +7541,7 @@ async function unarchiveSchedule(archiveId) {
   if (!archive) return;
   if (!await confirmAction(`確定解除「${archive.group_name || ""}」${archive.start_date || ""}～${archive.end_date || ""} 的班表封存嗎？解除後可重新修改班表。`)) return;
   await window.schedulerApi.unarchiveSchedule(archiveId);
-  groupFeatureState.entityMap = await window.schedulerApi.getGroupEntityMap();
+  groupFeatureState.archiveRanges = await window.schedulerApi.getScheduleArchiveRanges();
   scheduleUndoStack = [];
   scheduleRedoStack = [];
   await reloadGroupApplicationState();
@@ -7595,8 +7561,8 @@ async function viewScheduleArchive(archiveId) {
   });
 }
 
-function getDepartmentsForGroup(groupId) { return groupFeatureState.allDepartments.filter((department) => department.groupId === groupId && !department.deleted); }
-function getShiftsForGroup(groupId) { return groupFeatureState.allShifts.filter((shift) => shift.groupId === groupId && !shift.deleted); }
+function getDepartmentsForGroup(groupId) { return groupFeatureState.catalog.departments.filter((department) => department.groupId === groupId && !department.deleted); }
+function getShiftsForGroup(groupId) { return groupFeatureState.catalog.shifts.filter((shift) => shift.groupId === groupId && !shift.deleted); }
 function renderMemberGroupOptions(selectedGroupId) { return getSelectableGroups().map((group) => `<option value="${escapeHtml(group.id)}" ${group.id === selectedGroupId ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join(""); }
 function renderMemberUnitOptions(groupId, selectedDeptId = "") { return getDepartmentsForGroup(groupId).map((department) => `<option value="${escapeHtml(department.id)}" ${department.id === selectedDeptId ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join(""); }
 function renderMemberGroupShiftSelector(groupId, selectedIds = []) {
@@ -7608,25 +7574,17 @@ function memberShiftNamesForGroup(groupId, selectedIds) {
   const names = (selectedIds || []).map((id) => map.get(id)).filter(Boolean);
   return names.length ? names.join("、") : "未指定";
 }
-function renderMemberRoleOptions(member) {
-  const selectedRoleId = member?.roleId || "";
-  const options = hasPermission("permission_settings") ? getAllRoles() : getAllRoles().filter((role) => role.id === selectedRoleId);
-  return options.map((role) => `<option value="${escapeHtml(role.id)}" ${role.id === selectedRoleId ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("");
-}
 
 function openMemberForm(mode, memberId = "") {
   const returnTo = modalContext?.category === "department-settings"
     ? captureSettingsReturnContext({ category: "department-settings", view: modalContext.view || departmentSettingsView })
     : modalContext?.category === "member-settings" ? captureSettingsReturnContext({ category: "member-settings" }) : null;
-  const defaultAccessRole = getAllRoles().find((role) => {
-    const permissions = Array.isArray(role.permissions) ? role.permissions : [];
-    return permissions.length === 1 && permissions.includes("schedule_view");
-  }) || getAllRoles()[0] || null;
+  const defaultAccessRoleId = getDefaultAccessRoleId();
   const member = mode === "edit" ? state.members.find((item) => item.id === memberId) : {
     id: "", code: "", name: "", groupId: groupFeatureState.currentGroupId,
     deptId: getDepartmentsForGroup(groupFeatureState.currentGroupId)[0]?.id || "",
     hireDate: "", leaveDate: "", payByDay: false, fixedRestWeekday: 0,
-    scheduleShiftIds: [], roleId: defaultAccessRole?.id || ""
+    scheduleShiftIds: [], roleId: defaultAccessRoleId
   };
   if (!member) return;
   if (!canEditMemberAccount(member)) { showInfoMessage("沒有權限修改此帳號"); return; }
@@ -7758,15 +7716,9 @@ function initializeGroupPermissionState(payload) {
   if (!groupFeatureState.currentGroupId || !getSelectableGroups().some((group) => group.id === groupFeatureState.currentGroupId)) {
     groupFeatureState.currentGroupId = chooseCurrentGroupId();
   }
-  snapshotAllState(normalized);
+  snapshotCanonicalState(normalized);
   groupFeatureState.initialized = true;
   return applyCurrentGroupScope(normalized);
-}
-
-function refreshGroupEntityMap(entityMap) {
-  groupFeatureState.entityMap = entityMap && typeof entityMap === "object"
-    ? entityMap
-    : { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] };
 }
 ;
 
@@ -7780,8 +7732,8 @@ function isLoggedIn() {
 }
 
 function resolveCurrentMember() {
-  const allMembers = typeof groupFeatureState !== "undefined" && Array.isArray(groupFeatureState.allMembers)
-    ? groupFeatureState.allMembers
+  const allMembers = typeof groupFeatureState !== "undefined" && Array.isArray(groupFeatureState.catalog.members)
+    ? groupFeatureState.catalog.members
     : state.members;
   if (currentProfile?.id) {
     const byId = allMembers.find((member) => member.id === currentProfile.id)
@@ -7794,12 +7746,12 @@ function resolveCurrentMember() {
     || null;
 }
 
-function isAdmin() {
+function canManagePermissions() {
   return hasPermission("permission_settings");
 }
 
 
-function isManager() {
+function hasManagementAccess() {
   return getAccessPermissions().some((permission) => permission !== "schedule_view");
 }
 
@@ -7810,7 +7762,7 @@ function canEditSchedule() {
 
 
 async function ensureManagerDirectoryLoaded() {
-  if (!isManager() || managerDirectoryLoaded) {
+  if (!hasManagementAccess() || managerDirectoryLoaded) {
     return;
   }
   if (!managerDirectoryLoading) {
@@ -7864,7 +7816,7 @@ function promptManagerAccess(message) {
     openSignInDialog(message || "此功能需先登入主管帳號");
     return false;
   }
-  if (!isManager()) {
+  if (!hasManagementAccess()) {
     showInfoMessage("此功能限主管使用");
     return false;
   }
@@ -7916,19 +7868,19 @@ function syncRoleUi() {
   initializeToolbarCollapse();
   const toolbarGrid = document.getElementById("toolbarGrid");
   if (toolbarGrid) {
-    toolbarGrid.style.display = isManager() ? "grid" : "none";
+    toolbarGrid.style.display = hasManagementAccess() ? "grid" : "none";
   }
   if (toolbarCard) {
-    toolbarCard.classList.toggle("toolbar-floating-card-compact", !isManager());
+    toolbarCard.classList.toggle("toolbar-floating-card-compact", !hasManagementAccess());
   }
   syncToolbarCollapseUi();
   const coreActionsShell = document.getElementById("coreActionsShell");
   if (coreActionsShell) {
-    coreActionsShell.style.display = isManager() ? "" : "none";
+    coreActionsShell.style.display = hasManagementAccess() ? "" : "none";
   }
   document.querySelectorAll(".manager-action").forEach((element) => {
-    element.style.display = isManager() ? "" : "none";
-    element.disabled = !isManager();
+    element.style.display = hasManagementAccess() ? "" : "none";
+    element.disabled = !hasManagementAccess();
   });
   const managerOnlyIds = [
     "deptSettingsButton",
@@ -7943,8 +7895,8 @@ function syncRoleUi() {
     if (!element) {
       return;
     }
-    element.style.display = isManager() ? "" : "none";
-    element.disabled = !isManager();
+    element.style.display = hasManagementAccess() ? "" : "none";
+    element.disabled = !hasManagementAccess();
   });
 
   ["shiftChips", "leaveChips", "overtimeChips"].forEach((id) => {
@@ -7963,7 +7915,7 @@ function renderAuthBar() {
     return;
   }
   const loggedIn = isLoggedIn();
-  const manager = loggedIn && isManager();
+  const manager = loggedIn && hasManagementAccess();
   const hasProfile = Boolean(currentProfile);
   toggle.textContent = "功能";
   toggle.title = "開啟功能";
@@ -8163,7 +8115,7 @@ function showScheduleTooltip(memberId, day, category, anchorRect) {
           ? `${item?.code || ""} ${meta?.displayName || item?.name || ""}`.trim()
           : (meta?.displayName || item?.name || "加班")
       )}</div>
-      ${isManager()
+      ${hasManagementAccess()
         ? (isLeave
           ? renderActionIconButton("edit", `data-edit-leave-assignment="${memberId}:${day}"`, "leave-tooltip-btn")
           : renderActionIconButton("edit", `data-edit-overtime-assignment="${memberId}:${day}"`, "leave-tooltip-btn"))
@@ -8256,14 +8208,14 @@ function renderMealPage() {
       </div>
       ${renderHomeIconButton()}
     </div>
-    ${isManager() ? `
+    ${hasManagementAccess() ? `
       <div class="meal-tabs" role="tablist" aria-label="訂餐頁分頁">
         <button class="ghost-btn page-tab-btn ${mealPageTab === "order" ? "active" : ""}" type="button" role="tab" aria-selected="${mealPageTab === "order" ? "true" : "false"}" data-meal-tab="order">今日訂餐</button>
         <button class="ghost-btn page-tab-btn ${mealPageTab === "stats" ? "active" : ""}" type="button" role="tab" aria-selected="${mealPageTab === "stats" ? "true" : "false"}" data-meal-tab="stats">訂餐統計</button>
         <button class="ghost-btn page-tab-btn ${mealPageTab === "settings" ? "active" : ""}" type="button" role="tab" aria-selected="${mealPageTab === "settings" ? "true" : "false"}" data-meal-tab="settings">訂餐設定</button>
       </div>
     ` : ""}
-    ${isManager() && mealPageTab === "settings" ? renderMealSettingsSection() : isManager() && mealPageTab === "stats" ? renderMealReportSection() : `
+    ${hasManagementAccess() && mealPageTab === "settings" ? renderMealSettingsSection() : hasManagementAccess() && mealPageTab === "stats" ? renderMealReportSection() : `
     <section class="records-section meal-order-section">
       ${mealOrderState.error ? `<div class="auth-error clock-error">${escapeHtml(mealOrderState.error)}</div>` : ""}
     ${unavailableReason ? `<div class="auth-error clock-error">${escapeHtml(unavailableReason)}</div>` : ""}
@@ -8311,7 +8263,7 @@ function renderHomeIconButton() {
 function renderRecordsTabs() {
   const tabs = [
     ["personal", "個人記錄", true],
-    ["review", "簽到審核", isAdmin()]
+    ["review", "簽到審核", canManagePermissions()]
   ].filter((tab) => tab[2]);
   if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
   return `<div class="record-tabs" role="tablist" aria-label="簽到簿分頁">${tabs.map(([id, label]) => `<button class="ghost-btn page-tab-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" role="tab" aria-selected="${recordsState.activeTab === id ? "true" : "false"}" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
@@ -9306,7 +9258,7 @@ async function loadAttendanceReview(shouldRender = true) {
 }
 
 async function loadMealReport(shouldRender = true) {
-  if (!isManager()) return;
+  if (!hasManagementAccess()) return;
   ensureRecordsState();
   recordsState = { ...recordsState, mealStats: { ...(recordsState.mealStats || {}), loading: true, error: "" } };
   if (shouldRender) renderAll();
@@ -9323,7 +9275,7 @@ async function loadMealReport(shouldRender = true) {
 }
 
 async function loadMealAdminSettings(shouldRender = true) {
-  if (!isManager()) return;
+  if (!hasManagementAccess()) return;
   recordsState = {
     ...recordsState,
     mealAdmin: { ...recordsState.mealAdmin, loading: true, error: "" }
@@ -9575,10 +9527,10 @@ function clearScheduleApplicationState() {
   scheduleApplicationLoaded = false;
   scheduleApplicationLoading = null;
   groupFeatureState.entityMap = { departments: [], members: [], shifts: [], leaves: [], overtime: [], archiveRanges: [] };
-  groupFeatureState.allDepartments = [];
-  groupFeatureState.allMembers = [];
-  groupFeatureState.allShifts = [];
-  groupFeatureState.allSchedule = {};
+  groupFeatureState.catalog.departments = [];
+  groupFeatureState.catalog.members = [];
+  groupFeatureState.catalog.shifts = [];
+  groupFeatureState.catalog.schedule = {};
   groupFeatureState.initialized = false;
   hideScheduleLoadingIndicator();
 }
@@ -9873,7 +9825,7 @@ function syncAppView() {
   const scheduleCard = document.getElementById("scheduleCard");
   const toolbarCard = document.querySelector(".toolbar-card");
   const showSchedule = loggedIn && appView === "schedule";
-  const showToolbar = showSchedule && isManager();
+  const showToolbar = showSchedule && hasManagementAccess();
   if (homeCard) homeCard.hidden = !loggedIn || appView !== "home";
   if (mealCard) mealCard.hidden = !loggedIn || appView !== "meal";
   if (recordsCard) recordsCard.hidden = !loggedIn || appView !== "records";
@@ -11289,7 +11241,7 @@ function bindDelegatedClickEvents() {
       target.dataset.deleteMember ||
       target.dataset.resetMemberPassword
     );
-    if (managerOnlyAction && !isManager()) {
+    if (managerOnlyAction && !hasManagementAccess()) {
       promptManagerAccess("此功能需先登入主管帳號");
       return;
     }

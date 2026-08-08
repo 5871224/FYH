@@ -1,4 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@^1";
+import { actorIdOf, canAccessGroup, hasPermission, taipeiDateString as taipeiDate, validDate } from "../_shared/runtime.ts";
 
 function taipeiDate(date = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -9,30 +10,9 @@ function taipeiDate(date = new Date()) {
   }).format(date);
 }
 
-function validDate(value: unknown, fallback: string) {
-  const text = String(value || "");
-  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : fallback;
-}
 
-function actorIdOf(ctx: any) {
-  const actorId = String(ctx.userClaims?.sub || ctx.userClaims?.id || "").trim();
-  if (!actorId) throw new Error("請先登入");
-  return actorId;
-}
 
-async function rpcBoolean(ctx: any, name: string, payload: Record<string, unknown>) {
-  const { data, error } = await ctx.supabaseAdmin.rpc(name, payload);
-  if (error) throw error;
-  return data === true;
-}
 
-async function requireAttendanceReviewer(ctx: any, actorId: string) {
-  const allowed = await rpcBoolean(ctx, "has_access_permission", {
-    p_user_id: actorId,
-    p_permission: "attendance_review"
-  });
-  if (!allowed) throw new Error("沒有簽到審核權限");
-}
 
 async function getVisibleMembers(ctx: any, actorId: string) {
   const { data, error } = await ctx.supabaseAdmin
@@ -45,11 +25,7 @@ async function getVisibleMembers(ctx: any, actorId: string) {
   const groupIds = [...new Set((data || []).map((row: any) => row.group_id).filter(Boolean))];
   const accessPairs = await Promise.all(groupIds.map(async (groupId) => [
     groupId,
-    await rpcBoolean(ctx, "can_access_group", {
-      p_user_id: actorId,
-      p_group_id: groupId,
-      p_permission: "attendance_review"
-    })
+    await canAccessGroup(ctx, actorId, groupId, "attendance_review")
   ] as const));
   const allowedGroups = new Set(accessPairs.filter(([, allowed]) => allowed).map(([groupId]) => groupId));
   return (data || []).filter((row: any) => allowedGroups.has(row.group_id));
@@ -60,7 +36,7 @@ export default {
     if (req.method !== "POST") return Response.json({ message: "Method Not Allowed" }, { status: 405 });
     try {
       const actorId = actorIdOf(ctx);
-      await requireAttendanceReviewer(ctx, actorId);
+      if (!await hasPermission(ctx, actorId, "attendance_review")) throw new Error("沒有簽到審核權限");
       const body = await req.json();
       const today = taipeiDate();
       const fromDate = validDate(body?.fromDate, today);

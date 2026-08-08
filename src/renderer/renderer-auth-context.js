@@ -7,8 +7,8 @@ function isLoggedIn() {
 }
 
 function resolveCurrentMember() {
-  const allMembers = typeof groupFeatureState !== "undefined" && Array.isArray(groupFeatureState.allMembers)
-    ? groupFeatureState.allMembers
+  const allMembers = typeof groupFeatureState !== "undefined" && Array.isArray(groupFeatureState.catalog.members)
+    ? groupFeatureState.catalog.members
     : state.members;
   if (currentProfile?.id) {
     const byId = allMembers.find((member) => member.id === currentProfile.id)
@@ -21,12 +21,12 @@ function resolveCurrentMember() {
     || null;
 }
 
-function isAdmin() {
+function canManagePermissions() {
   return hasPermission("permission_settings");
 }
 
 
-function isManager() {
+function hasManagementAccess() {
   return getAccessPermissions().some((permission) => permission !== "schedule_view");
 }
 
@@ -37,7 +37,7 @@ function canEditSchedule() {
 
 
 async function ensureManagerDirectoryLoaded() {
-  if (!isManager() || managerDirectoryLoaded) {
+  if (!hasManagementAccess() || managerDirectoryLoaded) {
     return;
   }
   if (!managerDirectoryLoading) {
@@ -91,7 +91,7 @@ function promptManagerAccess(message) {
     openSignInDialog(message || "此功能需先登入主管帳號");
     return false;
   }
-  if (!isManager()) {
+  if (!hasManagementAccess()) {
     showInfoMessage("此功能限主管使用");
     return false;
   }
@@ -143,19 +143,19 @@ function syncRoleUi() {
   initializeToolbarCollapse();
   const toolbarGrid = document.getElementById("toolbarGrid");
   if (toolbarGrid) {
-    toolbarGrid.style.display = isManager() ? "grid" : "none";
+    toolbarGrid.style.display = hasManagementAccess() ? "grid" : "none";
   }
   if (toolbarCard) {
-    toolbarCard.classList.toggle("toolbar-floating-card-compact", !isManager());
+    toolbarCard.classList.toggle("toolbar-floating-card-compact", !hasManagementAccess());
   }
   syncToolbarCollapseUi();
   const coreActionsShell = document.getElementById("coreActionsShell");
   if (coreActionsShell) {
-    coreActionsShell.style.display = isManager() ? "" : "none";
+    coreActionsShell.style.display = hasManagementAccess() ? "" : "none";
   }
   document.querySelectorAll(".manager-action").forEach((element) => {
-    element.style.display = isManager() ? "" : "none";
-    element.disabled = !isManager();
+    element.style.display = hasManagementAccess() ? "" : "none";
+    element.disabled = !hasManagementAccess();
   });
   const managerOnlyIds = [
     "deptSettingsButton",
@@ -170,8 +170,8 @@ function syncRoleUi() {
     if (!element) {
       return;
     }
-    element.style.display = isManager() ? "" : "none";
-    element.disabled = !isManager();
+    element.style.display = hasManagementAccess() ? "" : "none";
+    element.disabled = !hasManagementAccess();
   });
 
   ["shiftChips", "leaveChips", "overtimeChips"].forEach((id) => {
@@ -190,7 +190,7 @@ function renderAuthBar() {
     return;
   }
   const loggedIn = isLoggedIn();
-  const manager = loggedIn && isManager();
+  const manager = loggedIn && hasManagementAccess();
   const hasProfile = Boolean(currentProfile);
   toggle.textContent = "功能";
   toggle.title = "開啟功能";

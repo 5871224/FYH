@@ -156,3 +156,12 @@ npm run js:architecture
 - 班表批次讀寫 SQL 必須先物化 actor/allowed groups，再集合式處理；禁止 row-by-row 權限 helper。
 - Browser 核心資料表沒有直接寫入 GRANT，因此也不得恢復 authenticated 的直接寫入 RLS policy；具名 RPC／Edge Function 是唯一正式寫入入口。
 - 新增 RLS 時 auth.uid()/auth.jwt() 要使用 init-plan 形式，並避免同一 role/action 存在多個 permissive policy。
+
+### Canonical Cleanup 守門規則
+
+- 不得重新加入 `set_employee.role`、`access_roles.legacy_role`、固定 `admin/manager/employee` 授權判斷或角色相容 helper。
+- 不得建立 entityMap 來重複保存已存在於正式 DTO 的 groupId／roleId／deleted；封存範圍使用獨立 archiveRanges。
+- 排班寫入只接受 UUID memberId；不得再以工號查回 UUID 作為相容 fallback。
+- 無效 catalog ID 不可猜測替代值。歷史軟刪除項目必須由正式資料契約保留。
+- 共用 Edge 日期／帳號有效性／權限邏輯只能維護在 `_shared`，不得複製到各 Function。
+- SQL 每個最終 RLS policy 只建立一次；authenticated 不得有核心表 INSERT/UPDATE/DELETE/FOR ALL policy。
