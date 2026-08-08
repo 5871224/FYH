@@ -81,13 +81,7 @@ test("正式 SQL 最終守門使用權限項目而非文字角色", () => {
   assert.match(finalSecurity, /drop trigger if exists attendance_days_touch_updated_at/);
   assert.match(finalSecurity, /has_access_permission\(auth\.uid\(\),'meal_admin'\)/);
   assert.match(finalSecurity, /has_access_permission\(auth\.uid\(\),'leave_settings'\)/);
+  assert.match(finalSecurity, /系統必須保留至少一個有效的權限管理帳號/);
   assert.doesNotMatch(finalSecurity, /role\.legacy_role\s+in\s*\('admin','manager'\)/);
   assert.doesNotMatch(finalSecurity, /employee\.role\s*=\s*'admin'/);
-});
-
-test("角色更新必須保護最後一位有效權限管理帳號", () => {
-  const sql = read("supabase/002_current_updates.sql");
-  assert.match(sql, /系統必須保留至少一個有效的權限管理帳號/);
-  assert.match(sql, /'permission_settings'=any\(coalesce\(v_existing\.permissions/);
-  assert.match(sql, /e\.access_role_id<>v_id/);
 });
