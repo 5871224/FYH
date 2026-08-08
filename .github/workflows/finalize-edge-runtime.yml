@@ -60,7 +60,7 @@ jobs:
             supabase/functions/meal-report-v2/index.ts \
             supabase/functions/meal-cancel-v2/index.ts \
             supabase/functions/member-auth-admin/index.ts; do
-            if ! deno check "$file" > /tmp/deno.txt 2>&1; then
+            if ! deno check --node-modules-dir=auto "$file" > /tmp/deno.txt 2>&1; then
               msg=$(tail -n 35 /tmp/deno.txt | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
               echo "::error file=$file,title=Deno check failed::$msg"
               failed=1
