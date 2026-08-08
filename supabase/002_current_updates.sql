@@ -1539,7 +1539,7 @@ begin
         and public.is_employee_account_effective(other_employee.hire_date,other_employee.leave_date,v_today)
     ) then raise exception '系統必須保留至少一個有效的權限管理帳號' using errcode='23514'; end if;
   end if;
-  if (select auth.uid()) is not null and (select auth.role())<>'service_role' and current_setting('fyh.group_delete',true)<>'on' then
+  if (select auth.uid()) is not null and (select auth.role())<>'service_role' and coalesce(current_setting('fyh.group_delete',true),'')<>'on' then
     if not public.has_access_permission((select auth.uid()),'member_settings') then raise exception '沒有人員設定權限' using errcode='42501'; end if;
     if tg_op='UPDATE' and old.group_id is not null and not public.role_applies_to_group((select auth.uid()),old.group_id) then raise exception '此角色不可管理人員原群組' using errcode='42501'; end if;
     if new.group_id is null or not public.role_applies_to_group((select auth.uid()),new.group_id) then raise exception '此角色不可管理人員所屬群組' using errcode='42501'; end if;
