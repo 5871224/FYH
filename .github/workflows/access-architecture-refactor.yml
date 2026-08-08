@@ -7,7 +7,7 @@ on:
 permissions:
   contents: write
 jobs:
-  verify:
+  finalize:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,22 +17,37 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Apply access cleanup
-        run: python3 .github/refactor-access-cleanup7.py
-      - run: npm ci
-      - name: Build and syntax check
+      - name: Finalize canonical architecture
         run: |
-          npm run web:publish
+          python3 .github/finalize-access-architecture.py
+          rm -f .github/refactor-access-architecture.py
+          rm -f .github/refactor-access-cleanup*.py
+          rm -f .github/finalize-access-architecture.py
+          rm -f .github/access-v3-canonical.sqlpart
+          rm -f .github/workflows/access-architecture-refactor.yml
+      - run: npm ci
+      - name: Build
+        run: npm run web:publish
+      - name: Syntax checks
+        run: |
           node --check src/renderer/web-api.js
+          node --check src/renderer/renderer-page-data.js
+          node --check src/renderer/renderer-groups-permissions-archive.js
           node --check src/renderer/app.js
-      - name: Commit access cleanup
+      - name: Full CI
+        run: npm run ci:check
+      - name: Architecture scan
+        run: |
+          test "$(find .github/workflows -maxdepth 1 -type f -printf '%f\n' | sort)" = "deploy-pages.yml"
+          ! grep -RInE 'restSelect\(|restInsert\(|restUpdate\(|restDelete\(|saveState\(|syncCatalogs\(' src/renderer
+          ! grep -RInE '/rest/v1/(set_employee|set_departments|set_shift|set_leave|set_overtime|schedule_entries|scheduler_settings|holidays|schedule_groups|access_roles|access_role_groups|schedule_archives|schedule_archive_entries)' src/renderer
+          ! grep -RInE 'catalog-admin|member-delete-v2|member-order-v2|department-attendance-v2' src scripts supabase/functions tests README.md AGENTS.md 規格書.md
+          ! grep -RInE 'create( or replace)? function public\.(assign_department_group_v1|assign_member_access_v1|delete_department_general_v2|delete_member_account_v3|get_department_directory_v2|get_employee_admin_directory_v2|get_schedule_directory_v2|save_department_attendance_fields_bulk|save_departments_general_v2|save_schedule_entries_bulk)' supabase/001_current_schema.sql supabase/002_current_updates.sql
+          ! grep -RInE 'role[^a-zA-Z0-9_].*(admin|manager)|(admin|manager).*role|\["manager", "admin"\]|\["admin", "manager"\]' supabase/functions
+      - name: Commit final architecture
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "收斂權限存取入口"
+          git commit -m "完成權限存取架構重構"
           git push origin refactor/access-architecture-v3
-      - name: Unit tests
-        run: |
-          mv .github/workflows/access-architecture-refactor.yml /tmp/access-architecture-refactor.yml
-          npm test
