@@ -61,3 +61,10 @@ jobs:
               failed = True
           raise SystemExit(1 if failed else 0)
           PY
+      - name: Diagnose expansion acceptance
+        run: |
+          if ! node scripts/check-expansion-acceptance.js >/tmp/expansion.txt 2>&1; then
+            msg=$(tail -n 30 /tmp/expansion.txt | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Expansion acceptance::$msg"
+            exit 1
+          fi
