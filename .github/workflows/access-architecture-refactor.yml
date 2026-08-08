@@ -1,4 +1,4 @@
-# split final checks to identify any remaining stale contract
+# canonical access architecture finalization
 name: Access architecture refactor
 on:
   push:
@@ -42,10 +42,19 @@ jobs:
           python3 .github/refactor-access-cleanup8.py
           python3 - <<'PY'
           from pathlib import Path
+
           p = Path('tests/access-architecture.test.js')
           lines = p.read_text(encoding='utf-8').splitlines()
           lines = ['    assert.equal(rendererSource.includes("/rest/v1/" + table), false, table);' if 'new RegExp(`/rest/v1/${table}' in line else line for line in lines]
           p.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+
+          p = Path('tests/member-code-directory.test.js')
+          t = p.read_text(encoding='utf-8')
+          old = '  assert.match(block, /save_schedule_entries_v3/);'
+          new = '''  assert.match(block, /saveScheduleEntryRows\\(rows\\)/);\n  const helperStart = webApi.indexOf("async function saveScheduleEntryRows");\n  const helperEnd = webApi.indexOf("async function saveScheduleCells", helperStart);\n  const helperBlock = webApi.slice(helperStart, helperEnd);\n  assert.ok(helperStart >= 0 && helperEnd > helperStart, "缺少正式排班寫入 helper");\n  assert.match(helperBlock, /callRpc\\(\\"save_schedule_entries_v3\\"/);'''
+          if old not in t:
+              raise RuntimeError('stale schedule save assertion not found')
+          p.write_text(t.replace(old, new, 1), encoding='utf-8')
           PY
           rm -f .github/refactor-access-architecture.py .github/refactor-access-cleanup*.py .github/finalize-access-architecture.py .github/access-v3-canonical.sqlpart .github/workflows/access-architecture-refactor.yml
       - run: npm ci
