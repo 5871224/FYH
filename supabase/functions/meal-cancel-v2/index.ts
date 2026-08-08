@@ -20,7 +20,7 @@ export default {
       const settings = await ctx.supabaseAdmin.from("meal_settings")
         .select("daily_cutoff_time").eq("id", "default").maybeSingle();
       if (settings.error) throw settings.error;
-      const cutoff = String(settings.data?.daily_cutoff_time || "10:30").slice(0, 5);
+      const cutoff = String((settings.data as any)?.daily_cutoff_time || "10:30").slice(0, 5);
       if (taipeiTimeString() > cutoff) throw new Error(`今日訂餐已於 ${cutoff} 截止`);
 
       const result = await ctx.supabaseAdmin.from("meal_orders").delete()

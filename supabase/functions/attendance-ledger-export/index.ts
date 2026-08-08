@@ -1,14 +1,6 @@
 import { withSupabase } from "npm:@supabase/server@^1";
 import { actorIdOf, canAccessGroup, hasPermission, taipeiDateString as taipeiDate, validDate } from "../_shared/runtime.ts";
 
-function taipeiDate(date = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Taipei",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(date);
-}
 
 
 
@@ -22,7 +14,7 @@ async function getVisibleMembers(ctx: any, actorId: string) {
     .not("group_id", "is", null);
   if (error) throw error;
 
-  const groupIds = [...new Set((data || []).map((row: any) => row.group_id).filter(Boolean))];
+  const groupIds = [...new Set<string>((data || []).map((row: any) => row.group_id).filter(Boolean))];
   const accessPairs = await Promise.all(groupIds.map(async (groupId) => [
     groupId,
     await canAccessGroup(ctx, actorId, groupId, "attendance_review")
@@ -62,7 +54,7 @@ export default {
         .order("work_date", { ascending: true });
       if (attendanceError) throw attendanceError;
 
-      const rows = (attendanceRows || []).map((row: any) => {
+      const rows = ((attendanceRows || []) as any[]).map((row: any) => {
         const member: any = memberMap.get(row.user_id) || {};
         return {
           work_date: row.work_date,

@@ -3,19 +3,8 @@ import { actorIdOf, addDaysToDateString as addDays, hasPermission, isProfileEffe
 
 const PAGE_SIZE = 50;
 
-function taipeiDate(date = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit"
-  }).format(date);
-}
 
 
-function effective(profile: any, today = taipeiDate()) {
-  const end = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
-  return Boolean(profile && !profile.deleted_at
-    && (!profile.hire_date || today >= profile.hire_date)
-    && (!end || today <= end));
-}
 
 
 
@@ -86,7 +75,7 @@ async function report(ctx: any, body: any) {
       .in("user_id", userIds).in("work_date", dates)
     : { data: [], error: null };
   if (attendanceResult.error) throw attendanceResult.error;
-  const attendance = new Map((attendanceResult.data || []).map((row: any) => [`${row.user_id}:${row.work_date}`, row]));
+  const attendance = new Map<string, any>((attendanceResult.data || []).map((row: any) => [`${row.user_id}:${row.work_date}`, row]));
 
   const summaryMap = new Map<string, any>();
   const dailyMap = new Map<string, any>();

@@ -1,5 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@^1";
-import { actorIdOf, addDaysToDateString, canAccessGroup, hasPermission, isProfileEffective, isUuid, rpcBoolean, taipeiDateString } from "../_shared/runtime.ts";
+import { actorIdOf, canAccessGroup, hasPermission, isProfileEffective, isUuid, rpcBoolean, taipeiDateString } from "../_shared/runtime.ts";
 
 type MemberPayload = {
   employeeCode?: string;
@@ -26,24 +26,8 @@ const DEFAULT_PASSWORD = "0000";
 const MEMBER_PERMISSION = "member_settings";
 const PRIVILEGED_PERMISSION = "permission_settings";
 
-function taipeiDateString(date = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Taipei",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(date);
-}
 
 
-function isProfileEffective(profile: any, today = taipeiDateString()) {
-  const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
-  return Boolean(
-    !profile?.deleted_at
-      && (!profile?.hire_date || today >= profile.hire_date)
-      && (!effectiveEndDate || today <= effectiveEndDate)
-  );
-}
 
 
 function normalizeCodeKey(value: unknown) {
@@ -219,7 +203,7 @@ async function assertLastPrivilegedAccountProtected(ctx: any, existingProfile: a
 
 async function assertActorMayManageTarget(ctx: any, actor: { actorId: string; canManagePermissions: boolean }, profile: any) {
   if (!profile) return;
-  if (!profile.group_id || !await canAccessGroup(ctx, actor.actorId, profile.group_id)) {
+  if (!profile.group_id || !await canAccessGroup(ctx, actor.actorId, profile.group_id, MEMBER_PERMISSION)) {
     throw new Error("沒有管理此人員所屬群組的權限");
   }
   if (await roleHasPrivilegedPermission(ctx, profile.access_role_id) && !actor.canManagePermissions) {
@@ -234,7 +218,7 @@ async function upsertMember(ctx: any, body: any) {
   const targetProfile = await findProfileByCode(ctx, member.employeeCode);
   let profile = null;
 
-  if (!await canAccessGroup(ctx, actor.actorId, member.groupId)) {
+  if (!await canAccessGroup(ctx, actor.actorId, member.groupId, MEMBER_PERMISSION)) {
     throw new Error("沒有管理指定群組人員的權限");
   }
   await validateGroup(ctx, member.groupId);
@@ -263,7 +247,6 @@ async function upsertMember(ctx: any, body: any) {
   const profileValues = {
     employee_code: member.employeeCode,
     full_name: member.fullName,
-    role: accessRole.legacy_role || "employee",
     access_role_id: accessRole.id,
     group_id: member.groupId,
     hire_date: member.hireDate,

@@ -1,34 +1,9 @@
 import { withSupabase } from "npm:@supabase/server@^1";
 import { hasPermission, isProfileEffective, positiveInteger, taipeiDateString, taipeiTimeString } from "../_shared/runtime.ts";
 
-function taipeiDateString(date = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Taipei",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(date);
-}
 
 
-function isProfileEffective(profile: any, today = taipeiDateString()) {
-  const effectiveEndDate = profile?.leave_date ? addDaysToDateString(profile.leave_date, 5) : "";
-  return Boolean(
-    profile
-    && !profile.deleted_at
-    && (!profile.hire_date || today >= profile.hire_date)
-    && (!effectiveEndDate || today <= effectiveEndDate)
-  );
-}
 
-function taipeiTimeString(date = new Date()) {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Taipei",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).format(date);
-}
 
 
 
@@ -154,9 +129,9 @@ function normalizeIncomingItems(items: any[]): NormalizedMealItem[] {
 }
 
 function buildEffectiveItems(context: any, incoming: NormalizedMealItem[]) {
-  const products = new Map((context.products || []).map((product: any) => [String(product.id), product]));
-  const oldOrders = new Map((context.orders || []).map((order: any) => [String(order.product_id), order]));
-  const effective = new Map(incoming.map((item) => [item.productId, { ...item }]));
+  const products = new Map<string, any>((context.products || []).map((product: any) => [String(product.id), product]));
+  const oldOrders = new Map<string, any>((context.orders || []).map((order: any) => [String(order.product_id), order]));
+  const effective = new Map<string, NormalizedMealItem>(incoming.map((item) => [item.productId, { ...item }]));
 
   for (const item of incoming) {
     const product: any = products.get(item.productId);

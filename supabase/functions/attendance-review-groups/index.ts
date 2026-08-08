@@ -7,21 +7,10 @@ const ISSUE_TYPES = [
   "上班晚於下班", "上班地點不符", "下班地點不符"
 ];
 
-function taipeiDate(date = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit"
-  }).format(date);
-}
 
 
 
 
-function effective(profile: any, today = taipeiDate()) {
-  const end = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
-  return Boolean(profile && !profile.deleted_at
-    && (!profile.hire_date || today >= profile.hire_date)
-    && (!end || today <= end));
-}
 
 
 

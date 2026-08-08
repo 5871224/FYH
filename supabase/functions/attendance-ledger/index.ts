@@ -2,24 +2,10 @@ import { withSupabase } from "npm:@supabase/server@^1";
 import { addDaysToDateString as addDays, datesBetween, isProfileEffective as effective, isProfileEmployedOn as employedOn, pageNumber, taipeiDateString as taipeiDate, validDate } from "../_shared/runtime.ts";
 
 const PAGE_SIZE = 50;
-function taipeiDate(date = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Taipei",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(date);
-}
 
 
 
 
-function effective(profile: any, today = taipeiDate()) {
-  const end = profile?.leave_date ? addDays(profile.leave_date, 5) : "";
-  return Boolean(profile && !profile.deleted_at
-    && (!profile.hire_date || today >= profile.hire_date)
-    && (!end || today <= end));
-}
 
 
 
