@@ -1,1 +1,92 @@
-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
+from pathlib import Path
+
+
+def patch_file(path_text, replacements):
+    path = Path(path_text)
+    text = path.read_text(encoding="utf-8")
+    for label, old, new in replacements:
+        if old not in text:
+            raise RuntimeError(f"{path_text} patch missing: {label}")
+        text = text.replace(old, new, 1)
+    path.write_text(text, encoding="utf-8")
+    print(f"patched {path_text}")
+
+
+patch_file("src/renderer/renderer-settings-member.js", [
+    (
+        "active shift choices",
+        '  const visibleShifts = state.shifts.filter((shift) => !shift.hiddenFromToolbar);\n',
+        '  const visibleShifts = state.shifts.filter((shift) => !shift.deleted && !shift.hiddenFromToolbar);\n'
+    ),
+    (
+        "active members list",
+        '  const sourceMembers = state.members;\n',
+        '  const sourceMembers = state.members.filter((member) => !member.deleted);\n'
+    ),
+    (
+        "active department filter",
+        '            ${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${memberSettingsFilters.department === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}\n',
+        '            ${state.departments.filter((department) => !department.deleted).map((department) => `<option value="${escapeHtml(department.id)}" ${memberSettingsFilters.department === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}\n'
+    )
+])
+
+patch_file("src/renderer/renderer-settings-catalog.js", [
+    (
+        "active catalog list",
+        '  const list = getItemList(category);\n',
+        '  const list = getItemList(category).filter((item) => !item.deleted);\n'
+    ),
+    (
+        "active shift members",
+        '    const members = getMembersForScheduleShift(shift.id);\n',
+        '    const members = getMembersForScheduleShift(shift.id).filter((member) => !member.deleted);\n'
+    ),
+    (
+        "active department choices",
+        '        <select id="shiftApplicableDept">${buildSelectOptions(state.departments, "id", (item) => item.name, shift.applicableDeptId || "")}</select>\n',
+        '        <select id="shiftApplicableDept">${buildSelectOptions(state.departments.filter((item) => !item.deleted), "id", (item) => item.name, shift.applicableDeptId || "")}</select>\n'
+    ),
+    (
+        "validate active department",
+        '  if (!state.departments.some((department) => department.id === applicableDeptId)) {\n',
+        '  if (!state.departments.some((department) => department.id === applicableDeptId && !department.deleted)) {\n'
+    ),
+    (
+        "soft delete local state",
+        '''  if (category === "shift") {\n    state.shifts = state.shifts.filter((item) => item.id !== id);\n    state.members = state.members.map((member) => ({\n      ...member,\n      scheduleShiftIds: getMemberScheduleShiftIds(member).filter((shiftId) => shiftId !== id)\n    }));\n  }\n  if (category === "leave") state.leaves = state.leaves.filter((item) => item.id !== id);\n  if (category === "overtime") state.overtime = state.overtime.filter((item) => item.id !== id);\n  removeAssignmentsByItem(category, id);\n''',
+        '''  if (category === "shift") {\n    state.shifts = state.shifts.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item);\n    state.members = state.members.map((member) => member.deleted ? member : ({\n      ...member,\n      scheduleShiftIds: getMemberScheduleShiftIds(member).filter((shiftId) => shiftId !== id)\n    }));\n  }\n  if (category === "leave") state.leaves = state.leaves.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item);\n  if (category === "overtime") state.overtime = state.overtime.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item);\n'''
+    )
+])
+
+patch_file("src/renderer/renderer-settings-department.js", [
+    (
+        "active member rows",
+        '  const activeMembers = state.members.filter(isMemberCurrentlyActive);\n  const departmentRows = state.departments.map((department) => {\n',
+        '  const activeMembers = state.members.filter((member) => !member.deleted && isMemberCurrentlyActive(member));\n  const activeDepartments = state.departments.filter((department) => !department.deleted);\n  const departmentRows = activeDepartments.map((department) => {\n'
+    ),
+    (
+        "active department empty state",
+        '  const body = state.departments.length\n',
+        '  const body = activeDepartments.length\n'
+    ),
+    (
+        "active delete dependencies",
+        '  const memberIds = state.members.filter((member) => getMemberHomeDeptId(member) === departmentId).map((member) => member.id);\n',
+        '  const memberIds = state.members.filter((member) => !member.deleted && getMemberHomeDeptId(member) === departmentId).map((member) => member.id);\n'
+    ),
+    (
+        "active shift dependencies",
+        '  const usedShifts = state.shifts.filter((shift) => shift.applicableDeptId === departmentId);\n',
+        '  const usedShifts = state.shifts.filter((shift) => !shift.deleted && shift.applicableDeptId === departmentId);\n'
+    ),
+    (
+        "soft delete department local state",
+        '''  state.departments = state.departments.filter((department) => department.id !== departmentId);\n  memberIds.forEach(removeScheduleByMember);\n''',
+        '''  state.departments = state.departments.map((department) => department.id === departmentId\n    ? { ...department, deleted: true }\n    : department);\n'''
+    ),
+    (
+        "no redundant save after delete",
+        '  await reopenSettingsModalPreservingScroll(returnTo);\n  queueSave();\n',
+        '  await reopenSettingsModalPreservingScroll(returnTo);\n'
+    )
+])
