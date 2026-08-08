@@ -52,6 +52,11 @@ jobs:
       - name: Apply canonical cleanup
         run: python .github/canonical-cleanup.py
 
+      - name: Remove temporary cleanup tooling before validation
+        run: |
+          rm -f .github/canonical-cleanup.py
+          rm -f .github/workflows/canonical-cleanup.yml
+
       - name: Install dependencies
         run: npm ci
 
@@ -87,11 +92,6 @@ jobs:
           grep -R '../_shared/runtime.ts' supabase/functions/*/index.ts
           ! grep -R -nE 'legacy_role|access_role_legacy_role|employee\.role|new\.role' supabase/001_current_schema.sql supabase/002_current_updates.sql
           ! grep -R -nE 'resolveManagerMemberProfileId|fallbackOvertimeId|ROLE_OPTIONS' src/renderer tests
-
-      - name: Remove temporary cleanup tooling
-        run: |
-          rm -f .github/canonical-cleanup.py
-          rm -f .github/workflows/canonical-cleanup.yml
 
       - name: Commit canonical cleanup
         run: |
