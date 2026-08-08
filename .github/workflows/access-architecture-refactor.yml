@@ -5,16 +5,20 @@ on:
     paths:
       - .github/workflows/access-architecture-refactor.yml
 permissions:
-  contents: read
+  contents: write
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - name: Consolidate Edge APIs
+        run: python3 .github/refactor-access-cleanup6.py
       - run: npm ci
       - name: Build and syntax check
         run: |
@@ -23,6 +27,21 @@ jobs:
           node --check src/renderer/renderer-page-data.js
           node --check src/renderer/renderer-groups-permissions-archive.js
           node --check src/renderer/app.js
+      - name: Scan legacy access paths
+        run: |
+          echo '--- direct browser REST tables ---'
+          grep -RInE '/rest/v1/(set_|schedule_entries|scheduler_settings|holidays|schedule_groups|access_roles|access_role_groups|schedule_archives)' src/renderer || true
+          echo '--- generic browser helpers ---'
+          grep -RInE 'restSelect\(|restInsert\(|restUpdate\(|restDelete\(|saveState\(|syncCatalogs\(' src/renderer || true
+          echo '--- obsolete edge/api names outside SQL snapshots ---'
+          grep -RInE 'member-delete-v2|catalog-admin|save_schedule_entries_bulk|get_schedule_directory_v2|get_department_directory_v2|get_employee_admin_directory_v2|save_departments_general_v2|delete_department_general_v2|save_department_attendance_fields_bulk|assign_member_access_v1|assign_department_group_v1' src scripts supabase/functions tests README.md AGENTS.md 規格書.md || true
+      - name: Commit consolidation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "整併人員與設定管理 API"
+          git push origin refactor/access-architecture-v3
       - name: Unit tests
         run: |
           mv .github/workflows/access-architecture-refactor.yml /tmp/access-architecture-refactor.yml
