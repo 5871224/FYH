@@ -20,8 +20,8 @@ test("簽到簿群組審核 API 由正式 web-api 提供", () => {
   const records = read("src/renderer/renderer-records-page.js");
   const webApi = read("src/renderer/web-api.js");
   const publishedApp = read("docs/app.js");
-  assert.doesNotMatch(records, /loadRecordsPageWithReview/);
-  assert.match(records, /recordsState\.activeTab === "review"/);
+  assert.match(records, /hasPermission\("attendance_review"\)/);
+  assert.match(records, /getAttendanceReviewList/);
   assert.match(webApi, /requestFunction\("attendance-review-groups"/);
   assert.match(publishedApp, /attendance-review-groups/);
   assert.doesNotMatch(webApi, /renderer-group-backend-bridges/);
