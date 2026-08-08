@@ -89,6 +89,15 @@ jobs:
               raise SystemExit('renderer canonical meal test marker not found')
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
 
+          path = Path('tests/canonical-cleanup.test.js')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+            'assert.doesNotMatch(updates, /get_schedule_archive_ranges_v1\\(\\)/);',
+            'assert.doesNotMatch(updates, /get_group_entity_map_v1\\(\\)/);',
+            1
+          )
+          path.write_text(text, encoding='utf-8')
+
           path = Path('tests/access-architecture.test.js')
           text = path.read_text(encoding='utf-8')
           pattern = re.compile(r'test\("正式 SQL 最終守門使用權限項目而非文字角色", \(\) => \{[\s\S]*?\n\}\);\n\ntest\("前端角色', re.M)
@@ -103,6 +112,7 @@ jobs:
         run: |
           rm -f .github/canonical-cleanup.py
           rm -f .github/workflows/canonical-cleanup.yml
+          rm -f .github/workflows/canonical-residual-diagnose.yml
 
       - name: Install dependencies
         run: npm ci
