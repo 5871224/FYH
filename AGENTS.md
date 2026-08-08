@@ -147,3 +147,12 @@ npm run js:architecture
 - 是否已更新 `docs/`、測試與規格書。
 - 是否已直接提交到 `main`。
 - 實際執行了哪些驗證，以及是否通過。
+
+### 效能守門規則
+
+- 不得為了開啟班表預先下載人員管理專用欄位；完整人員目錄只能由人員設定功能 lazy load。
+- 個人記錄與簽到審核為不同資料生命週期，不得在載入個人記錄時順帶查簽到審核。
+- 大型匯出套件（目前為 ExcelJS）不得放在首頁 eager script；必須在匯入／匯出動作才載入。
+- 班表批次讀寫 SQL 必須先物化 actor/allowed groups，再集合式處理；禁止 row-by-row 權限 helper。
+- Browser 核心資料表沒有直接寫入 GRANT，因此也不得恢復 authenticated 的直接寫入 RLS policy；具名 RPC／Edge Function 是唯一正式寫入入口。
+- 新增 RLS 時 auth.uid()/auth.jwt() 要使用 init-plan 形式，並避免同一 role/action 存在多個 permissive policy。

@@ -51,8 +51,6 @@ function getCurrentGroup() { return getAllGroups().find((group) => group.id === 
 function getActorGroup() { return getAllGroups().find((group) => group.id === getAccessActor().groupId) || null; }
 function getAllRoles() { return Array.isArray(groupFeatureState.bundle?.roles) ? groupFeatureState.bundle.roles : []; }
 function getRoleById(roleId) { return getAllRoles().find((role) => role.id === roleId) || null; }
-function normalizeLegacyRoleValue(role) { return role === "admin" || role === "manager" ? role : "employee"; }
-function getRoleByLegacyRole(legacyRole) { return getAllRoles().find((role) => role.legacyRole === normalizeLegacyRoleValue(legacyRole)) || null; }
 
 function chooseCurrentGroupId() {
   const selectable = getSelectableGroups();
@@ -90,9 +88,9 @@ function enrichNormalizedState(normalized) {
     return { ...department, name: appendDeletedLabel(department.name, deleted), groupId: departmentGroups.get(department.id) || "", deleted };
   });
   normalized.members = (normalized.members || []).map((member) => {
-    const roleId = memberRoles.get(member.id) || getRoleByLegacyRole(member.role)?.id || "";
+    const roleId = memberRoles.get(member.id) || member.roleId || "";
     const deleted = Boolean(member.deleted || memberDeleted.get(member.id));
-    return { ...member, name: appendDeletedLabel(member.name, deleted), groupId: memberGroups.get(member.id) || "", roleId, role: roleId || member.role, deleted };
+    return { ...member, name: appendDeletedLabel(member.name, deleted), groupId: memberGroups.get(member.id) || "", roleId, deleted };
   });
   normalized.shifts = (normalized.shifts || []).map((shift) => {
     const deleted = Boolean(shift.deleted || shiftDeleted.get(shift.id));
@@ -544,7 +542,7 @@ function memberShiftNamesForGroup(groupId, selectedIds) {
   return names.length ? names.join("、") : "未指定";
 }
 function renderMemberRoleOptions(member) {
-  const selectedRoleId = member?.roleId || getRoleById(member?.role)?.id || getRoleByLegacyRole(member?.role)?.id || "";
+  const selectedRoleId = member?.roleId || "";
   const options = hasPermission("permission_settings") ? getAllRoles() : getAllRoles().filter((role) => role.id === selectedRoleId);
   return options.map((role) => `<option value="${escapeHtml(role.id)}" ${role.id === selectedRoleId ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("");
 }
@@ -553,12 +551,15 @@ function openMemberForm(mode, memberId = "") {
   const returnTo = modalContext?.category === "department-settings"
     ? captureSettingsReturnContext({ category: "department-settings", view: modalContext.view || departmentSettingsView })
     : modalContext?.category === "member-settings" ? captureSettingsReturnContext({ category: "member-settings" }) : null;
-  const employeeRole = getAllRoles().find((role) => role.code === "employee") || getAllRoles()[0] || null;
+  const defaultAccessRole = getAllRoles().find((role) => {
+    const permissions = Array.isArray(role.permissions) ? role.permissions : [];
+    return permissions.length === 1 && permissions.includes("schedule_view");
+  }) || getAllRoles()[0] || null;
   const member = mode === "edit" ? state.members.find((item) => item.id === memberId) : {
     id: "", code: "", name: "", groupId: groupFeatureState.currentGroupId,
     deptId: getDepartmentsForGroup(groupFeatureState.currentGroupId)[0]?.id || "",
     hireDate: "", leaveDate: "", payByDay: false, fixedRestWeekday: 0,
-    scheduleShiftIds: [], roleId: employeeRole?.id || "", role: employeeRole?.id || ""
+    scheduleShiftIds: [], roleId: defaultAccessRole?.id || ""
   };
   if (!member) return;
   if (!canEditMemberAccount(member)) { showInfoMessage("沒有權限修改此帳號"); return; }
@@ -588,7 +589,7 @@ async function saveMember(mode) {
     id: mode === "edit" ? modalContext.targetId : uid("m"), code: document.getElementById("memberCode")?.value.trim(), name: document.getElementById("memberName")?.value.trim(),
     groupId, deptId, scheduleShiftIds, positionId: previousMember?.positionId || "", proxyMemberId: "", hireDate, leaveDate,
     payByDay: document.getElementById("memberSalaryType")?.value === "daily", fixedRestWeekday: normalizeRestWeekday(document.getElementById("memberFixedRestWeekday")?.value),
-    monthlyRestDays: Math.max(0, Number(previousMember?.monthlyRestDays) || 0), roleId, role: roleId
+    monthlyRestDays: Math.max(0, Number(previousMember?.monthlyRestDays) || 0), roleId
   };
   if (!payload.code || !payload.name) return reportValidationError("請填寫人員編號與姓名");
   if (!payload.groupId) return reportValidationError("請選擇所屬群組");

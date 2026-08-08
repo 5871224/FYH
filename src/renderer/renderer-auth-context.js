@@ -21,10 +21,6 @@ function resolveCurrentMember() {
     || null;
 }
 
-function normalizeRole(role) {
-  return role === "admin" || role === "manager" ? role : "employee";
-}
-
 function isAdmin() {
   return hasPermission("permission_settings");
 }
@@ -66,8 +62,8 @@ function getCurrentProfileName() {
   return currentProfile?.full_name || currentSession?.user?.email || "";
 }
 
-function getRoleLabel(role) {
-  return getRoleById(role)?.name || getRoleByLegacyRole(role)?.name || "員工";
+function getRoleLabel(roleId) {
+  return getRoleById(roleId)?.name || "未指定";
 }
 
 

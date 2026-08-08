@@ -161,6 +161,7 @@ function createRecordsState() {
     mealFilters: { fromDate: today, toDate: today, departmentId: "", memberId: "" },
     attendanceReview: {
       loading: false,
+      loaded: false,
       rows: [],
       members: [],
       issueTypes: [],

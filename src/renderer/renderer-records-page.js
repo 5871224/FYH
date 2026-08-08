@@ -77,6 +77,7 @@ function ensureAttendanceReviewState() {
   const filters = current.filters || {};
   recordsState.attendanceReview = {
     loading: Boolean(current.loading),
+    loaded: Boolean(current.loaded),
     rows: current.rows || [],
     members: current.members || [],
     issueTypes: current.issueTypes || [],
@@ -115,7 +116,6 @@ async function loadRecordsPage(shouldRender = true) {
       personalPageSize: Number(result.pageSize || 50),
       error: ""
     };
-    if (hasPermission("attendance_review")) await loadAttendanceReview(false);
   } catch (error) {
     recordsState = { ...recordsState, loading: false, personal: [], error: error.message || "讀取簽到簿失敗" };
   }
@@ -140,6 +140,7 @@ async function loadAttendanceReview(shouldRender = true) {
       attendanceReview: {
         ...recordsState.attendanceReview,
         loading: false,
+        loaded: true,
         rows: result.rows || [],
         members: result.members || [],
         issueTypes: result.issueTypes || [],
@@ -155,6 +156,7 @@ async function loadAttendanceReview(shouldRender = true) {
       attendanceReview: {
         ...recordsState.attendanceReview,
         loading: false,
+        loaded: false,
         rows: [],
         error: error.message || "讀取簽到審核失敗"
       }

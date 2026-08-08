@@ -44,7 +44,6 @@ function bindDelegatedClickEvents() {
         if (firstLoad) await showScheduleLoadingIndicator();
         try {
           await ensureScheduleApplicationLoaded();
-          if (hasPermission("member_settings")) await ensureManagerDirectoryLoaded();
           appView = "schedule";
           renderAll();
         } catch (error) {
@@ -94,8 +93,13 @@ function bindDelegatedClickEvents() {
       return;
     }
     if (target.dataset.recordsTab) {
-      recordsState.activeTab = target.dataset.recordsTab;
-      renderAll();
+      const nextTab = target.dataset.recordsTab;
+      recordsState.activeTab = nextTab;
+      if (nextTab === "review" && hasPermission("attendance_review") && !ensureAttendanceReviewState().loaded) {
+        await loadAttendanceReview();
+      } else {
+        renderAll();
+      }
       return;
     }
     if (target.dataset.loadMealReport) {

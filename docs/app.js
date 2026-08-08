@@ -6,6 +6,35 @@
 
 /* ===== browser-exporter.js ===== */
 (function installBrowserExporter() {
+  const EXCELJS_SRC = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
+  let excelJsPromise = null;
+
+  async function ensureExcelJS() {
+    if (window.ExcelJS?.Workbook) return window.ExcelJS;
+    if (!excelJsPromise) {
+      excelJsPromise = new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[data-fyh-exceljs="true"]');
+        const script = existing || document.createElement("script");
+        const done = () => {
+          if (window.ExcelJS?.Workbook) resolve(window.ExcelJS);
+          else reject(new Error("ExcelJS 載入失敗"));
+        };
+        script.addEventListener("load", done, { once: true });
+        script.addEventListener("error", () => {
+          excelJsPromise = null;
+          reject(new Error("ExcelJS 載入失敗"));
+        }, { once: true });
+        if (!existing) {
+          script.src = EXCELJS_SRC;
+          script.async = true;
+          script.dataset.fyhExceljs = "true";
+          document.head.appendChild(script);
+        }
+      });
+    }
+    return excelJsPromise;
+  }
+
   function daysInMonth(year, month) {
     return new Date(year, month + 1, 0).getDate();
   }
@@ -16,24 +45,6 @@
 
   function getScheduleKey(memberId, year, month, day) {
     return `${memberId}_${year}_${month}_${day}`;
-  }
-
-  function normalizeRole(role) {
-    return role === "admin" || role === "manager" ? role : "employee";
-  }
-
-  function getRoleLabel(role) {
-    const normalizedRole = normalizeRole(role);
-    if (normalizedRole === "admin") return "管理員";
-    if (normalizedRole === "manager") return "主管";
-    return "員工";
-  }
-
-  function parseRoleLabel(label) {
-    const text = String(label || "").trim();
-    if (text === "管理員" || /^admin$/i.test(text)) return "admin";
-    if (text === "主管" || /^manager$/i.test(text)) return "manager";
-    return "employee";
   }
 
   function formatYmd(year, month, day) {
@@ -276,6 +287,7 @@
   }
 
   async function createScheduleWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("排班表", {
       views: [{ state: "frozen", xSplit: 2, ySplit: 2 }]
@@ -381,6 +393,7 @@
   }
 
   async function createOvertimeWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("匯出加班");
     const headers = [
@@ -409,6 +422,7 @@
   }
 
   async function createLeaveWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("匯出請假");
     const headers = [
@@ -440,12 +454,14 @@
   }
 
   async function createMemberWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("人員資料");
     const headers = ["工號", "姓名", "排班班別", "權限", "到職日", "離職日", "計薪方式", "例假星期", "所屬單位"];
     const weekdayLabels = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
     const departments = payload.state?.departments || [];
     const shifts = payload.state?.shifts || [];
+    const roleNameById = new Map((payload.state?.accessRoles || []).map((role) => [role.id, role.name]));
 
     sheet.addRow(headers);
     (payload.state?.members || []).forEach((member) => {
@@ -454,7 +470,7 @@
         member.code || "",
         member.name || "",
         scheduleShiftNames.join("、"),
-        getRoleLabel(member.role),
+        roleNameById.get(member.roleId || "") || "",
         formatDisplayDate(member.hireDate || ""),
         formatDisplayDate(member.leaveDate || ""),
         member.payByDay ? "日薪" : "月薪",
@@ -482,6 +498,7 @@
   }
 
   async function createDepartmentWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("單位設定");
     const headers = ["單位", "開始日期", "結束日期", "不顯示"];
@@ -510,6 +527,7 @@
   }
 
   async function createShiftWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("班別設定");
     const headers = ["班別", "適用單位", "需求人數", "上班時間", "下班時間", "底色", "字色", "自動字色", "不顯示"];
@@ -539,6 +557,7 @@
   }
 
   async function createLeaveSettingsWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("假別設定");
     const headers = ["假別代碼", "名稱", "需填時間", "需填原因", "底色", "字色", "自動字色", "不顯示"];
@@ -564,6 +583,7 @@
   }
 
   async function createOvertimeSettingsWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("加班設定");
     const headers = ["名稱", "上班時間", "下班時間", "使用休息1", "休息1開始", "休息1結束", "使用休息2", "休息2開始", "休息2結束", "底色", "字色", "自動字色", "不顯示"];
@@ -594,6 +614,7 @@
   }
 
   async function parseMemberWorkbook(arrayBuffer) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     const sheet = workbook.worksheets[0];
@@ -647,7 +668,7 @@
         name,
         departmentName,
         scheduleShiftNames,
-        role: parseRoleLabel(roleText),
+        roleName: roleText,
         hireDate,
         leaveDate,
         payByDay: salaryType === "日薪" || salaryType === "按日計薪",
@@ -658,6 +679,7 @@
   }
 
   async function parseDepartmentWorkbook(arrayBuffer) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     const sheet = workbook.worksheets[0];
@@ -682,6 +704,7 @@
   }
 
   async function parseShiftWorkbook(arrayBuffer) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     const sheet = workbook.worksheets[0];
@@ -731,6 +754,7 @@
   }
 
   async function parseLeaveSettingsWorkbook(arrayBuffer) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     const sheet = workbook.getWorksheet("假別設定") || workbook.worksheets[0];
@@ -758,6 +782,7 @@
   }
 
   async function parseOvertimeSettingsWorkbook(arrayBuffer) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     const sheet = workbook.getWorksheet("加班設定") || workbook.worksheets[0];
@@ -845,6 +870,7 @@
   runSelfCheck();
 
   window.schedulerBrowserExporter = {
+    ensureExcelJS,
     buildSapLeaveCsvContent,
     getSapLeaveExportRows,
     getOvertimeExportRows,
@@ -1133,10 +1159,6 @@
 
   let currentSession = null;
   let currentProfile = null;
-
-  function normalizeRole(role) {
-    return role === "admin" || role === "manager" ? role : "employee";
-  }
 
       function compactExportDate(value) {
     return String(value || "").replace(/[^0-9]/g, "").slice(0, 8);
@@ -1989,7 +2011,6 @@
         payByDay: Boolean(row.pay_by_day),
         fixedRestWeekday: clampInteger(row.fixed_rest_weekday, 0, 6, 0),
         monthlyRestDays: Math.max(0, Number(row.monthly_rest_days) || 0),
-        role: normalizeRole(row.role),
         roleId: row.access_role_id || "",
         groupId: row.group_id || "",
         deleted: Boolean(row.deleted_at)
@@ -2066,7 +2087,7 @@
         employeeCode: String(member?.code || "").trim(),
         fullName: member?.name || "",
         groupId: member?.groupId || "",
-        accessRoleId: member?.roleId || member?.role || "",
+        accessRoleId: member?.roleId || "",
         hireDate: member?.hireDate || null,
         leaveDate: member?.leaveDate || null,
         payByDay: Boolean(member?.payByDay),
@@ -2369,6 +2390,7 @@
     const rows = buildMealEmployeeRows(report, details);
     if (!rows.length) return { canceled: true, empty: true };
     const reportDate = compactMealExportDate(report.toDate);
+    await exporter.ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "福圓號";
     workbook.created = new Date();
@@ -2745,6 +2767,7 @@ function createRecordsState() {
     mealFilters: { fromDate: today, toDate: today, departmentId: "", memberId: "" },
     attendanceReview: {
       loading: false,
+      loaded: false,
       rows: [],
       members: [],
       issueTypes: [],
@@ -3625,7 +3648,7 @@ function sanitizeMember(member, fallbackIndex, merged) {
     payByDay: Boolean(member?.payByDay),
     fixedRestWeekday: normalizeRestWeekday(member?.fixedRestWeekday),
     monthlyRestDays: Math.max(0, Number(member?.monthlyRestDays) || 0),
-    role: normalizeRole(member?.role)
+    roleId: member?.roleId || ""
   };
 }
 
@@ -6702,7 +6725,7 @@ function getFilteredMemberSettingsMembers() {
         : getMemberHomeDeptId(member) === memberSettingsFilters.department;
     const matchesRole = memberSettingsFilters.role === "all"
       ? true
-      : normalizeRole(member.role) === memberSettingsFilters.role;
+      : member.roleId === memberSettingsFilters.role;
     const active = isMemberCurrentlyActive(member);
     const matchesEmployment = memberSettingsFilters.employment === "all"
       ? true
@@ -6746,7 +6769,7 @@ function renderMemberSettingsList() {
                  <div class="member-table-code">${escapeHtml(member.code)}</div>
                 <div class="member-table-name">${escapeHtml(member.name)}</div>
                 <div class="member-shift-pill-list">${renderMemberScheduleShiftPills(member)}</div>
-                <div>${getRoleLabel(member.role)}</div>
+                <div>${getRoleLabel(member.roleId)}</div>
                 <div class="member-date-stack"><span>${escapeHtml(member.hireDate || "-")}</span><span>${escapeHtml(member.leaveDate || "-")}</span></div>
                 <div>${getSalaryTypeLabel(member)}</div>
                 <div>${getRestWeekdayLabel(member.fixedRestWeekday)}</div>
@@ -6819,9 +6842,7 @@ async function openMemberSettings() {
           <label for="memberSettingsRoleFilter">權限</label>
           <select id="memberSettingsRoleFilter" data-member-settings-filter-field="role">
             <option value="all" ${memberSettingsFilters.role === "all" ? "selected" : ""}>全部</option>
-            <option value="admin" ${memberSettingsFilters.role === "admin" ? "selected" : ""}>管理員</option>
-            <option value="manager" ${memberSettingsFilters.role === "manager" ? "selected" : ""}>主管</option>
-            <option value="employee" ${memberSettingsFilters.role === "employee" ? "selected" : ""}>員工</option>
+            ${getAllRoles().map((role) => `<option value="${escapeHtml(role.id)}" ${memberSettingsFilters.role === role.id ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("")}
           </select>
         </div>
         <div class="form-row">
@@ -6878,6 +6899,16 @@ async function importMembersFromSettings() {
     }
     const departmentMap = new Map(state.departments.map((department) => [department.name.trim(), department.id]));
     const shiftMap = new Map(state.shifts.filter((shift) => !shift.hiddenFromToolbar).map((shift) => [shift.name.trim(), shift.id]));
+    const accessRoleMap = new Map();
+    getAllRoles().forEach((role) => {
+      accessRoleMap.set(String(role.id || "").trim().toLowerCase(), role.id);
+      accessRoleMap.set(String(role.code || "").trim().toLowerCase(), role.id);
+      accessRoleMap.set(String(role.name || "").trim().toLowerCase(), role.id);
+    });
+    const defaultAccessRoleId = getAllRoles().find((role) => {
+      const permissions = Array.isArray(role.permissions) ? role.permissions : [];
+      return permissions.length === 1 && permissions.includes("schedule_view");
+    })?.id || "";
     let imported = 0;
     let updated = 0;
     let skipped = 0;
@@ -6906,6 +6937,15 @@ async function importMembersFromSettings() {
         continue;
       }
       const existing = state.members.find((member) => member.code === code) || null;
+      const importedRoleKey = String(row.roleName || "").trim().toLowerCase();
+      const importedRoleId = accessRoleMap.get(importedRoleKey) || "";
+      const roleId = isAdmin()
+        ? (importedRoleId || existing?.roleId || defaultAccessRoleId)
+        : (existing?.roleId || defaultAccessRoleId);
+      if (!roleId) {
+        skipped += 1;
+        continue;
+      }
       const payload = {
         id: existing?.id || uid("m"),
         code,
@@ -6919,7 +6959,7 @@ async function importMembersFromSettings() {
         payByDay: Boolean(row.payByDay),
         fixedRestWeekday: normalizeRestWeekday(row.fixedRestWeekday),
         monthlyRestDays: Math.max(0, Number(row.monthlyRestDays) || 0),
-        role: isAdmin() ? normalizeRole(row.role) : normalizeRole(existing?.role)
+        roleId
       };
       if (!existing) {
         try {
@@ -7078,8 +7118,6 @@ function getCurrentGroup() { return getAllGroups().find((group) => group.id === 
 function getActorGroup() { return getAllGroups().find((group) => group.id === getAccessActor().groupId) || null; }
 function getAllRoles() { return Array.isArray(groupFeatureState.bundle?.roles) ? groupFeatureState.bundle.roles : []; }
 function getRoleById(roleId) { return getAllRoles().find((role) => role.id === roleId) || null; }
-function normalizeLegacyRoleValue(role) { return role === "admin" || role === "manager" ? role : "employee"; }
-function getRoleByLegacyRole(legacyRole) { return getAllRoles().find((role) => role.legacyRole === normalizeLegacyRoleValue(legacyRole)) || null; }
 
 function chooseCurrentGroupId() {
   const selectable = getSelectableGroups();
@@ -7117,9 +7155,9 @@ function enrichNormalizedState(normalized) {
     return { ...department, name: appendDeletedLabel(department.name, deleted), groupId: departmentGroups.get(department.id) || "", deleted };
   });
   normalized.members = (normalized.members || []).map((member) => {
-    const roleId = memberRoles.get(member.id) || getRoleByLegacyRole(member.role)?.id || "";
+    const roleId = memberRoles.get(member.id) || member.roleId || "";
     const deleted = Boolean(member.deleted || memberDeleted.get(member.id));
-    return { ...member, name: appendDeletedLabel(member.name, deleted), groupId: memberGroups.get(member.id) || "", roleId, role: roleId || member.role, deleted };
+    return { ...member, name: appendDeletedLabel(member.name, deleted), groupId: memberGroups.get(member.id) || "", roleId, deleted };
   });
   normalized.shifts = (normalized.shifts || []).map((shift) => {
     const deleted = Boolean(shift.deleted || shiftDeleted.get(shift.id));
@@ -7571,7 +7609,7 @@ function memberShiftNamesForGroup(groupId, selectedIds) {
   return names.length ? names.join("、") : "未指定";
 }
 function renderMemberRoleOptions(member) {
-  const selectedRoleId = member?.roleId || getRoleById(member?.role)?.id || getRoleByLegacyRole(member?.role)?.id || "";
+  const selectedRoleId = member?.roleId || "";
   const options = hasPermission("permission_settings") ? getAllRoles() : getAllRoles().filter((role) => role.id === selectedRoleId);
   return options.map((role) => `<option value="${escapeHtml(role.id)}" ${role.id === selectedRoleId ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("");
 }
@@ -7580,12 +7618,15 @@ function openMemberForm(mode, memberId = "") {
   const returnTo = modalContext?.category === "department-settings"
     ? captureSettingsReturnContext({ category: "department-settings", view: modalContext.view || departmentSettingsView })
     : modalContext?.category === "member-settings" ? captureSettingsReturnContext({ category: "member-settings" }) : null;
-  const employeeRole = getAllRoles().find((role) => role.code === "employee") || getAllRoles()[0] || null;
+  const defaultAccessRole = getAllRoles().find((role) => {
+    const permissions = Array.isArray(role.permissions) ? role.permissions : [];
+    return permissions.length === 1 && permissions.includes("schedule_view");
+  }) || getAllRoles()[0] || null;
   const member = mode === "edit" ? state.members.find((item) => item.id === memberId) : {
     id: "", code: "", name: "", groupId: groupFeatureState.currentGroupId,
     deptId: getDepartmentsForGroup(groupFeatureState.currentGroupId)[0]?.id || "",
     hireDate: "", leaveDate: "", payByDay: false, fixedRestWeekday: 0,
-    scheduleShiftIds: [], roleId: employeeRole?.id || "", role: employeeRole?.id || ""
+    scheduleShiftIds: [], roleId: defaultAccessRole?.id || ""
   };
   if (!member) return;
   if (!canEditMemberAccount(member)) { showInfoMessage("沒有權限修改此帳號"); return; }
@@ -7615,7 +7656,7 @@ async function saveMember(mode) {
     id: mode === "edit" ? modalContext.targetId : uid("m"), code: document.getElementById("memberCode")?.value.trim(), name: document.getElementById("memberName")?.value.trim(),
     groupId, deptId, scheduleShiftIds, positionId: previousMember?.positionId || "", proxyMemberId: "", hireDate, leaveDate,
     payByDay: document.getElementById("memberSalaryType")?.value === "daily", fixedRestWeekday: normalizeRestWeekday(document.getElementById("memberFixedRestWeekday")?.value),
-    monthlyRestDays: Math.max(0, Number(previousMember?.monthlyRestDays) || 0), roleId, role: roleId
+    monthlyRestDays: Math.max(0, Number(previousMember?.monthlyRestDays) || 0), roleId
   };
   if (!payload.code || !payload.name) return reportValidationError("請填寫人員編號與姓名");
   if (!payload.groupId) return reportValidationError("請選擇所屬群組");
@@ -7753,10 +7794,6 @@ function resolveCurrentMember() {
     || null;
 }
 
-function normalizeRole(role) {
-  return role === "admin" || role === "manager" ? role : "employee";
-}
-
 function isAdmin() {
   return hasPermission("permission_settings");
 }
@@ -7798,8 +7835,8 @@ function getCurrentProfileName() {
   return currentProfile?.full_name || currentSession?.user?.email || "";
 }
 
-function getRoleLabel(role) {
-  return getRoleById(role)?.name || getRoleByLegacyRole(role)?.name || "員工";
+function getRoleLabel(roleId) {
+  return getRoleById(roleId)?.name || "未指定";
 }
 
 
@@ -9180,6 +9217,7 @@ function ensureAttendanceReviewState() {
   const filters = current.filters || {};
   recordsState.attendanceReview = {
     loading: Boolean(current.loading),
+    loaded: Boolean(current.loaded),
     rows: current.rows || [],
     members: current.members || [],
     issueTypes: current.issueTypes || [],
@@ -9218,7 +9256,6 @@ async function loadRecordsPage(shouldRender = true) {
       personalPageSize: Number(result.pageSize || 50),
       error: ""
     };
-    if (hasPermission("attendance_review")) await loadAttendanceReview(false);
   } catch (error) {
     recordsState = { ...recordsState, loading: false, personal: [], error: error.message || "讀取簽到簿失敗" };
   }
@@ -9243,6 +9280,7 @@ async function loadAttendanceReview(shouldRender = true) {
       attendanceReview: {
         ...recordsState.attendanceReview,
         loading: false,
+        loaded: true,
         rows: result.rows || [],
         members: result.members || [],
         issueTypes: result.issueTypes || [],
@@ -9258,6 +9296,7 @@ async function loadAttendanceReview(shouldRender = true) {
       attendanceReview: {
         ...recordsState.attendanceReview,
         loading: false,
+        loaded: false,
         rows: [],
         error: error.message || "讀取簽到審核失敗"
       }
@@ -11082,7 +11121,6 @@ function bindDelegatedClickEvents() {
         if (firstLoad) await showScheduleLoadingIndicator();
         try {
           await ensureScheduleApplicationLoaded();
-          if (hasPermission("member_settings")) await ensureManagerDirectoryLoaded();
           appView = "schedule";
           renderAll();
         } catch (error) {
@@ -11132,8 +11170,13 @@ function bindDelegatedClickEvents() {
       return;
     }
     if (target.dataset.recordsTab) {
-      recordsState.activeTab = target.dataset.recordsTab;
-      renderAll();
+      const nextTab = target.dataset.recordsTab;
+      recordsState.activeTab = nextTab;
+      if (nextTab === "review" && hasPermission("attendance_review") && !ensureAttendanceReviewState().loaded) {
+        await loadAttendanceReview();
+      } else {
+        renderAll();
+      }
       return;
     }
     if (target.dataset.loadMealReport) {

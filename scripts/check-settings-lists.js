@@ -68,7 +68,7 @@ assert(renderer.includes("syncMemberProfile"), "member import should persist mem
 assert(webApi.includes("function normalizeTextArray"), "web api should normalize Postgres text arrays");
 assert(renderer.includes("function renderMemberRoleOptions") && renderer.includes("function getAllRoles()") && renderer.includes("groupFeatureState.bundle?.roles"), "member settings should render configured access roles instead of fixed legacy role choices");
 assert(renderer.includes("function canEditMemberAccount") && renderer.includes('hasPermission("member_settings")'), "member editing capability should derive from member_settings");
-assert(browserExporter.includes("function parseRoleLabel"), "member import/export should preserve role labels as data compatibility only");
+assert(browserExporter.includes("roleName: roleText") && browserExporter.includes("roleNameById") && !browserExporter.includes("parseRoleLabel"), "member import/export should map configured role names without legacy role values");
 assert(webApi.includes("scheduleShiftIds"), "member schedule shifts should stay on uuid-backed scheduleShiftIds");
 assert(browserExporter.includes('["工號", "姓名", "排班班別", "權限", "到職日", "離職日", "計薪方式", "例假星期", "所屬單位"]'), "member export should place home department after rest weekday");
 assert(browserExporter.includes('const departmentColumn = getHeaderColumnIndex(sheet, ["所屬單位", "單位"], 9);'), "member import should read the home department after rest weekday by default");

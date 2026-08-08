@@ -19,10 +19,6 @@
   let currentSession = null;
   let currentProfile = null;
 
-  function normalizeRole(role) {
-    return role === "admin" || role === "manager" ? role : "employee";
-  }
-
       function compactExportDate(value) {
     return String(value || "").replace(/[^0-9]/g, "").slice(0, 8);
   }
@@ -874,7 +870,6 @@
         payByDay: Boolean(row.pay_by_day),
         fixedRestWeekday: clampInteger(row.fixed_rest_weekday, 0, 6, 0),
         monthlyRestDays: Math.max(0, Number(row.monthly_rest_days) || 0),
-        role: normalizeRole(row.role),
         roleId: row.access_role_id || "",
         groupId: row.group_id || "",
         deleted: Boolean(row.deleted_at)
@@ -951,7 +946,7 @@
         employeeCode: String(member?.code || "").trim(),
         fullName: member?.name || "",
         groupId: member?.groupId || "",
-        accessRoleId: member?.roleId || member?.role || "",
+        accessRoleId: member?.roleId || "",
         hireDate: member?.hireDate || null,
         leaveDate: member?.leaveDate || null,
         payByDay: Boolean(member?.payByDay),
@@ -1254,6 +1249,7 @@
     const rows = buildMealEmployeeRows(report, details);
     if (!rows.length) return { canceled: true, empty: true };
     const reportDate = compactMealExportDate(report.toDate);
+    await exporter.ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "福圓號";
     workbook.created = new Date();

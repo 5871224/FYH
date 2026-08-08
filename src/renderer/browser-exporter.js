@@ -1,4 +1,33 @@
 (function installBrowserExporter() {
+  const EXCELJS_SRC = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
+  let excelJsPromise = null;
+
+  async function ensureExcelJS() {
+    if (window.ExcelJS?.Workbook) return window.ExcelJS;
+    if (!excelJsPromise) {
+      excelJsPromise = new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[data-fyh-exceljs="true"]');
+        const script = existing || document.createElement("script");
+        const done = () => {
+          if (window.ExcelJS?.Workbook) resolve(window.ExcelJS);
+          else reject(new Error("ExcelJS 載入失敗"));
+        };
+        script.addEventListener("load", done, { once: true });
+        script.addEventListener("error", () => {
+          excelJsPromise = null;
+          reject(new Error("ExcelJS 載入失敗"));
+        }, { once: true });
+        if (!existing) {
+          script.src = EXCELJS_SRC;
+          script.async = true;
+          script.dataset.fyhExceljs = "true";
+          document.head.appendChild(script);
+        }
+      });
+    }
+    return excelJsPromise;
+  }
+
   function daysInMonth(year, month) {
     return new Date(year, month + 1, 0).getDate();
   }
@@ -9,24 +38,6 @@
 
   function getScheduleKey(memberId, year, month, day) {
     return `${memberId}_${year}_${month}_${day}`;
-  }
-
-  function normalizeRole(role) {
-    return role === "admin" || role === "manager" ? role : "employee";
-  }
-
-  function getRoleLabel(role) {
-    const normalizedRole = normalizeRole(role);
-    if (normalizedRole === "admin") return "管理員";
-    if (normalizedRole === "manager") return "主管";
-    return "員工";
-  }
-
-  function parseRoleLabel(label) {
-    const text = String(label || "").trim();
-    if (text === "管理員" || /^admin$/i.test(text)) return "admin";
-    if (text === "主管" || /^manager$/i.test(text)) return "manager";
-    return "employee";
   }
 
   function formatYmd(year, month, day) {
@@ -269,6 +280,7 @@
   }
 
   async function createScheduleWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("排班表", {
       views: [{ state: "frozen", xSplit: 2, ySplit: 2 }]
@@ -374,6 +386,7 @@
   }
 
   async function createOvertimeWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("匯出加班");
     const headers = [
@@ -402,6 +415,7 @@
   }
 
   async function createLeaveWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("匯出請假");
     const headers = [
@@ -433,12 +447,14 @@
   }
 
   async function createMemberWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("人員資料");
     const headers = ["工號", "姓名", "排班班別", "權限", "到職日", "離職日", "計薪方式", "例假星期", "所屬單位"];
     const weekdayLabels = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
     const departments = payload.state?.departments || [];
     const shifts = payload.state?.shifts || [];
+    const roleNameById = new Map((payload.state?.accessRoles || []).map((role) => [role.id, role.name]));
 
     sheet.addRow(headers);
     (payload.state?.members || []).forEach((member) => {
@@ -447,7 +463,7 @@
         member.code || "",
         member.name || "",
         scheduleShiftNames.join("、"),
-        getRoleLabel(member.role),
+        roleNameById.get(member.roleId || "") || "",
         formatDisplayDate(member.hireDate || ""),
         formatDisplayDate(member.leaveDate || ""),
         member.payByDay ? "日薪" : "月薪",
@@ -475,6 +491,7 @@
   }
 
   async function createDepartmentWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("單位設定");
     const headers = ["單位", "開始日期", "結束日期", "不顯示"];
@@ -503,6 +520,7 @@
   }
 
   async function createShiftWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("班別設定");
     const headers = ["班別", "適用單位", "需求人數", "上班時間", "下班時間", "底色", "字色", "自動字色", "不顯示"];
@@ -532,6 +550,7 @@
   }
 
   async function createLeaveSettingsWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("假別設定");
     const headers = ["假別代碼", "名稱", "需填時間", "需填原因", "底色", "字色", "自動字色", "不顯示"];
@@ -557,6 +576,7 @@
   }
 
   async function createOvertimeSettingsWorkbook(payload) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("加班設定");
     const headers = ["名稱", "上班時間", "下班時間", "使用休息1", "休息1開始", "休息1結束", "使用休息2", "休息2開始", "休息2結束", "底色", "字色", "自動字色", "不顯示"];
@@ -587,6 +607,7 @@
   }
 
   async function parseMemberWorkbook(arrayBuffer) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     const sheet = workbook.worksheets[0];
@@ -640,7 +661,7 @@
         name,
         departmentName,
         scheduleShiftNames,
-        role: parseRoleLabel(roleText),
+        roleName: roleText,
         hireDate,
         leaveDate,
         payByDay: salaryType === "日薪" || salaryType === "按日計薪",
@@ -651,6 +672,7 @@
   }
 
   async function parseDepartmentWorkbook(arrayBuffer) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     const sheet = workbook.worksheets[0];
@@ -675,6 +697,7 @@
   }
 
   async function parseShiftWorkbook(arrayBuffer) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     const sheet = workbook.worksheets[0];
@@ -724,6 +747,7 @@
   }
 
   async function parseLeaveSettingsWorkbook(arrayBuffer) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     const sheet = workbook.getWorksheet("假別設定") || workbook.worksheets[0];
@@ -751,6 +775,7 @@
   }
 
   async function parseOvertimeSettingsWorkbook(arrayBuffer) {
+    await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     const sheet = workbook.getWorksheet("加班設定") || workbook.worksheets[0];
@@ -838,6 +863,7 @@
   runSelfCheck();
 
   window.schedulerBrowserExporter = {
+    ensureExcelJS,
     buildSapLeaveCsvContent,
     getSapLeaveExportRows,
     getOvertimeExportRows,

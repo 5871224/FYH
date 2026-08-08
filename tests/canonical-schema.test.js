@@ -32,10 +32,12 @@ test("正式 SQL 必須包含群組、角色權限與班表封存模型", () => 
     /create or replace function public\.archive_schedule_v1/,
     /create or replace function public\.protect_archived_schedule_v1/,
     /create policy read_schedule_entries[\s\S]*schedule_view/,
-    /create policy update_schedule_entries[\s\S]*schedule_manage/
+    /create or replace function public\.save_schedule_entries_v3[\s\S]*schedule_manage/
   ]) {
     assert.match(combined, pattern);
   }
+  assert.doesNotMatch(combined, /create policy update_schedule_entries/);
+  assert.match(combined, /drop policy if exists update_schedule_entries on public\.schedule_entries/);
 });
 
 test("群組簽到審核 Edge Function 必須列入部署清單與文件", () => {

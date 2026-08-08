@@ -79,9 +79,29 @@ test("正式 SQL 最終守門使用權限項目而非文字角色", () => {
   assert.match(finalSecurity, /drop trigger if exists protect_admin_member_trigger/);
   assert.match(finalSecurity, /drop trigger if exists trg_protect_last_effective_admin_v2/);
   assert.match(finalSecurity, /drop trigger if exists attendance_days_touch_updated_at/);
-  assert.match(finalSecurity, /has_access_permission\(auth\.uid\(\),'meal_admin'\)/);
-  assert.match(finalSecurity, /has_access_permission\(auth\.uid\(\),'leave_settings'\)/);
+  assert.match(finalSecurity, /'meal_admin'/);
+  assert.match(finalSecurity, /'leave_settings'/);
+  assert.match(finalSecurity, /has_access_permission/);
   assert.match(finalSecurity, /系統必須保留至少一個有效的權限管理帳號/);
   assert.doesNotMatch(finalSecurity, /role\.legacy_role\s+in\s*\('admin','manager'\)/);
   assert.doesNotMatch(finalSecurity, /employee\.role\s*=\s*'admin'/);
+});
+
+test("前端角色只使用 access_role_id 與權限資料，不保留文字角色相容層", () => {
+  const auth = read("src/renderer/renderer-auth-context.js");
+  const groups = read("src/renderer/renderer-groups-permissions-archive.js");
+  const members = read("src/renderer/renderer-settings-member.js");
+  const normalization = read("src/renderer/renderer-state-normalization.js");
+  const webApi = read("src/renderer/web-api.js");
+  const exporter = read("src/renderer/browser-exporter.js");
+  for (const source of [auth, groups, members, normalization, webApi, exporter]) {
+    assert.doesNotMatch(source, /function normalizeRole\(/);
+    assert.doesNotMatch(source, /getRoleByLegacyRole/);
+  }
+  assert.doesNotMatch(groups, /role\.code === "employee"/);
+  assert.doesNotMatch(groups, /role:\s*roleId/);
+  assert.doesNotMatch(members, /<option value=\"(?:admin|manager|employee)\"/);
+  assert.doesNotMatch(exporter, /parseRoleLabel/);
+  assert.match(members, /member\.roleId/);
+  assert.match(webApi, /accessRoleId: member\?\.roleId/);
 });
