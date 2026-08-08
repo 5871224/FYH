@@ -25,18 +25,10 @@ jobs:
 
       - name: Apply source changes
         run: |
-          python3 - <<'PY'
-          import base64
-          import gzip
-          from pathlib import Path
-
-          payload = "".join(
-              Path(f".github/agent-soft-delete-unarchive/part{i}.txt").read_text(encoding="utf-8").strip()
-              for i in range(1, 5)
-          )
-          code = gzip.decompress(base64.b64decode(payload)).decode("utf-8")
-          exec(compile(code, "<agent-patch>", "exec"))
-          PY
+          python3 .github/agent-soft-delete-unarchive/part1.txt
+          python3 .github/agent-soft-delete-unarchive/part2.txt
+          python3 .github/agent-soft-delete-unarchive/part3.txt
+          python3 .github/agent-soft-delete-unarchive/part4.txt
 
       - name: Install dependencies
         run: npm ci
