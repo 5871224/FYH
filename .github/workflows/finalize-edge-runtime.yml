@@ -28,7 +28,6 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import re
-
           targets = {
               "supabase/functions/attendance-ledger/index.ts": ["taipeiDate", "effective"],
               "supabase/functions/attendance-review-groups/index.ts": ["taipeiDate", "effective"],
@@ -49,16 +48,25 @@ jobs:
                   text = text.replace("actorIdOf, addDaysToDateString, canAccessGroup", "actorIdOf, canAccessGroup")
               path.write_text(text, encoding="utf-8")
           PY
-      - name: Edge TypeScript check
+      - name: Diagnose Edge TypeScript
         run: |
-          deno check supabase/functions/attendance-clock/index.ts
-          deno check supabase/functions/attendance-ledger/index.ts
-          deno check supabase/functions/attendance-review-groups/index.ts
-          deno check supabase/functions/attendance-ledger-export/index.ts
-          deno check supabase/functions/meal-order/index.ts
-          deno check supabase/functions/meal-report-v2/index.ts
-          deno check supabase/functions/meal-cancel-v2/index.ts
-          deno check supabase/functions/member-auth-admin/index.ts
+          failed=0
+          for file in \
+            supabase/functions/attendance-clock/index.ts \
+            supabase/functions/attendance-ledger/index.ts \
+            supabase/functions/attendance-review-groups/index.ts \
+            supabase/functions/attendance-ledger-export/index.ts \
+            supabase/functions/meal-order/index.ts \
+            supabase/functions/meal-report-v2/index.ts \
+            supabase/functions/meal-cancel-v2/index.ts \
+            supabase/functions/member-auth-admin/index.ts; do
+            if ! deno check "$file" > /tmp/deno.txt 2>&1; then
+              msg=$(tail -n 35 /tmp/deno.txt | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+              echo "::error file=$file,title=Deno check failed::$msg"
+              failed=1
+            fi
+          done
+          exit "$failed"
       - name: Remove temporary workflow
         run: rm -f .github/workflows/finalize-edge-runtime.yml
       - name: Install dependencies
