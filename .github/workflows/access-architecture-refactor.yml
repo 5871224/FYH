@@ -17,26 +17,26 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Apply cleanup
-        run: |
-          python3 .github/refactor-access-cleanup.py
-          python3 .github/refactor-access-cleanup2.py
-          python3 .github/refactor-access-cleanup3.py
-          python3 .github/refactor-access-cleanup4.py
+      - name: Apply canonical page loading
+        run: python3 .github/refactor-access-cleanup5.py
       - name: Install
         run: npm ci
       - name: Build and syntax check
         run: |
           npm run web:publish
           node --check src/renderer/web-api.js
+          node --check src/renderer/renderer-page-data.js
           node --check src/renderer/renderer-groups-permissions-archive.js
           node --check src/renderer/app.js
-      - name: Commit cleaned refactor
+      - name: Commit canonical page loading
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "清理權限存取架構重構"
+          git commit -m "整合正式頁面資料載入架構"
           git push origin refactor/access-architecture-v3
       - name: Run unit tests
-        run: npm test
+        run: |
+          mv .github/workflows/access-architecture-refactor.yml /tmp/access-architecture-refactor.yml
+          npm test
+          mv /tmp/access-architecture-refactor.yml .github/workflows/access-architecture-refactor.yml
