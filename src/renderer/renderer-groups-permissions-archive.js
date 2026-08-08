@@ -219,6 +219,7 @@ async function reloadGroupApplicationState() {
     applyCurrentGroupScope(state);
   }
   currentMember = resolveCurrentMember();
+  scheduleApplicationLoaded = true;
   managerDirectoryLoaded = false;
   managerDirectoryLoading = null;
   renderAll();

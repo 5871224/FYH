@@ -24,6 +24,7 @@ function bindScheduleSessionEvents() {
     mealOrderState = { loading: false, status: null, error: "" };
     recordsState = createRecordsState();
     state = createEmptyState();
+    clearScheduleApplicationState();
     appView = "home";
     closeModal();
     closeCoreActionsMenu();

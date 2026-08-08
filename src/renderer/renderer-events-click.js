@@ -38,14 +38,22 @@ function bindDelegatedClickEvents() {
         return;
       }
       if (target.dataset.homeAction === "schedule") {
+        const firstLoad = !scheduleApplicationLoaded;
+        target.disabled = true;
+        target.setAttribute("aria-busy", "true");
+        if (firstLoad) await showScheduleLoadingIndicator();
         try {
-          await ensureManagerDirectoryLoaded();
+          await ensureScheduleApplicationLoaded();
+          if (hasPermission("member_settings")) await ensureManagerDirectoryLoaded();
+          appView = "schedule";
+          renderAll();
         } catch (error) {
-          showInfoMessage(`讀取班表管理資料失敗：${error.message || error}`);
-          return;
+          showInfoMessage(`讀取班表失敗：${error.message || error}`);
+        } finally {
+          if (firstLoad) hideScheduleLoadingIndicator();
+          target.disabled = false;
+          target.removeAttribute("aria-busy");
         }
-        appView = "schedule";
-        renderAll();
         return;
       }
       if (target.dataset.homeAction === "meal") {

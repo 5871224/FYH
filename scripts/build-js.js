@@ -47,6 +47,7 @@ const modules = [
   "renderer-records-page.js",
   "renderer-records-events.js",
   "renderer-runtime-helpers.js",
+  "renderer-page-data.js",
   "renderer-records-actions.js",
   "renderer-app-shell.js",
   "renderer-persistence.js",

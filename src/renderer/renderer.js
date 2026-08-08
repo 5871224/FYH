@@ -68,19 +68,14 @@ async function loadApp() {
     if (!currentSession?.user) {
       state = createEmptyState();
       resetLoadedUserRuntimeState();
+      clearScheduleApplicationState();
       appView = "home";
       authModalOpen = true;
       renderAll();
       syncCoreActionsMenu();
       return;
     }
-    appInfo = await window.schedulerApi.getAppInfo();
-    const payload = await window.schedulerApi.loadState();
-    await loadGroupAccessData(payload);
-    state = initializeGroupPermissionState(payload);
-    resetScheduleWindowToToday();
-    await ensureVisibleScheduleLoaded();
-    currentMember = resolveCurrentMember();
+    await initializeAuthenticatedHome(authContext);
   } catch (error) {
     setSaveStatus(`載入失敗：${error.message}`);
     authErrorMessage = error.message || "載入失敗";
@@ -88,14 +83,13 @@ async function loadApp() {
     currentSession = null;
     currentProfile = null;
     resetLoadedUserRuntimeState();
+    clearScheduleApplicationState();
     renderAll();
     syncCoreActionsMenu();
     return;
   }
-
   renderAll();
   syncCoreActionsMenu();
 }
-
 
 loadApp();

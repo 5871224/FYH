@@ -84,7 +84,8 @@ test("拖曳人員只調整人員順序並重新開啟人員設定", async () =>
   assert.equal(calls.includes("getItemList:member"), false);
   assert.equal(calls.includes("open:member"), true);
   assert.equal(calls.some((value) => value.startsWith("open:list:")), false);
-  assert.equal(calls.includes("save"), true);
+  assert.equal(calls.includes("save"), false);
+  assert.equal(calls.includes("reorder"), true);
 });
 
 test("未知排序類型不得再落入加班資料", () => {

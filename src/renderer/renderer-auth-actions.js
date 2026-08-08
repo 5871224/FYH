@@ -12,9 +12,11 @@ async function handleSignIn() {
   }
   try {
     authErrorMessage = "";
-    await window.schedulerApi.signIn(loginAccount, password);
+    const authContext = await window.schedulerApi.signIn(loginAccount, password);
     closeSignInDialog();
-    await loadApp();
+    await initializeAuthenticatedHome(authContext);
+    renderAll();
+    syncCoreActionsMenu();
   } catch (error) {
     authErrorMessage = error.message || "登入失敗";
     renderAuthGate();
