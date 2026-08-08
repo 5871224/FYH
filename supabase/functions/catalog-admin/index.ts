@@ -122,7 +122,7 @@ async function deleteShift(ctx: any, actor: any, itemId: string) {
     .maybeSingle();
   if (found.error) throw found.error;
   if (!found.data || found.data.deleted_at) {
-    return { ok: true, deleted: false, category: "shift", itemId };
+    return { ok: true, deleted: false, softDeleted: false, category: "shift", itemId };
   }
   if (!found.data.group_id || !await canAccessGroup(ctx, actor.id, found.data.group_id, "schedule_manage")) {
     throw new Error("此角色不可管理該群組班別");
@@ -134,6 +134,7 @@ async function deleteShift(ctx: any, actor: any, itemId: string) {
   const result = await ctx.supabaseAdmin.from("set_shift")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", itemId)
+    .is("deleted_at", null)
     .select("id");
   if (result.error) throw result.error;
   return { ok: true, deleted: Boolean(result.data?.length), softDeleted: true, category: "shift", itemId };
@@ -145,18 +146,23 @@ async function deleteSharedCatalogItem(ctx: any, actor: any, category: string, i
     throw new Error("沒有假別設定權限");
   }
   const found = await ctx.supabaseAdmin.from(config.table)
-    .select("id").eq("id", itemId).maybeSingle();
+    .select("id,deleted_at")
+    .eq("id", itemId)
+    .maybeSingle();
   if (found.error) throw found.error;
-  if (!found.data) return { ok: true, deleted: false, category, itemId };
+  if (!found.data || found.data.deleted_at) {
+    return { ok: true, deleted: false, softDeleted: false, category, itemId };
+  }
   if (await hasUnarchivedSchedule(ctx, category, itemId)) {
     throw new Error(`此${config.label}仍有未封存班表，請先完成班表封存或清除相關排班`);
   }
   const result = await ctx.supabaseAdmin.from(config.table)
-    .delete().eq("id", itemId).select("id");
-  if (result.error) {
-    throw new Error(`此${config.label}仍有歷史關聯，暫時不可刪除`);
-  }
-  return { ok: true, deleted: Boolean(result.data?.length), category, itemId };
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", itemId)
+    .is("deleted_at", null)
+    .select("id");
+  if (result.error) throw result.error;
+  return { ok: true, deleted: Boolean(result.data?.length), softDeleted: true, category, itemId };
 }
 
 async function deleteCatalogItem(ctx: any, actor: any, body: any) {
