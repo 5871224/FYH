@@ -20,20 +20,51 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
-      - name: Fix temporary script quoting
+      - name: Prepare temporary refactor runner
+        shell: bash
+        run: |
+          rm -f PERF_CI_FAILURE.log PERF_ROLE_GREP.log
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/perf-refactor-temp.cjs')
+          lines = path.read_text().splitlines()
+          for i, line in enumerate(lines):
+              if 'new RegExp(`create policy ${name} `)' in line:
+                  lines[i] = line.replace('new RegExp(`create policy ${name} `)', 'new RegExp("create policy " + name + " ")')
+              if 'const createRe = new RegExp(' in line and 'create policy ${policy}' in line:
+                  lines[i] = "  const createRe = new RegExp('create policy ' + policy + ' on public\\\\.' + table + '[^;]*;\\\\n?', 'g');"
+          path.write_text('\n'.join(lines) + '\n')
+          PY
+      - name: Apply canonical performance refactor
+        run: node scripts/perf-refactor-temp.cjs
+      - name: Align permission architecture assertions with RLS init-plan form
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          path = Path('scripts/perf-refactor-temp.cjs')
+          path = Path('tests/access-architecture.test.js')
           text = path.read_text()
-          text = text.replace('new RegExp(`create policy ${name} `)', 'new RegExp("create policy " + name + " ")')
+          text = text.replace(
+            "assert.match(finalSecurity, /has_access_permission\\(auth\\.uid\\(\\),'meal_admin'\\)/);",
+            "assert.match(finalSecurity, /has_access_permission\\((?:auth\\.uid\\(\\)|\\(select auth\\.uid\\(\\)\\)),'meal_admin'\\)/);"
+          )
+          text = text.replace(
+            "assert.match(finalSecurity, /has_access_permission\\(auth\\.uid\\(\\),'leave_settings'\\)/);",
+            "assert.match(finalSecurity, /has_access_permission\\((?:auth\\.uid\\(\\)|\\(select auth\\.uid\\(\\)\\)),'leave_settings'\\)/);"
+          )
           path.write_text(text)
           PY
-      - name: Apply canonical performance refactor
-        run: node scripts/perf-refactor-temp.cjs
       - name: Build static web
         run: npm run web:publish
+      - name: Capture stale role compatibility diagnostics
+        shell: bash
+        run: |
+          {
+            grep -RInE --include='*.js' --include='*.mjs' 'normalizeRole|member\.role|\.role[[:space:]]*={2,3}|role:[[:space:]]*isAdmin|role:[[:space:]]*normalizeRole|getRoleLabel\(' src/renderer || true
+          } > /tmp/perf-role-grep.log
+          cat /tmp/perf-role-grep.log
+      - name: Hide temporary tooling before architecture checks
+        run: git rm scripts/perf-refactor-temp.cjs .github/workflows/perf-refactor-temp.yml
       - name: Run complete CI and preserve diagnostics on failure
         shell: bash
         run: |
@@ -42,23 +73,22 @@ jobs:
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
+            git restore --staged scripts/perf-refactor-temp.cjs .github/workflows/perf-refactor-temp.yml || true
+            git restore scripts/perf-refactor-temp.cjs .github/workflows/perf-refactor-temp.yml || true
             cp /tmp/perf-ci.log PERF_CI_FAILURE.log
+            cp /tmp/perf-role-grep.log PERF_ROLE_GREP.log
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -f PERF_CI_FAILURE.log
+            git add -f PERF_CI_FAILURE.log PERF_ROLE_GREP.log
             git commit -m "chore: preserve performance CI diagnostics" || true
             git push origin HEAD:perf-optimization-pass-20260808
             exit "$status"
           fi
-      - name: Remove temporary refactor tooling and diagnostics
-        shell: bash
-        run: |
-          rm -f PERF_CI_FAILURE.log
-          git rm scripts/perf-refactor-temp.cjs .github/workflows/perf-refactor-temp.yml
       - name: Commit finalized source and generated artifacts
         shell: bash
         run: |
           set -euo pipefail
+          rm -f PERF_CI_FAILURE.log PERF_ROLE_GREP.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
