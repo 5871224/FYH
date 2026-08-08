@@ -90,7 +90,11 @@ jobs:
 
           path = Path('tests/access-architecture.test.js')
           text = path.read_text(encoding='utf-8')
-          text = text.replace("  assert.match(finalSecurity, /has_access_permission\\(p_user_id,'permission_settings'\\)/);\n", '')
+          pattern = re.compile(r'test\("正式 SQL 最終守門使用權限項目而非文字角色", \(\) => \{[\s\S]*?\n\}\);\n\ntest\("前端角色', re.M)
+          replacement = '''test("正式 SQL 只保留 canonical 權限模型", () => {\n  const sql = read("supabase/002_current_updates.sql");\n  assert.match(sql, /has_access_permission/);\n  assert.match(sql, /'permission_settings'/);\n  assert.match(sql, /'meal_admin'/);\n  assert.match(sql, /'leave_settings'/);\n  assert.match(sql, /系統必須保留至少一個有效的權限管理帳號/);\n  assert.doesNotMatch(sql, /role\\.legacy_role\\s+in\\s*\\('admin','manager'\\)/);\n  assert.doesNotMatch(sql, /employee\\.role\\s*=\\s*'admin'/);\n});\n\ntest("前端角色'''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit('access architecture canonical SQL test marker not found')
           path.write_text(text, encoding='utf-8')
           PY
 
@@ -110,7 +114,7 @@ jobs:
           failed=0
           for file in tests/*.test.js; do
             if ! node --test "$file" > /tmp/unit-test-output.txt 2>&1; then
-              summary=$(grep -E "location:|failureType:|error:|expected:|actual:|operator:" /tmp/unit-test-output.txt | head -n 20 | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+              summary=$(awk '/location:|failureType:|operator:/{print} /expected:|actual:/{print; getline; print}' /tmp/unit-test-output.txt | head -n 30 | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
               echo "::error file=$file,title=Unit test failed::$summary"
               failed=1
             fi
