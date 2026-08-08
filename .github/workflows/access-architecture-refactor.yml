@@ -1,7 +1,7 @@
 name: Access architecture refactor
 on:
   push:
-    branches: [main]
+    branches: [refactor/access-architecture-v3]
     paths:
       - .github/workflows/access-architecture-refactor.yml
 permissions:
@@ -29,17 +29,15 @@ jobs:
           python3 .github/refactor-access-architecture.py
           echo '--- legacy browser references ---'
           grep -nE 'restSelect\(|restInsert\(|restUpdate\(|restDelete\(' src/renderer/web-api.js || true
+          sed -n '1040,1085p' src/renderer/web-api.js
       - name: Install
         run: npm ci
       - name: Build
         run: npm run web:publish
-      - name: Run CI
-        run: npm run ci:check
-      - name: Commit refactor result
+      - name: Commit intermediate refactor
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          rm -f .github/refactor-access-architecture.py .github/workflows/access-architecture-refactor.yml
           git add -A
-          git commit -m "重構權限存取架構"
-          git push origin main
+          git commit -m "WIP 權限存取架構重構"
+          git push origin refactor/access-architecture-v3
