@@ -808,7 +808,7 @@ as $$
     and p_start_date<=p_end_date
     and entry.work_date between p_start_date and p_end_date
   order by entry.work_date,entry.member_id,entry.id
-  limit least(greatest(coalesce(p_limit,500),1),500)
+  limit least(greatest(coalesce(p_limit,1000),1),1000)
   offset greatest(coalesce(p_offset,0),0)
 $$;
 

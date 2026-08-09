@@ -17,7 +17,7 @@ test("班表初始讀取範圍固定為目前八週 56 天", () => {
 test("目前八週班表 RPC 必須以明確 offset/limit 分頁讀到全部列", () => {
   const api = read("src/renderer/web-api.js");
   const sql = read("supabase/002_current_updates.sql");
-  assert.match(api, /const RPC_PAGE_SIZE = 500/);
+  assert.match(api, /const RPC_PAGE_SIZE = 1000/);
   assert.match(api, /async function callRpcAllRows\(functionName, payload = \{\}\)/);
   assert.match(api, /p_offset: offset/);
   assert.match(api, /p_limit: RPC_PAGE_SIZE/);
@@ -25,7 +25,7 @@ test("目前八週班表 RPC 必須以明確 offset/limit 分頁讀到全部列"
   assert.match(api, /offset \+= page\.length/);
   assert.doesNotMatch(api, /Range-Unit|Content-Range|parseContentRangeTotal/);
   assert.match(sql, /get_schedule_entries_v3\(\s*p_start_date date,\s*p_end_date date,\s*p_offset integer,\s*p_limit integer\s*\)/);
-  assert.match(sql, /limit least\(greatest\(coalesce\(p_limit,500\),1\),500\)/);
+  assert.match(sql, /limit least\(greatest\(coalesce\(p_limit,1000\),1\),1000\)/);
   assert.match(sql, /offset greatest\(coalesce\(p_offset,0\),0\)/);
 });
 

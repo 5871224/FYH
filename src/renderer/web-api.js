@@ -287,7 +287,7 @@
     });
   }
 
-  const RPC_PAGE_SIZE = 500;
+  const RPC_PAGE_SIZE = 1000;
 
   async function callRpcAllRows(functionName, payload = {}) {
     const rows = [];
