@@ -83,6 +83,7 @@ function renderTable() {
   syncScheduleColumnWidths();
   renderStickyTableHeader(visibleDates);
   syncScheduleRangeSelectionUi();
+  requestAnimationFrame(syncScheduleWeekNavigationButtons);
 }
 
 function renderHeader() {
