@@ -8,11 +8,10 @@ async function openScheduleMemberEditor(memberId) {
   }
   try {
     await ensureManagerDirectoryLoaded();
+    openMemberForm("edit", memberId);
   } catch (error) {
-    showInfoMessage(`開啟人員資料失敗：${error.message || error}`);
-    return;
+    showInfoMessage(`開啟修改人員失敗：${error.message || error}`);
   }
-  openMemberForm("edit", memberId);
 }
 
 function bindDelegatedClickEvents() {
@@ -356,8 +355,15 @@ function bindDelegatedClickEvents() {
       await importListSettings(target.dataset.importSettings);
       return;
     }
-    if (target.dataset.editMember) openMemberForm("edit", target.dataset.editMember);
-    if (target.dataset.saveMember) {
+    if (target.dataset.editMember) {
+    try {
+      openMemberForm("edit", target.dataset.editMember);
+    } catch (error) {
+      showInfoMessage(`開啟修改人員失敗：${error.message || error}`);
+    }
+    return;
+  }
+  if (target.dataset.saveMember) {
       await saveMember(target.dataset.saveMember);
       return;
     }

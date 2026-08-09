@@ -527,6 +527,15 @@ function memberShiftNamesForGroup(groupId, selectedIds) {
   return names.length ? names.join("、") : "未指定";
 }
 
+function renderMemberCustomRoleOptions(member) {
+  const selectedRoleId = member?.roleId || "";
+  const roles = getAllRoles();
+  if (!roles.length) {
+    return '<option value="">未設定</option>';
+  }
+  return roles.map((role) => `<option value="${escapeHtml(role.id)}" ${role.id === selectedRoleId ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("");
+}
+
 function openMemberForm(mode, memberId = "") {
   const returnTo = modalContext?.category === "department-settings"
     ? captureSettingsReturnContext({ category: "department-settings", view: modalContext.view || departmentSettingsView })

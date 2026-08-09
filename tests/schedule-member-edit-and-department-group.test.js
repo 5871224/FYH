@@ -11,6 +11,7 @@ test("班表姓名雙擊依人員設定權限開啟並延遲載入管理欄位",
   const table = read("src/renderer/renderer-schedule-table.js");
   const cells = read("src/renderer/renderer-schedule-cells.js");
   const events = read("src/renderer/renderer-events-click.js");
+  const memberForm = read("src/renderer/renderer-groups-permissions-archive.js");
   const published = read("docs/app.js");
 
   assert.match(auth, /function canManageMembersInCurrentGroup\(\)/);
@@ -19,11 +20,15 @@ test("班表姓名雙擊依人員設定權限開啟並延遲載入管理欄位",
   assert.match(cells, /data-shift-schedule-member=/);
   assert.match(events, /async function openScheduleMemberEditor\(memberId\)/);
   assert.match(events, /await ensureManagerDirectoryLoaded\(\)/);
+  assert.match(events, /openMemberForm\("edit", memberId\)/);
+  assert.match(memberForm, /function renderMemberCustomRoleOptions\(member\)/);
+  assert.ok(memberForm.indexOf("function renderMemberCustomRoleOptions(member)") < memberForm.indexOf("function openMemberForm(mode, memberId"));
   assert.match(events, /document\.body\.addEventListener\("dblclick", async \(event\)/);
   assert.match(events, /target\.dataset\.tableMemberId && target\.dataset\.rowIndex && canEditSchedule\(\)/);
   const doubleClickBlock = events.slice(events.indexOf('document.body.addEventListener("dblclick"'));
   assert.doesNotMatch(doubleClickBlock, /if \(!canEditSchedule\(\)\) return/);
   assert.match(published, /async function openScheduleMemberEditor\(memberId\)/);
+  assert.match(published, /function renderMemberCustomRoleOptions\(member\)/);
 });
 
 test("新增單位自動沿用開啟表單時的目前群組", () => {

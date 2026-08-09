@@ -7677,6 +7677,15 @@ function memberShiftNamesForGroup(groupId, selectedIds) {
   return names.length ? names.join("、") : "未指定";
 }
 
+function renderMemberCustomRoleOptions(member) {
+  const selectedRoleId = member?.roleId || "";
+  const roles = getAllRoles();
+  if (!roles.length) {
+    return '<option value="">未設定</option>';
+  }
+  return roles.map((role) => `<option value="${escapeHtml(role.id)}" ${role.id === selectedRoleId ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("");
+}
+
 function openMemberForm(mode, memberId = "") {
   const returnTo = modalContext?.category === "department-settings"
     ? captureSettingsReturnContext({ category: "department-settings", view: modalContext.view || departmentSettingsView })
@@ -11209,11 +11218,10 @@ async function openScheduleMemberEditor(memberId) {
   }
   try {
     await ensureManagerDirectoryLoaded();
+    openMemberForm("edit", memberId);
   } catch (error) {
-    showInfoMessage(`開啟人員資料失敗：${error.message || error}`);
-    return;
+    showInfoMessage(`開啟修改人員失敗：${error.message || error}`);
   }
-  openMemberForm("edit", memberId);
 }
 
 function bindDelegatedClickEvents() {
@@ -11557,8 +11565,15 @@ function bindDelegatedClickEvents() {
       await importListSettings(target.dataset.importSettings);
       return;
     }
-    if (target.dataset.editMember) openMemberForm("edit", target.dataset.editMember);
-    if (target.dataset.saveMember) {
+    if (target.dataset.editMember) {
+    try {
+      openMemberForm("edit", target.dataset.editMember);
+    } catch (error) {
+      showInfoMessage(`開啟修改人員失敗：${error.message || error}`);
+    }
+    return;
+  }
+  if (target.dataset.saveMember) {
       await saveMember(target.dataset.saveMember);
       return;
     }
