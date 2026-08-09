@@ -23,7 +23,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Apply persistence fix
-        run: python scripts/tmp-fix-schedule-empty-cell.py
+        id: patch
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/tmp-fix-schedule-empty-cell.py 2>&1 | tee patch-output.txt
+      - name: Upload patch output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schedule-persistence-patch-output
+          path: patch-output.txt
+      - name: Stop when patch failed
+        if: steps.patch.outcome != 'success'
+        run: exit 1
       - name: Rebuild generated web
         run: npm run web:publish
       - name: Remove temporary tools before validation
