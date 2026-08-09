@@ -10713,16 +10713,45 @@ async function handleSignOut() {
 
 const SCHEDULE_WEEK_SCROLL_DAYS = 7;
 
+function getRenderedScheduleWeekDistance() {
+  const rows = Array.from(document.querySelectorAll("#mainTable tbody tr"));
+  for (const row of rows) {
+    const dayCells = Array.from(row.querySelectorAll("td[data-date]"));
+    if (dayCells.length > SCHEDULE_WEEK_SCROLL_DAYS) {
+      const firstRect = dayCells[0].getBoundingClientRect();
+      const nextWeekRect = dayCells[SCHEDULE_WEEK_SCROLL_DAYS].getBoundingClientRect();
+      const measuredDistance = Math.abs(nextWeekRect.left - firstRect.left);
+      if (measuredDistance > 1) {
+        return measuredDistance;
+      }
+    }
+    if (dayCells.length) {
+      const measuredWidth = dayCells[0].getBoundingClientRect().width;
+      if (measuredWidth > 1) {
+        return measuredWidth * SCHEDULE_WEEK_SCROLL_DAYS;
+      }
+    }
+  }
+
+  const stickyDayCell = document.querySelector(".table-sticky-cell-day");
+  const stickyDayWidth = stickyDayCell?.getBoundingClientRect?.().width || 0;
+  if (stickyDayWidth > 1) {
+    return stickyDayWidth * SCHEDULE_WEEK_SCROLL_DAYS;
+  }
+
+  const rootStyle = getComputedStyle(document.documentElement);
+  const fallbackDayWidth = parseFloat(rootStyle.getPropertyValue("--day-col-width")) || 44;
+  return fallbackDayWidth * SCHEDULE_WEEK_SCROLL_DAYS;
+}
+
 function getScheduleWeekScrollMetrics() {
   const tableWrap = document.getElementById("tableWrap");
   if (!tableWrap) {
     return null;
   }
-  const rootStyle = getComputedStyle(document.documentElement);
-  const dayWidth = parseFloat(rootStyle.getPropertyValue("--day-col-width")) || 44;
   return {
     tableWrap,
-    dayWidth,
+    weekDistance: getRenderedScheduleWeekDistance(),
     scrollLeft: tableWrap.scrollLeft,
     maxScrollLeft: Math.max(0, tableWrap.scrollWidth - tableWrap.clientWidth)
   };
@@ -10761,7 +10790,7 @@ function scrollScheduleByWeeks(weeks) {
   if (!direction || !metrics) {
     return;
   }
-  const distance = metrics.dayWidth * SCHEDULE_WEEK_SCROLL_DAYS * direction;
+  const distance = metrics.weekDistance * direction;
   const target = Math.min(metrics.maxScrollLeft, Math.max(0, metrics.scrollLeft + distance));
   if (Math.abs(target - metrics.scrollLeft) < 1) {
     syncScheduleWeekNavigationButtons();
