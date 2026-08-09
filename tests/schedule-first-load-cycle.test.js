@@ -5,16 +5,17 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("首次班表以八週週期載入且只呼叫一次正式班表查詢 RPC", () => {
+test("首次班表以目前八週 56 天載入且由完整分頁查詢負責取得全部列", () => {
   const webApi = read("src/renderer/web-api.js");
   const loadStart = webApi.indexOf("async function loadState()");
   const loadEnd = webApi.indexOf("async function loadScheduleEntries", loadStart);
   const block = webApi.slice(loadStart, loadEnd);
   assert.match(block, /const scheduleRange = getScheduleLoadRange\(settings\)/);
-  assert.match(block, /const visibleStartDate = addDaysToDateString\(scheduleRange\.startDate, 7\)/);
+  assert.match(block, /const visibleStartDate = scheduleRange\.startDate \|\| taipeiDateString\(\)/);
   assert.match(block, /scheduleStartDate: visibleStartDate/);
   assert.doesNotMatch(block, /settings\.schedule_start_date/);
-  assert.equal((block.match(/callRpc\("get_schedule_entries_v3"/g) || []).length, 1);
+  assert.equal((block.match(/callRpcAllRows\("get_schedule_entries_v3"/g) || []).length, 1);
+  assert.doesNotMatch(block, /callRpc\("get_schedule_entries_v3"/);
   assert.doesNotMatch(block, /restSelect|schedule_entries\?select/);
 });
 
