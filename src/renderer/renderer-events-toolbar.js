@@ -25,12 +25,12 @@ function bindStaticToolbarEvents() {
     event.stopPropagation();
     toggleToolbarCollapse();
   });
-  bindClick("prevPeriodButton", async () => changeScheduleWindowWeeks(-8));
-  bindClick("prevWeekButton", async () => changeScheduleWindowWeeks(-1));
-  bindClick("nextWeekButton", async () => changeScheduleWindowWeeks(1));
-  bindClick("nextPeriodButton", async () => changeScheduleWindowWeeks(8));
-  bindClick("tablePrevWeekButton", async () => changeScheduleWindowWeeks(-1));
-  bindClick("tableNextWeekButton", async () => changeScheduleWindowWeeks(1));
+  bindClick("prevPeriodButton", async () => changeSchedulePeriodWeeks(-8));
+  bindClick("prevWeekButton", () => scrollScheduleByWeeks(-1));
+  bindClick("nextWeekButton", () => scrollScheduleByWeeks(1));
+  bindClick("nextPeriodButton", async () => changeSchedulePeriodWeeks(8));
+  bindClick("tablePrevWeekButton", () => scrollScheduleByWeeks(-1));
+  bindClick("tableNextWeekButton", () => scrollScheduleByWeeks(1));
   bindClick("exportSapButton", () => {
     closeCoreActionsMenu();
     openExportPeriodDialog("sap");
@@ -72,7 +72,10 @@ function bindStaticToolbarEvents() {
 function bindScheduleViewportEvents() {
   const tableWrap = document.getElementById("tableWrap");
   if (tableWrap) {
-    tableWrap.addEventListener("scroll", syncStickyHeaderScroll, { passive: true });
+    tableWrap.addEventListener("scroll", () => {
+      syncStickyHeaderScroll();
+      syncScheduleWeekNavigationButtons();
+    }, { passive: true });
   }
   const topScrollbar = document.getElementById("tableTopScrollbar");
   if (topScrollbar) {
@@ -86,6 +89,7 @@ function bindScheduleViewportEvents() {
     syncScheduleColumnWidths();
     syncStickyHeaderLayout();
     syncStickyHeaderScroll();
+    syncScheduleWeekNavigationButtons();
     if (!toolbarCollapseInitialized) {
       initializeToolbarCollapse();
     }
