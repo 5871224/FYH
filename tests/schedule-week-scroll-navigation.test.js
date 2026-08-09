@@ -32,6 +32,16 @@ test("一週水平距離以實際畫面七個日期欄計算", () => {
   assert.match(actions, /weekDistance: getRenderedScheduleWeekDistance\(\)/);
 });
 
+test("上下班表捲軸同步不得中斷主班表 smooth scroll", () => {
+  const layout = read("src/renderer/renderer-schedule-layout.js");
+
+  assert.match(layout, /function scrollScheduleHorizontallyFromTopScrollbar\(event\)/);
+  assert.match(layout, /const targetScrollLeft = topScrollbar\.scrollLeft/);
+  assert.match(layout, /Math\.abs\(tableWrap\.scrollLeft - targetScrollLeft\) <= 0\.5/);
+  assert.match(layout, /tableWrap\.scrollLeft = targetScrollLeft/);
+  assert.match(layout, /Math\.abs\(topScrollbar\.scrollLeft - tableWrap\.scrollLeft\) > 0\.5/);
+});
+
 test("前八週與後八週才切換完整班表期間", () => {
   const events = read("src/renderer/renderer-events-toolbar.js");
   const actions = read("src/renderer/renderer-export-actions.js");

@@ -115,7 +115,7 @@ function syncStickyHeaderScroll() {
   }
   container.style.marginLeft = `${-tableWrap.scrollLeft}px`;
   const topScrollbar = document.getElementById("tableTopScrollbar");
-  if (topScrollbar && topScrollbar.scrollLeft !== tableWrap.scrollLeft) {
+  if (topScrollbar && Math.abs(topScrollbar.scrollLeft - tableWrap.scrollLeft) > 0.5) {
     topScrollbar.scrollLeft = tableWrap.scrollLeft;
   }
 }
@@ -126,7 +126,14 @@ function scrollScheduleHorizontallyFromTopScrollbar(event) {
   if (!tableWrap || !(topScrollbar instanceof HTMLElement)) {
     return;
   }
-  tableWrap.scrollLeft = topScrollbar.scrollLeft;
+  const targetScrollLeft = topScrollbar.scrollLeft;
+  // 主班表使用 smooth scroll 時，每個動畫 frame 都會同步上方捲軸。
+  // 上方捲軸因此觸發 scroll 事件；若位置本來就相同，不能再寫回主班表，
+  // 否則瀏覽器會把尚未完成的 smooth scroll 中斷在第一小段。
+  if (Math.abs(tableWrap.scrollLeft - targetScrollLeft) <= 0.5) {
+    return;
+  }
+  tableWrap.scrollLeft = targetScrollLeft;
   syncStickyHeaderScroll();
 }
 
