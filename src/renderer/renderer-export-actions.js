@@ -1,23 +1,32 @@
 /* 班表期間切換與正式匯出操作。 */
 
-function getScheduleWeekNavigationBounds(startDate) {
-  const cycleStartDate = getEightWeekCycleStartForDate(startDate);
+const SCHEDULE_WEEK_SCROLL_DAYS = 7;
+
+function getScheduleWeekScrollMetrics() {
+  const tableWrap = document.getElementById("tableWrap");
+  if (!tableWrap) {
+    return null;
+  }
+  const rootStyle = getComputedStyle(document.documentElement);
+  const dayWidth = parseFloat(rootStyle.getPropertyValue("--day-col-width")) || 44;
   return {
-    minStartDate: cycleStartDate,
-    maxStartDate: addDaysToDateString(cycleStartDate, 49)
+    tableWrap,
+    dayWidth,
+    scrollLeft: tableWrap.scrollLeft,
+    maxScrollLeft: Math.max(0, tableWrap.scrollWidth - tableWrap.clientWidth)
   };
 }
 
-function canChangeScheduleWindowWeeks(weeks) {
-  if (Math.abs(weeks) !== 1) {
-    return true;
+function canScrollScheduleByWeeks(weeks) {
+  const direction = Math.sign(Number(weeks) || 0);
+  const metrics = getScheduleWeekScrollMetrics();
+  if (!direction || !metrics) {
+    return false;
   }
-  const startDate = toDateObject(state.scheduleStartDate)
-    ? state.scheduleStartDate
-    : getEightWeekCycleStartForDate(getTodayDateString());
-  const targetDate = addDaysToDateString(startDate, weeks * 7);
-  const { minStartDate, maxStartDate } = getScheduleWeekNavigationBounds(startDate);
-  return Boolean(targetDate && targetDate >= minStartDate && targetDate <= maxStartDate);
+  const epsilon = 1;
+  return direction < 0
+    ? metrics.scrollLeft > epsilon
+    : metrics.scrollLeft < metrics.maxScrollLeft - epsilon;
 }
 
 function syncScheduleWeekNavigationButtons() {
@@ -30,14 +39,34 @@ function syncScheduleWeekNavigationButtons() {
   controls.forEach(([id, weeks]) => {
     const button = document.getElementById(id);
     if (button) {
-      button.disabled = !canChangeScheduleWindowWeeks(weeks);
+      button.disabled = !canScrollScheduleByWeeks(weeks);
     }
   });
 }
 
-async function changeScheduleWindowWeeks(weeks) {
-  if (!canChangeScheduleWindowWeeks(weeks)) {
+function scrollScheduleByWeeks(weeks) {
+  const direction = Math.sign(Number(weeks) || 0);
+  const metrics = getScheduleWeekScrollMetrics();
+  if (!direction || !metrics) {
+    return;
+  }
+  const distance = metrics.dayWidth * SCHEDULE_WEEK_SCROLL_DAYS * direction;
+  const target = Math.min(metrics.maxScrollLeft, Math.max(0, metrics.scrollLeft + distance));
+  if (Math.abs(target - metrics.scrollLeft) < 1) {
     syncScheduleWeekNavigationButtons();
+    return;
+  }
+  if (typeof metrics.tableWrap.scrollTo === "function") {
+    metrics.tableWrap.scrollTo({ left: target, behavior: "smooth" });
+  } else {
+    metrics.tableWrap.scrollLeft = target;
+    syncStickyHeaderScroll();
+    syncScheduleWeekNavigationButtons();
+  }
+}
+
+async function changeSchedulePeriodWeeks(weeks) {
+  if (Math.abs(Number(weeks) || 0) !== 8) {
     return;
   }
   const startDate = toDateObject(state.scheduleStartDate)
