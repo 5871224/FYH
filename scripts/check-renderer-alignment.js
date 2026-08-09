@@ -45,7 +45,7 @@ assert(styles.includes("[hidden]"), "Hidden-state style is missing");
 assert(webApi.includes("mobileSessionMaxIdleMs") && webApi.includes("desktopSessionMaxIdleMs"), "Device-specific session windows are missing");
 assert(webApi.includes("function assertSessionActive"), "Session idle guard is missing");
 assert(webApi.includes('callRpc("get_scheduler_bootstrap_v3"'), "Web API must use canonical scheduler bootstrap RPC");
-assert(webApi.includes('callRpc("get_schedule_entries_v3"'), "Web API must use canonical schedule read RPC");
+assert(webApi.includes('callRpcAllRows("get_schedule_entries_v3"'), "Web API must use exhaustive canonical schedule read RPC");
 assert(webApi.includes('callRpc("save_schedule_entries_v3"'), "Web API must use canonical schedule write RPC");
 assert(webApi.includes('callRpc("save_shift_v3"'), "Web API must use canonical shift save RPC");
 assert(webApi.includes('callRpc("save_department_v3"'), "Web API must use canonical department save RPC");
