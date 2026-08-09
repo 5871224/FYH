@@ -22,6 +22,22 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Align patch with current SQL
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("scripts/tmp-fix-schedule-empty-cell.py")
+          text = path.read_text(encoding="utf-8")
+          old = 'old_deleted_member = "or (member.deleted_at is not null and not (coalesce(item.delete_entry,false) or (item.shift_type_id is null and item.leave_type_id is null and item.overtime_type_id is null)))"'
+          new = '''old_deleted_member = """       or (member.deleted_at is not null and not (
+                   coalesce(item.delete_entry,false)
+                   or (item.shift_type_id is null and item.leave_type_id is null and item.overtime_type_id is null)
+                 ))"""'''
+          if text.count(old) != 1:
+              raise SystemExit(f"patch source marker count={text.count(old)}")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
       - name: Apply persistence fix
         id: patch
         continue-on-error: true
