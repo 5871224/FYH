@@ -124,13 +124,8 @@ function getVisibleDateRange() {
   };
 }
 
-function getBufferedVisibleDateRange() {
-  const range = getVisibleDateRange();
-  // 7-day buffer matches the current 6-day consecutive-work ceiling; widen if compliance rules look farther.
-  return {
-    startDate: addDaysToDateString(range.startDate, -7),
-    endDate: addDaysToDateString(range.endDate, 7)
-  };
+function getVisibleScheduleLoadRange() {
+  return getVisibleDateRange();
 }
 
 function normalizeScheduleLoadedRanges(ranges) {
@@ -155,7 +150,7 @@ function rememberScheduleLoadedRange(range) {
 }
 
 async function ensureVisibleScheduleLoaded() {
-  const range = getBufferedVisibleDateRange();
+  const range = getVisibleScheduleLoadRange();
   if (isScheduleRangeLoaded(range)) {
     return;
   }

@@ -287,6 +287,53 @@
     });
   }
 
+  const RPC_PAGE_SIZE = 1000;
+
+  function parseContentRangeTotal(value) {
+    const match = String(value || "").match(/\/(\d+)$/);
+    return match ? Number(match[1]) : null;
+  }
+
+  async function callRpcAllRows(functionName, payload = {}) {
+    const rows = [];
+    let offset = 0;
+    while (true) {
+      assertSessionActive();
+      const response = await fetch(`${baseUrl}/rest/v1/rpc/${functionName}`, {
+        method: "POST",
+        headers: buildHeaders({
+          auth: true,
+          extra: {
+            Accept: "application/json",
+            Prefer: "count=exact",
+            "Range-Unit": "items",
+            Range: `${offset}-${offset + RPC_PAGE_SIZE - 1}`
+          }
+        }),
+        body: JSON.stringify(payload || {})
+      });
+      if (!response.ok) {
+        throw new Error(await readError(response));
+      }
+      touchSession();
+      const text = await response.text();
+      const page = text ? JSON.parse(text) : [];
+      if (!Array.isArray(page)) {
+        throw new Error(`${functionName} 回傳格式錯誤`);
+      }
+      rows.push(...page);
+      const total = parseContentRangeTotal(response.headers.get("Content-Range"));
+      if (!page.length || (total !== null && rows.length >= total)) {
+        break;
+      }
+      offset += page.length;
+      if (total === null && page.length < RPC_PAGE_SIZE) {
+        break;
+      }
+    }
+    return rows;
+  }
+
   async function getMyProfileRow() {
     const rows = await callRpc("get_my_profile_v3", {}, { auth: true }) || [];
     return rows[0] || null;
@@ -551,10 +598,9 @@
     const anchorDate = toDateObject(settings.eight_week_start_date) ? settings.eight_week_start_date : today;
     const periods = Math.floor(diffDays(anchorDate, today) / 56);
     const visibleStart = addDaysToDateString(anchorDate, periods * 56) || today;
-    // 7-day buffer covers the current 6-day consecutive-work rule; widen this if rules look farther.
     return {
-      startDate: addDaysToDateString(visibleStart, -7),
-      endDate: addDaysToDateString(visibleStart, 62)
+      startDate: visibleStart,
+      endDate: addDaysToDateString(visibleStart, 55)
     };
   }
 
@@ -911,12 +957,12 @@
     }
     const settings = bootstrap.settings || {};
     const scheduleRange = getScheduleLoadRange(settings);
-    const visibleStartDate = addDaysToDateString(scheduleRange.startDate, 7) || taipeiDateString();
+    const visibleStartDate = scheduleRange.startDate || taipeiDateString();
     const visibleStart = toDateObject(visibleStartDate);
-    const scheduleEntryRows = await callRpc("get_schedule_entries_v3", {
+    const scheduleEntryRows = await callRpcAllRows("get_schedule_entries_v3", {
       p_start_date: scheduleRange.startDate,
       p_end_date: scheduleRange.endDate
-    }) || [];
+    });
 
     const departments = mapDepartmentRows(bootstrap.departments || []);
     const members = mapMemberDirectoryRows(bootstrap.members || []);
@@ -995,10 +1041,10 @@
     const startDate = toDateObject(range.startDate) ? range.startDate : "";
     const endDate = toDateObject(range.endDate) ? range.endDate : "";
     if (!startDate || !endDate) throw new Error("schedule range is required");
-    const rows = await callRpc("get_schedule_entries_v3", {
+    const rows = await callRpcAllRows("get_schedule_entries_v3", {
       p_start_date: startDate,
       p_end_date: endDate
-    }) || [];
+    });
     const members = Array.isArray(range.members) ? range.members : [];
     return {
       schedule: mapScheduleRows(rows, members),
