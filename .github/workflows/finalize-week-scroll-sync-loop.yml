@@ -1,0 +1,40 @@
+name: Finalize Week Scroll Sync Loop
+
+on:
+  push:
+    branches:
+      - fix/week-scroll-sync-loop-20260809
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/week-scroll-sync-loop-20260809
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Rebuild JavaScript artifact
+        run: npm run js:build
+      - name: Remove temporary workflow before validation
+        run: rm .github/workflows/finalize-week-scroll-sync-loop.yml
+      - name: Run complete validation
+        run: npm run ci:check
+      - name: Commit finalized change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/renderer/app.js .github/workflows/finalize-week-scroll-sync-loop.yml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "完成班表捲軸同步修正"
+          git push origin HEAD:fix/week-scroll-sync-loop-20260809
