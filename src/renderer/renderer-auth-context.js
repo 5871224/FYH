@@ -35,6 +35,14 @@ function canEditSchedule() {
   return hasPermission("schedule_manage") && roleAppliesToGroup(groupFeatureState.currentGroupId);
 }
 
+function canManageMembersInCurrentGroup() {
+  return hasPermission("member_settings") && roleAppliesToGroup(groupFeatureState.currentGroupId);
+}
+
+function canManageDepartmentsInCurrentGroup() {
+  return hasPermission("department_settings") && roleAppliesToGroup(groupFeatureState.currentGroupId);
+}
+
 
 async function ensureManagerDirectoryLoaded() {
   if (!hasManagementAccess() || managerDirectoryLoaded) {

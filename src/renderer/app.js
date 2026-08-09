@@ -5399,7 +5399,7 @@ function renderShiftViewCell(members, dateString) {
         const regularHolidayWorkClass = isRegularHolidayWorkSlot(getDisplayedSlot(member.id, dateString))
           ? " regular-holiday-work-member"
           : "";
-        return `<div class="shift-view-member${regularHolidayWorkClass}">${escapeHtml(member.name)}</div>`;
+        return `<div class="shift-view-member${regularHolidayWorkClass}" data-shift-schedule-member="${escapeHtml(member.id)}">${escapeHtml(member.name)}</div>`;
       }).join("")}
     </div>
   `;
@@ -5518,6 +5518,8 @@ function renderTable() {
   } else {
     const groups = getVisibleTableGroups();
     const canEditScheduleOrder = canEditSchedule();
+    const canEditMemberSettings = canManageMembersInCurrentGroup();
+    const canEditDepartmentSettings = canManageDepartmentsInCurrentGroup();
     const orderDragClass = canEditScheduleOrder ? " schedule-order-drag" : "";
     const draggableAttr = canEditScheduleOrder ? ' draggable="true"' : "";
     let rowIndex = 0;
@@ -5528,10 +5530,10 @@ function renderTable() {
         members.forEach((member, index) => {
           html += `<tr class="${member.payByDay ? "pay-daily-row" : ""}">`;
           if (index === 0) {
-            const departmentEditAttrs = canEditScheduleOrder ? ` data-table-department-id="${escapeHtml(department.id)}"` : "";
+            const departmentEditAttrs = canEditDepartmentSettings ? ` data-table-department-id="${escapeHtml(department.id)}"` : "";
             html += `<td class="dept-col${orderDragClass}"${draggableAttr} rowspan="${members.length}"${departmentEditAttrs}>${escapeHtml(department.name)}</td>`;
           }
-          const memberEditAttrs = canEditScheduleOrder
+          const memberEditAttrs = canEditMemberSettings
             ? ` data-table-member-id="${escapeHtml(member.id)}" data-table-member-department-id="${escapeHtml(getMemberHomeDeptId(member))}"`
             : "";
           const shiftEligibleClass = memberMatchesSelectedShift(member) ? " shift-eligible-person-col" : "";
@@ -6297,12 +6299,13 @@ function openDepartmentForm(mode, departmentId = "") {
     : null;
   const department = mode === "edit"
     ? state.departments.find((item) => item.id === departmentId)
-    : { id: "", name: "", startDate: "", endDate: "", hiddenFromSchedule: false, address: "", latitude: "", longitude: "", publicIp: "", attendanceEnabled: false };
+    : { id: "", name: "", groupId: groupFeatureState.currentGroupId, startDate: "", endDate: "", hiddenFromSchedule: false, address: "", latitude: "", longitude: "", publicIp: "", attendanceEnabled: false };
   if (!department) {
     return;
   }
   const attendanceFieldsDisabled = canManagePermissions() ? "" : "disabled";
-  modalContext = { mode, category: "department", targetId: departmentId, returnTo };
+  const groupId = department.groupId || groupFeatureState.currentGroupId || "";
+  modalContext = { mode, category: "department", targetId: departmentId, groupId, returnTo };
   openEntityListModal({
     title: `${mode === "edit" ? "修改" : "新增"}單位`,
     modalClass: "modal modal-form-compact settings-edit-form",
@@ -6343,12 +6346,17 @@ async function saveDepartment(mode) {
   const previousDepartment = mode === "edit"
     ? state.departments.find((department) => department.id === modalContext.targetId) || null
     : null;
+  const groupId = previousDepartment?.groupId || modalContext.groupId || groupFeatureState.currentGroupId || "";
   const latitudeInput = document.getElementById("departmentLatitude")?.value.trim() || "";
   const longitudeInput = document.getElementById("departmentLongitude")?.value.trim() || "";
   const latitude = latitudeInput === "" ? "" : Number(latitudeInput);
   const longitude = longitudeInput === "" ? "" : Number(longitudeInput);
   if (!name) {
     document.getElementById("departmentName")?.focus();
+    return;
+  }
+  if (!groupId) {
+    reportValidationError("目前班表沒有可使用的群組");
     return;
   }
   if (startDate && endDate && !isValidDateRange(startDate, endDate)) {
@@ -6378,7 +6386,7 @@ async function saveDepartment(mode) {
       publicIp: previousDepartment?.publicIp || "",
       attendanceEnabled: Boolean(previousDepartment?.attendanceEnabled)
     };
-  const payload = { id: mode === "edit" ? modalContext.targetId : uid("d"), name, startDate, endDate, hiddenFromSchedule, ...attendancePayload };
+  const payload = { id: mode === "edit" ? modalContext.targetId : uid("d"), name, groupId, startDate, endDate, hiddenFromSchedule, ...attendancePayload };
   const sortOrder = mode === "edit"
     ? state.departments.findIndex((department) => department.id === payload.id)
     : state.departments.length;
@@ -7852,6 +7860,14 @@ function hasManagementAccess() {
 
 function canEditSchedule() {
   return hasPermission("schedule_manage") && roleAppliesToGroup(groupFeatureState.currentGroupId);
+}
+
+function canManageMembersInCurrentGroup() {
+  return hasPermission("member_settings") && roleAppliesToGroup(groupFeatureState.currentGroupId);
+}
+
+function canManageDepartmentsInCurrentGroup() {
+  return hasPermission("department_settings") && roleAppliesToGroup(groupFeatureState.currentGroupId);
 }
 
 
@@ -11187,6 +11203,19 @@ function bindScheduleSessionEvents() {
  * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
  */
 
+async function openScheduleMemberEditor(memberId) {
+  if (!memberId || !canManageMembersInCurrentGroup()) {
+    return;
+  }
+  try {
+    await ensureManagerDirectoryLoaded();
+  } catch (error) {
+    showInfoMessage(`開啟人員資料失敗：${error.message || error}`);
+    return;
+  }
+  openMemberForm("edit", memberId);
+}
+
 function bindDelegatedClickEvents() {
   document.body.addEventListener("click", async (event) => {
     const target = event.target.closest("button, td");
@@ -11338,7 +11367,7 @@ function bindDelegatedClickEvents() {
       reopenModalFromContext(returnTo);
       return;
     }
-    if (target instanceof HTMLElement && target.dataset.tableMemberId && target.dataset.rowIndex) {
+    if (target instanceof HTMLElement && target.dataset.tableMemberId && target.dataset.rowIndex && canEditSchedule()) {
       selectScheduleRowFromMemberCell(target, event.shiftKey);
       return;
     }
@@ -11538,27 +11567,25 @@ function bindDelegatedClickEvents() {
     }
   });
 
-  document.body.addEventListener("dblclick", (event) => {
+  document.body.addEventListener("dblclick", async (event) => {
     const shiftMember = event.target.closest("[data-shift-schedule-member]");
     if (shiftMember) {
       const memberId = shiftMember.dataset.shiftScheduleMember || "";
-      if (memberId && canEditSchedule()) {
-        openMemberForm("edit", memberId);
+      if (memberId) {
+        await openScheduleMemberEditor(memberId);
       }
       return;
     }
     const target = event.target.closest("[data-table-member-id], [data-table-department-id]");
     if (!target) return;
-    if (!canEditSchedule()) return;
     const memberId = target.dataset.tableMemberId;
     if (memberId) {
-      openMemberForm("edit", memberId);
+      await openScheduleMemberEditor(memberId);
       return;
     }
     const deptId = target.dataset.tableDepartmentId;
-    if (deptId) {
+    if (deptId && canManageDepartmentsInCurrentGroup()) {
       openDepartmentForm("edit", deptId);
-      return;
     }
   });
 }

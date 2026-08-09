@@ -46,7 +46,7 @@ function renderShiftViewCell(members, dateString) {
         const regularHolidayWorkClass = isRegularHolidayWorkSlot(getDisplayedSlot(member.id, dateString))
           ? " regular-holiday-work-member"
           : "";
-        return `<div class="shift-view-member${regularHolidayWorkClass}">${escapeHtml(member.name)}</div>`;
+        return `<div class="shift-view-member${regularHolidayWorkClass}" data-shift-schedule-member="${escapeHtml(member.id)}">${escapeHtml(member.name)}</div>`;
       }).join("")}
     </div>
   `;

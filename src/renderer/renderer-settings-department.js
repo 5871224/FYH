@@ -154,12 +154,13 @@ function openDepartmentForm(mode, departmentId = "") {
     : null;
   const department = mode === "edit"
     ? state.departments.find((item) => item.id === departmentId)
-    : { id: "", name: "", startDate: "", endDate: "", hiddenFromSchedule: false, address: "", latitude: "", longitude: "", publicIp: "", attendanceEnabled: false };
+    : { id: "", name: "", groupId: groupFeatureState.currentGroupId, startDate: "", endDate: "", hiddenFromSchedule: false, address: "", latitude: "", longitude: "", publicIp: "", attendanceEnabled: false };
   if (!department) {
     return;
   }
   const attendanceFieldsDisabled = canManagePermissions() ? "" : "disabled";
-  modalContext = { mode, category: "department", targetId: departmentId, returnTo };
+  const groupId = department.groupId || groupFeatureState.currentGroupId || "";
+  modalContext = { mode, category: "department", targetId: departmentId, groupId, returnTo };
   openEntityListModal({
     title: `${mode === "edit" ? "修改" : "新增"}單位`,
     modalClass: "modal modal-form-compact settings-edit-form",
@@ -200,12 +201,17 @@ async function saveDepartment(mode) {
   const previousDepartment = mode === "edit"
     ? state.departments.find((department) => department.id === modalContext.targetId) || null
     : null;
+  const groupId = previousDepartment?.groupId || modalContext.groupId || groupFeatureState.currentGroupId || "";
   const latitudeInput = document.getElementById("departmentLatitude")?.value.trim() || "";
   const longitudeInput = document.getElementById("departmentLongitude")?.value.trim() || "";
   const latitude = latitudeInput === "" ? "" : Number(latitudeInput);
   const longitude = longitudeInput === "" ? "" : Number(longitudeInput);
   if (!name) {
     document.getElementById("departmentName")?.focus();
+    return;
+  }
+  if (!groupId) {
+    reportValidationError("目前班表沒有可使用的群組");
     return;
   }
   if (startDate && endDate && !isValidDateRange(startDate, endDate)) {
@@ -235,7 +241,7 @@ async function saveDepartment(mode) {
       publicIp: previousDepartment?.publicIp || "",
       attendanceEnabled: Boolean(previousDepartment?.attendanceEnabled)
     };
-  const payload = { id: mode === "edit" ? modalContext.targetId : uid("d"), name, startDate, endDate, hiddenFromSchedule, ...attendancePayload };
+  const payload = { id: mode === "edit" ? modalContext.targetId : uid("d"), name, groupId, startDate, endDate, hiddenFromSchedule, ...attendancePayload };
   const sortOrder = mode === "edit"
     ? state.departments.findIndex((department) => department.id === payload.id)
     : state.departments.length;

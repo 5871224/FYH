@@ -37,6 +37,8 @@ function renderTable() {
   } else {
     const groups = getVisibleTableGroups();
     const canEditScheduleOrder = canEditSchedule();
+    const canEditMemberSettings = canManageMembersInCurrentGroup();
+    const canEditDepartmentSettings = canManageDepartmentsInCurrentGroup();
     const orderDragClass = canEditScheduleOrder ? " schedule-order-drag" : "";
     const draggableAttr = canEditScheduleOrder ? ' draggable="true"' : "";
     let rowIndex = 0;
@@ -47,10 +49,10 @@ function renderTable() {
         members.forEach((member, index) => {
           html += `<tr class="${member.payByDay ? "pay-daily-row" : ""}">`;
           if (index === 0) {
-            const departmentEditAttrs = canEditScheduleOrder ? ` data-table-department-id="${escapeHtml(department.id)}"` : "";
+            const departmentEditAttrs = canEditDepartmentSettings ? ` data-table-department-id="${escapeHtml(department.id)}"` : "";
             html += `<td class="dept-col${orderDragClass}"${draggableAttr} rowspan="${members.length}"${departmentEditAttrs}>${escapeHtml(department.name)}</td>`;
           }
-          const memberEditAttrs = canEditScheduleOrder
+          const memberEditAttrs = canEditMemberSettings
             ? ` data-table-member-id="${escapeHtml(member.id)}" data-table-member-department-id="${escapeHtml(getMemberHomeDeptId(member))}"`
             : "";
           const shiftEligibleClass = memberMatchesSelectedShift(member) ? " shift-eligible-person-col" : "";

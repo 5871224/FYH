@@ -2,6 +2,19 @@
  * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
  */
 
+async function openScheduleMemberEditor(memberId) {
+  if (!memberId || !canManageMembersInCurrentGroup()) {
+    return;
+  }
+  try {
+    await ensureManagerDirectoryLoaded();
+  } catch (error) {
+    showInfoMessage(`開啟人員資料失敗：${error.message || error}`);
+    return;
+  }
+  openMemberForm("edit", memberId);
+}
+
 function bindDelegatedClickEvents() {
   document.body.addEventListener("click", async (event) => {
     const target = event.target.closest("button, td");
@@ -153,7 +166,7 @@ function bindDelegatedClickEvents() {
       reopenModalFromContext(returnTo);
       return;
     }
-    if (target instanceof HTMLElement && target.dataset.tableMemberId && target.dataset.rowIndex) {
+    if (target instanceof HTMLElement && target.dataset.tableMemberId && target.dataset.rowIndex && canEditSchedule()) {
       selectScheduleRowFromMemberCell(target, event.shiftKey);
       return;
     }
@@ -353,27 +366,25 @@ function bindDelegatedClickEvents() {
     }
   });
 
-  document.body.addEventListener("dblclick", (event) => {
+  document.body.addEventListener("dblclick", async (event) => {
     const shiftMember = event.target.closest("[data-shift-schedule-member]");
     if (shiftMember) {
       const memberId = shiftMember.dataset.shiftScheduleMember || "";
-      if (memberId && canEditSchedule()) {
-        openMemberForm("edit", memberId);
+      if (memberId) {
+        await openScheduleMemberEditor(memberId);
       }
       return;
     }
     const target = event.target.closest("[data-table-member-id], [data-table-department-id]");
     if (!target) return;
-    if (!canEditSchedule()) return;
     const memberId = target.dataset.tableMemberId;
     if (memberId) {
-      openMemberForm("edit", memberId);
+      await openScheduleMemberEditor(memberId);
       return;
     }
     const deptId = target.dataset.tableDepartmentId;
-    if (deptId) {
+    if (deptId && canManageDepartmentsInCurrentGroup()) {
       openDepartmentForm("edit", deptId);
-      return;
     }
   });
 }
