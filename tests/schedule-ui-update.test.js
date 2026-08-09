@@ -25,15 +25,20 @@ test("班表浮動工具列使用整合式左側操作列", () => {
   assert.match(html, /id="tableNextWeekButton"[^>]* hidden/);
 });
 
-test("班表週移動與例假排班顯示具有正式程式契約", () => {
+test("班表週捲動與例假排班顯示具有正式程式契約", () => {
   const actions = read("src/renderer/renderer-export-actions.js");
+  const events = read("src/renderer/renderer-events-toolbar.js");
   const table = read("src/renderer/renderer-schedule-table.js");
   const cells = read("src/renderer/renderer-schedule-cells.js");
   const css = read("src/renderer/css/pages.css");
   const interaction = read("src/renderer/renderer-schedule-interaction.js");
-  assert.match(actions, /function canChangeScheduleWindowWeeks\(weeks\)/);
-  assert.match(actions, /maxStartDate: addDaysToDateString\(cycleStartDate, 49\)/);
-  assert.match(actions, /button\.disabled = !canChangeScheduleWindowWeeks\(weeks\)/);
+  assert.match(actions, /const SCHEDULE_WEEK_SCROLL_DAYS = 7;/);
+  assert.match(actions, /function canScrollScheduleByWeeks\(weeks\)/);
+  assert.match(actions, /function scrollScheduleByWeeks\(weeks\)/);
+  assert.match(actions, /maxScrollLeft: Math\.max\(0, tableWrap\.scrollWidth - tableWrap\.clientWidth\)/);
+  assert.match(actions, /button\.disabled = !canScrollScheduleByWeeks\(weeks\)/);
+  assert.match(events, /bindClick\("prevWeekButton", \(\) => scrollScheduleByWeeks\(-1\)\)/);
+  assert.match(events, /bindClick\("nextWeekButton", \(\) => scrollScheduleByWeeks\(1\)\)/);
   assert.doesNotMatch(table, /regularHolidayWorkClass|regular-holiday-work-cell/);
   assert.match(cells, /function isRegularHolidayWorkSlot\(slot\)/);
   assert.doesNotMatch(cells, /renderRegularHolidayWorkIndicator|regular-holiday-work-indicator/);
