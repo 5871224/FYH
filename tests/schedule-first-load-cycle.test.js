@@ -5,7 +5,7 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("首次班表以目前八週 56 天載入且由完整分頁查詢負責取得全部列", () => {
+test("首次班表只載入目前八週 56 天並由完整分頁查詢取得全部列", () => {
   const webApi = read("src/renderer/web-api.js");
   const loadStart = webApi.indexOf("async function loadState()");
   const loadEnd = webApi.indexOf("async function loadScheduleEntries", loadStart);
