@@ -14,14 +14,19 @@ test("班表初始讀取範圍固定為目前八週 56 天", () => {
   assert.doesNotMatch(api, /addDaysToDateString\(visibleStart, 62\)/);
 });
 
-test("目前八週班表 RPC 必須分頁讀到全部列，不受單次回傳上限截斷", () => {
+test("目前八週班表 RPC 必須以明確 offset/limit 分頁讀到全部列", () => {
   const api = read("src/renderer/web-api.js");
-  assert.match(api, /const RPC_PAGE_SIZE = 1000/);
+  const sql = read("supabase/002_current_updates.sql");
+  assert.match(api, /const RPC_PAGE_SIZE = 500/);
   assert.match(api, /async function callRpcAllRows\(functionName, payload = \{\}\)/);
-  assert.match(api, /"Range-Unit": "items"/);
-  assert.match(api, /Range: `\$\{offset\}-\$\{offset \+ RPC_PAGE_SIZE - 1\}`/);
-  assert.match(api, /parseContentRangeTotal\(response\.headers\.get\("Content-Range"\)\)/);
+  assert.match(api, /p_offset: offset/);
+  assert.match(api, /p_limit: RPC_PAGE_SIZE/);
+  assert.match(api, /if \(page\.length < RPC_PAGE_SIZE\)/);
   assert.match(api, /offset \+= page\.length/);
+  assert.doesNotMatch(api, /Range-Unit|Content-Range|parseContentRangeTotal/);
+  assert.match(sql, /get_schedule_entries_v3\(\s*p_start_date date,\s*p_end_date date,\s*p_offset integer,\s*p_limit integer\s*\)/);
+  assert.match(sql, /limit least\(greatest\(coalesce\(p_limit,500\),1\),500\)/);
+  assert.match(sql, /offset greatest\(coalesce\(p_offset,0\),0\)/);
 });
 
 test("初始八週與切換八週都使用完整分頁讀取", () => {

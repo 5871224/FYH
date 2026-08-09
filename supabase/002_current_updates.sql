@@ -772,7 +772,13 @@ commit;
 
 
 
-create or replace function public.get_schedule_entries_v3(p_start_date date,p_end_date date)
+drop function if exists public.get_schedule_entries_v3(date,date);
+create or replace function public.get_schedule_entries_v3(
+  p_start_date date,
+  p_end_date date,
+  p_offset integer,
+  p_limit integer
+)
 returns setof public.schedule_entries
 language sql
 stable
@@ -801,7 +807,9 @@ as $$
     and p_end_date is not null
     and p_start_date<=p_end_date
     and entry.work_date between p_start_date and p_end_date
-  order by entry.work_date,entry.member_id
+  order by entry.work_date,entry.member_id,entry.id
+  limit least(greatest(coalesce(p_limit,500),1),500)
+  offset greatest(coalesce(p_offset,0),0)
 $$;
 
 create or replace function public.save_schedule_entries_v3(entries jsonb)
@@ -1228,7 +1236,7 @@ alter function public.set_shift_group_v1() security definer;
 alter function public.set_shift_group_v1() set search_path=public,pg_catalog;
 
 revoke all on function public.get_scheduler_bootstrap_v3(text) from public,anon;
-revoke all on function public.get_schedule_entries_v3(date,date) from public,anon;
+revoke all on function public.get_schedule_entries_v3(date,date,integer,integer) from public,anon;
 revoke all on function public.save_schedule_entries_v3(jsonb) from public,anon;
 revoke all on function public.save_shift_v3(jsonb) from public,anon;
 revoke all on function public.save_catalog_item_v3(text,jsonb) from public,anon;
@@ -1242,7 +1250,7 @@ revoke all on function public.get_department_attendance_settings_v3() from publi
 revoke all on function public.get_employee_admin_directory_v3() from public,anon;
 
 grant execute on function public.get_scheduler_bootstrap_v3(text) to authenticated,service_role;
-grant execute on function public.get_schedule_entries_v3(date,date) to authenticated,service_role;
+grant execute on function public.get_schedule_entries_v3(date,date,integer,integer) to authenticated,service_role;
 grant execute on function public.save_schedule_entries_v3(jsonb) to authenticated,service_role;
 grant execute on function public.save_shift_v3(jsonb) to authenticated,service_role;
 grant execute on function public.save_catalog_item_v3(text,jsonb) to authenticated,service_role;

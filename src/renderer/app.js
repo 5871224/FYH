@@ -1492,49 +1492,25 @@
     });
   }
 
-  const RPC_PAGE_SIZE = 1000;
-
-  function parseContentRangeTotal(value) {
-    const match = String(value || "").match(/\/(\d+)$/);
-    return match ? Number(match[1]) : null;
-  }
+  const RPC_PAGE_SIZE = 500;
 
   async function callRpcAllRows(functionName, payload = {}) {
     const rows = [];
     let offset = 0;
     while (true) {
-      assertSessionActive();
-      const response = await fetch(`${baseUrl}/rest/v1/rpc/${functionName}`, {
-        method: "POST",
-        headers: buildHeaders({
-          auth: true,
-          extra: {
-            Accept: "application/json",
-            Prefer: "count=exact",
-            "Range-Unit": "items",
-            Range: `${offset}-${offset + RPC_PAGE_SIZE - 1}`
-          }
-        }),
-        body: JSON.stringify(payload || {})
-      });
-      if (!response.ok) {
-        throw new Error(await readError(response));
-      }
-      touchSession();
-      const text = await response.text();
-      const page = text ? JSON.parse(text) : [];
+      const page = await callRpc(functionName, {
+        ...payload,
+        p_offset: offset,
+        p_limit: RPC_PAGE_SIZE
+      }) || [];
       if (!Array.isArray(page)) {
         throw new Error(`${functionName} 回傳格式錯誤`);
       }
       rows.push(...page);
-      const total = parseContentRangeTotal(response.headers.get("Content-Range"));
-      if (!page.length || (total !== null && rows.length >= total)) {
+      if (page.length < RPC_PAGE_SIZE) {
         break;
       }
       offset += page.length;
-      if (total === null && page.length < RPC_PAGE_SIZE) {
-        break;
-      }
     }
     return rows;
   }
