@@ -22,8 +22,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Rebuild JavaScript artifact
-        run: npm run js:build
+      - name: Rebuild and publish static artifacts
+        run: npm run web:publish
       - name: Remove temporary workflow before validation
         run: rm .github/workflows/finalize-week-scroll-sync-loop.yml
       - name: Run complete validation
@@ -43,7 +43,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/renderer/app.js .github/workflows/finalize-week-scroll-sync-loop.yml
+          git add src/renderer/app.js src/renderer/app.css docs .github/workflows/finalize-week-scroll-sync-loop.yml
           if git diff --cached --quiet; then
             exit 0
           fi
