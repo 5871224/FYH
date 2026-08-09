@@ -183,12 +183,12 @@ async function saveLeaveAssignmentFromModal() {
 
   try {
     const dateString = normalizeScheduleDateInput(day);
+    const previousSchedule = deepClone(state.schedule || {});
     const slot = ensureScheduleSlot(memberId, dateString);
     const leave = getItem("leave", leaveId);
     if (!slot || !leave) {
       throw new Error("找不到班表格子或假別");
     }
-    const previousSchedule = deepClone(state.schedule || {});
     slot.leave = leaveId;
     slot.leaveMeta = {
       leaveCode: leave.code || "",

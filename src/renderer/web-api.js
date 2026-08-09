@@ -263,6 +263,17 @@
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || "").trim());
   }
 
+  function optionalUuid(value, label) {
+    const text = String(value || "").trim();
+    if (!text) {
+      return null;
+    }
+    if (!isUuid(text)) {
+      throw new Error(`${label}識別碼格式錯誤`);
+    }
+    return text;
+  }
+
   async function callRpc(functionName, payload = {}, options = {}) {
     const { prefer = "return=representation" } = options;
     return requestJson(`/rest/v1/rpc/${functionName}`, {
@@ -1014,7 +1025,11 @@
     async function saveShiftItem(shift, sortOrder = 0) {
     ensureSignedIn();
     return callRpc("save_shift_v3", {
-      p_shift: { ...shift, sortOrder }
+      p_shift: {
+        ...shift,
+        applicableDepartmentId: shift?.applicableDeptId || shift?.applicableDepartmentId || "",
+        sortOrder
+      }
     });
   }
 
@@ -1051,18 +1066,23 @@
       const profileMemberId = String(payload.memberId || "").trim();
       const workDate = nullableDate(payload.dateString || payload.workDate);
       if (!isUuid(profileMemberId) || !workDate) throw new Error("schedule cell member UUID and date are required");
-      const slot = payload.slot || {};
-      const shiftId = isUuid(slot.shift) ? slot.shift : null;
-      const leaveId = isUuid(slot.leave) ? slot.leave : null;
-      const overtimeId = isUuid(slot.overtime) ? slot.overtime : null;
-      if (!shiftId && !leaveId && !overtimeId) {
+      const deleteEntry = payload.deleteEntry === true;
+      const slot = payload.slot && typeof payload.slot === "object" ? payload.slot : {};
+      const shiftId = optionalUuid(slot.shift, "班別");
+      const leaveId = optionalUuid(slot.leave, "假別");
+      const overtimeId = optionalUuid(slot.overtime, "加班");
+      if (deleteEntry) {
         rows.push({ member_id: profileMemberId, work_date: workDate, delete_entry: true });
         continue;
+      }
+      if (!shiftId && !leaveId && !overtimeId) {
+        throw new Error("班表儲存內容不可空白");
       }
       const leaveAllDay = slot.leaveMeta?.allDay !== false;
       rows.push({
         member_id: profileMemberId,
         work_date: workDate,
+        delete_entry: false,
         shift_type_id: shiftId,
         leave_type_id: leaveId,
         leave_all_day: leaveAllDay,
@@ -1082,6 +1102,15 @@
       });
     }
     const savedRows = await saveScheduleEntryRows(rows);
+    const expectedKeys = new Set(rows
+      .filter((row) => !row.delete_entry)
+      .map((row) => makeScheduleEntryKey(row.member_id, row.work_date)));
+    const savedKeys = new Set((Array.isArray(savedRows) ? savedRows : [])
+      .map((row) => makeScheduleEntryKey(row.member_id, row.work_date)));
+    const missingKeys = [...expectedKeys].filter((key) => !savedKeys.has(key));
+    if (missingKeys.length) {
+      throw new Error("班表資料未成功寫入，請重新操作");
+    }
     return { ok: true, rows: savedRows };
   }
 

@@ -831,6 +831,18 @@ begin
     raise exception '班表資料格式錯誤' using errcode='22023';
   end if;
 
+  select exists(
+    select 1
+    from jsonb_to_recordset(entries) as item(delete_entry boolean,shift_type_id uuid,leave_type_id uuid,overtime_type_id uuid)
+    where not coalesce(item.delete_entry,false)
+      and item.shift_type_id is null
+      and item.leave_type_id is null
+      and item.overtime_type_id is null
+  ) into v_invalid;
+  if v_invalid then
+    raise exception '班表儲存內容不可空白' using errcode='22023';
+  end if;
+
   with incoming as materialized (
     select *
     from jsonb_to_recordset(entries) as item(
@@ -858,10 +870,7 @@ begin
          where archive.group_id=member.group_id
            and item.work_date between archive.start_date and archive.end_date
        )
-       or (member.deleted_at is not null and not (
-         coalesce(item.delete_entry,false)
-         or (item.shift_type_id is null and item.leave_type_id is null and item.overtime_type_id is null)
-       ))
+or (member.deleted_at is not null and not coalesce(item.delete_entry,false))
   ) into v_invalid;
 
   if v_invalid then
@@ -881,7 +890,7 @@ begin
   deleted as (
     delete from public.schedule_entries entry using incoming item
     where entry.member_id=item.member_id and entry.work_date=item.work_date
-      and (coalesce(item.delete_entry,false) or (item.shift_type_id is null and item.leave_type_id is null and item.overtime_type_id is null))
+      and coalesce(item.delete_entry,false)
     returning entry.*
   ),
   upserted as (

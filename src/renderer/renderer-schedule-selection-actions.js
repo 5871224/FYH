@@ -31,11 +31,11 @@ async function applySelectionToCell(memberId, day) {
   if (!state.selected.type) {
     return;
   }
+  const previousSchedule = deepClone(state.schedule || {});
   const slot = ensureScheduleSlot(memberId, dateString);
   if (!slot) {
     return;
   }
-  const previousSchedule = deepClone(state.schedule || {});
   const { type, id } = state.selected;
   if (type === "leave") {
     const leave = getItem("leave", id);

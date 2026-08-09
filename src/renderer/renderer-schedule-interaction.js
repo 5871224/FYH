@@ -390,11 +390,13 @@ async function persistScheduleCells(cells) {
       return;
     }
     const key = getScheduleKeyForDateString(memberId, dateString);
+    const slot = key ? state.schedule[key] || null : null;
     payloads.push({
       memberId,
       memberCode: member.code || "",
       dateString,
-      slot: key ? state.schedule[key] || null : null
+      slot: slot ? deepClone(slot) : null,
+      deleteEntry: !slot
     });
   });
   if (payloads.length) {
@@ -432,9 +434,22 @@ async function finishScheduleCellMutationWithUndo(memberId, dateString, previous
   if (!getChangedScheduleCells(previousSchedule, nextSchedule).length) {
     return false;
   }
+  const key = getScheduleKeyForDateString(memberId, dateString);
   pushScheduleUndoSnapshot(previousSchedule);
-  await finishScheduleCellMutation(memberId, dateString);
-  return true;
+  try {
+    await finishScheduleCellMutation(memberId, dateString);
+    return true;
+  } catch (error) {
+    discardLastScheduleUndoSnapshot();
+    if (key && Object.prototype.hasOwnProperty.call(previousSchedule || {}, key)) {
+      state.schedule[key] = deepClone(previousSchedule[key]);
+    } else if (key) {
+      delete state.schedule[key];
+    }
+    renderScheduleCell(memberId, dateString);
+    syncScheduleRangeSelectionUi();
+    throw error;
+  }
 }
 
 function copyScheduleRangeToClipboard() {
