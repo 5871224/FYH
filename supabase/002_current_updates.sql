@@ -1771,7 +1771,7 @@ select case when exists(select 1 from actor) then jsonb_build_object(
   'leaves',coalesce((select jsonb_agg(to_jsonb(leave_item) order by leave_item.sort_order,leave_item.code,leave_item.id) from visible_leaves leave_item),'[]'::jsonb),
   'overtime',coalesce((select jsonb_agg(to_jsonb(overtime_item) order by overtime_item.sort_order,overtime_item.name,overtime_item.id) from visible_overtime overtime_item),'[]'::jsonb),
   'holidays',coalesce((select jsonb_agg(to_jsonb(holiday) order by holiday.sort_order,holiday.holiday_date,holiday.id) from public.holidays holiday),'[]'::jsonb),
-  'accessBundle',public.get_group_access_bundle_v1(),
+  'accessBundle',public.get_group_access_bundle_v1()
 ) else null end
 $$;
 -- 內部群組異動驗證只由 Trigger / 後端呼叫，不作為瀏覽器公開 RPC。
