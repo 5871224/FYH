@@ -1440,28 +1440,35 @@
     return text ? JSON.parse(text) : null;
   }
 
-  async function requestFunction(functionName, payload) {
-    assertSessionActive();
-    const response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
-      method: "POST",
-      cache: "no-store",
-      headers: buildHeaders({
-        auth: true,
-        extra: {
-          Accept: "application/json"
+  async function requestFunction(functionName, payload, { retryTransientOnce = false } = {}) {
+    for (let attempt = 0; ; attempt += 1) {
+      assertSessionActive();
+      const response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
+        method: "POST",
+        cache: "no-store",
+        headers: buildHeaders({
+          auth: true,
+          extra: {
+            Accept: "application/json"
+          }
+        }),
+        body: JSON.stringify(payload || {})
+      });
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error(`尚未部署 ${functionName} Edge Function`);
         }
-      }),
-      body: JSON.stringify(payload || {})
-    });
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(`尚未部署 ${functionName} Edge Function`);
+        const message = await readError(response);
+        if (retryTransientOnce && attempt === 0 && [502, 503, 504].includes(response.status)) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          continue;
+        }
+        throw new Error(message);
       }
-      throw new Error(await readError(response));
+      touchSession();
+      const text = await response.text();
+      return text ? JSON.parse(text) : null;
     }
-    touchSession();
-    const text = await response.text();
-    return text ? JSON.parse(text) : null;
   }
 
   function isUuid(value) {
@@ -1898,7 +1905,11 @@
 
     async function getAttendanceReviewList(filters = {}) {
     ensureSignedIn();
-    return requestFunction("attendance-review-groups", { action: "review_list", ...filters });
+    return requestFunction(
+      "attendance-review-groups",
+      { action: "review_list", ...filters },
+      { retryTransientOnce: true }
+    );
   }
 
   async function saveAttendanceReviewRecord(payload = {}) {
@@ -6865,14 +6876,23 @@ function refreshMemberSettingsList() {
 }
 
 async function openMemberSettings() {
-  try {
-    await ensureManagerDirectoryLoaded();
-  } catch (error) {
-    showInfoMessage(`讀取管理資料失敗：${error.message || error}`);
+  if (!hasPermission("member_settings")) {
+    showInfoMessage("沒有權限開啟人員設定");
     return;
   }
   modalContext = { category: "member-settings" };
-  const body = `
+  openEntityListModal({
+    title: "人員設定",
+    modalClass: "modal modal-wide member-settings-modal settings-list-modal",
+    body: '<div class="empty-state">讀取人員資料中…</div>',
+    hideFooterClose: true
+  });
+  try {
+    await ensureManagerDirectoryLoaded();
+    if (modalContext.category !== "member-settings") {
+      return;
+    }
+    const body = `
       <div class="member-settings-filters">
         <div class="form-row">
           <label for="memberSettingsNameFilter">姓名</label>
@@ -6912,17 +6932,22 @@ async function openMemberSettings() {
       </div>
       <div class="member-settings-list" id="memberSettingsList">${renderMemberSettingsList()}</div>
     `;
-  openEntityListModal({
-    title: "人員設定",
-    modalClass: "modal modal-wide member-settings-modal settings-list-modal",
-    body,
-    headerButtons: `
-      <button class="ghost-btn" type="button" data-export-members="true">匯出</button>
-      <button class="ghost-btn" type="button" data-import-members="true">匯入</button>
-      <button class="btn-primary" type="button" data-open-add-member="true">新增</button>
-    `,
-    hideFooterClose: true
-  });
+    openEntityListModal({
+      title: "人員設定",
+      modalClass: "modal modal-wide member-settings-modal settings-list-modal",
+      body,
+      headerButtons: `
+        <button class="ghost-btn" type="button" data-export-members="true">匯出</button>
+        <button class="ghost-btn" type="button" data-import-members="true">匯入</button>
+        <button class="btn-primary" type="button" data-open-add-member="true">新增</button>
+      `,
+      hideFooterClose: true
+    });
+  } catch (error) {
+    if (modalContext.category === "member-settings") {
+      showInfoMessage(`開啟人員設定失敗：${error.message || error}`);
+    }
+  }
 }
 
 

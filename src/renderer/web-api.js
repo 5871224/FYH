@@ -235,28 +235,35 @@
     return text ? JSON.parse(text) : null;
   }
 
-  async function requestFunction(functionName, payload) {
-    assertSessionActive();
-    const response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
-      method: "POST",
-      cache: "no-store",
-      headers: buildHeaders({
-        auth: true,
-        extra: {
-          Accept: "application/json"
+  async function requestFunction(functionName, payload, { retryTransientOnce = false } = {}) {
+    for (let attempt = 0; ; attempt += 1) {
+      assertSessionActive();
+      const response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
+        method: "POST",
+        cache: "no-store",
+        headers: buildHeaders({
+          auth: true,
+          extra: {
+            Accept: "application/json"
+          }
+        }),
+        body: JSON.stringify(payload || {})
+      });
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error(`尚未部署 ${functionName} Edge Function`);
         }
-      }),
-      body: JSON.stringify(payload || {})
-    });
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(`尚未部署 ${functionName} Edge Function`);
+        const message = await readError(response);
+        if (retryTransientOnce && attempt === 0 && [502, 503, 504].includes(response.status)) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          continue;
+        }
+        throw new Error(message);
       }
-      throw new Error(await readError(response));
+      touchSession();
+      const text = await response.text();
+      return text ? JSON.parse(text) : null;
     }
-    touchSession();
-    const text = await response.text();
-    return text ? JSON.parse(text) : null;
   }
 
   function isUuid(value) {
@@ -693,7 +700,11 @@
 
     async function getAttendanceReviewList(filters = {}) {
     ensureSignedIn();
-    return requestFunction("attendance-review-groups", { action: "review_list", ...filters });
+    return requestFunction(
+      "attendance-review-groups",
+      { action: "review_list", ...filters },
+      { retryTransientOnce: true }
+    );
   }
 
   async function saveAttendanceReviewRecord(payload = {}) {

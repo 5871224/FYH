@@ -167,14 +167,23 @@ function refreshMemberSettingsList() {
 }
 
 async function openMemberSettings() {
-  try {
-    await ensureManagerDirectoryLoaded();
-  } catch (error) {
-    showInfoMessage(`讀取管理資料失敗：${error.message || error}`);
+  if (!hasPermission("member_settings")) {
+    showInfoMessage("沒有權限開啟人員設定");
     return;
   }
   modalContext = { category: "member-settings" };
-  const body = `
+  openEntityListModal({
+    title: "人員設定",
+    modalClass: "modal modal-wide member-settings-modal settings-list-modal",
+    body: '<div class="empty-state">讀取人員資料中…</div>',
+    hideFooterClose: true
+  });
+  try {
+    await ensureManagerDirectoryLoaded();
+    if (modalContext.category !== "member-settings") {
+      return;
+    }
+    const body = `
       <div class="member-settings-filters">
         <div class="form-row">
           <label for="memberSettingsNameFilter">姓名</label>
@@ -214,17 +223,22 @@ async function openMemberSettings() {
       </div>
       <div class="member-settings-list" id="memberSettingsList">${renderMemberSettingsList()}</div>
     `;
-  openEntityListModal({
-    title: "人員設定",
-    modalClass: "modal modal-wide member-settings-modal settings-list-modal",
-    body,
-    headerButtons: `
-      <button class="ghost-btn" type="button" data-export-members="true">匯出</button>
-      <button class="ghost-btn" type="button" data-import-members="true">匯入</button>
-      <button class="btn-primary" type="button" data-open-add-member="true">新增</button>
-    `,
-    hideFooterClose: true
-  });
+    openEntityListModal({
+      title: "人員設定",
+      modalClass: "modal modal-wide member-settings-modal settings-list-modal",
+      body,
+      headerButtons: `
+        <button class="ghost-btn" type="button" data-export-members="true">匯出</button>
+        <button class="ghost-btn" type="button" data-import-members="true">匯入</button>
+        <button class="btn-primary" type="button" data-open-add-member="true">新增</button>
+      `,
+      hideFooterClose: true
+    });
+  } catch (error) {
+    if (modalContext.category === "member-settings") {
+      showInfoMessage(`開啟人員設定失敗：${error.message || error}`);
+    }
+  }
 }
 
 
