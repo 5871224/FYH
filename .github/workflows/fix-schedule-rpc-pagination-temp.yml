@@ -1,0 +1,54 @@
+name: Fix Schedule RPC Pagination
+
+on:
+  push:
+    branches:
+      - fix/schedule-rpc-explicit-pagination-20260809
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: fix/schedule-rpc-explicit-pagination-20260809
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply explicit RPC pagination fix
+        run: python scripts/tmp-fix-schedule-rpc-pagination.py
+
+      - name: Rebuild generated web
+        run: npm run web:publish
+
+      - name: Remove temporary tools
+        run: |
+          rm .github/workflows/fix-schedule-rpc-pagination-temp.yml
+          rm scripts/tmp-fix-schedule-rpc-pagination.py
+
+      - name: Run complete validation
+        run: npm run ci:check
+
+      - name: Commit finalized fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "修正班表 RPC 明確分頁讀取"
+          git push origin HEAD:fix/schedule-rpc-explicit-pagination-20260809
