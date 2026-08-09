@@ -16,9 +16,20 @@ test("前一週與後一週只水平捲動，不切換八週資料範圍", () =>
   assert.match(events, /bindClick\("tableNextWeekButton", \(\) => scrollScheduleByWeeks\(1\)\)/);
 
   const scrollFunction = actions.match(/function scrollScheduleByWeeks\(weeks\) \{[\s\S]*?\n\}/)?.[0] || "";
-  assert.match(scrollFunction, /dayWidth \* SCHEDULE_WEEK_SCROLL_DAYS/);
+  assert.match(scrollFunction, /metrics\.weekDistance \* direction/);
   assert.match(actions, /const SCHEDULE_WEEK_SCROLL_DAYS = 7;/);
   assert.doesNotMatch(scrollFunction, /state\.scheduleStartDate|ensureVisibleScheduleLoaded|renderAll|forceSave/);
+});
+
+test("一週水平距離以實際畫面七個日期欄計算", () => {
+  const actions = read("src/renderer/renderer-export-actions.js");
+
+  assert.match(actions, /function getRenderedScheduleWeekDistance\(\)/);
+  assert.match(actions, /document\.querySelectorAll\("#mainTable tbody tr"\)/);
+  assert.match(actions, /dayCells\[0\]\.getBoundingClientRect\(\)/);
+  assert.match(actions, /dayCells\[SCHEDULE_WEEK_SCROLL_DAYS\]\.getBoundingClientRect\(\)/);
+  assert.match(actions, /Math\.abs\(nextWeekRect\.left - firstRect\.left\)/);
+  assert.match(actions, /weekDistance: getRenderedScheduleWeekDistance\(\)/);
 });
 
 test("前八週與後八週才切換完整班表期間", () => {
