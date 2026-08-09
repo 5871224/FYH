@@ -1,0 +1,44 @@
+name: Finalize Schedule Empty Cell Persistence
+
+on:
+  push:
+    branches:
+      - fix/schedule-empty-cell-persistence-20260809
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/schedule-empty-cell-persistence-20260809
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Apply persistence fix
+        run: python scripts/tmp-fix-schedule-empty-cell.py
+      - name: Rebuild generated web
+        run: npm run web:publish
+      - name: Remove temporary tools before validation
+        run: |
+          rm .github/workflows/finalize-schedule-empty-cell-persistence.yml
+          rm scripts/tmp-fix-schedule-empty-cell.py
+      - name: Run complete validation
+        run: npm run ci:check
+      - name: Check diff
+        run: git diff --check
+      - name: Commit finalized fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "修正空白班表格新增資料未持久化"
+          git push origin HEAD:fix/schedule-empty-cell-persistence-20260809
