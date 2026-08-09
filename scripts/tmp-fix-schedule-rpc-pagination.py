@@ -32,8 +32,13 @@ sql = sql.replace(
     "grant execute on function public.get_schedule_entries_v3(date,date) to authenticated,service_role;",
     "grant execute on function public.get_schedule_entries_v3(date,date,integer,integer) to authenticated,service_role;"
 )
-if "get_schedule_entries_v3(date,date)" in sql:
-    raise SystemExit("old two-argument schedule RPC signature remains in canonical SQL")
+for old_usage in (
+    "create or replace function public.get_schedule_entries_v3(p_start_date date,p_end_date date)",
+    "revoke all on function public.get_schedule_entries_v3(date,date) from public,anon;",
+    "grant execute on function public.get_schedule_entries_v3(date,date) to authenticated,service_role;"
+):
+    if old_usage in sql:
+        raise SystemExit(f"old schedule RPC usage remains: {old_usage}")
 sql_path.write_text(sql, encoding="utf-8")
 
 
