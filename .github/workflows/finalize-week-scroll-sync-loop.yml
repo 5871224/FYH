@@ -27,7 +27,18 @@ jobs:
       - name: Remove temporary workflow before validation
         run: rm .github/workflows/finalize-week-scroll-sync-loop.yml
       - name: Run complete validation
-        run: npm run ci:check
+        id: validation
+        continue-on-error: true
+        run: npm run ci:check > ci-output.txt 2>&1
+      - name: Upload validation output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: week-scroll-validation-output
+          path: ci-output.txt
+      - name: Stop when validation failed
+        if: steps.validation.outcome != 'success'
+        run: exit 1
       - name: Commit finalized change
         run: |
           git config user.name "github-actions[bot]"
