@@ -39,3 +39,9 @@ test("週導覽按鈕依實際水平捲動邊界啟用停用", () => {
   assert.match(actions, /button\.disabled = !canScrollScheduleByWeeks\(weeks\)/);
   assert.match(events, /syncScheduleWeekNavigationButtons\(\);/);
 });
+
+test("規格書明定週導覽不改變八週資料範圍", () => {
+  const spec = read("規格書.md");
+  assert.match(spec, /前一週、後一週只水平捲動 7 個日期欄，不變更目前八週資料範圍/);
+  assert.match(spec, /只有「前八週」、「後八週」切換完整八週期間/);
+});
