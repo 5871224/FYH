@@ -154,6 +154,8 @@ jobs:
           grep -R '../_shared/runtime.ts' supabase/functions/*/index.ts
           grep -F "revoke all on function public.validate_member_group_change_v1(text,uuid) from public,anon,authenticated;" supabase/002_current_updates.sql
           ! grep -R -nE 'alter table public\.set_employee add column.*\brole\b|alter table public\.access_roles add column.*legacy_role' supabase/001_current_schema.sql supabase/002_current_updates.sql
+          ! grep -R -nE 'member\.role|employee\.role|get_group_entity_map_v1\(\)' supabase/001_current_schema.sql supabase/002_current_updates.sql
+          ! grep -nE "'accessBundle',public\.get_group_access_bundle_v1\(\),$" supabase/002_current_updates.sql
 
       - name: Check public Supabase settings
         if: steps.changes.outputs.docs_only != 'true'
