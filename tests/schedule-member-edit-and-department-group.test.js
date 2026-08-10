@@ -21,6 +21,7 @@ test("班表姓名雙擊依人員設定權限開啟並延遲載入管理欄位",
   assert.match(events, /async function openScheduleMemberEditor\(memberId\)/);
   assert.match(events, /await ensureManagerDirectoryLoaded\(\)/);
   assert.match(events, /openMemberForm\("edit", memberId\)/);
+  assert.doesNotMatch(events, /開啟修改人員失敗/);
   assert.match(memberForm, /function renderMemberCustomRoleOptions\(member\)/);
   assert.ok(memberForm.indexOf("function renderMemberCustomRoleOptions(member)") < memberForm.indexOf("function openMemberForm(mode, memberId"));
   assert.match(events, /document\.body\.addEventListener\("dblclick", async \(event\)/);
