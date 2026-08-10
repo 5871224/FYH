@@ -474,7 +474,16 @@ async function saveLeaveItem(mode) {
     document.getElementById("leaveCatalogName")?.focus();
     return;
   }
-  const payload = {
+  const duplicateLeave = Boolean(selectedLeave?.code) && state.leaves.some((item) =>
+  !item.deleted &&
+  item.code === selectedLeave.code &&
+  (mode !== "edit" || item.id !== modalContext.targetId)
+);
+if (duplicateLeave) {
+  reportValidationError(`假別代碼 ${selectedLeave.code} 已存在，請選擇其他假別。`);
+  return;
+}
+const payload = {
     ...readNamedColorPayloadBase("leave", mode),
     code: selectedLeave?.code,
     name,
