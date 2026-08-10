@@ -5754,6 +5754,24 @@ body:not(.is-authenticated) .toolbar-card {
   align-items: center;
 }
 
+.attendance-ledger-table .attendance-clock-buttons {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.attendance-ledger-table .attendance-clock-buttons .compact-btn {
+  flex: 0 0 auto;
+  min-width: 76px;
+  min-height: 48px !important;
+  padding: 0 8px !important;
+}
+
 .attendance-review-table .attendance-punch-line {
   justify-content: center;
 }
@@ -5764,7 +5782,7 @@ body:not(.is-authenticated) .toolbar-card {
 
 .attendance-ledger-table {
   table-layout: fixed;
-  min-width: 916px;
+  min-width: 964px;
 }
 
 .attendance-ledger-table .personal-record-date-col {
@@ -5780,7 +5798,7 @@ body:not(.is-authenticated) .toolbar-card {
 }
 
 .attendance-ledger-table .personal-record-clock-col {
-  width: 128px;
+  width: 176px;
 }
 
 .attendance-ledger-table .personal-record-hours-col {
