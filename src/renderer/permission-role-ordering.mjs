@@ -2,6 +2,12 @@
   const INSTALL_FLAG = "__FYH_PERMISSION_ROLE_ORDERING_INSTALLED__";
   const TABLE_SELECTOR = "#modalRoot .permission-settings-table";
   let draggedRoleId = "";
+  let dragStartOrder = [];
+  let dropHandled = false;
+
+  function sameOrder(left, right) {
+    return left.length === right.length && left.every((value, index) => value === right[index]);
+  }
 
   function installPermissionRoleOrderingStyles() {
     if (document.getElementById("fyhPermissionRoleOrderingStyles")) return;
@@ -25,6 +31,29 @@
       .permission-settings-table tr.permission-role-dragging {
         opacity: .62;
       }
+
+      /* 班表浮動工具列內容高度應由實際兩列班別／假別決定，不保留下方空白。 */
+      .toolbar-floating-card:not(.toolbar-floating-card-collapsed) {
+        min-height: 0 !important;
+        height: max-content !important;
+        padding-bottom: 3px !important;
+        align-content: start !important;
+        grid-auto-rows: max-content !important;
+      }
+
+      .toolbar-floating-card:not(.toolbar-floating-card-collapsed) > .toolbar-grid,
+      .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-category-group {
+        min-height: 0 !important;
+        height: auto !important;
+        align-content: start !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+      }
+
+      .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-category-group > .toolbar-section-leave {
+        margin-bottom: 0 !important;
+        padding-bottom: 2px !important;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -41,6 +70,56 @@
     return Array.from(body?.rows || []).map(getRoleIdFromRow).filter(Boolean);
   }
 
+  function getCurrentRoles() {
+    if (typeof groupFeatureState === "undefined") return [];
+    return Array.isArray(groupFeatureState.bundle?.roles) ? groupFeatureState.bundle.roles : [];
+  }
+
+  function applyRoleOrderLocally(orderedIds) {
+    const roleMap = new Map(getCurrentRoles().map((role) => [role.id, role]));
+    const orderedRoles = orderedIds.map((id) => roleMap.get(id)).filter(Boolean);
+    getCurrentRoles().forEach((role) => {
+      if (!orderedIds.includes(role.id)) orderedRoles.push(role);
+    });
+    orderedRoles.forEach((role, index) => {
+      role.sortOrder = index;
+    });
+    if (typeof groupFeatureState !== "undefined") {
+      groupFeatureState.bundle.roles = orderedRoles;
+    }
+    if (typeof state !== "undefined" && state && typeof state === "object") {
+      state.accessRoles = orderedRoles;
+    }
+  }
+
+  function getRoleOrderMap() {
+    return new Map(getCurrentRoles().map((role, index) => [role.id, index]));
+  }
+
+  function syncRoleSelectOrder(scope = document) {
+    const orderMap = getRoleOrderMap();
+    if (orderMap.size < 2) return;
+
+    scope.querySelectorAll("select").forEach((select) => {
+      const allOptions = Array.from(select.options);
+      const roleOptions = allOptions.filter((option) => orderMap.has(option.value));
+      if (roleOptions.length < 2) return;
+      const expectedIds = [...roleOptions]
+        .sort((left, right) => orderMap.get(left.value) - orderMap.get(right.value))
+        .map((option) => option.value);
+      const currentIds = roleOptions.map((option) => option.value);
+      if (sameOrder(currentIds, expectedIds)) return;
+
+      const selectedValue = select.value;
+      const firstRoleIndex = allOptions.findIndex((option) => orderMap.has(option.value));
+      const sortedOptions = [...roleOptions].sort((left, right) => orderMap.get(left.value) - orderMap.get(right.value));
+      roleOptions.forEach((option) => option.remove());
+      const reference = select.options[firstRoleIndex] || null;
+      sortedOptions.forEach((option) => select.insertBefore(option, reference));
+      select.value = selectedValue;
+    });
+  }
+
   function clearDraggingState(body) {
     draggedRoleId = "";
     body?.querySelectorAll(".permission-role-dragging").forEach((row) => {
@@ -48,14 +127,22 @@
     });
   }
 
-  async function persistRoleOrder(table) {
-    const orderedIds = getOrderedRoleIds(table);
+  async function persistRoleOrder(table, orderedIds = getOrderedRoleIds(table)) {
     if (!orderedIds.length) return;
+    applyRoleOrderLocally(orderedIds);
+    syncRoleSelectOrder(document);
+    if (typeof setSaveStatus === "function") {
+      setSaveStatus("角色排序儲存中…");
+    }
     try {
       await window.schedulerApi.reorderSettings("access-role", orderedIds);
       if (typeof loadGroupAccessData === "function") {
         await loadGroupAccessData();
+        if (typeof state !== "undefined" && state && typeof state === "object") {
+          state.accessRoles = getCurrentRoles();
+        }
       }
+      syncRoleSelectOrder(document);
       if (typeof setSaveStatus === "function") {
         setSaveStatus("角色排序已儲存");
       }
@@ -66,6 +153,9 @@
       try {
         if (typeof loadGroupAccessData === "function") {
           await loadGroupAccessData();
+          if (typeof state !== "undefined" && state && typeof state === "object") {
+            state.accessRoles = getCurrentRoles();
+          }
         }
         if (table.isConnected && typeof openPermissionSettings === "function") {
           openPermissionSettings();
@@ -116,6 +206,8 @@
 
       draggedRoleId = row.dataset.permissionRoleId || "";
       if (!draggedRoleId) return;
+      dragStartOrder = getOrderedRoleIds(table);
+      dropHandled = false;
       row.classList.add("permission-role-dragging");
       if (event.dataTransfer) {
         event.dataTransfer.effectAllowed = "move";
@@ -125,14 +217,15 @@
 
     body.addEventListener("dragover", (event) => {
       if (!draggedRoleId) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+
       const targetRow = event.target instanceof Element
         ? event.target.closest("tr[data-permission-role-id]")
         : null;
       const draggedRow = Array.from(body.rows).find((row) => getRoleIdFromRow(row) === draggedRoleId);
       if (!targetRow || !draggedRow || targetRow === draggedRow) return;
 
-      event.preventDefault();
-      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
       const rect = targetRow.getBoundingClientRect();
       const insertAfter = event.clientY > rect.top + rect.height / 2;
       body.insertBefore(draggedRow, insertAfter ? targetRow.nextSibling : targetRow);
@@ -141,13 +234,28 @@
     body.addEventListener("drop", (event) => {
       if (!draggedRoleId) return;
       event.preventDefault();
+      dropHandled = true;
+      const orderedIds = getOrderedRoleIds(table);
+      const changed = !sameOrder(dragStartOrder, orderedIds);
       clearDraggingState(body);
-      void persistRoleOrder(table);
+      if (changed) void persistRoleOrder(table, orderedIds);
     });
 
     body.addEventListener("dragend", () => {
+      const orderedIds = getOrderedRoleIds(table);
+      const changed = dragStartOrder.length > 0 && !sameOrder(dragStartOrder, orderedIds);
+      const shouldPersist = !dropHandled && changed;
       clearDraggingState(body);
+      dragStartOrder = [];
+      dropHandled = false;
+      if (shouldPersist) void persistRoleOrder(table, orderedIds);
     });
+  }
+
+  function refreshRoleOrderingEnhancements() {
+    enhancePermissionSettingsTable();
+    const modalRoot = document.getElementById("modalRoot");
+    if (modalRoot) syncRoleSelectOrder(modalRoot);
   }
 
   window.addEventListener("DOMContentLoaded", () => {
@@ -157,11 +265,11 @@
 
     const modalRoot = document.getElementById("modalRoot");
     if (modalRoot) {
-      new MutationObserver(enhancePermissionSettingsTable).observe(modalRoot, {
+      new MutationObserver(refreshRoleOrderingEnhancements).observe(modalRoot, {
         childList: true,
         subtree: true
       });
     }
-    enhancePermissionSettingsTable();
+    refreshRoleOrderingEnhancements();
   });
 })();
