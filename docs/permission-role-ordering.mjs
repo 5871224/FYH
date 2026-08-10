@@ -36,7 +36,7 @@
       .toolbar-floating-card:not(.toolbar-floating-card-collapsed) {
         min-height: 0 !important;
         height: max-content !important;
-        padding-bottom: 3px !important;
+        padding-bottom: 0 !important;
         align-content: start !important;
         grid-auto-rows: max-content !important;
       }
@@ -52,7 +52,7 @@
 
       .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-category-group > .toolbar-section-leave {
         margin-bottom: 0 !important;
-        padding-bottom: 2px !important;
+        padding-bottom: 0 !important;
       }
     `;
     document.head.appendChild(style);
