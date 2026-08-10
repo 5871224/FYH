@@ -31,29 +31,6 @@
       .permission-settings-table tr.permission-role-dragging {
         opacity: .62;
       }
-
-      /* 班表浮動工具列內容高度應由實際兩列班別／假別決定，不保留下方空白。 */
-      .toolbar-floating-card:not(.toolbar-floating-card-collapsed) {
-        min-height: 0 !important;
-        height: max-content !important;
-        padding-bottom: 0 !important;
-        align-content: start !important;
-        grid-auto-rows: max-content !important;
-      }
-
-      .toolbar-floating-card:not(.toolbar-floating-card-collapsed) > .toolbar-grid,
-      .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-category-group {
-        min-height: 0 !important;
-        height: auto !important;
-        align-content: start !important;
-        margin-bottom: 0 !important;
-        padding-bottom: 0 !important;
-      }
-
-      .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-category-group > .toolbar-section-leave {
-        margin-bottom: 0 !important;
-        padding-bottom: 0 !important;
-      }
     `;
     document.head.appendChild(style);
   }
