@@ -427,6 +427,9 @@ begin
  order by schedule.work_date,employee.sort_order,employee.full_name,employee.id;
 end $$;
 
+drop trigger if exists trg_block_direct_employee_profile_delete_v2 on public.set_employee;
+drop function if exists public.block_direct_employee_profile_delete_v2();
+
 create or replace function public.delete_member_account_v4(p_target_id uuid)
 returns jsonb
 language plpgsql
@@ -439,6 +442,7 @@ declare
   v_unarchived_schedule_count bigint := 0;
   v_attendance_count bigint := 0;
   v_meal_count bigint := 0;
+  v_today date := (timezone('Asia/Taipei',now()))::date;
 begin
   select * into v_profile
   from public.set_employee
@@ -467,6 +471,25 @@ begin
       'message','此人員仍有未封存班表，請先完成班表封存或清除相關排班。',
       'history',jsonb_build_object('unarchivedSchedule',v_unarchived_schedule_count)
     );
+  end if;
+
+  if exists(
+    select 1
+    from public.access_roles role
+    where role.id=v_profile.access_role_id
+      and 'permission_settings'=any(coalesce(role.permissions,'{}'::text[]))
+  )
+  and public.is_employee_account_effective(v_profile.hire_date,v_profile.leave_date,v_today)
+  and not exists(
+    select 1
+    from public.set_employee other_employee
+    join public.access_roles other_role on other_role.id=other_employee.access_role_id
+    where other_employee.id<>p_target_id
+      and other_employee.deleted_at is null
+      and 'permission_settings'=any(coalesce(other_role.permissions,'{}'::text[]))
+      and public.is_employee_account_effective(other_employee.hire_date,other_employee.leave_date,v_today)
+  ) then
+    raise exception '系統必須保留至少一個有效的權限管理帳號' using errcode='23514';
   end if;
 
   select count(*) into v_attendance_count from public.attendance_days where user_id=p_target_id;
@@ -503,6 +526,9 @@ begin
   );
 end
 $$;
+
+revoke all on function public.delete_member_account_v4(uuid) from public,anon,authenticated;
+grant execute on function public.delete_member_account_v4(uuid) to service_role;
 
 create or replace function public.archive_schedule_v1(p_group_id uuid,p_start_date date,p_end_date date)
 returns jsonb

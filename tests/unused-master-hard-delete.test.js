@@ -10,8 +10,13 @@ test("unused members are physically deleted while history keeps the profile", ()
   const sql = read("supabase/002_current_updates.sql");
   const edge = read("supabase/functions/member-auth-admin/index.ts");
   assert.match(sql, /v_schedule_count=0 and v_attendance_count=0 and v_meal_count=0/);
+  assert.match(sql, /drop trigger if exists trg_block_direct_employee_profile_delete_v2 on public\.set_employee/);
+  assert.match(sql, /drop function if exists public\.block_direct_employee_profile_delete_v2\(\)/);
+  assert.match(sql, /系統必須保留至少一個有效的權限管理帳號/);
   assert.match(sql, /delete from public\.set_employee where id=p_target_id/);
   assert.match(sql, /'hardDeleted',true/);
+  assert.match(sql, /revoke all on function public\.delete_member_account_v4\(uuid\) from public,anon,authenticated/);
+  assert.match(sql, /grant execute on function public\.delete_member_account_v4\(uuid\) to service_role/);
   assert.match(sql, /update public\.set_employee[\s\S]*deleted_at=now\(\)/);
   assert.match(edge, /if \(result\?\.hardDeleted\)/);
   assert.match(edge, /auth\.admin\.deleteUser\(profile\.id\)/);
