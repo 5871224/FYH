@@ -1,0 +1,212 @@
+name: Member hard delete trigger guard
+
+on:
+  push:
+    branches:
+      - agent/hard-delete-unused-settings-v2-20260810
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Patch guarded hard delete
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          member_sql = r'''create or replace function public.delete_member_account_v4(p_target_id uuid)
+          returns jsonb
+          language plpgsql
+          security definer
+          set search_path=public,auth,pg_temp
+          as $$
+          declare
+            v_profile public.set_employee%rowtype;
+            v_schedule_count bigint := 0;
+            v_unarchived_schedule_count bigint := 0;
+            v_attendance_count bigint := 0;
+            v_meal_count bigint := 0;
+            v_today date := (timezone('Asia/Taipei',now()))::date;
+          begin
+            select * into v_profile
+            from public.set_employee
+            where id=p_target_id and deleted_at is null
+            for update;
+
+            if not found then
+              return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'hardDeleted',false,'blocked',false);
+            end if;
+
+            select
+              count(*),
+              count(*) filter (where not public.is_schedule_date_archived(entry.group_id,entry.work_date))
+            into v_schedule_count,v_unarchived_schedule_count
+            from public.schedule_entries entry
+            where entry.member_id=p_target_id;
+
+            if v_unarchived_schedule_count>0 then
+              return jsonb_build_object(
+                'ok',false,
+                'deleted',false,
+                'softDeleted',false,
+                'hardDeleted',false,
+                'blocked',true,
+                'code','MEMBER_HAS_UNARCHIVED_SCHEDULE',
+                'message','此人員仍有未封存班表，請先完成班表封存或清除相關排班。',
+                'history',jsonb_build_object('unarchivedSchedule',v_unarchived_schedule_count)
+              );
+            end if;
+
+            if exists(
+              select 1 from public.access_roles role
+              where role.id=v_profile.access_role_id
+                and 'permission_settings'=any(coalesce(role.permissions,'{}'::text[]))
+            )
+            and public.is_employee_account_effective(v_profile.hire_date,v_profile.leave_date,v_today)
+            and not exists(
+              select 1
+              from public.set_employee other_employee
+              join public.access_roles other_role on other_role.id=other_employee.access_role_id
+              where other_employee.id<>p_target_id
+                and other_employee.deleted_at is null
+                and 'permission_settings'=any(coalesce(other_role.permissions,'{}'::text[]))
+                and public.is_employee_account_effective(other_employee.hire_date,other_employee.leave_date,v_today)
+            ) then
+              raise exception '系統必須保留至少一個有效的權限管理帳號' using errcode='23514';
+            end if;
+
+            select count(*) into v_attendance_count from public.attendance_days where user_id=p_target_id;
+            select count(*) into v_meal_count from public.meal_orders where user_id=p_target_id;
+
+            if v_schedule_count=0 and v_attendance_count=0 and v_meal_count=0 then
+              perform set_config('fyh.member_delete','on',true);
+              delete from public.set_employee where id=p_target_id;
+              perform set_config('fyh.member_delete','',true);
+              return jsonb_build_object(
+                'ok',true,
+                'deleted',true,
+                'softDeleted',false,
+                'hardDeleted',true,
+                'blocked',false,
+                'employeeCode',v_profile.employee_code
+              );
+            end if;
+
+            update public.set_employee
+            set deleted_at=now(), updated_at=now()
+            where id=p_target_id;
+
+            return jsonb_build_object(
+              'ok',true,
+              'deleted',true,
+              'softDeleted',true,
+              'hardDeleted',false,
+              'blocked',false,
+              'employeeCode',v_profile.employee_code,
+              'history',jsonb_build_object(
+                'schedule',v_schedule_count,
+                'attendance',v_attendance_count,
+                'mealOrders',v_meal_count
+              )
+            );
+          end
+          $$;'''.replace('\n          ', '\n')
+
+          guard_sql = r'''create or replace function public.block_direct_employee_profile_delete_v2()
+          returns trigger
+          language plpgsql
+          security definer
+          set search_path=public,pg_catalog
+          as $$
+          begin
+            if pg_trigger_depth() <= 1 and not (
+              coalesce(current_setting('fyh.member_delete',true),'')='on'
+              and coalesce((select auth.role()),'')='service_role'
+            ) then
+              raise exception '人員資料不可單獨刪除，請由人員管理功能同步刪除登入帳號與人員資料'
+                using errcode='23503';
+            end if;
+            return old;
+          end
+          $$;'''.replace('\n          ', '\n')
+
+          member_path = Path('supabase/002_current_updates.sql')
+          text = member_path.read_text(encoding='utf-8')
+          text2, count = re.subn(
+              r'(?ms)^create or replace function public\.delete_member_account_v4\(p_target_id uuid\).*?^\$\$;',
+              member_sql,
+              text
+          )
+          if count != 1:
+              raise SystemExit(f'delete_member_account_v4 replacements={count}')
+          member_path.write_text(text2, encoding='utf-8')
+
+          guard_pattern = r'(?ms)^create or replace function public\.block_direct_employee_profile_delete_v2\(\).*?^\$\$;'
+          guard_count = 0
+          guard_location = None
+          for filename in ['supabase/001_current_schema.sql','supabase/002_current_updates.sql']:
+              p = Path(filename)
+              src = p.read_text(encoding='utf-8')
+              patched, n = re.subn(guard_pattern, guard_sql, src)
+              if n:
+                  p.write_text(patched, encoding='utf-8')
+                  guard_count += n
+                  guard_location = filename
+          if guard_count != 1:
+              raise SystemExit(f'block_direct_employee_profile_delete_v2 replacements={guard_count}')
+          print('guard patched in', guard_location)
+
+          test_path = Path('tests/unused-master-hard-delete.test.js')
+          test = test_path.read_text(encoding='utf-8')
+          needle = '    assert.match(edge, /auth\\.admin\\.deleteUser\\(profile\\.id\\)/);\n'
+          replacement = needle + '''    assert.match(sql, /set_config\\('fyh\\.member_delete','on',true\\)/);\n    assert.match(sql, /系統必須保留至少一個有效的權限管理帳號/);\n'''
+          if test.count(needle) != 1:
+              raise SystemExit('member test insertion point missing')
+          test_path.write_text(test.replace(needle, replacement, 1), encoding='utf-8')
+
+          # Add a guard assertion regardless of which canonical SQL file owns the trigger.
+          test = test_path.read_text(encoding='utf-8')
+          test = test.replace(
+              '    assert.match(sql, /系統必須保留至少一個有效的權限管理帳號/);\n',
+              '''    assert.match(sql, /系統必須保留至少一個有效的權限管理帳號/);\n    const schemaSql = read("supabase/001_current_schema.sql") + "\\n" + sql;\n    assert.match(schemaSql, /current_setting\\('fyh\\.member_delete',true\\)/);\n    assert.match(schemaSql, /auth\\.role\\(\\)[\\s\\S]*service_role/);\n''',
+              1
+          )
+          test_path.write_text(test, encoding='utf-8')
+          PY
+
+      - name: Build static web
+        run: npm run web:publish
+
+      - name: Remove temporary workflow
+        run: rm -f .github/workflows/member-hard-delete-trigger-guard.yml
+
+      - name: Full CI
+        run: npm run ci:check
+
+      - name: Rebuild publish output
+        run: npm run web:publish
+
+      - name: Commit clean result
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --stat
+          git commit -m "補強人員實體刪除安全保護"
+          git push origin HEAD:agent/hard-delete-unused-settings-v2-20260810
+          echo "FINAL_SHA=$(git rev-parse HEAD)"
