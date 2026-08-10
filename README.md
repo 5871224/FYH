@@ -93,7 +93,7 @@ FYH/
 
 ## Edge Functions
 
-- `member-auth-admin`：人員登入帳號新增、修改、密碼重設、軟刪除與權限角色驗證。
+- `member-auth-admin`：人員登入帳號新增、修改、密碼重設與刪除；無需保留歷史時實體刪除，有歷史關聯時保留主檔並標記刪除，並驗證權限角色。
 - `attendance-clock`：本人打卡；只允許有效且未刪除帳號，GPS／IP 只比對本人所屬群組的啟用單位。
 - `attendance-ledger`：本人簽到簿資料；已軟刪除帳號不得存取。
 - `attendance-review-groups`：依 `attendance_review` 與適用群組進行簽到審核、編輯與歷程查詢。
