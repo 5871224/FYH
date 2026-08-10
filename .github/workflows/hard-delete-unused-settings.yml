@@ -1,0 +1,408 @@
+name: Hard delete unused settings
+
+on:
+  push:
+    branches:
+      - agent/hard-delete-unused-settings-20260810
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply hard-delete rules
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_regex(path, pattern, replacement, minimum=1):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              text2, count = re.subn(pattern, replacement, text)
+              if count < minimum:
+                  raise SystemExit(f'{path}: replacement count {count}, expected >= {minimum}')
+              p.write_text(text2, encoding='utf-8')
+              print(path, 'regex replacements:', count)
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: exact replacement count {count}, expected 1')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+              print(path, 'exact replacement ok')
+
+          member_sql = r'''create or replace function public.delete_member_account_v4(p_target_id uuid)
+          returns jsonb
+          language plpgsql
+          security definer
+          set search_path=public,auth,pg_temp
+          as $$
+          declare
+            v_profile public.set_employee%rowtype;
+            v_schedule_count bigint := 0;
+            v_unarchived_schedule_count bigint := 0;
+            v_attendance_count bigint := 0;
+            v_meal_count bigint := 0;
+          begin
+            select * into v_profile
+            from public.set_employee
+            where id=p_target_id and deleted_at is null
+            for update;
+
+            if not found then
+              return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'hardDeleted',false,'blocked',false);
+            end if;
+
+            select
+              count(*),
+              count(*) filter (where not public.is_schedule_date_archived(entry.group_id,entry.work_date))
+            into v_schedule_count,v_unarchived_schedule_count
+            from public.schedule_entries entry
+            where entry.member_id=p_target_id;
+
+            if v_unarchived_schedule_count>0 then
+              return jsonb_build_object(
+                'ok',false,
+                'deleted',false,
+                'softDeleted',false,
+                'hardDeleted',false,
+                'blocked',true,
+                'code','MEMBER_HAS_UNARCHIVED_SCHEDULE',
+                'message','此人員仍有未封存班表，請先完成班表封存或清除相關排班。',
+                'history',jsonb_build_object('unarchivedSchedule',v_unarchived_schedule_count)
+              );
+            end if;
+
+            select count(*) into v_attendance_count from public.attendance_days where user_id=p_target_id;
+            select count(*) into v_meal_count from public.meal_orders where user_id=p_target_id;
+
+            if v_schedule_count=0 and v_attendance_count=0 and v_meal_count=0 then
+              delete from public.set_employee where id=p_target_id;
+              return jsonb_build_object(
+                'ok',true,
+                'deleted',true,
+                'softDeleted',false,
+                'hardDeleted',true,
+                'blocked',false,
+                'employeeCode',v_profile.employee_code
+              );
+            end if;
+
+            update public.set_employee
+            set deleted_at=now(), updated_at=now()
+            where id=p_target_id;
+
+            return jsonb_build_object(
+              'ok',true,
+              'deleted',true,
+              'softDeleted',true,
+              'hardDeleted',false,
+              'blocked',false,
+              'employeeCode',v_profile.employee_code,
+              'history',jsonb_build_object(
+                'schedule',v_schedule_count,
+                'attendance',v_attendance_count,
+                'mealOrders',v_meal_count
+              )
+            );
+          end
+          $$;'''.replace('\n          ', '\n')
+
+          catalog_sql = r'''create or replace function public.delete_catalog_item_v3(p_category text,p_item_id uuid)
+          returns jsonb
+          language plpgsql
+          security definer
+          set search_path=public,pg_catalog
+          as $$
+          declare
+            v_category text:=lower(btrim(coalesce(p_category,'')));
+            v_group_id uuid;
+            v_deleted timestamptz;
+            v_schedule_count bigint:=0;
+            v_unarchived_schedule_count bigint:=0;
+            v_hard_deleted boolean:=false;
+          begin
+            if p_item_id is null then raise exception '缺少設定識別碼'; end if;
+
+            if v_category='shift' then
+              select group_id,deleted_at into v_group_id,v_deleted from public.set_shift where id=p_item_id;
+              if not found or v_deleted is not null then return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'hardDeleted',false); end if;
+              if not public.can_access_group(auth.uid(),v_group_id,'schedule_manage') then raise exception '沒有管理此群組班別的權限' using errcode='42501'; end if;
+
+              select
+                count(*),
+                count(*) filter (where not public.is_schedule_date_archived(e.group_id,e.work_date))
+              into v_schedule_count,v_unarchived_schedule_count
+              from public.schedule_entries e
+              where e.shift_type_id=p_item_id;
+              if v_unarchived_schedule_count>0 then raise exception '此班別仍有未封存班表，請先完成班表封存或清除相關排班'; end if;
+
+              update public.set_employee
+              set schedule_shift_ids=array_remove(schedule_shift_ids,p_item_id),updated_at=now()
+              where deleted_at is null and p_item_id=any(schedule_shift_ids);
+
+              if v_schedule_count=0 then
+                delete from public.set_shift where id=p_item_id and deleted_at is null;
+                v_hard_deleted:=true;
+              else
+                update public.set_shift set deleted_at=now(),updated_at=now() where id=p_item_id and deleted_at is null;
+              end if;
+
+            elsif v_category in ('leave','overtime') then
+              if not public.has_access_permission(auth.uid(),'leave_settings') then raise exception '沒有假別設定權限' using errcode='42501'; end if;
+
+              if v_category='leave' then
+                select deleted_at into v_deleted from public.set_leave where id=p_item_id;
+                if not found or v_deleted is not null then return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'hardDeleted',false); end if;
+
+                select
+                  count(*),
+                  count(*) filter (where not public.is_schedule_date_archived(e.group_id,e.work_date))
+                into v_schedule_count,v_unarchived_schedule_count
+                from public.schedule_entries e
+                where e.leave_type_id=p_item_id;
+                if v_unarchived_schedule_count>0 then raise exception '此假別仍有未封存班表，請先完成班表封存或清除相關排班'; end if;
+
+                if v_schedule_count=0 then
+                  delete from public.set_leave where id=p_item_id and deleted_at is null;
+                  v_hard_deleted:=true;
+                else
+                  update public.set_leave set deleted_at=now(),updated_at=now() where id=p_item_id and deleted_at is null;
+                end if;
+              else
+                select deleted_at into v_deleted from public.set_overtime where id=p_item_id;
+                if not found or v_deleted is not null then return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'hardDeleted',false); end if;
+
+                select
+                  count(*),
+                  count(*) filter (where not public.is_schedule_date_archived(e.group_id,e.work_date))
+                into v_schedule_count,v_unarchived_schedule_count
+                from public.schedule_entries e
+                where e.overtime_type_id=p_item_id;
+                if v_unarchived_schedule_count>0 then raise exception '此加班設定仍有未封存班表，請先完成班表封存或清除相關排班'; end if;
+
+                if v_schedule_count=0 then
+                  delete from public.set_overtime where id=p_item_id and deleted_at is null;
+                  v_hard_deleted:=true;
+                else
+                  update public.set_overtime set deleted_at=now(),updated_at=now() where id=p_item_id and deleted_at is null;
+                end if;
+              end if;
+            else
+              raise exception '不支援的設定類型';
+            end if;
+
+            return jsonb_build_object(
+              'ok',true,
+              'deleted',true,
+              'softDeleted',not v_hard_deleted,
+              'hardDeleted',v_hard_deleted,
+              'category',v_category,
+              'itemId',p_item_id
+            );
+          end
+          $$;'''.replace('\n          ', '\n')
+
+          department_sql = r'''create or replace function public.delete_department_v3(p_department_id uuid)
+          returns jsonb
+          language plpgsql
+          security definer
+          set search_path=public,pg_catalog
+          as $$
+          declare
+            v_group_id uuid;
+            v_schedule_count bigint:=0;
+            v_unarchived_schedule_count bigint:=0;
+            v_other_reference_count bigint:=0;
+            v_hard_deleted boolean:=false;
+          begin
+            select group_id into v_group_id from public.set_departments where id=p_department_id and deleted_at is null;
+            if not found then return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'hardDeleted',false); end if;
+            if not public.can_access_group(auth.uid(),v_group_id,'department_settings') then raise exception '沒有刪除此單位的權限' using errcode='42501'; end if;
+            if exists(select 1 from public.set_employee where home_department_id=p_department_id and deleted_at is null) then raise exception '這個單位仍有人員，請先將人員移轉到其他單位'; end if;
+            if exists(select 1 from public.set_shift where applicable_department_id=p_department_id and deleted_at is null) then raise exception '這個單位仍有班別使用，請先修改相關班別'; end if;
+
+            select
+              count(*),
+              count(*) filter (where not public.is_schedule_date_archived(e.group_id,e.work_date))
+            into v_schedule_count,v_unarchived_schedule_count
+            from public.schedule_entries e
+            left join public.set_employee m on m.id=e.member_id
+            where e.support_department_id=p_department_id or m.home_department_id=p_department_id;
+
+            if v_unarchived_schedule_count>0 then raise exception '這個單位仍有未封存班表，請先完成班表封存或清除相關排班'; end if;
+
+            select count(*) into v_other_reference_count
+            from (
+              select 1 from public.set_employee where home_department_id=p_department_id
+              union all
+              select 1 from public.set_shift where applicable_department_id=p_department_id
+              union all
+              select 1 from public.meal_orders where department_id=p_department_id or attendance_department_id=p_department_id
+            ) references_to_department;
+
+            if v_schedule_count=0 and v_other_reference_count=0 then
+              delete from public.set_departments where id=p_department_id and deleted_at is null;
+              v_hard_deleted:=true;
+            else
+              update public.set_departments set deleted_at=now(),updated_at=now() where id=p_department_id and deleted_at is null;
+            end if;
+
+            return jsonb_build_object(
+              'ok',true,
+              'deleted',true,
+              'softDeleted',not v_hard_deleted,
+              'hardDeleted',v_hard_deleted,
+              'id',p_department_id
+            );
+          end
+          $$;'''.replace('\n          ', '\n')
+
+          replace_regex(
+              'supabase/002_current_updates.sql',
+              r'(?ms)^create or replace function public\.delete_member_account_v4\(p_target_id uuid\).*?^\$\$;',
+              member_sql
+          )
+          replace_regex(
+              'supabase/002_current_updates.sql',
+              r'(?ms)^create or replace function public\.delete_catalog_item_v3\(p_category text,\s*p_item_id uuid\).*?^\$\$;',
+              catalog_sql
+          )
+          replace_regex(
+              'supabase/002_current_updates.sql',
+              r'(?ms)^create or replace function public\.delete_department_v3\(p_department_id uuid\).*?^\$\$;',
+              department_sql
+          )
+
+          replace_once(
+              'supabase/functions/member-auth-admin/index.ts',
+              '''  if (result?.blocked) {\n    return new Response(JSON.stringify(result), {\n      status: 409,\n      headers: { "Content-Type": "application/json" }\n    });\n  }\n  return { ...result, selfDelete, employeeCode };''',
+              '''  if (result?.blocked) {\n    return new Response(JSON.stringify(result), {\n      status: 409,\n      headers: { "Content-Type": "application/json" }\n    });\n  }\n  if (result?.hardDeleted) {\n    const { error: authDeleteError } = await ctx.supabaseAdmin.auth.admin.deleteUser(profile.id);\n    if (authDeleteError && !/not found/i.test(String(authDeleteError.message || authDeleteError))) {\n      throw authDeleteError;\n    }\n  }\n  return { ...result, selfDelete, employeeCode };'''
+          )
+
+          replace_once(
+              'src/renderer/renderer-settings-catalog.js',
+              '    await window.schedulerApi.deleteCatalogItem(category, id);',
+              '    result = await window.schedulerApi.deleteCatalogItem(category, id);'
+          )
+          replace_once(
+              'src/renderer/renderer-settings-catalog.js',
+              '  try {\n    result = await window.schedulerApi.deleteCatalogItem(category, id);',
+              '  let result;\n  try {\n    result = await window.schedulerApi.deleteCatalogItem(category, id);'
+          )
+          replace_once(
+              'src/renderer/renderer-settings-catalog.js',
+              '    state.shifts = state.shifts.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item);',
+              '    state.shifts = result?.softDeleted\n      ? state.shifts.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item)\n      : state.shifts.filter((item) => item.id !== id);'
+          )
+          replace_once(
+              'src/renderer/renderer-settings-catalog.js',
+              '  if (category === "leave") state.leaves = state.leaves.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item);\n  if (category === "overtime") state.overtime = state.overtime.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item);',
+              '  if (category === "leave") {\n    state.leaves = result?.softDeleted\n      ? state.leaves.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item)\n      : state.leaves.filter((item) => item.id !== id);\n  }\n  if (category === "overtime") {\n    state.overtime = result?.softDeleted\n      ? state.overtime.map((item) => item.id === id ? { ...item, deleted: true, hiddenFromToolbar: true } : item)\n      : state.overtime.filter((item) => item.id !== id);\n  }'
+          )
+
+          replace_once(
+              'src/renderer/renderer-settings-department.js',
+              '    await window.schedulerApi.deleteDepartmentItem(departmentId);',
+              '    result = await window.schedulerApi.deleteDepartmentItem(departmentId);'
+          )
+          replace_once(
+              'src/renderer/renderer-settings-department.js',
+              '  try {\n    result = await window.schedulerApi.deleteDepartmentItem(departmentId);',
+              '  let result;\n  try {\n    result = await window.schedulerApi.deleteDepartmentItem(departmentId);'
+          )
+          replace_once(
+              'src/renderer/renderer-settings-department.js',
+              '  state.departments = state.departments.map((department) => department.id === departmentId\n    ? { ...department, deleted: true }\n    : department);',
+              '  state.departments = result?.softDeleted\n    ? state.departments.map((department) => department.id === departmentId\n      ? { ...department, deleted: true }\n      : department)\n    : state.departments.filter((department) => department.id !== departmentId);'
+          )
+
+          spec = Path('規格書.md')
+          spec_text = spec.read_text(encoding='utf-8')
+          marker = '### 主檔刪除與歷史保留規則'
+          if marker not in spec_text:
+              spec_text += '''\n\n### 主檔刪除與歷史保留規則\n\n- 人員若沒有班表、簽到或訂餐等需要保留的歷史資料，刪除時必須連同登入帳號實體刪除；若只有已封存班表或其他歷史資料，則保留主檔並標記刪除。\n- 班別、假別、加班設定若完全沒有任何班表引用，刪除時直接從主檔實體刪除；若只有已封存班表引用，則保留主檔並標記刪除。\n- 單位在沒有現職人員、沒有仍使用中的班別，且沒有班表或其他需保留的關聯資料時，刪除時直接從主檔實體刪除；若只有已封存班表或其他歷史關聯，則保留主檔並標記刪除。\n- 任何主檔只要仍有未封存班表引用，刪除操作必須拒絕，提示先封存或清除相關班表。\n'''
+              spec.write_text(spec_text, encoding='utf-8')
+
+          test = Path('tests/unused-master-hard-delete.test.js')
+          test.write_text(r'''const test = require("node:test");
+          const assert = require("node:assert/strict");
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          const root = path.resolve(__dirname, "..");
+          const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
+
+          test("unused members are hard-deleted while historical members stay soft-deleted", () => {
+            const sql = read("supabase/002_current_updates.sql");
+            const edge = read("supabase/functions/member-auth-admin/index.ts");
+            assert.match(sql, /v_schedule_count=0 and v_attendance_count=0 and v_meal_count=0/);
+            assert.match(sql, /delete from public\.set_employee where id=p_target_id/);
+            assert.match(sql, /'hardDeleted',true/);
+            assert.match(sql, /update public\.set_employee[\s\S]*deleted_at=now\(\)/);
+            assert.match(edge, /if \(result\?\.hardDeleted\)/);
+            assert.match(edge, /auth\.admin\.deleteUser\(profile\.id\)/);
+          });
+
+          test("unused shift leave and overtime masters are hard-deleted", () => {
+            const sql = read("supabase/002_current_updates.sql");
+            assert.match(sql, /delete from public\.set_shift where id=p_item_id/);
+            assert.match(sql, /delete from public\.set_leave where id=p_item_id/);
+            assert.match(sql, /delete from public\.set_overtime where id=p_item_id/);
+            assert.match(sql, /if v_unarchived_schedule_count>0 then raise exception '此班別仍有未封存班表/);
+            assert.match(sql, /'softDeleted',not v_hard_deleted/);
+          });
+
+          test("unused departments are hard-deleted and UI removes hard-deleted masters", () => {
+            const sql = read("supabase/002_current_updates.sql");
+            const departments = read("src/renderer/renderer-settings-department.js");
+            const catalogs = read("src/renderer/renderer-settings-catalog.js");
+            assert.match(sql, /if v_schedule_count=0 and v_other_reference_count=0 then[\s\S]*delete from public\.set_departments/);
+            assert.match(departments, /result\?\.softDeleted[\s\S]*state\.departments\.filter/);
+            assert.match(catalogs, /result\?\.softDeleted[\s\S]*state\.shifts\.filter/);
+            assert.match(catalogs, /state\.leaves\.filter/);
+            assert.match(catalogs, /state\.overtime\.filter/);
+          });
+          '''.replace('\n          ', '\n'), encoding='utf-8')
+          PY
+
+      - name: Build static web
+        run: npm run web:publish
+
+      - name: Remove temporary workflow before CI
+        run: rm -f .github/workflows/hard-delete-unused-settings.yml
+
+      - name: Full CI
+        run: npm run ci:check
+
+      - name: Rebuild publish output after checks
+        run: npm run web:publish
+
+      - name: Commit final clean tree
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --stat
+          git commit -m "修正未使用主檔刪除方式"
+          git push origin HEAD:agent/hard-delete-unused-settings-20260810
+          echo "FINAL_SHA=$(git rev-parse HEAD)"
