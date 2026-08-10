@@ -28,11 +28,15 @@ test("班表浮動工具列不保留下方多餘空白", () => {
   assert.match(ordering, /toolbar-category-group[^}]*padding-bottom:\s*0\s*!important/);
 });
 
-test("例假或休息日有排班時，加班匯出使用該班別上下班時間", () => {
+test("班表頁匯出加班維持只匯出明確加班設定", () => {
   const migration = read("supabase/002_current_updates.sql");
-  assert.match(migration, /leave_type\.code in \('0036','0047'\)/);
-  assert.match(migration, /leave_type\.name in \('例假','休息日'\)/);
-  assert.match(migration, /then shift_type\.start_time/);
-  assert.match(migration, /then shift_type\.end_time/);
-  assert.match(migration, /then schedule\.shift_type_id/);
+  const section = migration.slice(migration.lastIndexOf("-- 2026-08-10 權限角色排序"));
+  const match = section.match(/create or replace function public\.get_schedule_export_rows_v2[\s\S]*?(?=\nrevoke all on function public\.get_group_access_bundle_v1)/);
+  const exportFunction = match?.[0] || "";
+  assert.match(exportFunction, /schedule\.overtime_type_id/);
+  assert.match(exportFunction, /schedule\.overtime_start_time/);
+  assert.match(exportFunction, /schedule\.overtime_end_time/);
+  assert.doesNotMatch(exportFunction, /leave_type\.code in \('0036','0047'\)/);
+  assert.doesNotMatch(exportFunction, /then shift_type\.start_time/);
+  assert.doesNotMatch(exportFunction, /then shift_type\.end_time/);
 });

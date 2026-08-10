@@ -1254,9 +1254,24 @@
       toDate: filters.toDate,
       memberId: filters.memberId || ""
     });
-    const exportRows = (Array.isArray(result.rows) ? result.rows : [])
-      .filter((row) => Number(row.overtimeHours) > 0)
-      .map((row) => ({
+    const exportRows = (Array.isArray(result.rows) ? result.rows : []).flatMap((row) => {
+      const scheduledStart = row.restDayScheduled ? String(row.scheduledShiftStartTime || "") : "";
+      const scheduledEnd = row.restDayScheduled ? String(row.scheduledShiftEndTime || "") : "";
+      if (scheduledStart && scheduledEnd) {
+        return [{
+          employee_code: row.employee_code || "",
+          work_date: row.work_date || "",
+          overtime_type_id: "attendance-rest-day",
+          overtime_start_time: scheduledStart,
+          overtime_end_time: scheduledEnd,
+          overtime_previous_day: 0,
+          overtime_subsidy_type: 1,
+          overtime_use_rest_1: false,
+          overtime_use_rest_2: false
+        }];
+      }
+      if (!(Number(row.overtimeHours) > 0)) return [];
+      return [{
         employee_code: row.employee_code || "",
         work_date: row.work_date || "",
         overtime_type_id: "attendance-ledger",
@@ -1266,7 +1281,8 @@
         overtime_subsidy_type: 1,
         overtime_use_rest_1: false,
         overtime_use_rest_2: false
-      }));
+      }];
+    });
     return exportOvertime({
       startDate: filters.fromDate,
       endDate: filters.toDate,
