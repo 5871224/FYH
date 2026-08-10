@@ -362,6 +362,12 @@ async function deleteMember(ctx: any, body: any) {
       headers: { "Content-Type": "application/json" }
     });
   }
+  if (result?.hardDeleted) {
+    const { error: authDeleteError } = await ctx.supabaseAdmin.auth.admin.deleteUser(profile.id);
+    if (authDeleteError && !/not found/i.test(String(authDeleteError.message || authDeleteError))) {
+      throw authDeleteError;
+    }
+  }
   return { ...result, selfDelete, employeeCode };
 }
 

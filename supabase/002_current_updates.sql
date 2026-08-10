@@ -428,79 +428,6 @@ begin
 end $$;
 
 create or replace function public.delete_member_account_v4(p_target_id uuid)
-returns jsonb language plpgsql security definer set search_path=public,auth,pg_temp as $$
-declare v_profile public.set_employee%rowtype; v_unarchived bigint;
-begin
- select * into v_profile from public.set_employee where id=p_target_id and deleted_at is null for update;
- if not found then return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'blocked',false); end if;
- select count(*) into v_unarchived from public.schedule_entries where member_id=p_target_id and not public.is_schedule_date_archived(group_id,work_date);
- if v_unarchived>0 then return jsonb_build_object('ok',false,'deleted',false,'softDeleted',false,'blocked',true,'code','MEMBER_HAS_UNARCHIVED_SCHEDULE','message','此人員仍有未封存班表，請先完成班表封存或清除相關排班。','history',jsonb_build_object('unarchivedSchedule',v_unarchived)); end if;
- update public.set_employee set deleted_at=now(),leave_date=least(coalesce(leave_date,current_date-6),current_date-6),updated_at=now() where id=p_target_id;
- return jsonb_build_object('ok',true,'deleted',true,'softDeleted',true,'blocked',false,'employeeCode',v_profile.employee_code);
-end $$;
-
-begin;
-
-drop trigger if exists trg_set_shift_group_v1 on public.set_shift;
-create trigger trg_set_shift_group_v1 before insert or update on public.set_shift for each row execute function public.set_shift_group_v1();
-drop trigger if exists trg_set_schedule_entry_group_v1 on public.schedule_entries;
-create trigger trg_set_schedule_entry_group_v1 before insert or update on public.schedule_entries for each row execute function public.set_schedule_entry_group_v1();
-drop trigger if exists trg_protect_archived_schedule_v1 on public.schedule_entries;
-create trigger trg_protect_archived_schedule_v1 before insert or update or delete on public.schedule_entries for each row execute function public.protect_archived_schedule_v1();
-drop trigger if exists trg_attendance_days_stamp_group on public.attendance_days;
-create trigger trg_attendance_days_stamp_group before insert or update on public.attendance_days for each row execute function public.stamp_attendance_group_v1();
-drop trigger if exists trg_meal_orders_stamp_group on public.meal_orders;
-create trigger trg_meal_orders_stamp_group before insert or update on public.meal_orders for each row execute function public.stamp_meal_group_v1();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-revoke all on function public.delete_member_account_v4(uuid) from public,anon,authenticated;
-grant execute on function public.delete_member_account_v4(uuid) to service_role;
-
-
-commit;
-
--- 2026-08-08 班表解除封存與共用主檔軟刪除
-begin;
-
-alter table public.set_leave add column if not exists deleted_at timestamptz;
-alter table public.set_overtime add column if not exists deleted_at timestamptz;
-
-create index if not exists idx_set_leave_active_sort on public.set_leave(sort_order, code, id) where deleted_at is null;
-create index if not exists idx_set_overtime_active_sort on public.set_overtime(sort_order, name, id) where deleted_at is null;
-
-create or replace function public.delete_member_account_v4(p_target_id uuid)
 returns jsonb
 language plpgsql
 security definer
@@ -508,7 +435,10 @@ set search_path=public,auth,pg_temp
 as $$
 declare
   v_profile public.set_employee%rowtype;
+  v_schedule_count bigint := 0;
   v_unarchived_schedule_count bigint := 0;
+  v_attendance_count bigint := 0;
+  v_meal_count bigint := 0;
 begin
   select * into v_profile
   from public.set_employee
@@ -516,23 +446,41 @@ begin
   for update;
 
   if not found then
-    return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'blocked',false);
+    return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'hardDeleted',false,'blocked',false);
   end if;
 
-  select count(*) into v_unarchived_schedule_count
+  select
+    count(*),
+    count(*) filter (where not public.is_schedule_date_archived(entry.group_id,entry.work_date))
+  into v_schedule_count,v_unarchived_schedule_count
   from public.schedule_entries entry
-  where entry.member_id=p_target_id
-    and not public.is_schedule_date_archived(entry.group_id,entry.work_date);
+  where entry.member_id=p_target_id;
 
   if v_unarchived_schedule_count>0 then
     return jsonb_build_object(
       'ok',false,
       'deleted',false,
       'softDeleted',false,
+      'hardDeleted',false,
       'blocked',true,
       'code','MEMBER_HAS_UNARCHIVED_SCHEDULE',
       'message','此人員仍有未封存班表，請先完成班表封存或清除相關排班。',
       'history',jsonb_build_object('unarchivedSchedule',v_unarchived_schedule_count)
+    );
+  end if;
+
+  select count(*) into v_attendance_count from public.attendance_days where user_id=p_target_id;
+  select count(*) into v_meal_count from public.meal_orders where user_id=p_target_id;
+
+  if v_schedule_count=0 and v_attendance_count=0 and v_meal_count=0 then
+    delete from public.set_employee where id=p_target_id;
+    return jsonb_build_object(
+      'ok',true,
+      'deleted',true,
+      'softDeleted',false,
+      'hardDeleted',true,
+      'blocked',false,
+      'employeeCode',v_profile.employee_code
     );
   end if;
 
@@ -544,10 +492,16 @@ begin
     'ok',true,
     'deleted',true,
     'softDeleted',true,
+    'hardDeleted',false,
     'blocked',false,
-    'employeeCode',v_profile.employee_code
+    'employeeCode',v_profile.employee_code,
+    'history',jsonb_build_object(
+      'schedule',v_schedule_count,
+      'attendance',v_attendance_count,
+      'mealOrders',v_meal_count
+    )
   );
-end;
+end
 $$;
 
 create or replace function public.archive_schedule_v1(p_group_id uuid,p_start_date date,p_end_date date)
@@ -1067,30 +1021,92 @@ language plpgsql
 security definer
 set search_path=public,pg_catalog
 as $$
-declare v_category text:=lower(btrim(coalesce(p_category,''))); v_group_id uuid; v_deleted timestamptz; begin
+declare
+  v_category text:=lower(btrim(coalesce(p_category,'')));
+  v_group_id uuid;
+  v_deleted timestamptz;
+  v_schedule_count bigint:=0;
+  v_unarchived_schedule_count bigint:=0;
+  v_hard_deleted boolean:=false;
+begin
   if p_item_id is null then raise exception '缺少設定識別碼'; end if;
+
   if v_category='shift' then
     select group_id,deleted_at into v_group_id,v_deleted from public.set_shift where id=p_item_id;
-    if not found or v_deleted is not null then return jsonb_build_object('ok',true,'deleted',false); end if;
+    if not found or v_deleted is not null then return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'hardDeleted',false); end if;
     if not public.can_access_group(auth.uid(),v_group_id,'schedule_manage') then raise exception '沒有管理此群組班別的權限' using errcode='42501'; end if;
-    if exists(select 1 from public.schedule_entries e where e.shift_type_id=p_item_id and not public.is_schedule_date_archived(e.group_id,e.work_date)) then raise exception '此班別仍有未封存班表，請先完成班表封存或清除相關排班'; end if;
-    update public.set_employee set schedule_shift_ids=array_remove(schedule_shift_ids,p_item_id),updated_at=now() where deleted_at is null and p_item_id=any(schedule_shift_ids);
-    update public.set_shift set deleted_at=now(),updated_at=now() where id=p_item_id and deleted_at is null;
+
+    select
+      count(*),
+      count(*) filter (where not public.is_schedule_date_archived(e.group_id,e.work_date))
+    into v_schedule_count,v_unarchived_schedule_count
+    from public.schedule_entries e
+    where e.shift_type_id=p_item_id;
+    if v_unarchived_schedule_count>0 then raise exception '此班別仍有未封存班表，請先完成班表封存或清除相關排班'; end if;
+
+    update public.set_employee
+    set schedule_shift_ids=array_remove(schedule_shift_ids,p_item_id),updated_at=now()
+    where deleted_at is null and p_item_id=any(schedule_shift_ids);
+
+    if v_schedule_count=0 then
+      delete from public.set_shift where id=p_item_id and deleted_at is null;
+      v_hard_deleted:=true;
+    else
+      update public.set_shift set deleted_at=now(),updated_at=now() where id=p_item_id and deleted_at is null;
+    end if;
+
   elsif v_category in ('leave','overtime') then
     if not public.has_access_permission(auth.uid(),'leave_settings') then raise exception '沒有假別設定權限' using errcode='42501'; end if;
+
     if v_category='leave' then
       select deleted_at into v_deleted from public.set_leave where id=p_item_id;
-      if not found or v_deleted is not null then return jsonb_build_object('ok',true,'deleted',false); end if;
-      if exists(select 1 from public.schedule_entries e where e.leave_type_id=p_item_id and not public.is_schedule_date_archived(e.group_id,e.work_date)) then raise exception '此假別仍有未封存班表，請先完成班表封存或清除相關排班'; end if;
-      update public.set_leave set deleted_at=now(),updated_at=now() where id=p_item_id and deleted_at is null;
+      if not found or v_deleted is not null then return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'hardDeleted',false); end if;
+
+      select
+        count(*),
+        count(*) filter (where not public.is_schedule_date_archived(e.group_id,e.work_date))
+      into v_schedule_count,v_unarchived_schedule_count
+      from public.schedule_entries e
+      where e.leave_type_id=p_item_id;
+      if v_unarchived_schedule_count>0 then raise exception '此假別仍有未封存班表，請先完成班表封存或清除相關排班'; end if;
+
+      if v_schedule_count=0 then
+        delete from public.set_leave where id=p_item_id and deleted_at is null;
+        v_hard_deleted:=true;
+      else
+        update public.set_leave set deleted_at=now(),updated_at=now() where id=p_item_id and deleted_at is null;
+      end if;
     else
       select deleted_at into v_deleted from public.set_overtime where id=p_item_id;
-      if not found or v_deleted is not null then return jsonb_build_object('ok',true,'deleted',false); end if;
-      if exists(select 1 from public.schedule_entries e where e.overtime_type_id=p_item_id and not public.is_schedule_date_archived(e.group_id,e.work_date)) then raise exception '此加班設定仍有未封存班表，請先完成班表封存或清除相關排班'; end if;
-      update public.set_overtime set deleted_at=now(),updated_at=now() where id=p_item_id and deleted_at is null;
+      if not found or v_deleted is not null then return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'hardDeleted',false); end if;
+
+      select
+        count(*),
+        count(*) filter (where not public.is_schedule_date_archived(e.group_id,e.work_date))
+      into v_schedule_count,v_unarchived_schedule_count
+      from public.schedule_entries e
+      where e.overtime_type_id=p_item_id;
+      if v_unarchived_schedule_count>0 then raise exception '此加班設定仍有未封存班表，請先完成班表封存或清除相關排班'; end if;
+
+      if v_schedule_count=0 then
+        delete from public.set_overtime where id=p_item_id and deleted_at is null;
+        v_hard_deleted:=true;
+      else
+        update public.set_overtime set deleted_at=now(),updated_at=now() where id=p_item_id and deleted_at is null;
+      end if;
     end if;
-  else raise exception '不支援的設定類型'; end if;
-  return jsonb_build_object('ok',true,'deleted',true,'softDeleted',true,'category',v_category,'itemId',p_item_id);
+  else
+    raise exception '不支援的設定類型';
+  end if;
+
+  return jsonb_build_object(
+    'ok',true,
+    'deleted',true,
+    'softDeleted',not v_hard_deleted,
+    'hardDeleted',v_hard_deleted,
+    'category',v_category,
+    'itemId',p_item_id
+  );
 end
 $$;
 
@@ -1140,15 +1156,52 @@ language plpgsql
 security definer
 set search_path=public,pg_catalog
 as $$
-declare v_group_id uuid; begin
+declare
+  v_group_id uuid;
+  v_schedule_count bigint:=0;
+  v_unarchived_schedule_count bigint:=0;
+  v_other_reference_count bigint:=0;
+  v_hard_deleted boolean:=false;
+begin
   select group_id into v_group_id from public.set_departments where id=p_department_id and deleted_at is null;
-  if not found then return jsonb_build_object('ok',true,'deleted',false); end if;
+  if not found then return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'hardDeleted',false); end if;
   if not public.can_access_group(auth.uid(),v_group_id,'department_settings') then raise exception '沒有刪除此單位的權限' using errcode='42501'; end if;
   if exists(select 1 from public.set_employee where home_department_id=p_department_id and deleted_at is null) then raise exception '這個單位仍有人員，請先將人員移轉到其他單位'; end if;
   if exists(select 1 from public.set_shift where applicable_department_id=p_department_id and deleted_at is null) then raise exception '這個單位仍有班別使用，請先修改相關班別'; end if;
-  if exists(select 1 from public.schedule_entries e left join public.set_employee m on m.id=e.member_id where (e.support_department_id=p_department_id or m.home_department_id=p_department_id) and not public.is_schedule_date_archived(e.group_id,e.work_date)) then raise exception '這個單位仍有未封存班表，請先完成班表封存或清除相關排班'; end if;
-  update public.set_departments set deleted_at=now(),updated_at=now() where id=p_department_id and deleted_at is null;
-  return jsonb_build_object('ok',true,'deleted',true,'softDeleted',true,'id',p_department_id);
+
+  select
+    count(*),
+    count(*) filter (where not public.is_schedule_date_archived(e.group_id,e.work_date))
+  into v_schedule_count,v_unarchived_schedule_count
+  from public.schedule_entries e
+  left join public.set_employee m on m.id=e.member_id
+  where e.support_department_id=p_department_id or m.home_department_id=p_department_id;
+
+  if v_unarchived_schedule_count>0 then raise exception '這個單位仍有未封存班表，請先完成班表封存或清除相關排班'; end if;
+
+  select count(*) into v_other_reference_count
+  from (
+    select 1 from public.set_employee where home_department_id=p_department_id
+    union all
+    select 1 from public.set_shift where applicable_department_id=p_department_id
+    union all
+    select 1 from public.meal_orders where department_id=p_department_id or attendance_department_id=p_department_id
+  ) references_to_department;
+
+  if v_schedule_count=0 and v_other_reference_count=0 then
+    delete from public.set_departments where id=p_department_id and deleted_at is null;
+    v_hard_deleted:=true;
+  else
+    update public.set_departments set deleted_at=now(),updated_at=now() where id=p_department_id and deleted_at is null;
+  end if;
+
+  return jsonb_build_object(
+    'ok',true,
+    'deleted',true,
+    'softDeleted',not v_hard_deleted,
+    'hardDeleted',v_hard_deleted,
+    'id',p_department_id
+  );
 end
 $$;
 
