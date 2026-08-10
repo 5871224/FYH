@@ -110,7 +110,7 @@
         flex-direction: column;
         width: 100%;
         min-width: 0;
-        padding: 3px 6px;
+        padding: 3px 6px 0;
         border: 1px solid rgba(156, 107, 47, 0.16);
         border-radius: 12px;
         background: var(--panel-strong);
@@ -123,14 +123,14 @@
         flex-wrap: nowrap !important;
         gap: 5px !important;
         min-width: 0;
-        padding: 4px 0 !important;
+        padding: 4px 0 0 !important;
         border: 0 !important;
         border-radius: 0 !important;
         background: transparent !important;
       }
 
       .toolbar-category-group > .toolbar-section-leave {
-        margin-top: 2px;
+        margin-top: 0;
         padding-top: 6px !important;
         border-top: 1px solid var(--schedule-grid-line, var(--line)) !important;
       }
