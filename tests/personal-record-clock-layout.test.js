@@ -6,9 +6,9 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const css = fs.readFileSync(path.join(root, "src/renderer/css/pages.css"), "utf8");
 
-test("個人記錄表格縮窄打卡欄並保留完整審核欄", () => {
-  assert.match(css, /\.attendance-ledger-table \{[\s\S]*?min-width: 916px;/);
-  assert.match(css, /\.personal-record-clock-col \{\s*width: 128px;/);
+test("個人記錄表格加寬打卡欄並保留完整審核欄", () => {
+  assert.match(css, /\.attendance-ledger-table \{[\s\S]*?min-width: 964px;/);
+  assert.match(css, /\.personal-record-clock-col \{\s*width: 176px;/);
   assert.match(css, /\.personal-record-review-col \{\s*width: 68px;/);
   assert.equal(css.includes("min-width: 1010px;"), false);
 });
