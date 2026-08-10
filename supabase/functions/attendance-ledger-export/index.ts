@@ -19,13 +19,13 @@ async function getVisibleMembers(ctx: any, actorId: string) {
     .not("group_id", "is", null);
   if (error) throw error;
 
-  const groupIds = [...new Set<string>((data || []).map((row: any) => row.group_id).filter(Boolean))];
+  const groupIds = [...new Set<string>((data || []).map((row: any) => String(row.group_id || "")).filter(Boolean))];
   const accessPairs = await Promise.all(groupIds.map(async (groupId) => [
     groupId,
     await canAccessGroup(ctx, actorId, groupId, "attendance_review")
   ] as const));
   const allowedGroups = new Set(accessPairs.filter(([, allowed]) => allowed).map(([groupId]) => groupId));
-  return (data || []).filter((row: any) => allowedGroups.has(row.group_id));
+  return (data || []).filter((row: any) => allowedGroups.has(String(row.group_id || "")));
 }
 
 async function getScheduleContext(ctx: any, memberIds: string[], fromDate: string, toDate: string) {
@@ -39,8 +39,8 @@ async function getScheduleContext(ctx: any, memberIds: string[], fromDate: strin
   if (scheduleResult.error) throw scheduleResult.error;
 
   const schedules = scheduleResult.data || [];
-  const shiftIds = [...new Set<string>(schedules.map((row: any) => row.shift_type_id).filter(Boolean))];
-  const leaveIds = [...new Set<string>(schedules.map((row: any) => row.leave_type_id).filter(Boolean))];
+  const shiftIds = [...new Set<string>(schedules.map((row: any) => String(row.shift_type_id || "")).filter(Boolean))];
+  const leaveIds = [...new Set<string>(schedules.map((row: any) => String(row.leave_type_id || "")).filter(Boolean))];
   const [shiftResult, leaveResult] = await Promise.all([
     shiftIds.length
       ? ctx.supabaseAdmin.from("set_shift").select("id,start_time,end_time").in("id", shiftIds)
@@ -73,11 +73,11 @@ export default {
 
       const requestedMemberId = String(body?.memberId || "").trim();
       const members = await getVisibleMembers(ctx, actorId);
-      const memberMap = new Map(members.map((row: any) => [row.id, row]));
+      const memberMap = new Map<string, any>((members || []).map((row: any) => [String(row.id || ""), row]));
       if (requestedMemberId && !memberMap.has(requestedMemberId)) {
         throw new Error("沒有查看此人員簽到資料的權限");
       }
-      const visibleMemberIds = requestedMemberId ? [requestedMemberId] : [...memberMap.keys()];
+      const visibleMemberIds: string[] = requestedMemberId ? [requestedMemberId] : [...memberMap.keys()];
       if (!visibleMemberIds.length) return Response.json({ ok: true, rows: [] });
 
       const [{ data: attendanceRows, error: attendanceError }, scheduleContext] = await Promise.all([
