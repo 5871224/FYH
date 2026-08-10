@@ -5741,6 +5741,23 @@ body:not(.is-authenticated) .toolbar-card {
   background: rgba(55, 138, 221, 0.06);
 }
 
+.attendance-ledger-table tbody td,
+.attendance-review-table tbody td {
+  text-align: center;
+}
+
+.attendance-ledger-table .attendance-clock-stack {
+  align-items: center;
+}
+
+.attendance-review-table .attendance-punch-line {
+  justify-content: center;
+}
+
+.attendance-ledger-table .attendance-note-input {
+  text-align: center;
+}
+
 .attendance-ledger-table {
   table-layout: fixed;
   min-width: 916px;
