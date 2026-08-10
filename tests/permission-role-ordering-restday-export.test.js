@@ -29,7 +29,7 @@ test("班表浮動工具列不保留下方多餘空白", () => {
 });
 
 test("例假或休息日有排班時，加班匯出使用該班別上下班時間", () => {
-  const migration = read("supabase/003_20260810_permission_sort_restday_overtime.sql");
+  const migration = read("supabase/002_current_updates.sql");
   assert.match(migration, /leave_type\.code in \('0036','0047'\)/);
   assert.match(migration, /leave_type\.name in \('例假','休息日'\)/);
   assert.match(migration, /then shift_type\.start_time/);
