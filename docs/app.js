@@ -6028,16 +6028,21 @@ function readNamedColorPayloadBase(category, mode) {
 
 async function persistNamedCatalogItem(category, mode, payload, returnTo) {
   const currentList = getItemList(category);
-  const nextList = mode === "edit"
-    ? currentList.map((item) => item.id === payload.id ? payload : item)
-    : [...currentList, payload];
   const sortOrder = mode === "edit" ? currentList.findIndex((item) => item.id === payload.id) : currentList.length;
+  let savedItem = payload;
   try {
-    await window.schedulerApi.saveCatalogItem(category, payload, Math.max(0, sortOrder));
+    const result = await window.schedulerApi.saveCatalogItem(category, payload, Math.max(0, sortOrder));
+    const persistedId = String(result?.id || "").trim();
+    if (persistedId && persistedId !== payload.id) {
+      savedItem = { ...payload, id: persistedId };
+    }
   } catch (error) {
     setSaveStatus(`${category === "leave" ? "假別" : "加班"}儲存失敗：${error.message}`);
     return false;
   }
+  const nextList = mode === "edit"
+    ? currentList.map((item) => item.id === payload.id ? savedItem : item)
+    : [...currentList, savedItem];
   if (category === "leave") state.leaves = nextList;
   if (category === "overtime") state.overtime = nextList;
   closeModal();

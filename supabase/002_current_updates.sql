@@ -994,16 +994,62 @@ language plpgsql
 security definer
 set search_path=public,pg_catalog
 as $$
-declare v_id uuid; v_category text:=lower(btrim(coalesce(p_category,''))); begin
+declare
+  v_id uuid;
+  v_category text:=lower(btrim(coalesce(p_category,'')));
+  v_code text;
+  v_existing_id uuid;
+  v_existing_deleted timestamptz;
+  v_input_id_exists boolean:=false;
+  v_restored boolean:=false;
+begin
   if not public.has_access_permission(auth.uid(),'leave_settings') then raise exception '沒有假別設定權限' using errcode='42501'; end if;
   begin v_id:=nullif(btrim(p_item->>'id'),'')::uuid; exception when invalid_text_representation then raise exception '設定識別碼格式錯誤'; end;
   if v_id is null then raise exception '缺少設定識別碼'; end if;
   if v_category='leave' then
-    if btrim(coalesce(p_item->>'code',''))='' or btrim(coalesce(p_item->>'name',''))='' then raise exception '假別代碼與名稱不可空白'; end if;
-    insert into public.set_leave(id,code,name,color,text_color,auto_text_color,hidden_from_toolbar,requires_time,requires_reason,sort_order)
-    values(v_id,btrim(p_item->>'code'),btrim(p_item->>'name'),nullif(p_item->>'color',''),nullif(p_item->>'textColor',''),coalesce((p_item->>'autoTextColor')::boolean,true),coalesce((p_item->>'hiddenFromToolbar')::boolean,false),coalesce((p_item->>'requiresTime')::boolean,false),coalesce((p_item->>'requiresReason')::boolean,false),greatest(0,coalesce((p_item->>'sortOrder')::integer,0)))
-    on conflict(id) do update set code=excluded.code,name=excluded.name,color=excluded.color,text_color=excluded.text_color,auto_text_color=excluded.auto_text_color,hidden_from_toolbar=excluded.hidden_from_toolbar,requires_time=excluded.requires_time,requires_reason=excluded.requires_reason,sort_order=excluded.sort_order,updated_at=now()
-    where public.set_leave.deleted_at is null;
+    v_code:=btrim(coalesce(p_item->>'code',''));
+    if v_code='' or btrim(coalesce(p_item->>'name',''))='' then raise exception '假別代碼與名稱不可空白'; end if;
+
+    select exists(select 1 from public.set_leave where id=v_id) into v_input_id_exists;
+    select id,deleted_at into v_existing_id,v_existing_deleted
+    from public.set_leave
+    where code=v_code
+    for update;
+
+    if found and v_existing_id is distinct from v_id then
+      if v_existing_deleted is null or v_input_id_exists then
+        raise exception '假別代碼已存在';
+      end if;
+      v_id:=v_existing_id;
+      v_restored:=true;
+    elsif found and v_existing_id=v_id and v_existing_deleted is not null then
+      v_restored:=true;
+    end if;
+
+    if v_restored then
+      update public.set_leave
+      set code=v_code,
+          name=btrim(p_item->>'name'),
+          color=nullif(p_item->>'color',''),
+          text_color=nullif(p_item->>'textColor',''),
+          auto_text_color=coalesce((p_item->>'autoTextColor')::boolean,true),
+          hidden_from_toolbar=coalesce((p_item->>'hiddenFromToolbar')::boolean,false),
+          requires_time=coalesce((p_item->>'requiresTime')::boolean,false),
+          requires_reason=coalesce((p_item->>'requiresReason')::boolean,false),
+          sort_order=greatest(0,coalesce((p_item->>'sortOrder')::integer,0)),
+          deleted_at=null,
+          updated_at=now()
+      where id=v_id;
+    else
+      begin
+        insert into public.set_leave(id,code,name,color,text_color,auto_text_color,hidden_from_toolbar,requires_time,requires_reason,sort_order)
+        values(v_id,v_code,btrim(p_item->>'name'),nullif(p_item->>'color',''),nullif(p_item->>'textColor',''),coalesce((p_item->>'autoTextColor')::boolean,true),coalesce((p_item->>'hiddenFromToolbar')::boolean,false),coalesce((p_item->>'requiresTime')::boolean,false),coalesce((p_item->>'requiresReason')::boolean,false),greatest(0,coalesce((p_item->>'sortOrder')::integer,0)))
+        on conflict(id) do update set code=excluded.code,name=excluded.name,color=excluded.color,text_color=excluded.text_color,auto_text_color=excluded.auto_text_color,hidden_from_toolbar=excluded.hidden_from_toolbar,requires_time=excluded.requires_time,requires_reason=excluded.requires_reason,sort_order=excluded.sort_order,updated_at=now()
+        where public.set_leave.deleted_at is null;
+      exception when unique_violation then
+        raise exception '假別代碼已存在';
+      end;
+    end if;
   elsif v_category='overtime' then
     if btrim(coalesce(p_item->>'name',''))='' then raise exception '加班名稱不可空白'; end if;
     insert into public.set_overtime(id,name,color,text_color,auto_text_color,hidden_from_toolbar,start_time,end_time,use_rest_1,rest_1_start_time,rest_1_end_time,use_rest_2,rest_2_start_time,rest_2_end_time,sort_order)
@@ -1011,7 +1057,7 @@ declare v_id uuid; v_category text:=lower(btrim(coalesce(p_category,''))); begin
     on conflict(id) do update set name=excluded.name,color=excluded.color,text_color=excluded.text_color,auto_text_color=excluded.auto_text_color,hidden_from_toolbar=excluded.hidden_from_toolbar,start_time=excluded.start_time,end_time=excluded.end_time,use_rest_1=excluded.use_rest_1,rest_1_start_time=excluded.rest_1_start_time,rest_1_end_time=excluded.rest_1_end_time,use_rest_2=excluded.use_rest_2,rest_2_start_time=excluded.rest_2_start_time,rest_2_end_time=excluded.rest_2_end_time,sort_order=excluded.sort_order,updated_at=now()
     where public.set_overtime.deleted_at is null;
   else raise exception '不支援的設定類型'; end if;
-  return jsonb_build_object('ok',true,'id',v_id,'category',v_category);
+  return jsonb_build_object('ok',true,'id',v_id,'category',v_category,'restored',v_restored);
 end
 $$;
 
