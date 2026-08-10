@@ -24,8 +24,9 @@ test("班表浮動工具列不保留下方多餘空白", () => {
   const ordering = read("src/renderer/permission-role-ordering.mjs");
   assert.match(ordering, /toolbar-floating-card:not\(\.toolbar-floating-card-collapsed\)[^{]*\{[^}]*min-height:\s*0\s*!important/);
   assert.match(ordering, /height:\s*max-content\s*!important/);
-  assert.match(ordering, /padding-bottom:\s*3px\s*!important/);
+  assert.match(ordering, /padding-bottom:\s*0\s*!important/);
   assert.match(ordering, /toolbar-category-group[^}]*padding-bottom:\s*0\s*!important/);
+  assert.match(ordering, /toolbar-section-leave[^}]*padding-bottom:\s*0\s*!important/);
 });
 
 test("班表頁匯出加班維持只匯出明確加班設定", () => {
