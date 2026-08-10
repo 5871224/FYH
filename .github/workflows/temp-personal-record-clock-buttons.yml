@@ -1,0 +1,135 @@
+name: Temp personal record clock buttons
+
+on:
+  push:
+    branches:
+      - agent/personal-record-clock-buttons-20260810
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Adjust personal record clock buttons
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/renderer/css/pages.css')
+          text = path.read_text(encoding='utf-8')
+
+          stack_rule = '''.attendance-ledger-table .attendance-clock-stack {
+            align-items: center;
+          }
+          '''
+          button_rules = '''.attendance-ledger-table .attendance-clock-stack {
+            align-items: center;
+          }
+
+          .attendance-ledger-table .attendance-clock-buttons {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            margin-top: 6px;
+          }
+
+          .attendance-ledger-table .attendance-clock-buttons .compact-btn {
+            flex: 0 0 auto;
+            min-width: 76px;
+            min-height: 48px !important;
+            padding: 0 8px !important;
+          }
+          '''
+          if text.count(stack_rule) != 1:
+              raise SystemExit(f'attendance clock stack rule count={text.count(stack_rule)}')
+          text = text.replace(stack_rule, button_rules, 1)
+
+          table_rule = '''.attendance-ledger-table {
+            table-layout: fixed;
+            min-width: 916px;
+          }
+          '''
+          wider_table_rule = '''.attendance-ledger-table {
+            table-layout: fixed;
+            min-width: 964px;
+          }
+          '''
+          if text.count(table_rule) != 1:
+              raise SystemExit(f'attendance ledger table rule count={text.count(table_rule)}')
+          text = text.replace(table_rule, wider_table_rule, 1)
+
+          clock_col_rule = '''.attendance-ledger-table .personal-record-clock-col {
+            width: 128px;
+          }
+          '''
+          wider_clock_col_rule = '''.attendance-ledger-table .personal-record-clock-col {
+            width: 176px;
+          }
+          '''
+          if text.count(clock_col_rule) != 1:
+              raise SystemExit(f'personal record clock col rule count={text.count(clock_col_rule)}')
+          text = text.replace(clock_col_rule, wider_clock_col_rule, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          cat > tests/personal-record-clock-buttons-layout.test.js <<'EOF'
+          const test = require('node:test');
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+
+          test('個人記錄上下班打卡按鈕置中左右併排並加高', () => {
+            const css = fs.readFileSync('src/renderer/css/pages.css', 'utf8');
+            const view = fs.readFileSync('src/renderer/renderer-records-views.js', 'utf8');
+
+            assert.match(view, /<div class="attendance-clock-buttons">[\s\S]*data-personal-clock-action="clock_in"[\s\S]*data-personal-clock-action="clock_out"[\s\S]*<\/div>/);
+            assert.match(css, /\.attendance-ledger-table \.attendance-clock-buttons \{[\s\S]*display: flex;[\s\S]*flex-direction: row;[\s\S]*flex-wrap: nowrap;[\s\S]*justify-content: center;/);
+            assert.match(css, /\.attendance-ledger-table \.attendance-clock-buttons \.compact-btn \{[\s\S]*min-width: 76px;[\s\S]*min-height: 48px !important;/);
+            assert.match(css, /\.attendance-ledger-table \.personal-record-clock-col \{\s*width: 176px;/);
+          });
+
+          test('發布版保留個人記錄打卡按鈕版面', () => {
+            for (const file of ['src/renderer/app.css', 'docs/app.css']) {
+              const css = fs.readFileSync(file, 'utf8');
+              assert.match(css, /\.attendance-ledger-table \.attendance-clock-buttons \{[\s\S]*justify-content: center;/);
+              assert.match(css, /\.attendance-ledger-table \.attendance-clock-buttons \.compact-btn \{[\s\S]*min-height: 48px !important;/);
+              assert.match(css, /\.attendance-ledger-table \.personal-record-clock-col \{\s*width: 176px;/);
+            }
+          });
+          EOF
+
+          rm .github/workflows/temp-personal-record-clock-buttons.yml
+      - name: Install
+        run: npm ci
+      - name: Publish static web
+        run: npm run web:publish
+      - name: Full checks
+        run: npm run ci:check
+      - name: Re-publish final static web
+        run: npm run web:publish
+      - name: Commit clean result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "5871224"
+          git config user.email "110716199+5871224@users.noreply.github.com"
+          git add -A
+          git commit -m "調整個人記錄打卡按鈕版面"
+          git push origin HEAD:agent/personal-record-clock-buttons-20260810
