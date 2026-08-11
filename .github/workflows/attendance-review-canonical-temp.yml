@@ -1,0 +1,424 @@
+name: Attendance Review Canonical Temp
+
+on:
+  push:
+    branches:
+      - chore/attendance-review-speed-20260811
+
+permissions:
+  contents: write
+
+jobs:
+  canonicalize:
+    name: Canonicalize attendance review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Update canonical sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_exact(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"expected block not found: {path}")
+              p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          def replace_regex(path, pattern, new):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              updated, count = re.subn(pattern, lambda _: new, text, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f"expected one regex match in {path}, got {count}")
+              p.write_text(updated, encoding="utf-8")
+
+          web_api = "src/renderer/web-api.js"
+          replace_exact(
+              web_api,
+              '''  function formatOvertimeHoursAsTime(value) {
+              const totalMinutes = Math.round(Number(value) * 60);
+              if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) return "";
+              return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
+            }
+
+            function downloadBlob(blob, fileName) {'''.replace("            ", "  "),
+              '''  function formatOvertimeHoursAsTime(value) {
+              const totalMinutes = Math.round(Number(value) * 60);
+              if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) return "";
+              return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
+            }
+
+            function subtractOvertimeHoursFromClockTime(value, hours) {
+              const match = String(value || "").match(/^([01]\\d|2[0-3]):([0-5]\\d)/);
+              if (!match) return { time: "", previousDay: 0 };
+              const startMinutes = Number(match[1]) * 60 + Number(match[2]);
+              const overtimeMinutes = Math.round(Number(hours || 0) * 60);
+              if (!Number.isFinite(overtimeMinutes) || overtimeMinutes <= 0) {
+                return { time: `${match[1]}:${match[2]}`, previousDay: 0 };
+              }
+              const shiftedMinutes = startMinutes - overtimeMinutes;
+              const normalizedMinutes = ((shiftedMinutes % 1440) + 1440) % 1440;
+              return {
+                time: `${String(Math.floor(normalizedMinutes / 60)).padStart(2, "0")}:${String(normalizedMinutes % 60).padStart(2, "0")}`,
+                previousDay: shiftedMinutes < 0 ? 1 : 0
+              };
+            }
+
+            function downloadBlob(blob, fileName) {'''.replace("            ", "  ")
+          )
+
+          replace_exact(
+              web_api,
+              '''      if (scheduledStart && scheduledEnd) {
+                return [{
+                  employee_code: row.employee_code || "",
+                  work_date: row.work_date || "",
+                  overtime_type_id: "attendance-rest-day",
+                  overtime_start_time: scheduledStart,
+                  overtime_end_time: scheduledEnd,
+                  overtime_previous_day: 0,
+                  overtime_subsidy_type: 1,
+                  overtime_use_rest_1: false,
+                  overtime_use_rest_2: false
+                }];
+              }'''.replace("              ", "      "),
+              '''      if (scheduledStart && scheduledEnd) {
+                const adjustedStart = subtractOvertimeHoursFromClockTime(scheduledStart, row.overtimeHours);
+                return [{
+                  employee_code: row.employee_code || "",
+                  work_date: row.work_date || "",
+                  overtime_type_id: "attendance-rest-day",
+                  overtime_start_time: adjustedStart.time || scheduledStart,
+                  overtime_end_time: scheduledEnd,
+                  overtime_previous_day: adjustedStart.previousDay,
+                  overtime_subsidy_type: 1,
+                  overtime_use_rest_1: false,
+                  overtime_use_rest_2: false
+                }];
+              }'''.replace("              ", "      ")
+          )
+
+          actions = "src/renderer/renderer-records-actions.js"
+          new_review_actions = r'''function attendanceReviewToken(row) {
+            return `${row?.user_id || ""}:${row?.work_date || ""}`;
+          }
+
+          function applyAttendanceReviewSetResult(tokens, reviewed, result = {}) {
+            const tokenSet = new Set((Array.isArray(tokens) ? tokens : [tokens]).map(String).filter(Boolean));
+            const review = ensureAttendanceReviewState();
+            const currentRows = Array.isArray(review.rows) ? review.rows : [];
+            const serverRecords = new Map((Array.isArray(result.records) ? result.records : [])
+              .map((row) => [attendanceReviewToken(row), row]));
+            const movingOutOfCurrentFilter = (review.filters.status === "unreviewed" && reviewed)
+              || (review.filters.status === "reviewed" && !reviewed);
+            const matchedCount = currentRows.filter((row) => tokenSet.has(attendanceReviewToken(row))).length;
+            const updatedRows = currentRows.map((row) => {
+              const token = attendanceReviewToken(row);
+              if (!tokenSet.has(token)) return row;
+              const serverRecord = serverRecords.get(token) || {};
+              return {
+                ...row,
+                id: serverRecord.id || row.id || "",
+                reviewed,
+                reviewedAt: reviewed ? (serverRecord.reviewedAt || result.reviewedAt || row.reviewedAt || null) : null
+              };
+            });
+            const nextRows = movingOutOfCurrentFilter
+              ? updatedRows.filter((row) => !tokenSet.has(attendanceReviewToken(row)))
+              : updatedRows;
+            const nextTotal = movingOutOfCurrentFilter
+              ? Math.max(0, Number(review.total || 0) - matchedCount)
+              : Number(review.total || 0);
+            const pageSize = Math.max(1, Number(review.pageSize || 50));
+            const pageCount = Math.max(1, Math.ceil(nextTotal / pageSize));
+            const nextPage = Math.min(Number(review.page || 1), pageCount);
+
+            recordsState = {
+              ...recordsState,
+              attendanceReview: {
+                ...review,
+                rows: nextRows,
+                total: nextTotal,
+                page: nextPage
+              }
+            };
+
+            const actorId = window.schedulerApi.getAuthContext?.()?.profile?.id || "";
+            if (actorId && Array.isArray(recordsState.personal)) {
+              recordsState = {
+                ...recordsState,
+                personal: recordsState.personal.map((record) => tokenSet.has(`${actorId}:${record.date || ""}`)
+                  ? { ...record, reviewed }
+                  : record)
+              };
+            }
+            return nextPage !== Number(review.page || 1);
+          }
+
+          async function setAttendanceReviewed(token, reviewed) {
+            try {
+              const result = await window.schedulerApi.setAttendanceReviewed({ token, reviewed });
+              const pageChanged = applyAttendanceReviewSetResult([token], reviewed, result);
+              if (pageChanged) await loadAttendanceReview(false);
+              renderAll();
+              showInfoMessage(reviewed ? "已設為已審" : "已退回未審");
+            } catch (error) {
+              showInfoMessage(error.message || "審核操作失敗");
+            }
+          }
+
+          async function batchReviewAttendance(mode) {
+            const tokens = Array.from(document.querySelectorAll("[data-attendance-review-check]:checked"))
+              .map((item) => item.dataset.attendanceReviewCheck)
+              .filter(Boolean);
+            if (!tokens.length) {
+              showInfoMessage("請先勾選簽到紀錄");
+              return;
+            }
+            const reviewed = mode === "reviewed";
+            const confirmed = await confirmAction(`確定要將 ${tokens.length} 筆紀錄${reviewed ? "設為已審" : "退回未審"}嗎？`);
+            if (!confirmed) return;
+            try {
+              const result = await window.schedulerApi.setAttendanceReviewed({ tokens, reviewed });
+              const pageChanged = applyAttendanceReviewSetResult(tokens, reviewed, result);
+              if (pageChanged) await loadAttendanceReview(false);
+              renderAll();
+              showInfoMessage(reviewed ? "批次審核已完成" : "批次退回已完成");
+            } catch (error) {
+              showInfoMessage(error.message || "批次審核失敗");
+            }
+          }
+
+          '''
+          new_review_actions = re.sub(r'^          ', '', new_review_actions, flags=re.M)
+          replace_regex(
+              actions,
+              r'async function setAttendanceReviewed\(token, reviewed\) \{[\s\S]*?\n\}\n\nasync function batchReviewAttendance\(mode\) \{[\s\S]*?\n\}\n\n\n(?=async function openAttendanceHistoryModal)',
+              new_review_actions
+          )
+
+          edge = "supabase/functions/attendance-review-groups/index.ts"
+          new_review_set = r'''async function reviewSet(ctx: any, body: any, actor: any) {
+            const reviewed = Boolean(body?.reviewed);
+            const rawTokens = Array.isArray(body?.tokens) ? body.tokens : [body?.token];
+            const targets: Array<{ userId: string; workDate: string; key: string }> = [];
+            const seen = new Set<string>();
+            for (const token of rawTokens.filter(Boolean)) {
+              const { userId, workDate } = parseReviewToken(token);
+              if (!userId || !validDate(workDate, "")) continue;
+              const key = rowKey(userId, workDate);
+              if (seen.has(key)) continue;
+              seen.add(key);
+              targets.push({ userId, workDate, key });
+            }
+            if (!targets.length) {
+              return { ok: true, changed: 0, reviewed, reviewedAt: null, records: [] };
+            }
+
+            const userIds = [...new Set(targets.map((target) => target.userId))];
+            const workDates = [...new Set(targets.map((target) => target.workDate))];
+            const [allowedGroupIds, targetResult] = await Promise.all([
+              applicableGroupIds(ctx, actor),
+              ctx.supabaseAdmin.from("set_employee")
+                .select("id,group_id,home_department_id,deleted_at")
+                .in("id", userIds).is("deleted_at", null)
+            ]);
+            if (targetResult.error) throw targetResult.error;
+            const allowedGroups = new Set<string>(allowedGroupIds.map(String));
+            const targetMembers = new Map<string, any>((targetResult.data || []).map((row: any) => [String(row.id), row]));
+            for (const userId of userIds) {
+              const member = targetMembers.get(userId);
+              if (!member) throw new Error("找不到人員");
+              if (!allowedGroups.has(String(member.group_id || ""))) throw new Error("此角色不可審核該群組");
+            }
+
+            const attendanceResult = await ctx.supabaseAdmin.from("attendance_days")
+              .select("*").in("user_id", userIds).in("work_date", workDates);
+            if (attendanceResult.error) throw attendanceResult.error;
+            const dayByKey = new Map<string, any>((attendanceResult.data || [])
+              .map((row: any) => [rowKey(row.user_id, row.work_date), row]));
+            const missingTargets = targets.filter((target) => !dayByKey.has(target.key));
+
+            if (missingTargets.length) {
+              const groupIds = [...new Set<string>(missingTargets
+                .map((target) => String(targetMembers.get(target.userId)?.group_id || ""))
+                .filter(Boolean))];
+              const departmentIds = [...new Set<string>(missingTargets
+                .map((target) => String(targetMembers.get(target.userId)?.home_department_id || ""))
+                .filter(Boolean))];
+              const [groupResult, departmentResult] = await Promise.all([
+                groupIds.length
+                  ? ctx.supabaseAdmin.from("schedule_groups").select("id,name").in("id", groupIds)
+                  : Promise.resolve({ data: [], error: null }),
+                departmentIds.length
+                  ? ctx.supabaseAdmin.from("set_departments").select("id,name").in("id", departmentIds)
+                  : Promise.resolve({ data: [], error: null })
+              ]);
+              if (groupResult.error) throw groupResult.error;
+              if (departmentResult.error) throw departmentResult.error;
+              const groupNames = new Map<string, string>((groupResult.data || []).map((row: any) => [String(row.id), String(row.name || "")]));
+              const departmentNames = new Map<string, string>((departmentResult.data || []).map((row: any) => [String(row.id), String(row.name || "")]));
+              const insertRows = missingTargets.map((target) => {
+                const member = targetMembers.get(target.userId);
+                const groupId = String(member?.group_id || "");
+                const departmentId = String(member?.home_department_id || "");
+                return {
+                  user_id: target.userId,
+                  work_date: target.workDate,
+                  group_id: groupId || null,
+                  group_name_snapshot: groupNames.get(groupId) || "",
+                  department_name_snapshot: departmentNames.get(departmentId) || ""
+                };
+              });
+              const insertedResult = await ctx.supabaseAdmin.from("attendance_days").insert(insertRows).select("*");
+              if (insertedResult.error) throw insertedResult.error;
+              for (const row of insertedResult.data || []) {
+                dayByKey.set(rowKey(row.user_id, row.work_date), row);
+              }
+            }
+
+            const beforeRows = targets.map((target) => dayByKey.get(target.key)).filter(Boolean);
+            if (beforeRows.length !== targets.length) throw new Error("部分簽到紀錄建立失敗");
+            const dayIds = beforeRows.map((row: any) => row.id);
+            const reviewedAt = reviewed ? new Date().toISOString() : null;
+            const update = reviewed
+              ? { reviewed_at: reviewedAt, reviewed_by: actor.id }
+              : { reviewed_at: null, reviewed_by: null };
+            const updateResult = await ctx.supabaseAdmin.from("attendance_days")
+              .update(update).in("id", dayIds).select("*");
+            if (updateResult.error) throw updateResult.error;
+            const updatedRows = updateResult.data || [];
+            if (updatedRows.length !== dayIds.length) throw new Error("部分簽到紀錄更新失敗");
+            const updatedById = new Map<string, any>(updatedRows.map((row: any) => [String(row.id), row]));
+            const auditRows = beforeRows.map((old: any) => ({
+              attendance_day_id: old.id,
+              action: reviewed ? "reviewed" : "returned",
+              changed_by: actor.id,
+              before_data: old,
+              after_data: updatedById.get(String(old.id)) || old,
+              reason: String(body?.reason || "")
+            }));
+            const auditResult = await ctx.supabaseAdmin.from("attendance_audit_logs").insert(auditRows);
+            if (auditResult.error) throw auditResult.error;
+
+            return {
+              ok: true,
+              changed: updatedRows.length,
+              reviewed,
+              reviewedAt,
+              records: updatedRows.map((row: any) => ({
+                id: row.id,
+                user_id: row.user_id,
+                work_date: row.work_date,
+                reviewed: Boolean(row.reviewed_at),
+                reviewedAt: row.reviewed_at || null
+              }))
+            };
+          }
+
+          '''
+          new_review_set = re.sub(r'^          ', '', new_review_set, flags=re.M)
+          replace_regex(
+              edge,
+              r'async function reviewSet\(ctx: any, body: any, actor: any\) \{[\s\S]*?\n\}\n\n(?=async function history)',
+              new_review_set
+          )
+
+          spec = "規格書.md"
+          replace_exact(spec, "**文件版本：** 2026-08-10", "**文件版本：** 2026-08-11")
+          replace_exact(
+              spec,
+              '10. 若已審紀錄當日班表同時有「例假」或「休息日」與班別，該班別視為加班，匯出開始／結束時間直接使用班別上下班時間；此規則只適用簽到審核「匯出加班」，不改變班表頁「匯出加班」規則。\n11. 簽到審核清單讀取遇到 `502`、`503` 或 `504` 時，等待 300 毫秒後自動重試一次；編輯、審核、退回等寫入操作不得自動重送。',
+              '10. 若已審紀錄當日班表同時有「例假」或「休息日」與班別，該班別視為加班；此規則只適用簽到審核「匯出加班」，不改變班表頁「匯出加班」規則。若當日「加班時數」為空白或 0，匯出開始／結束時間直接使用班別上下班時間。\n11. 上述「例假／休息日＋班別」若當日「加班時數」另有填值，該時數視為班別開始前的額外加班，匯出開始時間必須由班別開始時間向前扣除相同時數，結束時間仍使用班別結束時間；例如班別 `08:00-17:00`、加班 2 小時，匯出為 `06:00-17:00`。若開始時間向前跨過 `00:00`，匯出的前一天欄位設為 `1`。\n12. 簽到審核清單讀取遇到 `502`、`503` 或 `504` 時，等待 300 毫秒後自動重試一次；編輯、審核、退回等寫入操作不得自動重送。\n13. 單筆審核／退回及批次審核／退回，後端必須以集合式權限驗證、批次更新 `attendance_days`、批次寫入 `attendance_audit_logs`，不得逐筆串行執行同一組查詢。操作成功後前端直接依回傳結果局部更新目前簽到審核清單；只有目前頁碼因資料移出篩選結果而失效時才重新讀取該頁，不為每次審核額外重載完整個人記錄。'
+          )
+
+          readme = "README.md"
+          replace_exact(
+              readme,
+              '- 個人簽到簿不預載簽到審核；只有切換到「簽到審核」時才第一次讀取。\n- ExcelJS 屬大型非核心相依套件，只在 XLSX 匯入／匯出實際發生時動態載入。',
+              '- 個人簽到簿不預載簽到審核；只有切換到「簽到審核」時才第一次讀取。\n- 簽到審核的單筆／批次審核與退回採集合式權限驗證、批次更新及批次稽核寫入；成功後前端局部更新目前清單，不為每次操作重新讀取完整簽到簿。\n- ExcelJS 屬大型非核心相依套件，只在 XLSX 匯入／匯出實際發生時動態載入。'
+          )
+
+          test_file = Path("tests/attendance-review-fast-actions.test.js")
+          test_file.write_text(r'''const test = require("node:test");
+          const assert = require("node:assert/strict");
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          const root = path.resolve(__dirname, "..");
+          const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+
+          test("休例日排班的額外加班時數會往班別開始前推", () => {
+            const webApi = read("src/renderer/web-api.js");
+            const spec = read("規格書.md");
+            const helperSource = webApi.match(/function subtractOvertimeHoursFromClockTime\(value, hours\) \{[\s\S]*?\n  \}/)?.[0] || "";
+            assert.ok(helperSource);
+            const helper = Function(`${helperSource}; return subtractOvertimeHoursFromClockTime;`)();
+            assert.deepEqual(helper("08:00", 2), { time: "06:00", previousDay: 0 });
+            assert.deepEqual(helper("01:00", 2), { time: "23:00", previousDay: 1 });
+            assert.match(webApi, /const adjustedStart = subtractOvertimeHoursFromClockTime\(scheduledStart, row\.overtimeHours\)/);
+            assert.match(webApi, /overtime_start_time: adjustedStart\.time \|\| scheduledStart/);
+            assert.match(webApi, /overtime_previous_day: adjustedStart\.previousDay/);
+            assert.match(spec, /班別 `08:00-17:00`、加班 2 小時，匯出為 `06:00-17:00`/);
+          });
+
+          test("簽到審核寫入採批次後端與前端局部更新", () => {
+            const actions = read("src/renderer/renderer-records-actions.js");
+            const edge = read("supabase/functions/attendance-review-groups/index.ts");
+            const spec = read("規格書.md");
+            const reviewSet = edge.match(/async function reviewSet\(ctx: any, body: any, actor: any\) \{[\s\S]*?\n\}\n\nasync function history/)?.[0] || "";
+            const single = actions.match(/async function setAttendanceReviewed\(token, reviewed\) \{[\s\S]*?\n\}/)?.[0] || "";
+            const batch = actions.match(/async function batchReviewAttendance\(mode\) \{[\s\S]*?\n\}/)?.[0] || "";
+
+            assert.match(actions, /function applyAttendanceReviewSetResult/);
+            assert.match(single, /applyAttendanceReviewSetResult/);
+            assert.match(batch, /applyAttendanceReviewSetResult/);
+            assert.doesNotMatch(single, /loadRecordsPage/);
+            assert.doesNotMatch(batch, /loadRecordsPage/);
+            assert.match(single, /if \(pageChanged\) await loadAttendanceReview\(false\)/);
+            assert.match(batch, /if \(pageChanged\) await loadAttendanceReview\(false\)/);
+
+            assert.ok(reviewSet);
+            assert.doesNotMatch(reviewSet, /ensureTargetAllowed/);
+            assert.match(reviewSet, /const \[allowedGroupIds, targetResult\] = await Promise\.all/);
+            assert.match(reviewSet, /\.update\(update\)\.in\("id", dayIds\)\.select\("\*"\)/);
+            assert.match(reviewSet, /from\("attendance_audit_logs"\)\.insert\(auditRows\)/);
+            assert.match(spec, /集合式權限驗證、批次更新 `attendance_days`、批次寫入 `attendance_audit_logs`/);
+          });
+          '''.replace("          ", ""), encoding="utf-8")
+          PY
+
+      - name: Rebuild and validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run web:publish
+          rm -f .github/workflows/attendance-review-canonical-temp.yml
+          npm run ci:check
+
+      - name: Commit canonical update
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/attendance-review-canonical-temp.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --stat
+          git commit -m "修正休例日加班匯出並加速簽到審核"
+          git push origin HEAD:${GITHUB_REF_NAME}
