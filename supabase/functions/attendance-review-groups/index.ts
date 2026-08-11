@@ -314,22 +314,120 @@ function parseReviewToken(token: unknown) {
 
 async function reviewSet(ctx: any, body: any, actor: any) {
   const reviewed = Boolean(body?.reviewed);
-  const tokens = Array.isArray(body?.tokens) ? body.tokens : [body?.token];
-  let changed = 0;
-  for (const token of tokens.filter(Boolean)) {
+  const rawTokens = Array.isArray(body?.tokens) ? body.tokens : [body?.token];
+  const targets: Array<{ userId: string; workDate: string; key: string }> = [];
+  const seen = new Set<string>();
+  for (const token of rawTokens.filter(Boolean)) {
     const { userId, workDate } = parseReviewToken(token);
     if (!userId || !validDate(workDate, "")) continue;
-    await ensureTargetAllowed(ctx, actor, userId);
-    const old = await getOrCreateDay(ctx, userId, workDate);
-    const update = reviewed
-      ? { reviewed_at: new Date().toISOString(), reviewed_by: actor.id }
-      : { reviewed_at: null, reviewed_by: null };
-    const result = await ctx.supabaseAdmin.from("attendance_days").update(update).eq("id", old.id).select("*").single();
-    if (result.error) throw result.error;
-    await writeAudit(ctx, old.id, reviewed ? "reviewed" : "returned", actor.id, old, result.data, body?.reason);
-    changed += 1;
+    const key = rowKey(userId, workDate);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    targets.push({ userId, workDate, key });
   }
-  return { ok: true, changed };
+  if (!targets.length) {
+    return { ok: true, changed: 0, reviewed, reviewedAt: null, records: [] };
+  }
+
+  const userIds = [...new Set(targets.map((target) => target.userId))];
+  const workDates = [...new Set(targets.map((target) => target.workDate))];
+  const [allowedGroupIds, targetResult] = await Promise.all([
+    applicableGroupIds(ctx, actor),
+    ctx.supabaseAdmin.from("set_employee")
+      .select("id,group_id,home_department_id,deleted_at")
+      .in("id", userIds).is("deleted_at", null)
+  ]);
+  if (targetResult.error) throw targetResult.error;
+  const allowedGroups = new Set<string>(allowedGroupIds.map(String));
+  const targetMembers = new Map<string, any>((targetResult.data || []).map((row: any) => [String(row.id), row]));
+  for (const userId of userIds) {
+    const member = targetMembers.get(userId);
+    if (!member) throw new Error("找不到人員");
+    if (!allowedGroups.has(String(member.group_id || ""))) throw new Error("此角色不可審核該群組");
+  }
+
+  const attendanceResult = await ctx.supabaseAdmin.from("attendance_days")
+    .select("*").in("user_id", userIds).in("work_date", workDates);
+  if (attendanceResult.error) throw attendanceResult.error;
+  const dayByKey = new Map<string, any>((attendanceResult.data || [])
+    .map((row: any) => [rowKey(row.user_id, row.work_date), row]));
+  const missingTargets = targets.filter((target) => !dayByKey.has(target.key));
+
+  if (missingTargets.length) {
+    const groupIds = [...new Set<string>(missingTargets
+      .map((target) => String(targetMembers.get(target.userId)?.group_id || ""))
+      .filter(Boolean))];
+    const departmentIds = [...new Set<string>(missingTargets
+      .map((target) => String(targetMembers.get(target.userId)?.home_department_id || ""))
+      .filter(Boolean))];
+    const [groupResult, departmentResult] = await Promise.all([
+      groupIds.length
+        ? ctx.supabaseAdmin.from("schedule_groups").select("id,name").in("id", groupIds)
+        : Promise.resolve({ data: [], error: null }),
+      departmentIds.length
+        ? ctx.supabaseAdmin.from("set_departments").select("id,name").in("id", departmentIds)
+        : Promise.resolve({ data: [], error: null })
+    ]);
+    if (groupResult.error) throw groupResult.error;
+    if (departmentResult.error) throw departmentResult.error;
+    const groupNames = new Map<string, string>((groupResult.data || []).map((row: any) => [String(row.id), String(row.name || "")]));
+    const departmentNames = new Map<string, string>((departmentResult.data || []).map((row: any) => [String(row.id), String(row.name || "")]));
+    const insertRows = missingTargets.map((target) => {
+      const member = targetMembers.get(target.userId);
+      const groupId = String(member?.group_id || "");
+      const departmentId = String(member?.home_department_id || "");
+      return {
+        user_id: target.userId,
+        work_date: target.workDate,
+        group_id: groupId || null,
+        group_name_snapshot: groupNames.get(groupId) || "",
+        department_name_snapshot: departmentNames.get(departmentId) || ""
+      };
+    });
+    const insertedResult = await ctx.supabaseAdmin.from("attendance_days").insert(insertRows).select("*");
+    if (insertedResult.error) throw insertedResult.error;
+    for (const row of insertedResult.data || []) {
+      dayByKey.set(rowKey(row.user_id, row.work_date), row);
+    }
+  }
+
+  const beforeRows = targets.map((target) => dayByKey.get(target.key)).filter(Boolean);
+  if (beforeRows.length !== targets.length) throw new Error("部分簽到紀錄建立失敗");
+  const dayIds = beforeRows.map((row: any) => row.id);
+  const reviewedAt = reviewed ? new Date().toISOString() : null;
+  const update = reviewed
+    ? { reviewed_at: reviewedAt, reviewed_by: actor.id }
+    : { reviewed_at: null, reviewed_by: null };
+  const updateResult = await ctx.supabaseAdmin.from("attendance_days")
+    .update(update).in("id", dayIds).select("*");
+  if (updateResult.error) throw updateResult.error;
+  const updatedRows = updateResult.data || [];
+  if (updatedRows.length !== dayIds.length) throw new Error("部分簽到紀錄更新失敗");
+  const updatedById = new Map<string, any>(updatedRows.map((row: any) => [String(row.id), row]));
+  const auditRows = beforeRows.map((old: any) => ({
+    attendance_day_id: old.id,
+    action: reviewed ? "reviewed" : "returned",
+    changed_by: actor.id,
+    before_data: old,
+    after_data: updatedById.get(String(old.id)) || old,
+    reason: String(body?.reason || "")
+  }));
+  const auditResult = await ctx.supabaseAdmin.from("attendance_audit_logs").insert(auditRows);
+  if (auditResult.error) throw auditResult.error;
+
+  return {
+    ok: true,
+    changed: updatedRows.length,
+    reviewed,
+    reviewedAt,
+    records: updatedRows.map((row: any) => ({
+      id: row.id,
+      user_id: row.user_id,
+      work_date: row.work_date,
+      reviewed: Boolean(row.reviewed_at),
+      reviewedAt: row.reviewed_at || null
+    }))
+  };
 }
 
 async function history(ctx: any, body: any, actor: any) {
