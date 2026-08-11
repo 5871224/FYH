@@ -4,7 +4,7 @@ exit_status=1
 384-# Subtest: 儲存庫只保留單一正式 GitHub Actions workflow
 385:not ok 61 - 儲存庫只保留單一正式 GitHub Actions workflow
 386-  ---
-387-  duration_ms: 4.863905
+387-  duration_ms: 4.964916
 388-  type: 'test'
 389-  location: '/home/runner/work/FYH/FYH/tests/github-actions-hygiene.test.js:14:1'
 390-  failureType: 'testCodeFailure'
@@ -36,115 +36,79 @@ exit_status=1
 416-ok 62 - 正式 workflow 只驗證，不重複部署 GitHub Pages
 417-  ---
 --
-558-  ...
-559-# Subtest: 單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px
-560:not ok 86 - 單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px
-561-  ---
-562-  duration_ms: 2.491835
-563-  type: 'test'
-564-  location: '/home/runner/work/FYH/FYH/tests/member-order-and-department-width.test.js:10:1'
-565-  failureType: 'testCodeFailure'
-566-  error: |-
-567-    Expected values to be strictly equal:
-568-    
-569-    true !== false
-570-    
-571-  code: 'ERR_ASSERTION'
-572-  name: 'AssertionError'
-573-  expected: false
-574-  actual: true
-575-  operator: 'strictEqual'
-576-  stack: |-
-577-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/member-order-and-department-width.test.js:12:10)
-578-    Test.runInAsyncScope (node:async_hooks:214:14)
-579-    Test.run (node:internal/test_runner/test:1047:25)
-580-    Test.start (node:internal/test_runner/test:944:17)
-581-    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
-582-  ...
-583-# Subtest: 人員設定應直接由正式模組輸出第一欄拖曳把手
-584-ok 87 - 人員設定應直接由正式模組輸出第一欄拖曳把手
-585-  ---
-586-  duration_ms: 0.754424
-587-  type: 'test'
-588-  ...
-589-# Subtest: 拖曳人員只調整人員順序並重新開啟人員設定
-590-ok 88 - 拖曳人員只調整人員順序並重新開啟人員設定
-591-  ---
-592-  duration_ms: 4.387051
---
-1374-  ...
-1375-# Subtest: 班表週捲動與例假排班顯示具有正式程式契約
-1376:not ok 219 - 班表週捲動與例假排班顯示具有正式程式契約
-1377-  ---
-1378-  duration_ms: 3.375603
-1379-  type: 'test'
-1380-  location: '/home/runner/work/FYH/FYH/tests/schedule-ui-update.test.js:28:1'
-1381-  failureType: 'testCodeFailure'
-1382-  error: |-
-1383-    The input did not match the regular expression /\.toolbar-floating-card \{[\s\S]*?grid-template-columns: 44px minmax\(0, 1fr\);/. Input:
-1384-    
-1385-    '/* 頁面專屬樣式：僅放無法抽成共用元件的局部規則。 */\n' +
+1356-  ...
+1357-# Subtest: 班表週捲動與例假排班顯示具有正式程式契約
+1358:not ok 219 - 班表週捲動與例假排班顯示具有正式程式契約
+1359-  ---
+1360-  duration_ms: 4.927035
+1361-  type: 'test'
+1362-  location: '/home/runner/work/FYH/FYH/tests/schedule-ui-update.test.js:28:1'
+1363-  failureType: 'testCodeFailure'
+1364-  error: |-
+1365-    The input did not match the regular expression /\.toolbar-floating-card \{[\s\S]*?grid-template-columns: 44px minmax\(0, 1fr\);/. Input:
+1366-    
+1367-    '/* 頁面專屬樣式：僅放無法抽成共用元件的局部規則。 */\n' +
+1368-      '\n' +
+1369-      '/* 打卡頁 */\n' +
+1370-      '/* 打卡頁細節調整：縮小手機打卡按鈕、放大加班申請標籤並維持緊湊單行備註。 */\n' +
+1371-      '.overtime-use-label {\n' +
+1372-      '  display: inline-flex;\n' +
+1373-      '  align-items: center;\n' +
+1374-      '  gap: 6px;\n' +
+1375-      '  font-size: 20px;\n' +
+1376-      '  line-height: 1.3;\n' +
+1377-      '}\n' +
+1378-      '\n' +
+1379-      '.overtime-estimate-text {\n' +
+1380-      '  line-height: 1.55;\n' +
+1381-      '}\n' +
+1382-      '\n' +
+1383-      '.overtime-hours-grid .form-row-wide {\n' +
+1384-      '  grid-column: 1 / -1;\n' +
+1385-      '}\n' +
 1386-      '\n' +
-1387-      '/* 打卡頁 */\n' +
-1388-      '/* 打卡頁細節調整：縮小手機打卡按鈕、放大加班申請標籤並維持緊湊單行備註。 */\n' +
-1389-      '.overtime-use-label {\n' +
-1390-      '  display: inline-flex;\n' +
-1391-      '  align-items: center;\n' +
-1392-      '  gap: 6px;\n' +
-1393-      '  font-size: 20px;\n' +
-1394-      '  line-height: 1.3;\n' +
-1395-      '}\n' +
-1396-      '\n' +
-1397-      '.overtime-estimate-text {\n' +
-1398-      '  line-height: 1.55;\n' +
-1399-      '}\n' +
-1400-      '\n' +
-1401-      '.overtime-hours-grid .form-row-wide {\n' +
-1402-      '  grid-column: 1 / -1;\n' +
-1403-      '}\n' +
-1404-      '\n' +
-1405-      '.overtime-hours-grid input[type="text"] {\n' +
-1406-      '  width: 100%;\n' +
-1407-      '  min-width: 0;\n' +
-1408-      '}\n' +
+1387-      '.overtime-hours-grid input[type="text"] {\n' +
+1388-      '  width: 100%;\n' +
+1389-      '  min-width: 0;\n' +
+1390-      '}\n' +
 --- final output ---
   ...
 # Subtest: 班別與假別重新渲染後仍可快速連點開啟修改
 ok 241 - 班別與假別重新渲染後仍可快速連點開啟修改
   ---
-  duration_ms: 0.321037
+  duration_ms: 0.29441
   type: 'test'
   ...
 # Subtest: 公開設定檢查不執行瀏覽器 DOM 初始化
 ok 242 - 公開設定檢查不執行瀏覽器 DOM 初始化
   ---
-  duration_ms: 0.218934
+  duration_ms: 0.24617
   type: 'test'
   ...
 # Subtest: unused members are physically deleted while history keeps the profile
 ok 243 - unused members are physically deleted while history keeps the profile
   ---
-  duration_ms: 2.989565
+  duration_ms: 2.470876
   type: 'test'
   ...
 # Subtest: unused shift leave and overtime masters are physically deleted
 ok 244 - unused shift leave and overtime masters are physically deleted
   ---
-  duration_ms: 1.13857
+  duration_ms: 1.158264
   type: 'test'
   ...
 # Subtest: unused departments are physically deleted while referenced history is retained
 ok 245 - unused departments are physically deleted while referenced history is retained
   ---
-  duration_ms: 0.930787
+  duration_ms: 1.149327
   type: 'test'
   ...
 1..245
 # tests 245
 # suites 0
-# pass 242
-# fail 3
+# pass 243
+# fail 2
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1880.614192
+# duration_ms 1848.133954
