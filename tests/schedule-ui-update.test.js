@@ -9,11 +9,12 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 test("班表浮動工具列使用整合式左側操作列", () => {
   const html = read("src/renderer/index.html");
   const toolbarIndex = html.indexOf('class="toolbar-card toolbar-floating-card"');
+  const controlStackIndex = html.indexOf('class="toolbar-control-stack"', toolbarIndex);
   const collapseIndex = html.indexOf('id="toolbarCollapseToggle"', toolbarIndex);
   const undoIndex = html.indexOf('id="scheduleUndoButton"', toolbarIndex);
   const redoIndex = html.indexOf('id="scheduleRedoButton"', toolbarIndex);
   const gridIndex = html.indexOf('id="toolbarGrid"', toolbarIndex);
-  assert.ok(toolbarIndex >= 0 && collapseIndex > toolbarIndex && undoIndex > collapseIndex && redoIndex > undoIndex && gridIndex > redoIndex);
+  assert.ok(toolbarIndex >= 0 && controlStackIndex > toolbarIndex && collapseIndex > controlStackIndex && undoIndex > collapseIndex && redoIndex > undoIndex && gridIndex > redoIndex);
   assert.equal(html.includes('class="toolbar-top-row"'), false);
   const filterIndex = html.indexOf('id="tableDeptScopeFilter"');
   const topUndoIndex = html.indexOf('id="scheduleUndoTopButton"');
@@ -51,9 +52,11 @@ test("班表週捲動與例假排班顯示具有正式程式契約", () => {
   assert.match(interaction, /scheduleUndoTopButton/);
   assert.match(interaction, /scheduleRedoTopButton/);
   assert.match(css, /\.table-sticky-cell-day\.sun:not\(\.today\)/);
-  assert.match(css, /\.toolbar-floating-card \{[\s\S]*?grid-template-columns: 44px minmax\(0, 1fr\);/);
-  assert.match(css, /\.toolbar-floating-card > \.toolbar-grid \{[\s\S]*?grid-template-columns: minmax\(0, 1\.66fr\) minmax\(0, 0\.78fr\);/);
-  assert.match(css, /\.toolbar-floating-card\.toolbar-floating-card-collapsed \{[\s\S]*?grid-template-rows: repeat\(3, auto\);/);
+  assert.match(css, /\.toolbar-floating-card \{[\s\S]*?grid-template-columns: auto minmax\(0, 1fr\) !important;/);
+  assert.match(css, /\.toolbar-control-stack \{[\s\S]*?flex-direction: column;/);
+  assert.match(css, /\.toolbar-floating-card > \.toolbar-grid \{[\s\S]*?display: block !important;/);
+  assert.match(css, /\.toolbar-category-group \{[\s\S]*?flex-direction: column;/);
+  assert.match(css, /\.toolbar-floating-card\.toolbar-floating-card-collapsed \{[\s\S]*?grid-template-columns: auto !important;/);
   assert.doesNotMatch(css, /\.cell\.regular-holiday-work-cell/);
   assert.doesNotMatch(css, /regular-holiday-work-indicator/);
   assert.match(css, /\.seg\.regular-holiday-work-seg \{\s*background: #ffe58f !important;\s*\}/);
