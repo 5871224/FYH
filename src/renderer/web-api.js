@@ -28,10 +28,26 @@
   }
 
   function formatOvertimeHoursAsTime(value) {
-    const totalMinutes = Math.round(Number(value) * 60);
-    if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) return "";
-    return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
+  const totalMinutes = Math.round(Number(value) * 60);
+  if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) return "";
+  return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
+}
+
+function subtractOvertimeHoursFromClockTime(value, hours) {
+  const match = String(value || "").match(/^([01]\d|2[0-3]):([0-5]\d)/);
+  if (!match) return { time: "", previousDay: 0 };
+  const startMinutes = Number(match[1]) * 60 + Number(match[2]);
+  const overtimeMinutes = Math.round(Number(hours || 0) * 60);
+  if (!Number.isFinite(overtimeMinutes) || overtimeMinutes <= 0) {
+    return { time: `${match[1]}:${match[2]}`, previousDay: 0 };
   }
+  const shiftedMinutes = startMinutes - overtimeMinutes;
+  const normalizedMinutes = ((shiftedMinutes % 1440) + 1440) % 1440;
+  return {
+    time: `${String(Math.floor(normalizedMinutes / 60)).padStart(2, "0")}:${String(normalizedMinutes % 60).padStart(2, "0")}`,
+    previousDay: shiftedMinutes < 0 ? 1 : 0
+  };
+}
 
   function downloadBlob(blob, fileName) {
     const objectUrl = URL.createObjectURL(blob);
@@ -1258,13 +1274,14 @@
       const scheduledStart = row.restDayScheduled ? String(row.scheduledShiftStartTime || "") : "";
       const scheduledEnd = row.restDayScheduled ? String(row.scheduledShiftEndTime || "") : "";
       if (scheduledStart && scheduledEnd) {
+        const adjustedStart = subtractOvertimeHoursFromClockTime(scheduledStart, row.overtimeHours);
         return [{
           employee_code: row.employee_code || "",
           work_date: row.work_date || "",
           overtime_type_id: "attendance-rest-day",
-          overtime_start_time: scheduledStart,
+          overtime_start_time: adjustedStart.time || scheduledStart,
           overtime_end_time: scheduledEnd,
-          overtime_previous_day: 0,
+          overtime_previous_day: adjustedStart.previousDay,
           overtime_subsidy_type: 1,
           overtime_use_rest_1: false,
           overtime_use_rest_2: false

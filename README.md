@@ -162,6 +162,7 @@ npm run ci:check
 
 - 首頁只載入登入身分與權限摘要；第一次進班表才載班表資料，人員管理完整資料只在人員設定開啟時載入。
 - 個人簽到簿不預載簽到審核；只有切換到「簽到審核」時才第一次讀取。
+- 簽到審核的單筆／批次審核與退回採集合式權限驗證、批次更新及批次稽核寫入；成功後前端局部更新目前清單，不為每次操作重新讀取完整簽到簿。
 - ExcelJS 屬大型非核心相依套件，只在 XLSX 匯入／匯出實際發生時動態載入。
 - 班表高頻 RPC 先一次解析目前使用者的角色與適用群組，再以集合式 JOIN 篩選；禁止在每一列班表上重複呼叫 can_access_group/has_access_permission。
 - 核心資料表維持 anon/authenticated 無直接 GRANT；因此不建立 authenticated 直接 INSERT/UPDATE/DELETE RLS policy。RLS 只作唯讀防線，正式寫入一律走具名 RPC／Edge Function。

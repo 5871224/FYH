@@ -67,10 +67,67 @@ async function savePersonalAttendanceInput(input) {
   }
 }
 
+function attendanceReviewToken(row) {
+  return `${row?.user_id || ""}:${row?.work_date || ""}`;
+}
+
+function applyAttendanceReviewSetResult(tokens, reviewed, result = {}) {
+  const tokenSet = new Set((Array.isArray(tokens) ? tokens : [tokens]).map(String).filter(Boolean));
+  const review = ensureAttendanceReviewState();
+  const currentRows = Array.isArray(review.rows) ? review.rows : [];
+  const serverRecords = new Map((Array.isArray(result.records) ? result.records : [])
+    .map((row) => [attendanceReviewToken(row), row]));
+  const movingOutOfCurrentFilter = (review.filters.status === "unreviewed" && reviewed)
+    || (review.filters.status === "reviewed" && !reviewed);
+  const matchedCount = currentRows.filter((row) => tokenSet.has(attendanceReviewToken(row))).length;
+  const updatedRows = currentRows.map((row) => {
+    const token = attendanceReviewToken(row);
+    if (!tokenSet.has(token)) return row;
+    const serverRecord = serverRecords.get(token) || {};
+    return {
+      ...row,
+      id: serverRecord.id || row.id || "",
+      reviewed,
+      reviewedAt: reviewed ? (serverRecord.reviewedAt || result.reviewedAt || row.reviewedAt || null) : null
+    };
+  });
+  const nextRows = movingOutOfCurrentFilter
+    ? updatedRows.filter((row) => !tokenSet.has(attendanceReviewToken(row)))
+    : updatedRows;
+  const nextTotal = movingOutOfCurrentFilter
+    ? Math.max(0, Number(review.total || 0) - matchedCount)
+    : Number(review.total || 0);
+  const pageSize = Math.max(1, Number(review.pageSize || 50));
+  const pageCount = Math.max(1, Math.ceil(nextTotal / pageSize));
+  const nextPage = Math.min(Number(review.page || 1), pageCount);
+
+  recordsState = {
+    ...recordsState,
+    attendanceReview: {
+      ...review,
+      rows: nextRows,
+      total: nextTotal,
+      page: nextPage
+    }
+  };
+
+  const actorId = window.schedulerApi.getAuthContext?.()?.profile?.id || "";
+  if (actorId && Array.isArray(recordsState.personal)) {
+    recordsState = {
+      ...recordsState,
+      personal: recordsState.personal.map((record) => tokenSet.has(`${actorId}:${record.date || ""}`)
+        ? { ...record, reviewed }
+        : record)
+    };
+  }
+  return nextPage !== Number(review.page || 1);
+}
+
 async function setAttendanceReviewed(token, reviewed) {
   try {
-    await window.schedulerApi.setAttendanceReviewed({ token, reviewed });
-    await Promise.all([loadAttendanceReview(false), loadRecordsPage(false)]);
+    const result = await window.schedulerApi.setAttendanceReviewed({ token, reviewed });
+    const pageChanged = applyAttendanceReviewSetResult([token], reviewed, result);
+    if (pageChanged) await loadAttendanceReview(false);
     renderAll();
     showInfoMessage(reviewed ? "已設為已審" : "已退回未審");
   } catch (error) {
@@ -90,15 +147,15 @@ async function batchReviewAttendance(mode) {
   const confirmed = await confirmAction(`確定要將 ${tokens.length} 筆紀錄${reviewed ? "設為已審" : "退回未審"}嗎？`);
   if (!confirmed) return;
   try {
-    await window.schedulerApi.setAttendanceReviewed({ tokens, reviewed });
-    await Promise.all([loadAttendanceReview(false), loadRecordsPage(false)]);
+    const result = await window.schedulerApi.setAttendanceReviewed({ tokens, reviewed });
+    const pageChanged = applyAttendanceReviewSetResult(tokens, reviewed, result);
+    if (pageChanged) await loadAttendanceReview(false);
     renderAll();
     showInfoMessage(reviewed ? "批次審核已完成" : "批次退回已完成");
   } catch (error) {
     showInfoMessage(error.message || "批次審核失敗");
   }
 }
-
 
 async function openAttendanceHistoryModal(recordId) {
   try {
