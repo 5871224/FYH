@@ -8,7 +8,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 test("權限設定的權限項目使用可換行膠囊標籤並取得主要寬度", () => {
   const renderer = read("src/renderer/renderer-groups-permissions-archive.js");
-  const css = read("src/renderer/groups.css");
+  const css = read("src/renderer/css/pages.css");
   const spec = read("規格書.md");
 
   assert.match(renderer, /function renderPermissionSummaryTags\(role\)/);
@@ -24,7 +24,7 @@ test("權限設定的權限項目使用可換行膠囊標籤並取得主要寬�
 test("首次載入班表顯示圓形載入動畫", () => {
   const pageData = read("src/renderer/renderer-page-data.js");
   const events = read("src/renderer/renderer-events-click.js");
-  const css = read("src/renderer/groups.css");
+  const css = read("src/renderer/css/pages.css");
 
   assert.match(pageData, /function getScheduleLoadingIndicator\(\)/);
   assert.match(pageData, /schedule-page-loading-spinner/);
