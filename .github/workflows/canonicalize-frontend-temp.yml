@@ -1,6 +1,5 @@
 name: Canonicalize Frontend Temp
 
-# verified payload rerun 2026-08-11
 on:
   push:
     branches:
@@ -25,30 +24,58 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Apply canonical frontend refactor
+      - name: Apply and validate canonical frontend
         shell: bash
         run: |
-          set -euo pipefail
-          mkdir -p /tmp/fyh-canonical
-          cat \
-            .tmp/frontend-payload.b64.00 \
-            .tmp/frontend-payload.b64.01 \
-            .tmp/frontend-payload.b64.02a1 \
-            .tmp/frontend-payload.b64.02a20 \
-            .tmp/frontend-payload.b64.02a21 \
-            .tmp/frontend-payload.b64.02a22 \
-            .tmp/frontend-payload.b64.02a23 \
-            .tmp/frontend-payload.b64.02b \
-            .tmp/frontend-payload.b64.02c \
-            .tmp/frontend-payload.b64.02d \
-            | base64 -d > /tmp/fyh-canonical/payload.tar.gz
-          echo "c2f7da222ae7bdd31734d6f7ebb9952a154e3ecbd2f2ab01709f0c8cebdb9588  /tmp/fyh-canonical/payload.tar.gz" | sha256sum -c -
-          tar -xzf /tmp/fyh-canonical/payload.tar.gz -C /tmp/fyh-canonical
-          git apply --check /tmp/fyh-canonical/frontend.patch
-          git apply /tmp/fyh-canonical/frontend.patch
-          cp /tmp/fyh-canonical/tests/*.test.js tests/
-          npm run web:publish
-          npm run ci:check
+          set +e
+          (
+            set -euo pipefail
+            mkdir -p /tmp/fyh-canonical
+            echo "[1] reconstruct payload"
+            cat \
+              .tmp/frontend-payload.b64.00 \
+              .tmp/frontend-payload.b64.01 \
+              .tmp/frontend-payload.b64.02a1 \
+              .tmp/frontend-payload.b64.02a20 \
+              .tmp/frontend-payload.b64.02a21 \
+              .tmp/frontend-payload.b64.02a22 \
+              .tmp/frontend-payload.b64.02a23 \
+              .tmp/frontend-payload.b64.02b \
+              .tmp/frontend-payload.b64.02c \
+              .tmp/frontend-payload.b64.02d \
+              > /tmp/fyh-canonical/payload.b64
+            test "$(wc -c < /tmp/fyh-canonical/payload.b64)" -eq 43728
+            echo "7c9e88f1a76deea35a99a4bf4adb8da855cea9e4a45a8152b239bcb37ddb5803  /tmp/fyh-canonical/payload.b64" | sha256sum -c -
+            base64 -d /tmp/fyh-canonical/payload.b64 > /tmp/fyh-canonical/payload.tar.gz
+            echo "c2f7da222ae7bdd31734d6f7ebb9952a154e3ecbd2f2ab01709f0c8cebdb9588  /tmp/fyh-canonical/payload.tar.gz" | sha256sum -c -
+            echo "[2] unpack payload"
+            tar -xzf /tmp/fyh-canonical/payload.tar.gz -C /tmp/fyh-canonical
+            echo "[3] apply patch"
+            git apply --check /tmp/fyh-canonical/frontend.patch
+            git apply /tmp/fyh-canonical/frontend.patch
+            cp /tmp/fyh-canonical/tests/*.test.js tests/
+            echo "[4] publish generated web"
+            npm run web:publish
+            echo "[5] full ci check"
+            npm run ci:check
+          ) > /tmp/fyh-canonical.log 2>&1
+          status=$?
+          set -e
+          if (( status != 0 )); then
+            mkdir -p .tmp
+            {
+              echo "exit_status=$status"
+              tail -n 180 /tmp/fyh-canonical.log
+            } > .tmp/canonical-diagnostic.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .tmp/canonical-diagnostic.txt
+            git commit -m "記錄前端 canonical 驗證錯誤" || true
+            git push origin HEAD:${GITHUB_REF_NAME}
+            cat .tmp/canonical-diagnostic.txt
+            exit "$status"
+          fi
+          cat /tmp/fyh-canonical.log
 
       - name: Commit canonical frontend
         shell: bash
