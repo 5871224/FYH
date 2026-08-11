@@ -29,7 +29,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/fyh-canonical
-          cat .tmp/frontend-payload.b64.* | base64 -d > /tmp/fyh-canonical/payload.tar.gz
+          cat .tmp/frontend-payload.b64.* | base64 --ignore-garbage -d > /tmp/fyh-canonical/payload.tar.gz
           echo "c2f7da222ae7bdd31734d6f7ebb9952a154e3ecbd2f2ab01709f0c8cebdb9588  /tmp/fyh-canonical/payload.tar.gz" | sha256sum -c -
           tar -xzf /tmp/fyh-canonical/payload.tar.gz -C /tmp/fyh-canonical
           git apply --check /tmp/fyh-canonical/frontend.patch
