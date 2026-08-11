@@ -5205,6 +5205,44 @@ function cancelAutoSchedulePreview() {
 ;
 
 /* ===== renderer-schedule-toolbar.js ===== */
+function getSelectedToolbarItem() {
+  const type = state?.selected?.type || "";
+  const id = state?.selected?.id || "";
+  if (!id || (type !== "shift" && type !== "leave")) return null;
+  const item = getItem(type, id);
+  return item ? { type, item } : null;
+}
+
+function syncSelectedToolbarPreview() {
+  const preview = document.getElementById("toolbarSelectedPreview");
+  if (!preview) return;
+  const selected = getSelectedToolbarItem();
+  if (!selected) {
+    preview.hidden = true;
+    preview.textContent = "";
+    preview.removeAttribute("title");
+    preview.removeAttribute("aria-label");
+    preview.style.backgroundColor = "";
+    preview.style.color = "";
+    preview.style.borderColor = "";
+    return;
+  }
+  const { type, item } = selected;
+  const categoryLabel = type === "shift" ? "班別" : "假別";
+  const color = item.color || "#888780";
+  const name = item.name || categoryLabel;
+  preview.hidden = false;
+  preview.style.backgroundColor = color;
+  preview.style.color = getItemTextColor(item, color);
+  preview.style.borderColor = color;
+  preview.title = `已選擇${categoryLabel}：${name}`;
+  preview.setAttribute("aria-label", preview.title);
+  preview.replaceChildren(Object.assign(document.createElement("span"), {
+    className: "toolbar-selected-preview-label",
+    textContent: name
+  }));
+}
+
 function renderDeptFilter() {
   const select = document.getElementById("deptFilter");
   const departments = state.departments.filter((department) => isDepartmentVisibleInScheduleRange(department));
@@ -5269,6 +5307,7 @@ function renderToolbar() {
   renderChips("leaveChips", "leave", state.leaves.filter((item) => !item.hiddenFromToolbar));
   renderChips("overtimeChips", "overtime", state.overtime.filter((item) => !item.hiddenFromToolbar));
   syncRoleUi();
+  syncSelectedToolbarPreview();
 }
 
 function memberMatchesSelectedShift(member) {
@@ -5345,7 +5384,7 @@ function memberHasScheduledShiftInDepartment(member, departmentId) {
 }
 
 function getVisibleTableGroups() {
-  return state.departments
+  const groups = state.departments
     .filter((department) => isDepartmentVisibleInScheduleRange(department))
     .map((department) => ({
       department,
@@ -5361,8 +5400,10 @@ function getVisibleTableGroups() {
         }
         return memberHasScheduledShiftInDepartment(member, state.tableDeptScopeFilter);
       })
-    }))
-    .filter(({ members }) => members.length);
+    }));
+  return state.tableDeptScopeFilter === "all"
+    ? groups
+    : groups.filter(({ members }) => members.length);
 }
 ;
 
@@ -5543,10 +5584,30 @@ function renderTable() {
       html += `<tr><td class="empty-table" colspan="${days + 2 + (state.tableStatsVisible ? 1 : 0)}">${state.tableDeptScopeFilter === "all" ? "目前還沒有人員" : "目前週期沒有排到此單位班別的人員"}</td></tr>`;
     } else {
       groups.forEach(({ department, members }) => {
+        if (!members.length) {
+          const departmentDragAttrs = canEditScheduleOrder ? ` draggable="true" data-table-department-id="${escapeHtml(department.id)}"` : "";
+          const departmentEditAttrs = !canEditScheduleOrder && canEditDepartmentSettings
+            ? ` data-table-department-id="${escapeHtml(department.id)}"`
+            : "";
+          html += `<tr class="empty-department-row" data-table-empty-department-id="${escapeHtml(department.id)}" title="可將人員拖曳到此單位">`;
+          html += `<td class="dept-col${orderDragClass}"${departmentDragAttrs}${departmentEditAttrs}>${escapeHtml(department.name)}</td>`;
+          html += '<td class="person-col empty-department-person-col" aria-label="目前沒有所屬人員"></td>';
+          if (state.tableStatsVisible) {
+            html += '<td class="stats-col empty-department-stats-col"></td>';
+          }
+          visibleDates.forEach((dateString, dateIndex) => {
+            const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, dateIndex, days);
+            html += `<td class="cell inactive-cell empty-department-cell ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-date="${dateString}"><div class="cell-inner"></div></td>`;
+          });
+          html += "</tr>";
+          return;
+        }
         members.forEach((member, index) => {
           html += `<tr class="${member.payByDay ? "pay-daily-row" : ""}">`;
           if (index === 0) {
-            const departmentEditAttrs = canEditDepartmentSettings ? ` data-table-department-id="${escapeHtml(department.id)}"` : "";
+            const departmentEditAttrs = (canEditScheduleOrder || canEditDepartmentSettings)
+              ? ` data-table-department-id="${escapeHtml(department.id)}"`
+              : "";
             html += `<td class="dept-col${orderDragClass}"${draggableAttr} rowspan="${members.length}"${departmentEditAttrs}>${escapeHtml(department.name)}</td>`;
           }
           const memberEditAttrs = canEditMemberSettings
@@ -7200,7 +7261,9 @@ const groupFeatureState = {
   currentGroupId: "",
   catalog: { departments: [], members: [], shifts: [], schedule: {} },
   initialized: false,
-  dragGroupId: ""
+  dragGroupId: "",
+  dragRoleId: "",
+  dragRoleStartOrder: []
 };
 
 async function loadGroupAccessData(payload = {}) {
@@ -7578,6 +7641,38 @@ async function saveGroupOrder() {
   await loadGroupAccessData();
 }
 
+function getPermissionRoleOrderFromDom() {
+  return Array.from(document.querySelectorAll("#permissionSettingsRows [data-permission-role-id]"))
+    .map((row) => row.dataset.permissionRoleId || "")
+    .filter(Boolean);
+}
+
+function previewPermissionRoleOrder(targetRow, clientY) {
+  const dragging = document.querySelector(`[data-permission-role-id="${groupFeatureState.dragRoleId}"]`);
+  if (!dragging || dragging === targetRow) return;
+  const rect = targetRow.getBoundingClientRect();
+  targetRow.parentElement?.insertBefore(dragging, clientY < rect.top + rect.height / 2 ? targetRow : targetRow.nextSibling);
+}
+
+async function savePermissionRoleOrder() {
+  const orderedIds = getPermissionRoleOrderFromDom();
+  if (!orderedIds.length || orderedIds.join("|") === groupFeatureState.dragRoleStartOrder.join("|")) return;
+  const roleMap = new Map(getAllRoles().map((role) => [role.id, role]));
+  groupFeatureState.bundle.roles = orderedIds.map((id, index) => ({ ...roleMap.get(id), sortOrder: index })).filter((role) => role.id);
+  if (state && typeof state === "object") state.accessRoles = getAllRoles();
+  setSaveStatus("角色排序儲存中...", true);
+  try {
+    await window.schedulerApi.reorderSettings("access-role", orderedIds);
+    await loadGroupAccessData();
+    if (state && typeof state === "object") state.accessRoles = getAllRoles();
+    setSaveStatus("角色排序已儲存");
+  } catch (error) {
+    setSaveStatus(`角色排序儲存失敗：${error.message || error}`);
+    await reloadGroupApplicationState();
+    openPermissionSettings();
+  }
+}
+
 function permissionSummary(role) { return (role.permissions || []).map((permission) => GROUP_PERMISSION_LABELS[permission]).filter(Boolean).join("、") || "-"; }
 function renderPermissionSummaryTags(role) {
   const labels = (role.permissions || []).map((permission) => GROUP_PERMISSION_LABELS[permission]).filter(Boolean);
@@ -7595,7 +7690,7 @@ function openPermissionSettings() {
   openEntityListModal({
     title: "權限設定",
     modalClass: "modal modal-wide permission-settings-modal settings-list-modal",
-    body: `<div class="records-table-wrap"><table class="records-table permission-settings-table"><thead><tr><th class="permission-role-col">角色名稱</th><th class="permission-group-col">適用群組</th><th class="permission-items-col">權限項目</th><th class="permission-actions-col">操作</th></tr></thead><tbody>${getAllRoles().map((role) => `<tr><td class="permission-role-col">${escapeHtml(role.name)}</td><td class="permission-group-col">${escapeHtml(roleGroupSummary(role))}</td><td class="permission-summary-cell permission-items-col">${renderPermissionSummaryTags(role)}</td><td class="permission-actions-col"><button class="settings-icon-btn" type="button" data-edit-access-role="${escapeHtml(role.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-access-role="${escapeHtml(role.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td></tr>`).join("")}</tbody></table></div>`,
+    body: `<div class="records-table-wrap"><table class="records-table permission-settings-table"><thead><tr><th class="permission-role-drag-col"></th><th class="permission-role-col">角色名稱</th><th class="permission-group-col">適用群組</th><th class="permission-items-col">權限項目</th><th class="permission-actions-col">操作</th></tr></thead><tbody id="permissionSettingsRows">${getAllRoles().map((role) => `<tr data-permission-role-id="${escapeHtml(role.id)}"><td class="permission-role-drag-col"><span class="settings-order-drag-handle" draggable="true" data-permission-role-drag-handle="${escapeHtml(role.id)}" title="拖曳排序" aria-label="拖曳排序">≡</span></td><td class="permission-role-col">${escapeHtml(role.name)}</td><td class="permission-group-col">${escapeHtml(roleGroupSummary(role))}</td><td class="permission-summary-cell permission-items-col">${renderPermissionSummaryTags(role)}</td><td class="permission-actions-col"><button class="settings-icon-btn" type="button" data-edit-access-role="${escapeHtml(role.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-access-role="${escapeHtml(role.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td></tr>`).join("")}</tbody></table></div>`,
     headerButtons: '<button class="btn-primary" type="button" data-add-access-role="true">新增</button>',
     hideFooterClose: true
   });
@@ -7784,10 +7879,10 @@ function renderAttendanceReviewSectionWithGroups() {
   const review = ensureAttendanceReviewState();
   const filters = review.filters;
   const rows = review.rows || [];
-  return `<section class="records-section"><div class="records-admin-toolbar overtime-review-toolbar attendance-review-toolbar"><div class="records-admin-filters overtime-review-filters attendance-review-filters"><label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-attendance-review-filter="fromDate"></label><label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-attendance-review-filter="toDate"></label><label class="records-admin-field"><span>群組</span><select data-attendance-review-filter="groupId">${renderAttendanceGroupOptions(filters.groupId || "")}</select></label><label class="records-admin-field"><span>人員</span><select data-attendance-review-filter="memberId">${memberOptions(filters.memberId, review.members)}</select></label><label class="records-admin-field"><span>異常</span><select data-attendance-review-filter="issueType"><option value="" ${!filters.issueType ? "selected" : ""}>全部顯示</option>${(review.issueTypes || []).map((type) => `<option value="${escapeHtml(type)}" ${filters.issueType === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label><label class="records-admin-field"><span>狀態</span><select data-attendance-review-filter="status"><option value="unreviewed" ${filters.status === "unreviewed" ? "selected" : ""}>未審</option><option value="reviewed" ${filters.status === "reviewed" ? "selected" : ""}>已審</option><option value="all" ${filters.status === "all" ? "selected" : ""}>全部</option></select></label></div><div class="records-admin-actions overtime-review-actions attendance-review-actions"><button class="ghost-btn compact-btn" type="button" data-export-attendance-review="true">匯出加班</button><button class="primary-btn compact-btn" type="button" data-attendance-review-batch="reviewed">批次審核</button><button class="ghost-btn compact-btn" type="button" data-attendance-review-batch="returned">批次退回</button></div></div>${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}<div class="records-table-wrap"><table class="records-table attendance-review-table"><thead><tr><th class="attendance-review-check-col"><input type="checkbox" data-attendance-review-check-all></th><th>日期</th><th>員工</th><th>圖示</th><th>群組－單位</th><th>打卡時間</th><th>上班時數</th><th>加班時數</th><th>備註</th><th>異常</th><th>狀態</th><th>操作</th></tr></thead><tbody>${rows.map((row) => {
+  return `<section class="records-section"><div class="records-admin-toolbar overtime-review-toolbar attendance-review-toolbar"><div class="records-admin-filters overtime-review-filters attendance-review-filters"><label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-attendance-review-filter="fromDate"></label><label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-attendance-review-filter="toDate"></label><label class="records-admin-field"><span>群組</span><select data-attendance-review-filter="groupId">${renderAttendanceGroupOptions(filters.groupId || "")}</select></label><label class="records-admin-field"><span>人員</span><select data-attendance-review-filter="memberId">${memberOptions(filters.memberId, review.members)}</select></label><label class="records-admin-field"><span>異常</span><select data-attendance-review-filter="issueType"><option value="" ${!filters.issueType ? "selected" : ""}>全部顯示</option>${(review.issueTypes || []).map((type) => `<option value="${escapeHtml(type)}" ${filters.issueType === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label><label class="records-admin-field"><span>狀態</span><select data-attendance-review-filter="status"><option value="unreviewed" ${filters.status === "unreviewed" ? "selected" : ""}>未審</option><option value="reviewed" ${filters.status === "reviewed" ? "selected" : ""}>已審</option><option value="all" ${filters.status === "all" ? "selected" : ""}>全部</option></select></label></div><div class="records-admin-actions overtime-review-actions attendance-review-actions"><button class="ghost-btn compact-btn" type="button" data-export-attendance-review="true">匯出加班</button><button class="primary-btn compact-btn" type="button" data-attendance-review-batch="reviewed">批次審核</button><button class="ghost-btn compact-btn" type="button" data-attendance-review-batch="returned">批次退回</button></div></div>${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}<div class="records-table-wrap"><table class="records-table attendance-review-table"><thead><tr><th class="attendance-review-check-col"><input type="checkbox" data-attendance-review-check-all></th><th class="attendance-review-date-col">日期</th><th class="attendance-review-employee-col">員工</th><th class="attendance-schedule-icon-col">圖示</th><th>群組－單位</th><th>打卡時間</th><th>上班時數</th><th>加班時數</th><th>備註</th><th>異常</th><th>狀態</th><th>操作</th></tr></thead><tbody>${rows.map((row) => {
     const token = `${row.user_id}:${row.work_date}`;
     const groupUnit = [row.groupName || row.group_name || "", row.departmentName || row.department_name || ""].filter(Boolean).join("-") || "-";
-    return `<tr><td><input type="checkbox" data-attendance-review-check="${escapeHtml(token)}"></td><td>${escapeHtml(row.work_date || "")}</td><td>${escapeHtml(row.employee_name || "")}</td><td>${renderScheduleIcon(row)}</td><td>${escapeHtml(groupUnit)}</td><td>${renderPunchLine("上班", row.clock_in_at, row.clock_in_location) || "-"}${renderPunchLine("下班", row.clock_out_at, row.clock_out_location)}</td><td>${row.regularHours ?? ""}</td><td>${row.overtimeHours ?? ""}</td><td>${escapeHtml(row.note || "")}</td><td>${escapeHtml((row.issues || []).join("、") || "正常")}</td><td>${renderReviewStatus(row.reviewed)}</td><td><div class="attendance-review-row-actions"><button class="settings-icon-btn attendance-review-action-btn" type="button" data-edit-attendance-review="${escapeHtml(token)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="settings-icon-btn attendance-review-action-btn attendance-review-toggle ${row.reviewed ? "is-reviewed" : "is-unreviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}" aria-label="${row.reviewed ? "取消審核" : "審核"}" title="${row.reviewed ? "取消審核" : "審核"}"><svg viewBox="0 0 24 24"><path d="M9 4h6l1 2h3v15H5V6h3l1-2z"></path><path d="m9 13 2 2 4-5"></path></svg></button>${row.id ? `<button class="settings-icon-btn attendance-review-action-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}</div></td></tr>`;
+    return `<tr><td><input type="checkbox" data-attendance-review-check="${escapeHtml(token)}"></td><td>${escapeHtml(row.work_date || "")}</td><td>${escapeHtml(row.employee_name || "")}</td><td class="attendance-schedule-icon-col">${renderScheduleIcon(row)}</td><td>${escapeHtml(groupUnit)}</td><td>${renderPunchLine("上班", row.clock_in_at, row.clock_in_location) || "-"}${renderPunchLine("下班", row.clock_out_at, row.clock_out_location)}</td><td>${row.regularHours ?? ""}</td><td>${row.overtimeHours ?? ""}</td><td>${escapeHtml(row.note || "")}</td><td>${escapeHtml((row.issues || []).join("、") || "正常")}</td><td>${renderReviewStatus(row.reviewed)}</td><td><div class="attendance-review-row-actions"><button class="settings-icon-btn attendance-review-action-btn" type="button" data-edit-attendance-review="${escapeHtml(token)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="settings-icon-btn attendance-review-action-btn attendance-review-toggle ${row.reviewed ? "is-reviewed" : "is-unreviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}" aria-label="${row.reviewed ? "取消審核" : "審核"}" title="${row.reviewed ? "取消審核" : "審核"}"><svg viewBox="0 0 24 24"><path d="M9 4h6l1 2h3v15H5V6h3l1-2z"></path><path d="m9 13 2 2 4-5"></path></svg></button>${row.id ? `<button class="settings-icon-btn attendance-review-action-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}</div></td></tr>`;
   }).join("") || '<tr><td colspan="12">沒有資料</td></tr>'}</tbody></table></div>${renderAttendanceReviewPagination(review)}</section>`;
 }
 
@@ -7828,12 +7923,31 @@ function bindGroupFeatureEvents() {
     if (button.dataset.unarchiveSchedule) { void unarchiveSchedule(button.dataset.unarchiveSchedule).catch((error) => showInfoMessage(error.message)); }
   });
   document.addEventListener("dragstart", (event) => {
+    const roleHandle = event.target.closest?.("[data-permission-role-drag-handle]");
+    if (roleHandle) {
+      const roleRow = roleHandle.closest("[data-permission-role-id]");
+      groupFeatureState.dragRoleId = roleRow?.dataset.permissionRoleId || "";
+      groupFeatureState.dragRoleStartOrder = getPermissionRoleOrderFromDom();
+      roleRow?.classList.add("permission-role-dragging");
+      if (event.dataTransfer && groupFeatureState.dragRoleId) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", groupFeatureState.dragRoleId);
+      }
+      return;
+    }
     const row = event.target.closest?.("[data-group-row]");
     if (!row) return;
     groupFeatureState.dragGroupId = row.dataset.groupRow || "";
     row.classList.add("is-dragging");
   });
   document.addEventListener("dragover", (event) => {
+    const roleRow = event.target.closest?.("[data-permission-role-id]");
+    if (roleRow && groupFeatureState.dragRoleId) {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      previewPermissionRoleOrder(roleRow, event.clientY);
+      return;
+    }
     const row = event.target.closest?.("[data-group-row]");
     if (!row || !groupFeatureState.dragGroupId) return;
     event.preventDefault();
@@ -7843,6 +7957,14 @@ function bindGroupFeatureEvents() {
     row.parentElement?.insertBefore(dragging, event.clientY < rect.top + rect.height / 2 ? row : row.nextSibling);
   });
   document.addEventListener("dragend", (event) => {
+    const roleRow = event.target.closest?.("[data-permission-role-id]");
+    if (groupFeatureState.dragRoleId) {
+      roleRow?.classList.remove("permission-role-dragging");
+      const shouldSave = getPermissionRoleOrderFromDom().join("|") !== groupFeatureState.dragRoleStartOrder.join("|");
+      groupFeatureState.dragRoleId = "";
+      if (shouldSave) void savePermissionRoleOrder();
+      return;
+    }
     const row = event.target.closest?.("[data-group-row]");
     row?.classList.remove("is-dragging");
     if (!groupFeatureState.dragGroupId) return;
@@ -8871,6 +8993,42 @@ async function reorderScheduleTableMember(draggedMemberId, targetMemberId, inser
   clearScheduleRangeSelection();
   renderAll();
   await forceSave();
+  return true;
+}
+
+async function moveScheduleTableMemberToDepartment(memberId, departmentId) {
+  const draggedMember = state.members.find((member) => member.id === memberId);
+  const targetDepartment = state.departments.find((department) => department.id === departmentId);
+  if (!draggedMember || !targetDepartment || getMemberHomeDeptId(draggedMember) === departmentId) {
+    return false;
+  }
+
+  const viewport = captureScheduleViewport();
+  const remainingMembers = state.members.filter((member) => member.id !== memberId);
+  const departmentOrder = new Map(state.departments.map((department, index) => [department.id, index]));
+  let insertionIndex = -1;
+
+  for (let index = remainingMembers.length - 1; index >= 0; index -= 1) {
+    if (getMemberHomeDeptId(remainingMembers[index]) === departmentId) {
+      insertionIndex = index + 1;
+      break;
+    }
+  }
+
+  if (insertionIndex < 0) {
+    const targetOrder = departmentOrder.get(departmentId) ?? Number.MAX_SAFE_INTEGER;
+    insertionIndex = remainingMembers.findIndex((member) => {
+      const memberOrder = departmentOrder.get(getMemberHomeDeptId(member)) ?? Number.MAX_SAFE_INTEGER;
+      return memberOrder > targetOrder;
+    });
+    if (insertionIndex < 0) insertionIndex = remainingMembers.length;
+  }
+
+  remainingMembers.splice(insertionIndex, 0, { ...draggedMember, deptId: departmentId });
+  state.members = remainingMembers;
+  currentMember = resolveCurrentMember();
+  clearScheduleRangeSelection();
+  await finishScheduleTableOrderChange(viewport);
   return true;
 }
 ;
@@ -11242,6 +11400,38 @@ function bindScheduleSessionEvents() {
  * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
  */
 
+let toolbarRapidEditKey = "";
+let toolbarRapidEditAt = 0;
+let toolbarRapidEditOpenedAt = 0;
+
+function openToolbarChipEditor(type, id) {
+  if (!id || (type !== "shift" && type !== "leave")) return false;
+  if (!canEditSchedule()) {
+    promptManagerAccess(`修改${type === "shift" ? "班別" : "假別"}需先登入主管帳號`);
+    return true;
+  }
+  toolbarRapidEditOpenedAt = Date.now();
+  state.selected = { type, id };
+  renderToolbar();
+  renderTable();
+  if (type === "shift") openShiftFormModal("edit", id);
+  else openNamedColorFormModal("leave", "edit", id);
+  return true;
+}
+
+function handleToolbarChipClick(type, id) {
+  if (!id || (type !== "shift" && type !== "leave")) return false;
+  const now = Date.now();
+  const key = `${type}:${id}`;
+  const rapidSecondClick = key === toolbarRapidEditKey && now - toolbarRapidEditAt <= 550;
+  toolbarRapidEditKey = key;
+  toolbarRapidEditAt = now;
+  if (!rapidSecondClick) return false;
+  toolbarRapidEditKey = "";
+  toolbarRapidEditAt = 0;
+  return openToolbarChipEditor(type, id);
+}
+
 async function openScheduleMemberEditor(memberId) {
   if (!memberId || !canManageMembersInCurrentGroup()) {
     return;
@@ -11482,7 +11672,10 @@ function bindDelegatedClickEvents() {
       return;
     }
     if (target.dataset.chipType !== undefined) {
-      selectChip(target.dataset.chipType, target.dataset.chipId || null);
+      const chipType = target.dataset.chipType || "";
+      const chipId = target.dataset.chipId || "";
+      if (handleToolbarChipClick(chipType, chipId)) return;
+      selectChip(chipType, chipId || null);
       return;
     }
     if (target.dataset.openItemColor) {
@@ -11605,6 +11798,15 @@ function bindDelegatedClickEvents() {
   });
 
   document.body.addEventListener("dblclick", async (event) => {
+    const toolbarChip = event.target.closest('#shiftChips [data-chip-type="shift"][data-chip-id], #leaveChips [data-chip-type="leave"][data-chip-id]');
+    if (toolbarChip) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (Date.now() - toolbarRapidEditOpenedAt > 700) {
+        openToolbarChipEditor(toolbarChip.dataset.chipType || "", toolbarChip.dataset.chipId || "");
+      }
+      return;
+    }
     const shiftMember = event.target.closest("[data-shift-schedule-member]");
     if (shiftMember) {
       const memberId = shiftMember.dataset.shiftScheduleMember || "";
@@ -11886,6 +12088,13 @@ function bindDragAndDropEvents() {
       previewScheduleShiftOption(scheduleShiftOption, event.clientY);
       return;
     }
+    const emptyDepartmentTarget = event.target.closest("[data-table-empty-department-id]");
+    if (emptyDepartmentTarget && dragScheduleTableMemberId && canDragScheduleOrder) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      markDragPreviewTarget(emptyDepartmentTarget);
+      return;
+    }
     const memberTarget = event.target.closest("[data-drop-member]");
     if (memberTarget && dragMemberId) {
       event.preventDefault();
@@ -11944,6 +12153,21 @@ function bindDragAndDropEvents() {
       syncScheduleShiftSummary();
       clearDragPreviewState();
       dragScheduleShiftId = "";
+      return;
+    }
+    const emptyDepartmentTarget = event.target.closest("[data-table-empty-department-id]");
+    if (emptyDepartmentTarget && dragScheduleTableMemberId && canDragScheduleOrder) {
+      event.preventDefault();
+      const memberId = dragScheduleTableMemberId;
+      const departmentId = emptyDepartmentTarget.dataset.tableEmptyDepartmentId || "";
+      clearDragPreviewState();
+      dragScheduleTableMemberId = "";
+      try {
+        await moveScheduleTableMemberToDepartment(memberId, departmentId);
+      } catch (error) {
+        setSaveStatus(`移動人員失敗：${error.message}`);
+        renderAll();
+      }
       return;
     }
     const memberTarget = event.target.closest("[data-drop-member]");

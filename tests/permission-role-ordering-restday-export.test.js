@@ -6,30 +6,25 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("權限角色拖曳在 drop 或 dragend 都會立即持久化，並同步人員權限選單順序", () => {
-  const ordering = read("src/renderer/permission-role-ordering.mjs");
-  const config = read("src/renderer/app-config.js");
+test("權限角色拖曳由正式 renderer 立即持久化，並共用人員權限選單順序", () => {
+  const permissions = read("src/renderer/renderer-groups-permissions-archive.js");
 
-  assert.match(config, /permission-role-ordering\.mjs\?v=20260810-role-sort-v2/);
-  assert.match(ordering, /dragStartOrder = getOrderedRoleIds\(table\)/);
-  assert.match(ordering, /body\.addEventListener\("drop"/);
-  assert.match(ordering, /body\.addEventListener\("dragend"/);
-  assert.match(ordering, /shouldPersist = !dropHandled && changed/);
-  assert.match(ordering, /reorderSettings\("access-role", orderedIds\)/);
-  assert.match(ordering, /function syncRoleSelectOrder\(scope = document\)/);
-  assert.match(ordering, /state\.accessRoles = orderedRoles/);
+  assert.match(permissions, /dragRoleStartOrder = getPermissionRoleOrderFromDom\(\)/);
+  assert.match(permissions, /previewPermissionRoleOrder\(roleRow, event\.clientY\)/);
+  assert.match(permissions, /document\.addEventListener\("dragend"/);
+  assert.match(permissions, /reorderSettings\("access-role", orderedIds\)/);
+  assert.match(permissions, /state\.accessRoles = getAllRoles\(\)/);
+  assert.match(permissions, /function renderMemberCustomRoleOptions\(member\)[\s\S]*const roles = getAllRoles\(\)/);
 });
 
 test("班別與假別區塊底部不保留多餘間距", () => {
-  const toolbar = read("src/renderer/toolbar-compact.mjs");
-  const ordering = read("src/renderer/permission-role-ordering.mjs");
-  const config = read("src/renderer/app-config.js");
+  const css = read("src/renderer/css/pages.css");
+  const permissions = read("src/renderer/renderer-groups-permissions-archive.js");
 
-  assert.match(config, /toolbar-compact\.mjs\?v=20260810-toolbar-section-spacing/);
-  assert.match(toolbar, /\.toolbar-category-group\s*\{[^}]*padding:\s*3px 6px 0;/);
-  assert.match(toolbar, /\.toolbar-category-group > \.toolbar-section-combined,[\s\S]*?padding:\s*4px 0 0\s*!important;/);
-  assert.match(toolbar, /\.toolbar-category-group > \.toolbar-section-leave\s*\{[^}]*margin-top:\s*0;/);
-  assert.doesNotMatch(ordering, /toolbar-floating-card/);
+  assert.match(css, /\.toolbar-category-group\s*\{[^}]*padding:\s*3px 6px 0;/);
+  assert.match(css, /\.toolbar-category-group > \.toolbar-section-combined,[\s\S]*?padding:\s*4px 0 0\s*!important;/);
+  assert.match(css, /\.toolbar-category-group > \.toolbar-section-leave\s*\{[^}]*margin-top:\s*0;/);
+  assert.doesNotMatch(permissions, /toolbar-floating-card/);
 });
 
 test("班表頁匯出加班維持只匯出明確加班設定", () => {

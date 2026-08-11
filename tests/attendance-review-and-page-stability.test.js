@@ -27,7 +27,7 @@ test("簽到審核使用一致班表圖示與三個單行 SVG 操作", () => {
   assert.match(views, /data-view-attendance-history[\s\S]*?<svg/);
   assert.equal(views.includes(">編輯</button>"), false);
   assert.equal(views.includes(">未審</button>"), false);
-  assert.match(css, /\.attendance-review-table \.attendance-schedule-icon-col[\s\S]*?width: var\(--day-col-width\)/);
+  assert.match(css, /\.attendance-review-table \.attendance-schedule-icon-col[\s\S]*?width: 48px/);
   assert.match(css, /\.attendance-review-table \.personal-record-schedule-cell \.seg-label[\s\S]*?color: inherit/);
   assert.match(css, /\.attendance-review-row-actions[\s\S]*?flex-wrap: nowrap/);
   assert.match(css, /\.attendance-review-table \.attendance-review-check-col[\s\S]*?width: 30px/);

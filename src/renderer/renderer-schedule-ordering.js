@@ -87,3 +87,39 @@ async function reorderScheduleTableMember(draggedMemberId, targetMemberId, inser
   await forceSave();
   return true;
 }
+
+async function moveScheduleTableMemberToDepartment(memberId, departmentId) {
+  const draggedMember = state.members.find((member) => member.id === memberId);
+  const targetDepartment = state.departments.find((department) => department.id === departmentId);
+  if (!draggedMember || !targetDepartment || getMemberHomeDeptId(draggedMember) === departmentId) {
+    return false;
+  }
+
+  const viewport = captureScheduleViewport();
+  const remainingMembers = state.members.filter((member) => member.id !== memberId);
+  const departmentOrder = new Map(state.departments.map((department, index) => [department.id, index]));
+  let insertionIndex = -1;
+
+  for (let index = remainingMembers.length - 1; index >= 0; index -= 1) {
+    if (getMemberHomeDeptId(remainingMembers[index]) === departmentId) {
+      insertionIndex = index + 1;
+      break;
+    }
+  }
+
+  if (insertionIndex < 0) {
+    const targetOrder = departmentOrder.get(departmentId) ?? Number.MAX_SAFE_INTEGER;
+    insertionIndex = remainingMembers.findIndex((member) => {
+      const memberOrder = departmentOrder.get(getMemberHomeDeptId(member)) ?? Number.MAX_SAFE_INTEGER;
+      return memberOrder > targetOrder;
+    });
+    if (insertionIndex < 0) insertionIndex = remainingMembers.length;
+  }
+
+  remainingMembers.splice(insertionIndex, 0, { ...draggedMember, deptId: departmentId });
+  state.members = remainingMembers;
+  currentMember = resolveCurrentMember();
+  clearScheduleRangeSelection();
+  await finishScheduleTableOrderChange(viewport);
+  return true;
+}

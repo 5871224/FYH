@@ -8,7 +8,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 test("群組設定單位欄使用可換行膠囊標籤並取得主要寬度", () => {
   const renderer = read("src/renderer/renderer-groups-permissions-archive.js");
-  const css = read("src/renderer/groups.css");
+  const css = read("src/renderer/css/pages.css");
   const spec = read("規格書.md");
 
   assert.match(renderer, /function renderGroupUnitTags\(group\)/);

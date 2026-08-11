@@ -1,3 +1,41 @@
+function getSelectedToolbarItem() {
+  const type = state?.selected?.type || "";
+  const id = state?.selected?.id || "";
+  if (!id || (type !== "shift" && type !== "leave")) return null;
+  const item = getItem(type, id);
+  return item ? { type, item } : null;
+}
+
+function syncSelectedToolbarPreview() {
+  const preview = document.getElementById("toolbarSelectedPreview");
+  if (!preview) return;
+  const selected = getSelectedToolbarItem();
+  if (!selected) {
+    preview.hidden = true;
+    preview.textContent = "";
+    preview.removeAttribute("title");
+    preview.removeAttribute("aria-label");
+    preview.style.backgroundColor = "";
+    preview.style.color = "";
+    preview.style.borderColor = "";
+    return;
+  }
+  const { type, item } = selected;
+  const categoryLabel = type === "shift" ? "班別" : "假別";
+  const color = item.color || "#888780";
+  const name = item.name || categoryLabel;
+  preview.hidden = false;
+  preview.style.backgroundColor = color;
+  preview.style.color = getItemTextColor(item, color);
+  preview.style.borderColor = color;
+  preview.title = `已選擇${categoryLabel}：${name}`;
+  preview.setAttribute("aria-label", preview.title);
+  preview.replaceChildren(Object.assign(document.createElement("span"), {
+    className: "toolbar-selected-preview-label",
+    textContent: name
+  }));
+}
+
 function renderDeptFilter() {
   const select = document.getElementById("deptFilter");
   const departments = state.departments.filter((department) => isDepartmentVisibleInScheduleRange(department));
@@ -62,6 +100,7 @@ function renderToolbar() {
   renderChips("leaveChips", "leave", state.leaves.filter((item) => !item.hiddenFromToolbar));
   renderChips("overtimeChips", "overtime", state.overtime.filter((item) => !item.hiddenFromToolbar));
   syncRoleUi();
+  syncSelectedToolbarPreview();
 }
 
 function memberMatchesSelectedShift(member) {
