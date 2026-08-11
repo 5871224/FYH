@@ -1,0 +1,72 @@
+name: Attendance Review Canonical Run
+
+on:
+  push:
+    branches:
+      - chore/attendance-review-speed-20260811
+
+permissions:
+  contents: write
+
+jobs:
+  canonicalize:
+    name: Validate and commit attendance review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Apply canonical source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re, textwrap
+          source = Path('.github/workflows/attendance-review-canonical-temp.yml').read_text(encoding='utf-8')
+          match = re.search(r'      - name: Update canonical sources\n        shell: bash\n        run: \|\n([\s\S]*?)\n      - name: Rebuild and validate', source)
+          if not match:
+              raise SystemExit('cannot extract canonical update script')
+          Path('/tmp/apply-attendance-review.sh').write_text(textwrap.dedent(match.group(1)) + '\n', encoding='utf-8')
+          PY
+          bash /tmp/apply-attendance-review.sh
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/attendance-review-fast-actions.test.js')
+          text = path.read_text(encoding='utf-8')
+          old = '  const helperSource = webApi.match(/function subtractOvertimeHoursFromClockTime\\(value, hours\\) \\{[\\s\\S]*?\\n  \\}/)?.[0] || "";\n  assert.ok(helperSource);'
+          new = '  const helperStart = webApi.indexOf("function subtractOvertimeHoursFromClockTime");\n  const helperEnd = webApi.indexOf("\\n  function downloadBlob", helperStart);\n  const helperSource = webApi.slice(helperStart, helperEnd).trim();\n  assert.ok(helperStart >= 0 && helperEnd > helperStart);\n  assert.ok(helperSource);'
+          if old not in text:
+              raise SystemExit('cannot repair helper extraction test')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Rebuild and validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run web:publish
+          rm -f .github/workflows/attendance-review-canonical-temp.yml
+          rm -f .github/workflows/attendance-review-canonical-run.yml
+          npm run ci:check
+
+      - name: Commit canonical update
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/attendance-review-canonical-temp.yml
+          rm -f .github/workflows/attendance-review-canonical-run.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --stat
+          git commit -m "修正休例日加班匯出並加速簽到審核"
+          git push origin HEAD:${GITHUB_REF_NAME}
