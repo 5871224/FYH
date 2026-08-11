@@ -4,7 +4,7 @@ exit_status=1
 384-# Subtest: 儲存庫只保留單一正式 GitHub Actions workflow
 385:not ok 61 - 儲存庫只保留單一正式 GitHub Actions workflow
 386-  ---
-387-  duration_ms: 3.748832
+387-  duration_ms: 27.846292
 388-  type: 'test'
 389-  location: '/home/runner/work/FYH/FYH/tests/github-actions-hygiene.test.js:14:1'
 390-  failureType: 'testCodeFailure'
@@ -36,205 +36,169 @@ exit_status=1
 416-ok 62 - 正式 workflow 只驗證，不重複部署 GitHub Pages
 417-  ---
 --
-432-  ...
-433-# Subtest: 群組設定單位欄使用可換行膠囊標籤並取得主要寬度
-434:not ok 65 - 群組設定單位欄使用可換行膠囊標籤並取得主要寬度
-435-  ---
-436-  duration_ms: 1.291784
-437-  type: 'test'
-438-  location: '/home/runner/work/FYH/FYH/tests/group-settings-unit-tags.test.js:9:1'
-439-  failureType: 'testCodeFailure'
-440-  error: "ENOENT: no such file or directory, open '/home/runner/work/FYH/FYH/src/renderer/groups.css'"
-441-  code: 'ENOENT'
-442-  stack: |-
-443-    Object.readFileSync (node:fs:440:20)
-444-    read (/home/runner/work/FYH/FYH/tests/group-settings-unit-tags.test.js:7:27)
-445-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/group-settings-unit-tags.test.js:11:15)
-446-    Test.runInAsyncScope (node:async_hooks:214:14)
-447-    Test.run (node:internal/test_runner/test:1047:25)
-448-    Test.start (node:internal/test_runner/test:944:17)
-449-    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
-450-  ...
-451-# Subtest: 首頁只讀最小群組資格，不在登入後預載完整班表
-452-ok 66 - 首頁只讀最小群組資格，不在登入後預載完整班表
-453-  ---
-454-  duration_ms: 4.850469
-455-  type: 'test'
-456-  ...
-457-# Subtest: 簽到簿不再使用 v2 或舊審核 UI 標記
-458-ok 67 - 簽到簿不再使用 v2 或舊審核 UI 標記
-459-  ---
-460-  duration_ms: 10.678229
-461-  type: 'test'
-462-  ...
-463-# Subtest: 簽到簿篩選只由正式記錄事件處理器更新並重新載入
-464-ok 68 - 簽到簿篩選只由正式記錄事件處理器更新並重新載入
-465-  ---
-466-  duration_ms: 0.404816
+558-  ...
+559-# Subtest: 單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px
+560:not ok 86 - 單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px
+561-  ---
+562-  duration_ms: 1.943794
+563-  type: 'test'
+564-  location: '/home/runner/work/FYH/FYH/tests/member-order-and-department-width.test.js:10:1'
+565-  failureType: 'testCodeFailure'
+566-  error: |-
+567-    Expected values to be strictly equal:
+568-    
+569-    true !== false
+570-    
+571-  code: 'ERR_ASSERTION'
+572-  name: 'AssertionError'
+573-  expected: false
+574-  actual: true
+575-  operator: 'strictEqual'
+576-  stack: |-
+577-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/member-order-and-department-width.test.js:12:10)
+578-    Test.runInAsyncScope (node:async_hooks:214:14)
+579-    Test.run (node:internal/test_runner/test:1047:25)
+580-    Test.start (node:internal/test_runner/test:944:17)
+581-    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+582-  ...
+583-# Subtest: 人員設定應直接由正式模組輸出第一欄拖曳把手
+584-ok 87 - 人員設定應直接由正式模組輸出第一欄拖曳把手
+585-  ---
+586-  duration_ms: 0.567385
+587-  type: 'test'
+588-  ...
+589-# Subtest: 拖曳人員只調整人員順序並重新開啟人員設定
+590-ok 88 - 拖曳人員只調整人員順序並重新開啟人員設定
+591-  ---
+592-  duration_ms: 4.017652
 --
-570-  ...
-571-# Subtest: 單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px
-572:not ok 86 - 單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px
-573-  ---
-574-  duration_ms: 1.591195
-575-  type: 'test'
-576-  location: '/home/runner/work/FYH/FYH/tests/member-order-and-department-width.test.js:10:1'
-577-  failureType: 'testCodeFailure'
-578-  error: |-
-579-    Expected values to be strictly equal:
-580-    
-581-    true !== false
-582-    
-583-  code: 'ERR_ASSERTION'
-584-  name: 'AssertionError'
-585-  expected: false
-586-  actual: true
-587-  operator: 'strictEqual'
-588-  stack: |-
-589-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/member-order-and-department-width.test.js:12:10)
-590-    Test.runInAsyncScope (node:async_hooks:214:14)
-591-    Test.run (node:internal/test_runner/test:1047:25)
-592-    Test.start (node:internal/test_runner/test:944:17)
-593-    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
-594-  ...
-595-# Subtest: 人員設定應直接由正式模組輸出第一欄拖曳把手
-596-ok 87 - 人員設定應直接由正式模組輸出第一欄拖曳把手
-597-  ---
-598-  duration_ms: 0.465527
-599-  type: 'test'
-600-  ...
-601-# Subtest: 拖曳人員只調整人員順序並重新開啟人員設定
-602-ok 88 - 拖曳人員只調整人員順序並重新開啟人員設定
-603-  ---
-604-  duration_ms: 3.107509
---
-660-  ...
-661-# Subtest: 權限設定的權限項目使用可換行膠囊標籤並取得主要寬度
-662:not ok 98 - 權限設定的權限項目使用可換行膠囊標籤並取得主要寬度
-663-  ---
-664-  duration_ms: 1.802196
-665-  type: 'test'
-666-  location: '/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:9:1'
-667-  failureType: 'testCodeFailure'
-668-  error: "ENOENT: no such file or directory, open '/home/runner/work/FYH/FYH/src/renderer/groups.css'"
-669-  code: 'ENOENT'
-670-  stack: |-
-671-    Object.readFileSync (node:fs:440:20)
-672-    read (/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:7:27)
-673-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:11:15)
-674-    Test.runInAsyncScope (node:async_hooks:214:14)
-675-    Test.run (node:internal/test_runner/test:1047:25)
-676-    Test.start (node:internal/test_runner/test:944:17)
-677-    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
-678-  ...
-679-# Subtest: 首次載入班表顯示圓形載入動畫
-680:not ok 99 - 首次載入班表顯示圓形載入動畫
-681-  ---
-682-  duration_ms: 0.416271
-683-  type: 'test'
-684-  location: '/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:24:1'
-685-  failureType: 'testCodeFailure'
-686-  error: "ENOENT: no such file or directory, open '/home/runner/work/FYH/FYH/src/renderer/groups.css'"
-687-  code: 'ENOENT'
-688-  stack: |-
-689-    Object.readFileSync (node:fs:440:20)
-690-    read (/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:7:27)
-691-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:27:15)
-692-    Test.runInAsyncScope (node:async_hooks:214:14)
-693-    Test.run (node:internal/test_runner/test:1047:25)
-694-    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
-695-    Test.postRun (node:internal/test_runner/test:1173:19)
-696-    Test.run (node:internal/test_runner/test:1101:12)
-697-    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+648-  ...
+649-# Subtest: 權限設定的權限項目使用可換行膠囊標籤並取得主要寬度
+650:not ok 98 - 權限設定的權限項目使用可換行膠囊標籤並取得主要寬度
+651-  ---
+652-  duration_ms: 1.768062
+653-  type: 'test'
+654-  location: '/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:9:1'
+655-  failureType: 'testCodeFailure'
+656-  error: "ENOENT: no such file or directory, open '/home/runner/work/FYH/FYH/src/renderer/groups.css'"
+657-  code: 'ENOENT'
+658-  stack: |-
+659-    Object.readFileSync (node:fs:440:20)
+660-    read (/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:7:27)
+661-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:11:15)
+662-    Test.runInAsyncScope (node:async_hooks:214:14)
+663-    Test.run (node:internal/test_runner/test:1047:25)
+664-    Test.start (node:internal/test_runner/test:944:17)
+665-    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+666-  ...
+667-# Subtest: 首次載入班表顯示圓形載入動畫
+668:not ok 99 - 首次載入班表顯示圓形載入動畫
+669-  ---
+670-  duration_ms: 0.438613
+671-  type: 'test'
+672-  location: '/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:24:1'
+673-  failureType: 'testCodeFailure'
+674-  error: "ENOENT: no such file or directory, open '/home/runner/work/FYH/FYH/src/renderer/groups.css'"
+675-  code: 'ENOENT'
+676-  stack: |-
+677-    Object.readFileSync (node:fs:440:20)
+678-    read (/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:7:27)
+679-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:27:15)
+680-    Test.runInAsyncScope (node:async_hooks:214:14)
+681-    Test.run (node:internal/test_runner/test:1047:25)
+682-    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+683-    Test.postRun (node:internal/test_runner/test:1173:19)
+684-    Test.run (node:internal/test_runner/test:1101:12)
+685-    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+686-  ...
+687-# Subtest: 個人記錄上下班打卡按鈕置中左右併排並加高
+688-ok 100 - 個人記錄上下班打卡按鈕置中左右併排並加高
+689-  ---
+690-  duration_ms: 1.71268
+691-  type: 'test'
+692-  ...
+693-# Subtest: 發布版保留個人記錄打卡按鈕版面
+694-ok 101 - 發布版保留個人記錄打卡按鈕版面
+695-  ---
+696-  duration_ms: 1.423229
+697-  type: 'test'
 698-  ...
-699-# Subtest: 個人記錄上下班打卡按鈕置中左右併排並加高
-700-ok 100 - 個人記錄上下班打卡按鈕置中左右併排並加高
-701-  ---
-702-  duration_ms: 2.437566
-703-  type: 'test'
-704-  ...
-705-# Subtest: 發布版保留個人記錄打卡按鈕版面
-706-ok 101 - 發布版保留個人記錄打卡按鈕版面
-707-  ---
-708-  duration_ms: 1.999338
-709-  type: 'test'
-710-  ...
-711-# Subtest: 個人記錄表格加寬打卡欄並保留完整審核欄
-712-ok 102 - 個人記錄表格加寬打卡欄並保留完整審核欄
+699-# Subtest: 個人記錄表格加寬打卡欄並保留完整審核欄
+700-ok 102 - 個人記錄表格加寬打卡欄並保留完整審核欄
 --
-1412-  ...
-1413-# Subtest: 班表週捲動與例假排班顯示具有正式程式契約
-1414:not ok 219 - 班表週捲動與例假排班顯示具有正式程式契約
-1415-  ---
-1416-  duration_ms: 7.548325
-1417-  type: 'test'
-1418-  location: '/home/runner/work/FYH/FYH/tests/schedule-ui-update.test.js:28:1'
-1419-  failureType: 'testCodeFailure'
-1420-  error: |-
-1421-    The input did not match the regular expression /\.toolbar-floating-card \{[\s\S]*?grid-template-columns: 44px minmax\(0, 1fr\);/. Input:
-1422-    
-1423-    '/* 頁面專屬樣式：僅放無法抽成共用元件的局部規則。 */\n' +
-1424-      '\n' +
-1425-      '/* 打卡頁 */\n' +
-1426-      '/* 打卡頁細節調整：縮小手機打卡按鈕、放大加班申請標籤並維持緊湊單行備註。 */\n' +
-1427-      '.overtime-use-label {\n' +
-1428-      '  display: inline-flex;\n' +
-1429-      '  align-items: center;\n' +
-1430-      '  gap: 6px;\n' +
-1431-      '  font-size: 20px;\n' +
-1432-      '  line-height: 1.3;\n' +
-1433-      '}\n' +
-1434-      '\n' +
-1435-      '.overtime-estimate-text {\n' +
-1436-      '  line-height: 1.55;\n' +
-1437-      '}\n' +
-1438-      '\n' +
-1439-      '.overtime-hours-grid .form-row-wide {\n' +
-1440-      '  grid-column: 1 / -1;\n' +
-1441-      '}\n' +
-1442-      '\n' +
-1443-      '.overtime-hours-grid input[type="text"] {\n' +
-1444-      '  width: 100%;\n' +
-1445-      '  min-width: 0;\n' +
-1446-      '}\n' +
+1400-  ...
+1401-# Subtest: 班表週捲動與例假排班顯示具有正式程式契約
+1402:not ok 219 - 班表週捲動與例假排班顯示具有正式程式契約
+1403-  ---
+1404-  duration_ms: 5.068165
+1405-  type: 'test'
+1406-  location: '/home/runner/work/FYH/FYH/tests/schedule-ui-update.test.js:28:1'
+1407-  failureType: 'testCodeFailure'
+1408-  error: |-
+1409-    The input did not match the regular expression /\.toolbar-floating-card \{[\s\S]*?grid-template-columns: 44px minmax\(0, 1fr\);/. Input:
+1410-    
+1411-    '/* 頁面專屬樣式：僅放無法抽成共用元件的局部規則。 */\n' +
+1412-      '\n' +
+1413-      '/* 打卡頁 */\n' +
+1414-      '/* 打卡頁細節調整：縮小手機打卡按鈕、放大加班申請標籤並維持緊湊單行備註。 */\n' +
+1415-      '.overtime-use-label {\n' +
+1416-      '  display: inline-flex;\n' +
+1417-      '  align-items: center;\n' +
+1418-      '  gap: 6px;\n' +
+1419-      '  font-size: 20px;\n' +
+1420-      '  line-height: 1.3;\n' +
+1421-      '}\n' +
+1422-      '\n' +
+1423-      '.overtime-estimate-text {\n' +
+1424-      '  line-height: 1.55;\n' +
+1425-      '}\n' +
+1426-      '\n' +
+1427-      '.overtime-hours-grid .form-row-wide {\n' +
+1428-      '  grid-column: 1 / -1;\n' +
+1429-      '}\n' +
+1430-      '\n' +
+1431-      '.overtime-hours-grid input[type="text"] {\n' +
+1432-      '  width: 100%;\n' +
+1433-      '  min-width: 0;\n' +
+1434-      '}\n' +
 --- final output ---
   ...
 # Subtest: 班別與假別重新渲染後仍可快速連點開啟修改
 ok 241 - 班別與假別重新渲染後仍可快速連點開啟修改
   ---
-  duration_ms: 0.398615
+  duration_ms: 0.304133
   type: 'test'
   ...
 # Subtest: 公開設定檢查不執行瀏覽器 DOM 初始化
 ok 242 - 公開設定檢查不執行瀏覽器 DOM 初始化
   ---
-  duration_ms: 0.248841
+  duration_ms: 0.243693
   type: 'test'
   ...
 # Subtest: unused members are physically deleted while history keeps the profile
 ok 243 - unused members are physically deleted while history keeps the profile
   ---
-  duration_ms: 3.022198
+  duration_ms: 1.9274
   type: 'test'
   ...
 # Subtest: unused shift leave and overtime masters are physically deleted
 ok 244 - unused shift leave and overtime masters are physically deleted
   ---
-  duration_ms: 1.176104
+  duration_ms: 0.864197
   type: 'test'
   ...
 # Subtest: unused departments are physically deleted while referenced history is retained
 ok 245 - unused departments are physically deleted while referenced history is retained
   ---
-  duration_ms: 1.192198
+  duration_ms: 0.794843
   type: 'test'
   ...
 1..245
 # tests 245
 # suites 0
-# pass 239
-# fail 6
+# pass 240
+# fail 5
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1898.618238
+# duration_ms 2287.610334
