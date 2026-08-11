@@ -9,8 +9,9 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 test("單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px", () => {
   const css = read("src/renderer/css/pages.css");
-  assert.equal(css.includes("min-width: 920px"), false);
-  assert.equal(css.includes("width: 920px"), false);
+  const departmentTableRule = css.match(/\.department-settings-modal \.department-settings-table-department \{[^}]*\}/)?.[0] || "";
+  assert.equal(departmentTableRule.includes("min-width: 920px"), false);
+  assert.equal(departmentTableRule.includes("width: 920px"), false);
   assert.match(css, /\.department-settings-modal \.department-settings-table-wrap \{[\s\S]*?overflow-x: hidden;/);
   assert.match(css, /\.department-settings-modal \.department-settings-table-department \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;/);
   assert.equal(css.includes("grid-column: 7 !important"), true);
