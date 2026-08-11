@@ -6,15 +6,18 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("權限設定角色表格第一欄提供拖曳排序並儲存排序", () => {
+test("權限設定角色表格第一欄由正式 renderer 提供拖曳排序並持久化", () => {
+  const permissions = read("src/renderer/renderer-groups-permissions-archive.js");
+  const css = read("src/renderer/css/pages.css");
   const config = read("src/renderer/app-config.js");
-  const ordering = read("src/renderer/permission-role-ordering.mjs");
 
-  assert.match(config, /permission-role-ordering\.mjs\?v=20260810-role-sort-v2/);
-  assert.match(ordering, /permission-role-drag-col/);
-  assert.match(ordering, /settings-order-drag-handle/);
-  assert.match(ordering, /dataset\.permissionRoleId/);
-  assert.match(ordering, /reorderSettings\("access-role", orderedIds\)/);
-  assert.match(ordering, /body\.addEventListener\("dragend"/);
-  assert.match(ordering, /new MutationObserver\(refreshRoleOrderingEnhancements\)/);
+  assert.doesNotMatch(config, /\.mjs|document\.write/);
+  assert.match(permissions, /permission-role-drag-col/);
+  assert.match(permissions, /settings-order-drag-handle/);
+  assert.match(permissions, /data-permission-role-id/);
+  assert.match(permissions, /getPermissionRoleOrderFromDom/);
+  assert.match(permissions, /reorderSettings\("access-role", orderedIds\)/);
+  assert.match(permissions, /document\.addEventListener\("dragend"/);
+  assert.match(css, /\.permission-settings-table \.permission-role-drag-col/);
+  assert.match(css, /tr\.permission-role-dragging/);
 });

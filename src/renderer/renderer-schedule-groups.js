@@ -53,7 +53,7 @@ function memberHasScheduledShiftInDepartment(member, departmentId) {
 }
 
 function getVisibleTableGroups() {
-  return state.departments
+  const groups = state.departments
     .filter((department) => isDepartmentVisibleInScheduleRange(department))
     .map((department) => ({
       department,
@@ -69,6 +69,8 @@ function getVisibleTableGroups() {
         }
         return memberHasScheduledShiftInDepartment(member, state.tableDeptScopeFilter);
       })
-    }))
-    .filter(({ members }) => members.length);
+    }));
+  return state.tableDeptScopeFilter === "all"
+    ? groups
+    : groups.filter(({ members }) => members.length);
 }

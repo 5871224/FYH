@@ -6,30 +6,27 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
-test("未隱藏且無人員的單位仍顯示並可參與班表拖曳", () => {
-  const config = read("src/renderer/app-config-base.mjs");
-  const docsConfig = read("docs/app-config-base.mjs");
-  assert.equal(docsConfig, config, "發布基礎設定必須與來源一致");
+test("未隱藏且無人員的單位由正式班表 renderer 顯示並可參與拖曳", () => {
+  const groups = read("src/renderer/renderer-schedule-groups.js");
+  const table = read("src/renderer/renderer-schedule-table.js");
 
-  assert.match(config, /getVisibleTableGroupsWithEmptyDepartments/);
-  assert.match(config, /groupsByDepartmentId/);
-  assert.match(config, /\{ department, members: \[\] \}/);
-  assert.match(config, /row\.dataset\.tableEmptyDepartmentId = department\.id/);
-  assert.match(config, /departmentCell\.dataset\.tableDepartmentId = department\.id/);
-  assert.match(config, /departmentCell\.draggable = true/);
-  assert.match(config, /className = "person-col empty-department-person-col"/);
-  assert.match(config, /cell\.dataset\.readonly = "true"/);
-  assert.doesNotThrow(() => new Function(config), "app-config-base.mjs 必須可解析");
+  assert.match(groups, /return state\.tableDeptScopeFilter === "all"[\s\S]*?groups/);
+  assert.match(table, /data-table-empty-department-id/);
+  assert.match(table, /data-table-department-id/);
+  assert.match(table, /draggable="true"/);
+  assert.match(table, /empty-department-person-col/);
+  assert.match(table, /data-readonly="true"/);
 });
 
 test("人員可拖入空單位並保存新的所屬單位", () => {
-  const config = read("src/renderer/app-config-base.mjs");
-  assert.match(config, /moveScheduleTableMemberToDepartment\(memberId, departmentId\)/);
-  assert.match(config, /remainingMembers\.splice\(insertionIndex, 0, \{ \.\.\.draggedMember, deptId: departmentId \}\)/);
-  assert.match(config, /finishScheduleTableOrderChange\(viewport\)/);
-  assert.match(config, /dragScheduleTableMemberId/);
-  assert.match(config, /closest\("\[data-table-empty-department-id\]"\)/);
-  assert.match(config, /markDragPreviewTarget\(target\)/);
+  const ordering = read("src/renderer/renderer-schedule-ordering.js");
+  const drag = read("src/renderer/renderer-events-drag.js");
+  assert.match(ordering, /moveScheduleTableMemberToDepartment\(memberId, departmentId\)/);
+  assert.match(ordering, /remainingMembers\.splice\(insertionIndex, 0, \{ \.\.\.draggedMember, deptId: departmentId \}\)/);
+  assert.match(ordering, /finishScheduleTableOrderChange\(viewport\)/);
+  assert.match(drag, /dragScheduleTableMemberId/);
+  assert.match(drag, /closest\("\[data-table-empty-department-id\]"\)/);
+  assert.match(drag, /moveScheduleTableMemberToDepartment\(memberId, departmentId\)/);
 });
 
 test("空單位顯示與拖曳不介入自動排班候選人運算", () => {

@@ -46,10 +46,30 @@ function renderTable() {
       html += `<tr><td class="empty-table" colspan="${days + 2 + (state.tableStatsVisible ? 1 : 0)}">${state.tableDeptScopeFilter === "all" ? "目前還沒有人員" : "目前週期沒有排到此單位班別的人員"}</td></tr>`;
     } else {
       groups.forEach(({ department, members }) => {
+        if (!members.length) {
+          const departmentDragAttrs = canEditScheduleOrder ? ` draggable="true" data-table-department-id="${escapeHtml(department.id)}"` : "";
+          const departmentEditAttrs = !canEditScheduleOrder && canEditDepartmentSettings
+            ? ` data-table-department-id="${escapeHtml(department.id)}"`
+            : "";
+          html += `<tr class="empty-department-row" data-table-empty-department-id="${escapeHtml(department.id)}" title="可將人員拖曳到此單位">`;
+          html += `<td class="dept-col${orderDragClass}"${departmentDragAttrs}${departmentEditAttrs}>${escapeHtml(department.name)}</td>`;
+          html += '<td class="person-col empty-department-person-col" aria-label="目前沒有所屬人員"></td>';
+          if (state.tableStatsVisible) {
+            html += '<td class="stats-col empty-department-stats-col"></td>';
+          }
+          visibleDates.forEach((dateString, dateIndex) => {
+            const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, dateIndex, days);
+            html += `<td class="cell inactive-cell empty-department-cell ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-date="${dateString}"><div class="cell-inner"></div></td>`;
+          });
+          html += "</tr>";
+          return;
+        }
         members.forEach((member, index) => {
           html += `<tr class="${member.payByDay ? "pay-daily-row" : ""}">`;
           if (index === 0) {
-            const departmentEditAttrs = canEditDepartmentSettings ? ` data-table-department-id="${escapeHtml(department.id)}"` : "";
+            const departmentEditAttrs = (canEditScheduleOrder || canEditDepartmentSettings)
+              ? ` data-table-department-id="${escapeHtml(department.id)}"`
+              : "";
             html += `<td class="dept-col${orderDragClass}"${draggableAttr} rowspan="${members.length}"${departmentEditAttrs}>${escapeHtml(department.name)}</td>`;
           }
           const memberEditAttrs = canEditMemberSettings

@@ -2,6 +2,38 @@
  * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
  */
 
+let toolbarRapidEditKey = "";
+let toolbarRapidEditAt = 0;
+let toolbarRapidEditOpenedAt = 0;
+
+function openToolbarChipEditor(type, id) {
+  if (!id || (type !== "shift" && type !== "leave")) return false;
+  if (!canEditSchedule()) {
+    promptManagerAccess(`修改${type === "shift" ? "班別" : "假別"}需先登入主管帳號`);
+    return true;
+  }
+  toolbarRapidEditOpenedAt = Date.now();
+  state.selected = { type, id };
+  renderToolbar();
+  renderTable();
+  if (type === "shift") openShiftFormModal("edit", id);
+  else openNamedColorFormModal("leave", "edit", id);
+  return true;
+}
+
+function handleToolbarChipClick(type, id) {
+  if (!id || (type !== "shift" && type !== "leave")) return false;
+  const now = Date.now();
+  const key = `${type}:${id}`;
+  const rapidSecondClick = key === toolbarRapidEditKey && now - toolbarRapidEditAt <= 550;
+  toolbarRapidEditKey = key;
+  toolbarRapidEditAt = now;
+  if (!rapidSecondClick) return false;
+  toolbarRapidEditKey = "";
+  toolbarRapidEditAt = 0;
+  return openToolbarChipEditor(type, id);
+}
+
 async function openScheduleMemberEditor(memberId) {
   if (!memberId || !canManageMembersInCurrentGroup()) {
     return;
@@ -242,7 +274,10 @@ function bindDelegatedClickEvents() {
       return;
     }
     if (target.dataset.chipType !== undefined) {
-      selectChip(target.dataset.chipType, target.dataset.chipId || null);
+      const chipType = target.dataset.chipType || "";
+      const chipId = target.dataset.chipId || "";
+      if (handleToolbarChipClick(chipType, chipId)) return;
+      selectChip(chipType, chipId || null);
       return;
     }
     if (target.dataset.openItemColor) {
@@ -365,6 +400,15 @@ function bindDelegatedClickEvents() {
   });
 
   document.body.addEventListener("dblclick", async (event) => {
+    const toolbarChip = event.target.closest('#shiftChips [data-chip-type="shift"][data-chip-id], #leaveChips [data-chip-type="leave"][data-chip-id]');
+    if (toolbarChip) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (Date.now() - toolbarRapidEditOpenedAt > 700) {
+        openToolbarChipEditor(toolbarChip.dataset.chipType || "", toolbarChip.dataset.chipId || "");
+      }
+      return;
+    }
     const shiftMember = event.target.closest("[data-shift-schedule-member]");
     if (shiftMember) {
       const memberId = shiftMember.dataset.shiftScheduleMember || "";

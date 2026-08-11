@@ -81,6 +81,13 @@ function bindDragAndDropEvents() {
       previewScheduleShiftOption(scheduleShiftOption, event.clientY);
       return;
     }
+    const emptyDepartmentTarget = event.target.closest("[data-table-empty-department-id]");
+    if (emptyDepartmentTarget && dragScheduleTableMemberId && canDragScheduleOrder) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      markDragPreviewTarget(emptyDepartmentTarget);
+      return;
+    }
     const memberTarget = event.target.closest("[data-drop-member]");
     if (memberTarget && dragMemberId) {
       event.preventDefault();
@@ -139,6 +146,21 @@ function bindDragAndDropEvents() {
       syncScheduleShiftSummary();
       clearDragPreviewState();
       dragScheduleShiftId = "";
+      return;
+    }
+    const emptyDepartmentTarget = event.target.closest("[data-table-empty-department-id]");
+    if (emptyDepartmentTarget && dragScheduleTableMemberId && canDragScheduleOrder) {
+      event.preventDefault();
+      const memberId = dragScheduleTableMemberId;
+      const departmentId = emptyDepartmentTarget.dataset.tableEmptyDepartmentId || "";
+      clearDragPreviewState();
+      dragScheduleTableMemberId = "";
+      try {
+        await moveScheduleTableMemberToDepartment(memberId, departmentId);
+      } catch (error) {
+        setSaveStatus(`移動人員失敗：${error.message}`);
+        renderAll();
+      }
       return;
     }
     const memberTarget = event.target.closest("[data-drop-member]");
