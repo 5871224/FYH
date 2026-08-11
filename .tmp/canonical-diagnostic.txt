@@ -1,0 +1,181 @@
+exit_status=1
+    
+    .permission-settings-table tr.permission-role-dragging {
+      opacity: 0.45;
+    }
+    
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/schedule-ui-update.test.js:54:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: 前一週與後一週只水平捲動，不切換八週資料範圍
+ok 220 - 前一週與後一週只水平捲動，不切換八週資料範圍
+  ---
+  duration_ms: 1.753043
+  type: 'test'
+  ...
+# Subtest: 一週水平距離以實際畫面七個日期欄計算
+ok 221 - 一週水平距離以實際畫面七個日期欄計算
+  ---
+  duration_ms: 0.387184
+  type: 'test'
+  ...
+# Subtest: 上下班表捲軸同步不得中斷主班表 smooth scroll
+ok 222 - 上下班表捲軸同步不得中斷主班表 smooth scroll
+  ---
+  duration_ms: 0.462467
+  type: 'test'
+  ...
+# Subtest: 前八週與後八週才切換完整班表期間
+ok 223 - 前八週與後八週才切換完整班表期間
+  ---
+  duration_ms: 0.386593
+  type: 'test'
+  ...
+# Subtest: 週導覽按鈕依實際水平捲動邊界啟用停用
+ok 224 - 週導覽按鈕依實際水平捲動邊界啟用停用
+  ---
+  duration_ms: 0.495887
+  type: 'test'
+  ...
+# Subtest: 規格書明定週導覽不改變八週資料範圍
+ok 225 - 規格書明定週導覽不改變八週資料範圍
+  ---
+  duration_ms: 0.740426
+  type: 'test'
+  ...
+# Subtest: 共用設定返回流程應在重新開頁後還原捲動位置
+ok 226 - 共用設定返回流程應在重新開頁後還原捲動位置
+  ---
+  duration_ms: 3.697183
+  type: 'test'
+  ...
+# Subtest: 刪除班別應先保存位置，成功更新後再還原
+ok 227 - 刪除班別應先保存位置，成功更新後再還原
+  ---
+  duration_ms: 1.81107
+  type: 'test'
+  ...
+# Subtest: 所有主要設定刪除流程都必須使用共用捲動還原
+ok 228 - 所有主要設定刪除流程都必須使用共用捲動還原
+  ---
+  duration_ms: 2.400208
+  type: 'test'
+  ...
+# Subtest: 設定列表應以完整內容寬度維持水平捲動後的表頭格式
+ok 229 - 設定列表應以完整內容寬度維持水平捲動後的表頭格式
+  ---
+  duration_ms: 1.876439
+  type: 'test'
+  ...
+# Subtest: 班表頁外層寬度固定在頁面內，水平移動留在表格捲動區
+ok 230 - 班表頁外層寬度固定在頁面內，水平移動留在表格捲動區
+  ---
+  duration_ms: 0.223406
+  type: 'test'
+  ...
+# Subtest: 班別假別加班刪除只走明確 RPC 契約
+ok 231 - 班別假別加班刪除只走明確 RPC 契約
+  ---
+  duration_ms: 1.412118
+  type: 'test'
+  ...
+# Subtest: 設定刪除失敗時不得先關閉視窗或先移除本機資料
+ok 232 - 設定刪除失敗時不得先關閉視窗或先移除本機資料
+  ---
+  duration_ms: 0.421806
+  type: 'test'
+  ...
+# Subtest: 個人記錄畫面使用正式狀態初始化來源
+ok 233 - 個人記錄畫面使用正式狀態初始化來源
+  ---
+  duration_ms: 1.249053
+  type: 'test'
+  ...
+# Subtest: 正式期間匯出直接整合於操作模組並使用共用月份天數函式
+ok 234 - 正式期間匯出直接整合於操作模組並使用共用月份天數函式
+  ---
+  duration_ms: 0.328756
+  type: 'test'
+  ...
+# Subtest: 架構檢查模式不得產生稽核報告檔
+ok 235 - 架構檢查模式不得產生稽核報告檔
+  ---
+  duration_ms: 214.509282
+  type: 'test'
+  ...
+# Subtest: 班表浮動工具列支援快速連點修改與選中項目圖示
+ok 236 - 班表浮動工具列支援快速連點修改與選中項目圖示
+  ---
+  duration_ms: 2.062299
+  type: 'test'
+  ...
+# Subtest: 班表浮動工具列使用正式 HTML 與 CSS 緊湊合併版面
+ok 237 - 班表浮動工具列使用正式 HTML 與 CSS 緊湊合併版面
+  ---
+  duration_ms: 1.813473
+  type: 'test'
+  ...
+# Subtest: 班別與假別移除提示但保留快速連點修改
+ok 238 - 班別與假別移除提示但保留快速連點修改
+  ---
+  duration_ms: 0.378651
+  type: 'test'
+  ...
+# Subtest: 正式前端不再發布或載入 mjs 後置覆寫模組
+ok 239 - 正式前端不再發布或載入 mjs 後置覆寫模組
+  ---
+  duration_ms: 1.60552
+  type: 'test'
+  ...
+# Subtest: 浮動工具列控制按鈕直接由正式 HTML 與 CSS 排列
+ok 240 - 浮動工具列控制按鈕直接由正式 HTML 與 CSS 排列
+  ---
+  duration_ms: 1.959424
+  type: 'test'
+  ...
+# Subtest: 班別與假別重新渲染後仍可快速連點開啟修改
+ok 241 - 班別與假別重新渲染後仍可快速連點開啟修改
+  ---
+  duration_ms: 0.385942
+  type: 'test'
+  ...
+# Subtest: 公開設定檢查不執行瀏覽器 DOM 初始化
+ok 242 - 公開設定檢查不執行瀏覽器 DOM 初始化
+  ---
+  duration_ms: 0.241034
+  type: 'test'
+  ...
+# Subtest: unused members are physically deleted while history keeps the profile
+ok 243 - unused members are physically deleted while history keeps the profile
+  ---
+  duration_ms: 1.947366
+  type: 'test'
+  ...
+# Subtest: unused shift leave and overtime masters are physically deleted
+ok 244 - unused shift leave and overtime masters are physically deleted
+  ---
+  duration_ms: 0.816802
+  type: 'test'
+  ...
+# Subtest: unused departments are physically deleted while referenced history is retained
+ok 245 - unused departments are physically deleted while referenced history is retained
+  ---
+  duration_ms: 0.804653
+  type: 'test'
+  ...
+1..245
+# tests 245
+# suites 0
+# pass 238
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1847.082632
