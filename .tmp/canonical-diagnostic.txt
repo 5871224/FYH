@@ -4,7 +4,7 @@ exit_status=1
 384-# Subtest: 儲存庫只保留單一正式 GitHub Actions workflow
 385:not ok 61 - 儲存庫只保留單一正式 GitHub Actions workflow
 386-  ---
-387-  duration_ms: 27.846292
+387-  duration_ms: 4.863905
 388-  type: 'test'
 389-  location: '/home/runner/work/FYH/FYH/tests/github-actions-hygiene.test.js:14:1'
 390-  failureType: 'testCodeFailure'
@@ -40,7 +40,7 @@ exit_status=1
 559-# Subtest: 單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px
 560:not ok 86 - 單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px
 561-  ---
-562-  duration_ms: 1.943794
+562-  duration_ms: 2.491835
 563-  type: 'test'
 564-  location: '/home/runner/work/FYH/FYH/tests/member-order-and-department-width.test.js:10:1'
 565-  failureType: 'testCodeFailure'
@@ -64,141 +64,87 @@ exit_status=1
 583-# Subtest: 人員設定應直接由正式模組輸出第一欄拖曳把手
 584-ok 87 - 人員設定應直接由正式模組輸出第一欄拖曳把手
 585-  ---
-586-  duration_ms: 0.567385
+586-  duration_ms: 0.754424
 587-  type: 'test'
 588-  ...
 589-# Subtest: 拖曳人員只調整人員順序並重新開啟人員設定
 590-ok 88 - 拖曳人員只調整人員順序並重新開啟人員設定
 591-  ---
-592-  duration_ms: 4.017652
+592-  duration_ms: 4.387051
 --
-648-  ...
-649-# Subtest: 權限設定的權限項目使用可換行膠囊標籤並取得主要寬度
-650:not ok 98 - 權限設定的權限項目使用可換行膠囊標籤並取得主要寬度
-651-  ---
-652-  duration_ms: 1.768062
-653-  type: 'test'
-654-  location: '/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:9:1'
-655-  failureType: 'testCodeFailure'
-656-  error: "ENOENT: no such file or directory, open '/home/runner/work/FYH/FYH/src/renderer/groups.css'"
-657-  code: 'ENOENT'
-658-  stack: |-
-659-    Object.readFileSync (node:fs:440:20)
-660-    read (/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:7:27)
-661-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:11:15)
-662-    Test.runInAsyncScope (node:async_hooks:214:14)
-663-    Test.run (node:internal/test_runner/test:1047:25)
-664-    Test.start (node:internal/test_runner/test:944:17)
-665-    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
-666-  ...
-667-# Subtest: 首次載入班表顯示圓形載入動畫
-668:not ok 99 - 首次載入班表顯示圓形載入動畫
-669-  ---
-670-  duration_ms: 0.438613
-671-  type: 'test'
-672-  location: '/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:24:1'
-673-  failureType: 'testCodeFailure'
-674-  error: "ENOENT: no such file or directory, open '/home/runner/work/FYH/FYH/src/renderer/groups.css'"
-675-  code: 'ENOENT'
-676-  stack: |-
-677-    Object.readFileSync (node:fs:440:20)
-678-    read (/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:7:27)
-679-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:27:15)
-680-    Test.runInAsyncScope (node:async_hooks:214:14)
-681-    Test.run (node:internal/test_runner/test:1047:25)
-682-    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
-683-    Test.postRun (node:internal/test_runner/test:1173:19)
-684-    Test.run (node:internal/test_runner/test:1101:12)
-685-    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
-686-  ...
-687-# Subtest: 個人記錄上下班打卡按鈕置中左右併排並加高
-688-ok 100 - 個人記錄上下班打卡按鈕置中左右併排並加高
-689-  ---
-690-  duration_ms: 1.71268
-691-  type: 'test'
-692-  ...
-693-# Subtest: 發布版保留個人記錄打卡按鈕版面
-694-ok 101 - 發布版保留個人記錄打卡按鈕版面
-695-  ---
-696-  duration_ms: 1.423229
-697-  type: 'test'
-698-  ...
-699-# Subtest: 個人記錄表格加寬打卡欄並保留完整審核欄
-700-ok 102 - 個人記錄表格加寬打卡欄並保留完整審核欄
---
-1400-  ...
-1401-# Subtest: 班表週捲動與例假排班顯示具有正式程式契約
-1402:not ok 219 - 班表週捲動與例假排班顯示具有正式程式契約
-1403-  ---
-1404-  duration_ms: 5.068165
-1405-  type: 'test'
-1406-  location: '/home/runner/work/FYH/FYH/tests/schedule-ui-update.test.js:28:1'
-1407-  failureType: 'testCodeFailure'
-1408-  error: |-
-1409-    The input did not match the regular expression /\.toolbar-floating-card \{[\s\S]*?grid-template-columns: 44px minmax\(0, 1fr\);/. Input:
-1410-    
-1411-    '/* 頁面專屬樣式：僅放無法抽成共用元件的局部規則。 */\n' +
-1412-      '\n' +
-1413-      '/* 打卡頁 */\n' +
-1414-      '/* 打卡頁細節調整：縮小手機打卡按鈕、放大加班申請標籤並維持緊湊單行備註。 */\n' +
-1415-      '.overtime-use-label {\n' +
-1416-      '  display: inline-flex;\n' +
-1417-      '  align-items: center;\n' +
-1418-      '  gap: 6px;\n' +
-1419-      '  font-size: 20px;\n' +
-1420-      '  line-height: 1.3;\n' +
-1421-      '}\n' +
-1422-      '\n' +
-1423-      '.overtime-estimate-text {\n' +
-1424-      '  line-height: 1.55;\n' +
-1425-      '}\n' +
-1426-      '\n' +
-1427-      '.overtime-hours-grid .form-row-wide {\n' +
-1428-      '  grid-column: 1 / -1;\n' +
-1429-      '}\n' +
-1430-      '\n' +
-1431-      '.overtime-hours-grid input[type="text"] {\n' +
-1432-      '  width: 100%;\n' +
-1433-      '  min-width: 0;\n' +
-1434-      '}\n' +
+1374-  ...
+1375-# Subtest: 班表週捲動與例假排班顯示具有正式程式契約
+1376:not ok 219 - 班表週捲動與例假排班顯示具有正式程式契約
+1377-  ---
+1378-  duration_ms: 3.375603
+1379-  type: 'test'
+1380-  location: '/home/runner/work/FYH/FYH/tests/schedule-ui-update.test.js:28:1'
+1381-  failureType: 'testCodeFailure'
+1382-  error: |-
+1383-    The input did not match the regular expression /\.toolbar-floating-card \{[\s\S]*?grid-template-columns: 44px minmax\(0, 1fr\);/. Input:
+1384-    
+1385-    '/* 頁面專屬樣式：僅放無法抽成共用元件的局部規則。 */\n' +
+1386-      '\n' +
+1387-      '/* 打卡頁 */\n' +
+1388-      '/* 打卡頁細節調整：縮小手機打卡按鈕、放大加班申請標籤並維持緊湊單行備註。 */\n' +
+1389-      '.overtime-use-label {\n' +
+1390-      '  display: inline-flex;\n' +
+1391-      '  align-items: center;\n' +
+1392-      '  gap: 6px;\n' +
+1393-      '  font-size: 20px;\n' +
+1394-      '  line-height: 1.3;\n' +
+1395-      '}\n' +
+1396-      '\n' +
+1397-      '.overtime-estimate-text {\n' +
+1398-      '  line-height: 1.55;\n' +
+1399-      '}\n' +
+1400-      '\n' +
+1401-      '.overtime-hours-grid .form-row-wide {\n' +
+1402-      '  grid-column: 1 / -1;\n' +
+1403-      '}\n' +
+1404-      '\n' +
+1405-      '.overtime-hours-grid input[type="text"] {\n' +
+1406-      '  width: 100%;\n' +
+1407-      '  min-width: 0;\n' +
+1408-      '}\n' +
 --- final output ---
   ...
 # Subtest: 班別與假別重新渲染後仍可快速連點開啟修改
 ok 241 - 班別與假別重新渲染後仍可快速連點開啟修改
   ---
-  duration_ms: 0.304133
+  duration_ms: 0.321037
   type: 'test'
   ...
 # Subtest: 公開設定檢查不執行瀏覽器 DOM 初始化
 ok 242 - 公開設定檢查不執行瀏覽器 DOM 初始化
   ---
-  duration_ms: 0.243693
+  duration_ms: 0.218934
   type: 'test'
   ...
 # Subtest: unused members are physically deleted while history keeps the profile
 ok 243 - unused members are physically deleted while history keeps the profile
   ---
-  duration_ms: 1.9274
+  duration_ms: 2.989565
   type: 'test'
   ...
 # Subtest: unused shift leave and overtime masters are physically deleted
 ok 244 - unused shift leave and overtime masters are physically deleted
   ---
-  duration_ms: 0.864197
+  duration_ms: 1.13857
   type: 'test'
   ...
 # Subtest: unused departments are physically deleted while referenced history is retained
 ok 245 - unused departments are physically deleted while referenced history is retained
   ---
-  duration_ms: 0.794843
+  duration_ms: 0.930787
   type: 'test'
   ...
 1..245
 # tests 245
 # suites 0
-# pass 240
-# fail 5
+# pass 242
+# fail 3
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 2287.610334
+# duration_ms 1880.614192
