@@ -65,12 +65,15 @@ jobs:
             mkdir -p .tmp
             {
               echo "exit_status=$status"
-              tail -n 180 /tmp/fyh-canonical.log
+              echo "--- failing tests ---"
+              grep -n -B 2 -A 32 '^not ok ' /tmp/fyh-canonical.log || true
+              echo "--- final output ---"
+              tail -n 40 /tmp/fyh-canonical.log
             } > .tmp/canonical-diagnostic.txt
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add .tmp/canonical-diagnostic.txt
-            git commit -m "記錄前端 canonical 驗證錯誤" || true
+            git commit -m "列出前端 canonical 失敗測試" || true
             git push origin HEAD:${GITHUB_REF_NAME}
             cat .tmp/canonical-diagnostic.txt
             exit "$status"
