@@ -4,7 +4,7 @@ exit_status=1
 384-# Subtest: 儲存庫只保留單一正式 GitHub Actions workflow
 385:not ok 61 - 儲存庫只保留單一正式 GitHub Actions workflow
 386-  ---
-387-  duration_ms: 4.964916
+387-  duration_ms: 2.169567
 388-  type: 'test'
 389-  location: '/home/runner/work/FYH/FYH/tests/github-actions-hygiene.test.js:14:1'
 390-  failureType: 'testCodeFailure'
@@ -35,80 +35,44 @@ exit_status=1
 415-# Subtest: 正式 workflow 只驗證，不重複部署 GitHub Pages
 416-ok 62 - 正式 workflow 只驗證，不重複部署 GitHub Pages
 417-  ---
---
-1356-  ...
-1357-# Subtest: 班表週捲動與例假排班顯示具有正式程式契約
-1358:not ok 219 - 班表週捲動與例假排班顯示具有正式程式契約
-1359-  ---
-1360-  duration_ms: 4.927035
-1361-  type: 'test'
-1362-  location: '/home/runner/work/FYH/FYH/tests/schedule-ui-update.test.js:28:1'
-1363-  failureType: 'testCodeFailure'
-1364-  error: |-
-1365-    The input did not match the regular expression /\.toolbar-floating-card \{[\s\S]*?grid-template-columns: 44px minmax\(0, 1fr\);/. Input:
-1366-    
-1367-    '/* 頁面專屬樣式：僅放無法抽成共用元件的局部規則。 */\n' +
-1368-      '\n' +
-1369-      '/* 打卡頁 */\n' +
-1370-      '/* 打卡頁細節調整：縮小手機打卡按鈕、放大加班申請標籤並維持緊湊單行備註。 */\n' +
-1371-      '.overtime-use-label {\n' +
-1372-      '  display: inline-flex;\n' +
-1373-      '  align-items: center;\n' +
-1374-      '  gap: 6px;\n' +
-1375-      '  font-size: 20px;\n' +
-1376-      '  line-height: 1.3;\n' +
-1377-      '}\n' +
-1378-      '\n' +
-1379-      '.overtime-estimate-text {\n' +
-1380-      '  line-height: 1.55;\n' +
-1381-      '}\n' +
-1382-      '\n' +
-1383-      '.overtime-hours-grid .form-row-wide {\n' +
-1384-      '  grid-column: 1 / -1;\n' +
-1385-      '}\n' +
-1386-      '\n' +
-1387-      '.overtime-hours-grid input[type="text"] {\n' +
-1388-      '  width: 100%;\n' +
-1389-      '  min-width: 0;\n' +
-1390-      '}\n' +
 --- final output ---
   ...
 # Subtest: 班別與假別重新渲染後仍可快速連點開啟修改
 ok 241 - 班別與假別重新渲染後仍可快速連點開啟修改
   ---
-  duration_ms: 0.29441
+  duration_ms: 0.44722
   type: 'test'
   ...
 # Subtest: 公開設定檢查不執行瀏覽器 DOM 初始化
 ok 242 - 公開設定檢查不執行瀏覽器 DOM 初始化
   ---
-  duration_ms: 0.24617
+  duration_ms: 0.278352
   type: 'test'
   ...
 # Subtest: unused members are physically deleted while history keeps the profile
 ok 243 - unused members are physically deleted while history keeps the profile
   ---
-  duration_ms: 2.470876
+  duration_ms: 1.864399
   type: 'test'
   ...
 # Subtest: unused shift leave and overtime masters are physically deleted
 ok 244 - unused shift leave and overtime masters are physically deleted
   ---
-  duration_ms: 1.158264
+  duration_ms: 0.998544
   type: 'test'
   ...
 # Subtest: unused departments are physically deleted while referenced history is retained
 ok 245 - unused departments are physically deleted while referenced history is retained
   ---
-  duration_ms: 1.149327
+  duration_ms: 0.891794
   type: 'test'
   ...
 1..245
 # tests 245
 # suites 0
-# pass 243
-# fail 2
+# pass 244
+# fail 1
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1848.133954
+# duration_ms 1702.104734
