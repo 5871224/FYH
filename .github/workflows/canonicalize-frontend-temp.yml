@@ -1,5 +1,6 @@
 name: Canonicalize Frontend Temp
 
+# verified payload rerun 2026-08-11
 on:
   push:
     branches:
