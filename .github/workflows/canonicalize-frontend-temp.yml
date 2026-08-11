@@ -54,6 +54,7 @@ jobs:
             git apply --check /tmp/fyh-canonical/frontend.patch
             git apply /tmp/fyh-canonical/frontend.patch
             cp /tmp/fyh-canonical/tests/*.test.js tests/
+            rm -f .github/workflows/canonicalize-frontend-temp.yml
             echo "[4] publish generated web"
             npm run web:publish
             echo "[5] full ci check"
@@ -68,7 +69,7 @@ jobs:
               echo "--- failing tests ---"
               grep -n -B 2 -A 32 '^not ok ' /tmp/fyh-canonical.log || true
               echo "--- final output ---"
-              tail -n 40 /tmp/fyh-canonical.log
+              tail -n 50 /tmp/fyh-canonical.log
             } > .tmp/canonical-diagnostic.txt
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
