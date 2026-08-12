@@ -108,6 +108,40 @@ async function changeSchedulePeriodWeeks(weeks) {
   await forceSave();
 }
 
+function getSettingsExportPayload() {
+  return {
+    state,
+    year: state.year,
+    month: state.month
+  };
+}
+
+async function exportDepartmentsFromSettings() {
+  try {
+    await window.schedulerApi.exportDepartments(getSettingsExportPayload());
+  } catch (error) {
+    setSaveStatus(`匯出失敗：${error.message || error}`);
+  }
+}
+
+async function exportListSettings(category) {
+  const methodByCategory = {
+    shift: "exportShifts",
+    leave: "exportLeaveSettings",
+    overtime: "exportOvertimeSettings"
+  };
+  const method = methodByCategory[category];
+  if (!method || typeof window.schedulerApi?.[method] !== "function") {
+    setSaveStatus("匯出失敗：不支援的設定類型");
+    return;
+  }
+  try {
+    await window.schedulerApi[method](getSettingsExportPayload());
+  } catch (error) {
+    setSaveStatus(`匯出失敗：${error.message || error}`);
+  }
+}
+
 function parseExportDate(value) {
   const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return null;
