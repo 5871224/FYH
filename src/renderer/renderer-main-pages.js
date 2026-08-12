@@ -57,11 +57,13 @@ function renderMealPage() {
   const disabled = mealOrderState.loading || !status?.orderingOpen || !status?.attendance?.clock_in_at;
   const unavailableReason = !status
     ? ""
-    : !status.attendance?.clock_in_at
-      ? "今日需先完成上班打卡才能訂餐"
-      : !status.orderingOpen
-        ? `今日訂餐已於 ${status.cutoffTime} 截止`
-        : "";
+    : status.mealEnabled === false
+      ? "此群組未開放訂餐"
+      : !status.attendance?.clock_in_at
+        ? "今日需先完成上班打卡才能訂餐"
+        : !status.orderingOpen
+          ? `今日訂餐已於 ${status.cutoffTime} 截止`
+          : "";
   mealCard.innerHTML = `
     <div class="clock-page-header">
       <div>
