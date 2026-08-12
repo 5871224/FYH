@@ -142,6 +142,269 @@ async function exportListSettings(category) {
   }
 }
 
+function getImportTextColor(color, textColor, autoTextColor) {
+  if (autoTextColor || !textColor) {
+    return autoLeaveTextColor(color || "#888780");
+  }
+  return textColor;
+}
+
+function showSettingsImportSummary(label, imported, updated, skipped, failed, firstError = "") {
+  const parts = [`新增 ${imported} 筆`, `更新 ${updated} 筆`];
+  if (skipped) parts.push(`略過 ${skipped} 筆`);
+  if (failed) parts.push(`失敗 ${failed} 筆`);
+  const suffix = failed && firstError ? `\n第一筆錯誤：${firstError}` : "";
+  showInfoMessage(`${label}匯入完成：${parts.join("，")}${suffix}`);
+}
+
+async function importDepartmentsFromSettings() {
+  const returnTo = captureSettingsReturnContext({ category: "department-settings", view: departmentSettingsView });
+  try {
+    const result = await window.schedulerApi.importDepartments();
+    if (result?.canceled) return;
+    const rows = Array.isArray(result?.rows) ? result.rows : [];
+    let imported = 0;
+    let updated = 0;
+    let skipped = 0;
+    let failed = 0;
+    let firstError = "";
+
+    for (const row of rows) {
+      const name = String(row?.name || "").trim();
+      const startDate = row?.startDate || "";
+      const endDate = row?.endDate || "";
+      if (!name || (startDate && endDate && !isValidDateRange(startDate, endDate))) {
+        skipped += 1;
+        continue;
+      }
+      const existing = state.departments.find((item) => !item.deleted && String(item.name || "").trim() === name) || null;
+      const groupId = existing?.groupId || groupFeatureState.currentGroupId || "";
+      if (!groupId) {
+        skipped += 1;
+        continue;
+      }
+      const payload = {
+        ...(existing || {}),
+        id: existing?.id || uid("d"),
+        name,
+        groupId,
+        startDate,
+        endDate,
+        hiddenFromSchedule: Boolean(row?.hiddenFromSchedule),
+        deleted: false,
+        address: existing?.address || "",
+        latitude: existing?.latitude ?? "",
+        longitude: existing?.longitude ?? "",
+        publicIp: existing?.publicIp || "",
+        attendanceEnabled: Boolean(existing?.attendanceEnabled)
+      };
+      const sortOrder = existing ? Math.max(0, state.departments.indexOf(existing)) : state.departments.length;
+      try {
+        await window.schedulerApi.saveDepartmentItem(payload, sortOrder);
+        if (existing) {
+          state.departments = state.departments.map((item) => item.id === existing.id ? payload : item);
+          updated += 1;
+        } else {
+          state.departments.push(payload);
+          imported += 1;
+        }
+      } catch (error) {
+        failed += 1;
+        if (!firstError) firstError = error.message || String(error);
+      }
+    }
+
+    renderAll();
+    await reopenSettingsModalPreservingScroll(returnTo);
+    showSettingsImportSummary("單位", imported, updated, skipped, failed, firstError);
+  } catch (error) {
+    setSaveStatus(`匯入失敗：${error.message || error}`);
+    showInfoMessage(`單位匯入失敗：${error.message || error}`);
+  }
+}
+
+async function importShiftSettings() {
+  const result = await window.schedulerApi.importShifts();
+  if (result?.canceled) return null;
+  const rows = Array.isArray(result?.rows) ? result.rows : [];
+  const departmentMap = new Map(
+    state.departments
+      .filter((item) => !item.deleted)
+      .map((item) => [String(item.name || "").trim(), item.id])
+  );
+  let imported = 0;
+  let updated = 0;
+  let skipped = 0;
+  let failed = 0;
+  let firstError = "";
+
+  for (const row of rows) {
+    const name = String(row?.name || "").trim();
+    const departmentName = String(row?.departmentName || "").trim();
+    const applicableDeptId = departmentMap.get(departmentName) || "";
+    const startTime = row?.startTime || "";
+    const endTime = row?.endTime || "";
+    if (!name || !applicableDeptId || !isValidTimeRange(startTime, endTime)) {
+      skipped += 1;
+      continue;
+    }
+    const existing = state.shifts.find((item) => !item.deleted && String(item.name || "").trim() === name) || null;
+    const color = String(row?.color || existing?.color || COLORS[0].hex);
+    const autoTextColor = Boolean(row?.autoTextColor);
+    const payload = {
+      ...(existing || {}),
+      id: existing?.id || uid("s"),
+      name,
+      color,
+      textColor: getImportTextColor(color, String(row?.textColor || existing?.textColor || ""), autoTextColor),
+      autoTextColor,
+      startTime,
+      endTime,
+      hiddenFromToolbar: Boolean(row?.hiddenFromToolbar),
+      requiredStaffCount: Math.max(0, Number(row?.requiredStaffCount) || 0),
+      applicableDeptId,
+      positionRequirements: existing?.positionRequirements || [],
+      groupId: existing?.groupId || groupFeatureState.currentGroupId || "",
+      deleted: false
+    };
+    const sortOrder = existing ? Math.max(0, state.shifts.indexOf(existing)) : state.shifts.length;
+    try {
+      const saved = await window.schedulerApi.saveShiftItem(payload, sortOrder);
+      const savedId = String(saved?.id || "").trim();
+      const savedItem = savedId && savedId !== payload.id ? { ...payload, id: savedId } : payload;
+      if (existing) {
+        state.shifts = state.shifts.map((item) => item.id === existing.id ? savedItem : item);
+        updated += 1;
+      } else {
+        state.shifts.push(savedItem);
+        imported += 1;
+      }
+    } catch (error) {
+      failed += 1;
+      if (!firstError) firstError = error.message || String(error);
+    }
+  }
+  return { imported, updated, skipped, failed, firstError };
+}
+
+async function importNamedCatalogSettings(category) {
+  const method = category === "leave" ? "importLeaveSettings" : "importOvertimeSettings";
+  const result = await window.schedulerApi[method]();
+  if (result?.canceled) return null;
+  const rows = Array.isArray(result?.result?.items) ? result.result.items : [];
+  const list = getItemList(category);
+  let imported = 0;
+  let updated = 0;
+  let skipped = 0;
+  let failed = 0;
+  let firstError = "";
+
+  for (const row of rows) {
+    const name = String(row?.name || "").trim();
+    const code = category === "leave" ? String(row?.code || "").trim() : "";
+    if (!name || (category === "leave" && (!code || !LEAVE_CATALOG.some((item) => item.code === code)))) {
+      skipped += 1;
+      continue;
+    }
+    if (category === "overtime") {
+      if (!isValidTimeRange(row?.startTime || "", row?.endTime || "")) {
+        skipped += 1;
+        continue;
+      }
+      if (row?.useRest1 && !isValidTimeRange(row?.rest1StartTime || "", row?.rest1EndTime || "")) {
+        skipped += 1;
+        continue;
+      }
+      if (row?.useRest2 && !isValidTimeRange(row?.rest2StartTime || "", row?.rest2EndTime || "")) {
+        skipped += 1;
+        continue;
+      }
+    }
+    const existing = list.find((item) => !item.deleted && (
+      category === "leave"
+        ? String(item.code || "").trim() === code
+        : String(item.name || "").trim() === name
+    )) || null;
+    const defaultColor = category === "leave" ? "#888780" : "#D85A30";
+    const color = String(row?.color || existing?.color || defaultColor);
+    const autoTextColor = Boolean(row?.autoTextColor);
+    const payload = category === "leave"
+      ? {
+        ...(existing || {}),
+        id: existing?.id || uid("l"),
+        code,
+        name,
+        requiresTime: Boolean(row?.requiresTime),
+        requiresReason: Boolean(row?.requiresReason),
+        color,
+        textColor: getImportTextColor(color, String(row?.textColor || existing?.textColor || ""), autoTextColor),
+        autoTextColor,
+        hiddenFromToolbar: Boolean(row?.hiddenFromToolbar),
+        deleted: false
+      }
+      : {
+        ...(existing || {}),
+        id: existing?.id || uid("o"),
+        name,
+        startTime: row?.startTime || "",
+        endTime: row?.endTime || "",
+        useRest1: Boolean(row?.useRest1),
+        rest1StartTime: row?.useRest1 ? (row?.rest1StartTime || "") : "",
+        rest1EndTime: row?.useRest1 ? (row?.rest1EndTime || "") : "",
+        useRest2: Boolean(row?.useRest2),
+        rest2StartTime: row?.useRest2 ? (row?.rest2StartTime || "") : "",
+        rest2EndTime: row?.useRest2 ? (row?.rest2EndTime || "") : "",
+        color,
+        textColor: getImportTextColor(color, String(row?.textColor || existing?.textColor || ""), autoTextColor),
+        autoTextColor,
+        hiddenFromToolbar: Boolean(row?.hiddenFromToolbar),
+        deleted: false
+      };
+    const sortOrder = existing ? Math.max(0, list.indexOf(existing)) : list.length;
+    try {
+      const saved = await window.schedulerApi.saveCatalogItem(category, payload, sortOrder);
+      const savedId = String(saved?.id || "").trim();
+      const savedItem = savedId && savedId !== payload.id ? { ...payload, id: savedId } : payload;
+      if (existing) {
+        const next = getItemList(category).map((item) => item.id === existing.id ? savedItem : item);
+        if (category === "leave") state.leaves = next;
+        else state.overtime = next;
+        updated += 1;
+      } else {
+        if (category === "leave") state.leaves.push(savedItem);
+        else state.overtime.push(savedItem);
+        imported += 1;
+      }
+    } catch (error) {
+      failed += 1;
+      if (!firstError) firstError = error.message || String(error);
+    }
+  }
+  return { imported, updated, skipped, failed, firstError };
+}
+
+async function importListSettings(category) {
+  const labelByCategory = { shift: "班別", leave: "假別", overtime: "加班" };
+  const label = labelByCategory[category];
+  if (!label) {
+    setSaveStatus("匯入失敗：不支援的設定類型");
+    return;
+  }
+  const returnTo = captureSettingsReturnContext({ category: "list-settings", listCategory: category });
+  try {
+    const summary = category === "shift"
+      ? await importShiftSettings()
+      : await importNamedCatalogSettings(category);
+    if (!summary) return;
+    renderAll();
+    await reopenSettingsModalPreservingScroll(returnTo);
+    showSettingsImportSummary(label, summary.imported, summary.updated, summary.skipped, summary.failed, summary.firstError);
+  } catch (error) {
+    setSaveStatus(`匯入失敗：${error.message || error}`);
+    showInfoMessage(`${label}匯入失敗：${error.message || error}`);
+  }
+}
+
 function parseExportDate(value) {
   const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return null;
