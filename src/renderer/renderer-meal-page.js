@@ -60,6 +60,12 @@ function applyMealInputLimits() {
     });
   }
 
+function syncCurrentGroupMealAvailability(status) {
+  if (typeof status?.mealEnabled !== "boolean") return;
+  const actorGroup = getActorGroup();
+  if (actorGroup) actorGroup.mealEnabled = status.mealEnabled;
+}
+
 async function loadTodayMealOrder() {
   if (!isLoggedIn()) {
     return;
@@ -70,6 +76,7 @@ async function loadTodayMealOrder() {
   try {
     const status = await window.schedulerApi.getTodayMealOrder();
     if (loadSequence !== mealOrderLoadSequence) return;
+    syncCurrentGroupMealAvailability(status);
     mealOrderState = { loading: false, status, error: "" };
   } catch (error) {
     if (loadSequence !== mealOrderLoadSequence) return;
@@ -130,6 +137,7 @@ async function saveTodayMealOrder() {
     renderAll();
     try {
       const status = await window.schedulerApi.saveTodayMealOrder({ items });
+      syncCurrentGroupMealAvailability(status);
       mealOrderState = { loading: false, status, error: "", pendingItems: null };
       showInfoMessage(cancelling ? "今日訂餐已取消" : "訂餐已儲存");
     } catch (error) {
