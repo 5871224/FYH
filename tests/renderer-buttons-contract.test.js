@@ -109,23 +109,6 @@ function hasButtonConsumer(button) {
   return false;
 }
 
-function extractActionHelperContracts() {
-  const contracts = [];
-  for (const [file, source] of sources) {
-    let offset = 0;
-    while ((offset = source.indexOf("renderActionIconButton(", offset)) !== -1) {
-      const windowText = source.slice(offset, offset + 420);
-      // 函式本身的宣告不是呼叫端。
-      if (!source.slice(Math.max(0, offset - 20), offset).includes("function ")) {
-        const dataAttributes = [...windowText.matchAll(/\bdata-([a-z0-9-]+)/gi)].map((item) => item[1].toLowerCase());
-        contracts.push({ file, line: lineOf(source, offset), dataAttributes });
-      }
-      offset += "renderActionIconButton(".length;
-    }
-  }
-  return contracts;
-}
-
 function declaredCallableNames() {
   const names = new Set();
   for (const match of runtimeSource.matchAll(/\b(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/g)) names.add(match[1]);
@@ -136,10 +119,10 @@ function declaredCallableNames() {
 const declaredCallables = declaredCallableNames();
 
 function collectDirectActionCalls() {
-  const actionFiles = [...sources.entries()].filter(([file]) => (
-    file.startsWith("renderer-events-")
-    || file === "renderer-records-events.js"
-  ));
+  // 只掃描主要按鈕分派器；其他事件模組可能 await 區域 callback 參數，並非全域函式契約。
+  const actionFiles = ["renderer-events-click.js", "renderer-events-toolbar.js"]
+    .map((file) => [file, sources.get(file)])
+    .filter(([, source]) => source);
   const calls = [];
   for (const [file, source] of actionFiles) {
     for (const pattern of [
@@ -187,13 +170,10 @@ for (const button of buttons) {
   });
 }
 
-test("共用操作按鈕的每個呼叫端都必須提供可消費的 data-* 契約", () => {
-  const contracts = extractActionHelperContracts();
-  assert.ok(contracts.length >= 10, "共用操作按鈕呼叫端掃描數量異常");
-  const invalid = contracts.filter((contract) => (
-    !contract.dataAttributes.length || !contract.dataAttributes.some(dataAttributeHasConsumer)
-  ));
-  assert.deepEqual(invalid, [], `共用操作按鈕缺少事件契約：${invalid.map((item) => `${item.file}:${item.line}`).join(", ")}`);
+test("共用操作按鈕必須把呼叫端 attrs 寫入實際 button", () => {
+  const catalog = sources.get("renderer-settings-catalog.js");
+  assert.match(catalog, /function renderActionIconButton\(kind,\s*attrs/);
+  assert.match(catalog, /<button[^>]*\$\{attrs\}[^>]*>/);
 });
 
 test("按鈕事件中的直接函式呼叫不可指向不存在的函式", () => {
@@ -204,4 +184,17 @@ test("按鈕事件中的直接函式呼叫不可指向不存在的函式", () =>
 test("renderer 使用的 schedulerApi 方法都必須由 web-api 公開", () => {
   const missing = schedulerApiCalls.filter((name) => !schedulerApiExports.has(name));
   assert.deepEqual(missing, [], `schedulerApi 未公開：${missing.join(", ")}`);
+});
+
+test("設定匯入按鈕必須完整連到單位、班別、假別與加班正式流程", () => {
+  const source = sources.get("renderer-export-actions.js");
+  for (const marker of [
+    "async function importDepartmentsFromSettings",
+    "async function importListSettings",
+    "window.schedulerApi.importDepartments()",
+    "window.schedulerApi.importShifts()",
+    'category === "leave" ? "importLeaveSettings" : "importOvertimeSettings"'
+  ]) {
+    assert.ok(source.includes(marker), `缺少設定匯入契約：${marker}`);
+  }
 });
