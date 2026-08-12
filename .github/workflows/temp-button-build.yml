@@ -1,0 +1,43 @@
+name: Temporary Button Build
+
+on:
+  push:
+    branches:
+      - agent/button-contract-suite
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temp-button-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: agent/button-contract-suite
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Build published web
+        run: npm run web:publish
+      - name: Commit generated outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- src/renderer/app.js src/renderer/index.html docs; then
+            echo "Generated outputs already synchronized."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/renderer/app.js src/renderer/index.html docs
+          git commit -m "同步全按鈕測試與匯入修正發布檔"
+          git push origin HEAD:agent/button-contract-suite
