@@ -6072,6 +6072,10 @@ body:not(.is-authenticated) .toolbar-card {
   min-width: 1000px;
 }
 
+.attendance-review-table thead th {
+  text-align: center;
+}
+
 .attendance-review-table .attendance-review-check-col {
   width: 30px;
   padding-right: 4px;
@@ -6295,15 +6299,13 @@ body:not(.is-authenticated) .toolbar-card {
   white-space: nowrap;
 }
 
-.attendance-review-status.is-unreviewed,
-.attendance-review-toggle.is-unreviewed {
+.attendance-review-status.is-unreviewed {
   background: #fff4d6;
   color: #8a5a00;
   border: 1px solid #efc66a;
 }
 
-.attendance-review-status.is-reviewed,
-.attendance-review-toggle.is-reviewed {
+.attendance-review-status.is-reviewed {
   background: #e8f7ef;
   color: #176b45;
   border: 1px solid #8bc9aa;
@@ -6314,6 +6316,18 @@ body:not(.is-authenticated) .toolbar-card {
   border-radius: 999px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.attendance-review-toggle.is-set-reviewed {
+  background: #e8f7ef;
+  color: #176b45;
+  border: 1px solid #8bc9aa;
+}
+
+.attendance-review-toggle.is-set-unreviewed {
+  background: #f2f3f5;
+  color: #73777f;
+  border: 1px solid #c7c9ce;
 }
 
 .attendance-empty-value {

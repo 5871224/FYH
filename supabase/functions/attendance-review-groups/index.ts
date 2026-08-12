@@ -225,14 +225,14 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
   const status = exportOnly ? "reviewed" : String(body?.status || "unreviewed");
   const issueType = String(body?.issueType || "");
   const page = pageNumber(body?.page);
-  if (!groupIds.length) return { ok: true, members: [], issueTypes: ISSUE_TYPES, rows: [], total: 0, page, pageSize: PAGE_SIZE };
+  if (!groupIds.length) return { ok: true, members: [], departments: [], issueTypes: ISSUE_TYPES, rows: [], total: 0, page, pageSize: PAGE_SIZE };
 
   const [memberResult, groupResult, departmentResult] = await Promise.all([
     ctx.supabaseAdmin.from("set_employee")
       .select("id,employee_code,full_name,group_id,home_department_id,hire_date,leave_date,deleted_at")
       .in("group_id", groupIds).is("deleted_at", null).order("employee_code", { ascending: true }),
     ctx.supabaseAdmin.from("schedule_groups").select("id,name").in("id", groupIds),
-    ctx.supabaseAdmin.from("set_departments").select("id,name,group_id").in("group_id", groupIds)
+    ctx.supabaseAdmin.from("set_departments").select("id,name,address,group_id,attendance_enabled,deleted_at").in("group_id", groupIds).is("deleted_at", null)
   ]);
   for (const result of [memberResult, groupResult, departmentResult]) if (result.error) throw result.error;
   const members = memberResult.data || [];
@@ -279,9 +279,34 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
   return {
     ok: true,
     members: members.map((member: any) => ({ id: member.id, employee_code: member.employee_code, full_name: member.full_name, group_id: member.group_id })),
+    departments: (departmentResult.data || [])
+      .filter((department: any) => department.attendance_enabled === true)
+      .map((department: any) => ({ id: department.id, name: department.name || "", group_id: department.group_id })),
     issueTypes: ISSUE_TYPES,
     rows: exportOnly ? rows : rows.slice(offset, offset + PAGE_SIZE),
     total: rows.length, page, pageSize: exportOnly ? rows.length : PAGE_SIZE
+  };
+}
+
+async function resolveAdminClockLocation(ctx: any, target: any, departmentIdValue: unknown, oldLocation: any, clockAt: string | null) {
+  if (!clockAt) return null;
+  const departmentId = String(departmentIdValue || "").trim();
+  if (!departmentId) return oldLocation || { name: "管理員補登", source: "管理員補登" };
+  if (String(oldLocation?.departmentId || "") === departmentId) return oldLocation;
+  const result = await ctx.supabaseAdmin.from("set_departments")
+    .select("id,name,address,group_id,attendance_enabled,deleted_at")
+    .eq("id", departmentId).is("deleted_at", null).maybeSingle();
+  if (result.error) throw result.error;
+  if (!result.data) throw new Error("找不到指定的打卡地點");
+  if (String(result.data.group_id || "") !== String(target.group_id || "")) throw new Error("打卡地點不屬於該人員群組");
+  if (result.data.attendance_enabled !== true) throw new Error("此單位目前未開放打卡");
+  return {
+    departmentId: result.data.id,
+    name: result.data.name || "",
+    address: result.data.address || "",
+    source: "管理員修改",
+    accuracy: null,
+    distance: null
   };
 }
 
@@ -289,7 +314,7 @@ async function reviewSave(ctx: any, body: any, actor: any) {
   const userId = String(body?.userId || "");
   const workDate = validDate(body?.workDate, "");
   if (!userId || !workDate) throw new Error("缺少人員或日期");
-  await ensureTargetAllowed(ctx, actor, userId);
+  const target = await ensureTargetAllowed(ctx, actor, userId);
   const old = await getOrCreateDay(ctx, userId, workDate);
   const clockInAt = timeToIso(workDate, body?.clockInTime);
   const clockOutAt = timeToIso(workDate, body?.clockOutTime);
@@ -299,8 +324,10 @@ async function reviewSave(ctx: any, body: any, actor: any) {
     overtime_minutes: hoursToMinutes(body?.overtimeHours),
     note: String(body?.note || ""), reviewed_at: null, reviewed_by: null
   };
-  update.clock_in_location = clockInAt ? (old.clock_in_location || { name: "管理員補登", source: "管理員補登" }) : null;
-  update.clock_out_location = clockOutAt ? (old.clock_out_location || { name: "管理員補登", source: "管理員補登" }) : null;
+  [update.clock_in_location, update.clock_out_location] = await Promise.all([
+    resolveAdminClockLocation(ctx, target, body?.clockInLocationDepartmentId, old.clock_in_location, clockInAt),
+    resolveAdminClockLocation(ctx, target, body?.clockOutLocationDepartmentId, old.clock_out_location, clockOutAt)
+  ]);
   const result = await ctx.supabaseAdmin.from("attendance_days").update(update).eq("id", old.id).select("*").single();
   if (result.error) throw result.error;
   await writeAudit(ctx, old.id, "admin_edit", actor.id, old, result.data, body?.reason);

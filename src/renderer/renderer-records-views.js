@@ -220,6 +220,12 @@ function formatPunchTime(value) {
     return value ? formatClockTime(value) : "-";
   }
 
+function renderAttendanceReviewToggleIcon(reviewed) {
+  return reviewed
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4m0 4h.01"></path><path d="M10.3 4.7 3.9 16a2 2 0 0 0 1.7 3h12.8a2 2 0 0 0 1.7-3L13.7 4.7a2 2 0 0 0-3.4 0Z"></path></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4L19 6"></path></svg>';
+}
+
 function renderAttendanceReviewPagination(review) {
   const page = Number(review.page || 1);
   const pageSize = Number(review.pageSize || 50);
@@ -275,7 +281,7 @@ function renderAttendanceReviewSection() {
             <td class="attendance-review-status-col">${renderReviewStatus(row.reviewed)}</td>
             <td class="attendance-review-operation-col"><div class="attendance-review-row-actions">
               <button class="settings-icon-btn attendance-review-action-btn" type="button" data-edit-attendance-review="${escapeHtml(token)}" aria-label="編輯" title="編輯"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
-              <button class="settings-icon-btn attendance-review-action-btn attendance-review-toggle ${row.reviewed ? "is-reviewed" : "is-unreviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}" aria-label="${row.reviewed ? "取消審核" : "審核"}" title="${row.reviewed ? "取消審核" : "審核"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l1 2h3v15H5V6h3l1-2z"></path><path d="m9 13 2 2 4-5"></path></svg></button>
+              <button class="settings-icon-btn attendance-review-action-btn attendance-review-toggle ${row.reviewed ? "is-set-unreviewed" : "is-set-reviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}" aria-label="${row.reviewed ? "設為未審" : "設為已審"}" title="${row.reviewed ? "設為未審" : "設為已審"}">${renderAttendanceReviewToggleIcon(row.reviewed)}</button>
               ${row.id ? `<button class="settings-icon-btn attendance-review-action-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}
             </div></td>
           </tr>`;

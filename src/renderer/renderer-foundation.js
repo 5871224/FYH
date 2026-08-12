@@ -158,6 +158,7 @@ function createRecordsState() {
       loaded: false,
       rows: [],
       members: [],
+      departments: [],
       issueTypes: [],
       total: 0,
       page: 1,

@@ -2843,6 +2843,7 @@ function createRecordsState() {
       loaded: false,
       rows: [],
       members: [],
+      departments: [],
       issueTypes: [],
       total: 0,
       page: 1,
@@ -8760,6 +8761,12 @@ function formatPunchTime(value) {
     return value ? formatClockTime(value) : "-";
   }
 
+function renderAttendanceReviewToggleIcon(reviewed) {
+  return reviewed
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4m0 4h.01"></path><path d="M10.3 4.7 3.9 16a2 2 0 0 0 1.7 3h12.8a2 2 0 0 0 1.7-3L13.7 4.7a2 2 0 0 0-3.4 0Z"></path></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4L19 6"></path></svg>';
+}
+
 function renderAttendanceReviewPagination(review) {
   const page = Number(review.page || 1);
   const pageSize = Number(review.pageSize || 50);
@@ -8815,7 +8822,7 @@ function renderAttendanceReviewSection() {
             <td class="attendance-review-status-col">${renderReviewStatus(row.reviewed)}</td>
             <td class="attendance-review-operation-col"><div class="attendance-review-row-actions">
               <button class="settings-icon-btn attendance-review-action-btn" type="button" data-edit-attendance-review="${escapeHtml(token)}" aria-label="編輯" title="編輯"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
-              <button class="settings-icon-btn attendance-review-action-btn attendance-review-toggle ${row.reviewed ? "is-reviewed" : "is-unreviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}" aria-label="${row.reviewed ? "取消審核" : "審核"}" title="${row.reviewed ? "取消審核" : "審核"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l1 2h3v15H5V6h3l1-2z"></path><path d="m9 13 2 2 4-5"></path></svg></button>
+              <button class="settings-icon-btn attendance-review-action-btn attendance-review-toggle ${row.reviewed ? "is-set-unreviewed" : "is-set-reviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}" aria-label="${row.reviewed ? "設為未審" : "設為已審"}" title="${row.reviewed ? "設為未審" : "設為已審"}">${renderAttendanceReviewToggleIcon(row.reviewed)}</button>
               ${row.id ? `<button class="settings-icon-btn attendance-review-action-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}
             </div></td>
           </tr>`;
@@ -9506,6 +9513,7 @@ function ensureAttendanceReviewState() {
     loaded: Boolean(current.loaded),
     rows: current.rows || [],
     members: current.members || [],
+    departments: current.departments || [],
     issueTypes: current.issueTypes || [],
     total: Number(current.total || 0),
     page: Number(current.page || 1),
@@ -9569,6 +9577,7 @@ async function loadAttendanceReview(shouldRender = true) {
         loaded: true,
         rows: result.rows || [],
         members: result.members || [],
+        departments: result.departments || [],
         issueTypes: result.issueTypes || [],
         total: Number(result.total || 0),
         page: Number(result.page || 1),
@@ -9931,6 +9940,24 @@ function findAttendanceReviewRow(token) {
     || { user_id: userId, work_date: workDate };
 }
 
+function attendanceReviewLocationOptions(row, location) {
+  const review = ensureAttendanceReviewState();
+  const groupId = String(row?.groupId || "");
+  const currentId = String(location?.departmentId || "");
+  const currentName = String(location?.name || "");
+  const departments = (review.departments || [])
+    .filter((department) => !groupId || String(department.group_id || department.groupId || "") === groupId)
+    .map((department) => ({ id: String(department.id || ""), name: String(department.name || "") }))
+    .filter((department) => department.id);
+  if (currentId && !departments.some((department) => department.id === currentId)) {
+    departments.unshift({ id: currentId, name: currentName || "目前打卡地點" });
+  }
+  const emptyLabel = currentName && !currentId ? `保留目前地點（${currentName}）` : "管理員補登";
+  return `<option value="" ${!currentId ? "selected" : ""}>${escapeHtml(emptyLabel)}</option>${departments
+    .map((department) => `<option value="${escapeHtml(department.id)}" ${department.id === currentId ? "selected" : ""}>${escapeHtml(department.name || department.id)}</option>`)
+    .join("")}`;
+}
+
 function openAttendanceReviewEditModal(token) {
   const row = findAttendanceReviewRow(token);
   openEntityListModal({
@@ -9939,6 +9966,8 @@ function openAttendanceReviewEditModal(token) {
     body: `<div class="form-grid two-col">
       <div class="form-row"><label>上班時間</label><input id="reviewClockInTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_in_at))}"></div>
       <div class="form-row"><label>下班時間</label><input id="reviewClockOutTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_out_at))}"></div>
+      <div class="form-row"><label>上班地點</label><select id="reviewClockInLocation">${attendanceReviewLocationOptions(row, row.clock_in_location)}</select></div>
+      <div class="form-row"><label>下班地點</label><select id="reviewClockOutLocation">${attendanceReviewLocationOptions(row, row.clock_out_location)}</select></div>
       <div class="form-row"><label>上班時數</label><input id="reviewRegularHours" type="number" min="0" step="0.5" value="${row.regularHours === null || row.regularHours === undefined ? "" : escapeHtml(String(row.regularHours))}"></div>
       <div class="form-row"><label>加班時數</label><input id="reviewOvertimeHours" type="number" min="0" step="0.5" value="${row.overtimeHours === null || row.overtimeHours === undefined ? "" : escapeHtml(String(row.overtimeHours))}"></div>
       <div class="form-row form-row-wide"><label>備註</label><textarea id="reviewAttendanceNote" rows="4">${escapeHtml(row.note || "")}</textarea></div>
@@ -9956,6 +9985,8 @@ async function saveAttendanceReviewEdit(token) {
       workDate: row.work_date,
       clockInTime: document.getElementById("reviewClockInTime")?.value || "",
       clockOutTime: document.getElementById("reviewClockOutTime")?.value || "",
+      clockInLocationDepartmentId: document.getElementById("reviewClockInLocation")?.value || "",
+      clockOutLocationDepartmentId: document.getElementById("reviewClockOutLocation")?.value || "",
       regularHours: document.getElementById("reviewRegularHours")?.value ?? "",
       overtimeHours: document.getElementById("reviewOvertimeHours")?.value ?? "",
       note: document.getElementById("reviewAttendanceNote")?.value || "",
@@ -10078,12 +10109,58 @@ async function batchReviewAttendance(mode) {
   }
 }
 
+function attendanceHistoryActionLabel(value) {
+  const labels = {
+    clock_in: "上班打卡",
+    clock_out: "下班打卡",
+    employee_regularHours: "修改上班時數",
+    employee_overtimeHours: "修改加班時數",
+    employee_note: "修改備註",
+    admin_edit: "主管修正",
+    reviewed: "設為已審",
+    returned: "設為未審",
+    unreviewed: "設為未審"
+  };
+  return labels[String(value || "")] || String(value || "異動紀錄");
+}
+
+function attendanceHistoryLocationLabel(location) {
+  if (!location || typeof location !== "object") return "未指定";
+  return String(location.name || location.departmentId || "未指定");
+}
+
+function attendanceHistoryChangeSummary(log = {}) {
+  const before = log.before_data && typeof log.before_data === "object" ? log.before_data : {};
+  const after = log.after_data && typeof log.after_data === "object" ? log.after_data : {};
+  const parts = [];
+  if (String(before.clock_in_at || "") !== String(after.clock_in_at || "")) {
+    parts.push(`上班 ${before.clock_in_at ? formatClockTime(before.clock_in_at) : "未填"} → ${after.clock_in_at ? formatClockTime(after.clock_in_at) : "未填"}`);
+  }
+  if (String(before.clock_out_at || "") !== String(after.clock_out_at || "")) {
+    parts.push(`下班 ${before.clock_out_at ? formatClockTime(before.clock_out_at) : "未填"} → ${after.clock_out_at ? formatClockTime(after.clock_out_at) : "未填"}`);
+  }
+  if (attendanceHistoryLocationLabel(before.clock_in_location) !== attendanceHistoryLocationLabel(after.clock_in_location)) {
+    parts.push(`上班地點 ${attendanceHistoryLocationLabel(before.clock_in_location)} → ${attendanceHistoryLocationLabel(after.clock_in_location)}`);
+  }
+  if (attendanceHistoryLocationLabel(before.clock_out_location) !== attendanceHistoryLocationLabel(after.clock_out_location)) {
+    parts.push(`下班地點 ${attendanceHistoryLocationLabel(before.clock_out_location)} → ${attendanceHistoryLocationLabel(after.clock_out_location)}`);
+  }
+  if (before.regular_minutes !== after.regular_minutes) {
+    parts.push(`上班時數 ${before.regular_minutes == null ? "未填" : Number(before.regular_minutes) / 60} → ${after.regular_minutes == null ? "未填" : Number(after.regular_minutes) / 60}`);
+  }
+  if (before.overtime_minutes !== after.overtime_minutes) {
+    parts.push(`加班時數 ${before.overtime_minutes == null ? "未填" : Number(before.overtime_minutes) / 60} → ${after.overtime_minutes == null ? "未填" : Number(after.overtime_minutes) / 60}`);
+  }
+  if (String(before.note || "") !== String(after.note || "")) parts.push("備註已修改");
+  return parts.join("；") || "-";
+}
+
 async function openAttendanceHistoryModal(recordId) {
   try {
     const result = await window.schedulerApi.getAttendanceHistory(recordId);
     openEntityListModal({
       title: "簽到修改歷程",
-      body: `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>時間</th><th>操作</th><th>原因</th><th>操作人</th></tr></thead><tbody>${(result.logs || []).map((log) => `<tr><td>${formatRecordDateTime(log.created_at)}</td><td>${escapeHtml(log.action || "")}</td><td>${escapeHtml(log.reason || "")}</td><td>${escapeHtml(log.operator_name || "")}</td></tr>`).join("") || '<tr><td colspan="4">沒有歷程</td></tr>'}</tbody></table></div>`
+      body: `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>時間</th><th>操作</th><th>變更內容</th><th>原因</th><th>操作人</th></tr></thead><tbody>${(result.logs || []).map((log) => `<tr><td>${formatRecordDateTime(log.created_at)}</td><td>${escapeHtml(attendanceHistoryActionLabel(log.action))}</td><td>${escapeHtml(attendanceHistoryChangeSummary(log))}</td><td>${escapeHtml(log.reason || "")}</td><td>${escapeHtml(log.operator_name || "")}</td></tr>`).join("") || '<tr><td colspan="5">沒有歷程</td></tr>'}</tbody></table></div>`
     });
   } catch (error) {
     setSaveStatus(`讀取歷程失敗：${error.message}`);
