@@ -55,17 +55,21 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           path = Path('tests/attendance-review-ui-location-history.test.js')
-          lines = path.read_text(encoding='utf-8').splitlines()
-          replacement = '            assert.ok(css.includes(".attendance-ledger-table thead th,\\n.attendance-review-table thead th {\\n  text-align: center;\\n}"));'
-          found = False
-          for index, line in enumerate(lines):
-              if 'assert.match(css,' in line and 'attendance-ledger-table thead th' in line:
-                  lines[index] = replacement
-                  found = True
-                  break
-          if not found:
-              raise SystemExit('header assertion line not found')
-          path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          text = path.read_text(encoding='utf-8')
+          start_marker = 'test("簽到審核表頭維持置中", () => {'
+          next_marker = 'test("審核切換使用綠色勾與灰色三角形", () => {'
+          start = text.find(start_marker)
+          end = text.find(next_marker, start + 1) if start >= 0 else -1
+          if start < 0 or end < 0:
+              print(text)
+              raise SystemExit('header regression test block not found')
+          replacement = '''test("簽到審核表頭維持置中", () => {
+            const css = read("src/renderer/css/pages.css");
+            assert.ok(css.includes(".attendance-ledger-table thead th,\\n.attendance-review-table thead th {\\n  text-align: center;\\n}"));
+          });
+
+          '''
+          path.write_text(text[:start] + replacement + text[end:], encoding='utf-8')
           PY
       - name: Build static web
         run: npm run web:publish
