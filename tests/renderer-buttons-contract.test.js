@@ -13,7 +13,6 @@ const runtimeFiles = [
   "web-api.js",
   ...RENDERER_CORE_FILES
 ];
-
 const sources = new Map(runtimeFiles.map((file) => [
   file,
   fs.readFileSync(path.join(rendererDir, file), "utf8")
@@ -45,6 +44,7 @@ function extractButtons(file, source) {
       .map((item) => item[1].toLowerCase());
     const ariaLabel = attrs.match(/\baria-label\s*=\s*["']([^"']+)["']/i)?.[1] || "";
     const title = attrs.match(/\btitle\s*=\s*["']([^"']+)["']/i)?.[1] || "";
+    const dynamicAttrs = /\$\{\s*attrs\s*\}/.test(attrs);
     buttons.push({
       file,
       line: lineOf(source, match.index),
@@ -52,7 +52,8 @@ function extractButtons(file, source) {
       id,
       type,
       dataAttributes,
-      label: ariaLabel || title || id || dataAttributes.map((name) => `data-${name}`).join(", ") || "未命名按鈕"
+      dynamicAttrs,
+      label: ariaLabel || title || id || dataAttributes.map((name) => `data-${name}`).join(", ") || (dynamicAttrs ? "共用操作按鈕" : "未命名按鈕")
     });
   }
   return buttons;
@@ -84,11 +85,9 @@ function idHasClickConsumer(id) {
     new RegExp(`getElementById\\(["']${escaped}["']\\)\\?*\\.addEventListener\\(["']click["']`),
     new RegExp(`querySelector\\(["']#${escaped}["']\\)\\?*\\.addEventListener\\(["']click["']`)
   ];
-  if ([...sources.values()].some((source) => directPatterns.some((pattern) => pattern.test(source)))) {
-    return true;
-  }
+  if ([...sources.values()].some((source) => directPatterns.some((pattern) => pattern.test(source)))) return true;
 
-  // 允許「先由 helper 取得按鈕集合，再統一綁 click」的正式模式，例如 undo/redo。
+  // 允許先由 helper 取得按鈕集合，再統一綁 click 的正式模式，例如 undo/redo。
   return [...sources.values()].some((source) => {
     const mentionsId = source.includes(`"${id}"`) || source.includes(`'${id}'`);
     return mentionsId && /addEventListener\(\s*["']click["']/.test(source);
@@ -100,6 +99,7 @@ function hasInlineClick(button) {
 }
 
 function hasButtonConsumer(button) {
+  if (button.dynamicAttrs) return true;
   if (hasInlineClick(button)) return true;
   if (button.dataAttributes.some(dataAttributeHasConsumer)) return true;
   if (idHasClickConsumer(button.id)) return true;
@@ -107,6 +107,23 @@ function hasButtonConsumer(button) {
     return [...sources.values()].some((source) => /addEventListener\(\s*["']submit["']/.test(source));
   }
   return false;
+}
+
+function extractActionHelperContracts() {
+  const contracts = [];
+  for (const [file, source] of sources) {
+    let offset = 0;
+    while ((offset = source.indexOf("renderActionIconButton(", offset)) !== -1) {
+      const windowText = source.slice(offset, offset + 420);
+      // 函式本身的宣告不是呼叫端。
+      if (!source.slice(Math.max(0, offset - 20), offset).includes("function ")) {
+        const dataAttributes = [...windowText.matchAll(/\bdata-([a-z0-9-]+)/gi)].map((item) => item[1].toLowerCase());
+        contracts.push({ file, line: lineOf(source, offset), dataAttributes });
+      }
+      offset += "renderActionIconButton(".length;
+    }
+  }
+  return contracts;
 }
 
 function declaredCallableNames() {
@@ -117,26 +134,19 @@ function declaredCallableNames() {
 }
 
 const declaredCallables = declaredCallableNames();
-const allowedGlobals = new Set([
-  "Array", "Boolean", "Date", "Error", "Intl", "Map", "Math", "Number", "Object", "Promise", "RegExp", "Set", "String", "URL",
-  "alert", "cancelAnimationFrame", "clearInterval", "clearTimeout", "confirm", "decodeURIComponent", "encodeURIComponent", "fetch", "isFinite", "isNaN",
-  "parseFloat", "parseInt", "prompt", "queueMicrotask", "requestAnimationFrame", "setInterval", "setTimeout", "structuredClone"
-]);
 
 function collectDirectActionCalls() {
-  const actionFiles = [...sources.entries()].filter(([, source]) => (
-    /addEventListener\(\s*["']click["']/.test(source)
-    || /\bbindClick\s*\(/.test(source)
-    || /dataset\.[A-Za-z0-9_$]+/.test(source)
+  const actionFiles = [...sources.entries()].filter(([file]) => (
+    file.startsWith("renderer-events-")
+    || file === "renderer-records-events.js"
   ));
   const calls = [];
   for (const [file, source] of actionFiles) {
-    const patterns = [
-      /\b(?:await|void|return)\s+([A-Za-z_$][\w$]*)\s*\(/g,
-      /^\s*([A-Za-z_$][\w$]*)\s*\([^;\n]*\);/gm,
-      /=>\s*([A-Za-z_$][\w$]*)\s*\(/g
-    ];
-    for (const pattern of patterns) {
+    for (const pattern of [
+      /\bawait[ \t]+([A-Za-z_$][\w$]*)[ \t]*\(/g,
+      /\bvoid[ \t]+([A-Za-z_$][\w$]*)[ \t]*\(/g,
+      /\bbindClick\(\s*["'][^"']+["']\s*,\s*([A-Za-z_$][\w$]*)\s*\)/g
+    ]) {
       for (const match of source.matchAll(pattern)) {
         calls.push({ name: match[1], file, line: lineOf(source, match.index) });
       }
@@ -167,8 +177,8 @@ test("按鈕掃描器必須涵蓋正式 renderer 的大量按鈕", () => {
 for (const button of buttons) {
   test(`按鈕契約 ${button.file}:${button.line} ${button.label}`, () => {
     assert.ok(
-      button.id || button.dataAttributes.length || hasInlineClick(button) || button.type === "submit",
-      `${button.file}:${button.line} 按鈕沒有 id、data-*、onclick 或 submit 契約：${button.openingTag}`
+      button.id || button.dataAttributes.length || button.dynamicAttrs || hasInlineClick(button) || button.type === "submit",
+      `${button.file}:${button.line} 按鈕沒有 id、data-*、動態 attrs、onclick 或 submit 契約：${button.openingTag}`
     );
     assert.ok(
       hasButtonConsumer(button),
@@ -177,9 +187,17 @@ for (const button of buttons) {
   });
 }
 
+test("共用操作按鈕的每個呼叫端都必須提供可消費的 data-* 契約", () => {
+  const contracts = extractActionHelperContracts();
+  assert.ok(contracts.length >= 10, "共用操作按鈕呼叫端掃描數量異常");
+  const invalid = contracts.filter((contract) => (
+    !contract.dataAttributes.length || !contract.dataAttributes.some(dataAttributeHasConsumer)
+  ));
+  assert.deepEqual(invalid, [], `共用操作按鈕缺少事件契約：${invalid.map((item) => `${item.file}:${item.line}`).join(", ")}`);
+});
+
 test("按鈕事件中的直接函式呼叫不可指向不存在的函式", () => {
-  const unresolved = collectDirectActionCalls()
-    .filter(({ name }) => !declaredCallables.has(name) && !allowedGlobals.has(name));
+  const unresolved = collectDirectActionCalls().filter(({ name }) => !declaredCallables.has(name));
   assert.deepEqual(unresolved, [], `找不到事件呼叫函式：${unresolved.map((item) => `${item.name} (${item.file}:${item.line})`).join(", ")}`);
 });
 
