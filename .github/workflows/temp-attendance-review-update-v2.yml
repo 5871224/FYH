@@ -1,0 +1,84 @@
+name: Temporary Attendance Review Update V2
+
+on:
+  push:
+    branches:
+      - agent/attendance-review-ui-location-history
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temp-attendance-review-update-v2
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: agent/attendance-review-ui-location-history
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Reuse source patch from first workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path('.github/workflows/temp-attendance-review-update.yml').read_text(encoding='utf-8')
+          start_marker = "          python3 - <<'PY'\n"
+          start = source.index(start_marker) + len(start_marker)
+          end = source.index("\n          PY\n", start)
+          script = source[start:end]
+          lines = []
+          for line in script.splitlines():
+              lines.append(line[10:] if line.startswith('          ') else line)
+          Path('/tmp/apply-attendance-review.py').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+          python3 /tmp/apply-attendance-review.py
+      - name: Fix regression assertion
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('tests/attendance-review-ui-location-history.test.js')
+          text = path.read_text(encoding='utf-8')
+          old = '            assert.match(css, /\\\\.attendance-ledger-table thead th,\\\\s*\\\\.attendance-review-table thead th \\{[\\\\s\\\\S]*?text-align: center/);'
+          new = '            assert.ok(css.includes(".attendance-ledger-table thead th,\\n.attendance-review-table thead th {\\n  text-align: center;\\n}"));'
+          if old not in text:
+              raise SystemExit('header assertion pattern not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Build static web
+        run: npm run web:publish
+      - name: Run full tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/fyh-temp-workflows
+          mv .github/workflows/temp-attendance-review-update.yml /tmp/fyh-temp-workflows/
+          mv .github/workflows/temp-attendance-review-update-v2.yml /tmp/fyh-temp-workflows/
+          npm test
+          deno check --node-modules-dir=auto supabase/functions/attendance-review-groups/index.ts
+          mv /tmp/fyh-temp-workflows/temp-attendance-review-update.yml .github/workflows/
+          mv /tmp/fyh-temp-workflows/temp-attendance-review-update-v2.yml .github/workflows/
+      - name: Commit source and generated outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/renderer/css/pages.css src/renderer/renderer-records-views.js src/renderer/renderer-records-actions.js src/renderer/renderer-records-page.js src/renderer/renderer-foundation.js supabase/functions/attendance-review-groups/index.ts tests/attendance-review-ui-location-history.test.js src/renderer/app.js src/renderer/app.css src/renderer/index.html docs
+          git commit -m "修正簽到審核介面與打卡地點編輯"
+          git push origin HEAD:agent/attendance-review-ui-location-history
