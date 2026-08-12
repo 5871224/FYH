@@ -53,12 +53,17 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           path = Path('tests/attendance-review-ui-location-history.test.js')
-          text = path.read_text(encoding='utf-8')
-          old = '            assert.match(css, /\\\\.attendance-ledger-table thead th,\\\\s*\\\\.attendance-review-table thead th \\{[\\\\s\\\\S]*?text-align: center/);'
-          new = '            assert.ok(css.includes(".attendance-ledger-table thead th,\\n.attendance-review-table thead th {\\n  text-align: center;\\n}"));'
-          if old not in text:
-              raise SystemExit('header assertion pattern not found')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          lines = path.read_text(encoding='utf-8').splitlines()
+          replacement = '            assert.ok(css.includes(".attendance-ledger-table thead th,\\n.attendance-review-table thead th {\\n  text-align: center;\\n}"));'
+          found = False
+          for index, line in enumerate(lines):
+              if 'assert.match(css,' in line and 'attendance-ledger-table thead th' in line:
+                  lines[index] = replacement
+                  found = True
+                  break
+          if not found:
+              raise SystemExit('header assertion line not found')
+          path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
           PY
       - name: Build static web
         run: npm run web:publish
