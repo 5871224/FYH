@@ -53,6 +53,7 @@ function renderAll() {
   renderMealPage();
   renderRecordsPage();
   renderTable();
+  syncPermissionUi();
   syncAppView();
   renderAuthGate();
 }
