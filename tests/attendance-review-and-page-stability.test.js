@@ -23,7 +23,9 @@ test("簽到審核使用一致班表圖示與三個單行 SVG 操作", () => {
   const views = read("src/renderer/renderer-records-views.js");
   const css = read("src/renderer/css/pages.css");
   assert.match(views, /data-edit-attendance-review[\s\S]*?<svg/);
-  assert.match(views, /data-toggle-attendance-review[\s\S]*?<svg/);
+  assert.match(views, /data-toggle-attendance-review[\s\S]*?renderAttendanceReviewToggleIcon\(row\.reviewed\)/);
+  assert.match(views, /attendance-review-reviewed-icon/);
+  assert.match(views, /attendance-review-unreviewed-icon/);
   assert.match(views, /data-view-attendance-history[\s\S]*?<svg/);
   assert.equal(views.includes(">編輯</button>"), false);
   assert.equal(views.includes(">未審</button>"), false);
