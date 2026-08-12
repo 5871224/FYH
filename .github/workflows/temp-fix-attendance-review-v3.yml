@@ -1,0 +1,40 @@
+name: Temporary Fix Attendance Review V3
+
+on:
+  push:
+    branches:
+      - agent/attendance-review-ui-location-history-v3
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.head_commit.message != 'Fix temporary updater syntax'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/attendance-review-ui-location-history-v3
+      - name: Fix updater syntax
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('.github/workflows/temp-attendance-review-v3.yml')
+          text = p.read_text(encoding='utf-8')
+          old = "'''.replace(/^          /gm, ''), encoding='utf-8')"
+          new = "''', encoding='utf-8')"
+          if old not in text:
+              print('Updater syntax is already fixed')
+          else:
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/temp-attendance-review-v3.yml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Fix temporary updater syntax"
+          git push origin HEAD:agent/attendance-review-ui-location-history-v3
