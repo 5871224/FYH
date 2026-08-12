@@ -32,7 +32,16 @@ jobs:
         run: npm run web:publish
 
       - name: Run regression and architecture checks
-        run: npm run ci:check
+        shell: bash
+        run: |
+          set -euo pipefail
+          temp_workflow="/tmp/temp-sync-meal-export.yml"
+          mv .github/workflows/temp-sync-meal-export.yml "$temp_workflow"
+          restore_workflow() {
+            mv "$temp_workflow" .github/workflows/temp-sync-meal-export.yml
+          }
+          trap restore_workflow EXIT
+          npm run ci:check
 
       - name: Commit generated web outputs
         shell: bash
