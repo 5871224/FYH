@@ -8482,11 +8482,13 @@ function renderMealPage() {
   const disabled = mealOrderState.loading || !status?.orderingOpen || !status?.attendance?.clock_in_at;
   const unavailableReason = !status
     ? ""
-    : !status.attendance?.clock_in_at
-      ? "今日需先完成上班打卡才能訂餐"
-      : !status.orderingOpen
-        ? `今日訂餐已於 ${status.cutoffTime} 截止`
-        : "";
+    : status.mealEnabled === false
+      ? "此群組未開放訂餐"
+      : !status.attendance?.clock_in_at
+        ? "今日需先完成上班打卡才能訂餐"
+        : !status.orderingOpen
+          ? `今日訂餐已於 ${status.cutoffTime} 截止`
+          : "";
   mealCard.innerHTML = `
     <div class="clock-page-header">
       <div>
@@ -9334,6 +9336,12 @@ function applyMealInputLimits() {
     });
   }
 
+function syncCurrentGroupMealAvailability(status) {
+  if (typeof status?.mealEnabled !== "boolean") return;
+  const actorGroup = getActorGroup();
+  if (actorGroup) actorGroup.mealEnabled = status.mealEnabled;
+}
+
 async function loadTodayMealOrder() {
   if (!isLoggedIn()) {
     return;
@@ -9344,6 +9352,7 @@ async function loadTodayMealOrder() {
   try {
     const status = await window.schedulerApi.getTodayMealOrder();
     if (loadSequence !== mealOrderLoadSequence) return;
+    syncCurrentGroupMealAvailability(status);
     mealOrderState = { loading: false, status, error: "" };
   } catch (error) {
     if (loadSequence !== mealOrderLoadSequence) return;
@@ -9404,6 +9413,7 @@ async function saveTodayMealOrder() {
     renderAll();
     try {
       const status = await window.schedulerApi.saveTodayMealOrder({ items });
+      syncCurrentGroupMealAvailability(status);
       mealOrderState = { loading: false, status, error: "", pendingItems: null };
       showInfoMessage(cancelling ? "今日訂餐已取消" : "訂餐已儲存");
     } catch (error) {
@@ -10226,6 +10236,7 @@ function renderAll() {
   renderMealPage();
   renderRecordsPage();
   renderTable();
+  syncPermissionUi();
   syncAppView();
   renderAuthGate();
 }
@@ -11197,6 +11208,40 @@ async function changeSchedulePeriodWeeks(weeks) {
   await ensureVisibleScheduleLoaded();
   renderAll();
   await forceSave();
+}
+
+function getSettingsExportPayload() {
+  return {
+    state,
+    year: state.year,
+    month: state.month
+  };
+}
+
+async function exportDepartmentsFromSettings() {
+  try {
+    await window.schedulerApi.exportDepartments(getSettingsExportPayload());
+  } catch (error) {
+    setSaveStatus(`匯出失敗：${error.message || error}`);
+  }
+}
+
+async function exportListSettings(category) {
+  const methodByCategory = {
+    shift: "exportShifts",
+    leave: "exportLeaveSettings",
+    overtime: "exportOvertimeSettings"
+  };
+  const method = methodByCategory[category];
+  if (!method || typeof window.schedulerApi?.[method] !== "function") {
+    setSaveStatus("匯出失敗：不支援的設定類型");
+    return;
+  }
+  try {
+    await window.schedulerApi[method](getSettingsExportPayload());
+  } catch (error) {
+    setSaveStatus(`匯出失敗：${error.message || error}`);
+  }
 }
 
 function parseExportDate(value) {
