@@ -1,0 +1,220 @@
+name: Temporary Attendance Review V3
+
+on:
+  push:
+    branches:
+      - agent/attendance-review-ui-location-history-v3
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temp-attendance-review-v3
+  cancel-in-progress: true
+
+jobs:
+  update:
+    if: github.event.head_commit.message != 'Update attendance review location editing and history'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: agent/attendance-review-ui-location-history-v3
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Apply source changes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly 1 match, got {count}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # 審核表表頭置中；審核操作按鈕依「下一個動作」著色。
+          replace_once(
+              'src/renderer/css/pages.css',
+              '''.attendance-review-table {\n  table-layout: fixed;\n  min-width: 1000px;\n}''',
+              '''.attendance-review-table {\n  table-layout: fixed;\n  min-width: 1000px;\n}\n\n.attendance-review-table thead th {\n  text-align: center;\n}'''
+          )
+          replace_once(
+              'src/renderer/css/pages.css',
+              '''.attendance-review-status.is-unreviewed,\n.attendance-review-toggle.is-unreviewed {\n  background: #fff4d6;\n  color: #8a5a00;\n  border: 1px solid #efc66a;\n}\n\n.attendance-review-status.is-reviewed,\n.attendance-review-toggle.is-reviewed {\n  background: #e8f7ef;\n  color: #176b45;\n  border: 1px solid #8bc9aa;\n}\n\n.attendance-review-toggle {\n  padding: 0;\n  border-radius: 999px;\n  font-weight: 800;\n  cursor: pointer;\n}''',
+              '''.attendance-review-status.is-unreviewed {\n  background: #fff4d6;\n  color: #8a5a00;\n  border: 1px solid #efc66a;\n}\n\n.attendance-review-status.is-reviewed {\n  background: #e8f7ef;\n  color: #176b45;\n  border: 1px solid #8bc9aa;\n}\n\n.attendance-review-toggle {\n  padding: 0;\n  border-radius: 999px;\n  font-weight: 800;\n  cursor: pointer;\n}\n\n.attendance-review-toggle.is-set-reviewed {\n  background: #e8f7ef;\n  color: #176b45;\n  border: 1px solid #8bc9aa;\n}\n\n.attendance-review-toggle.is-set-unreviewed {\n  background: #f2f3f5;\n  color: #73777f;\n  border: 1px solid #c7c9ce;\n}'''
+          )
+
+          # 審核按鈕：未審時顯示綠色勾，已審時顯示灰色警示三角形。
+          replace_once(
+              'src/renderer/renderer-records-views.js',
+              'function renderAttendanceReviewPagination(review) {',
+              '''function renderAttendanceReviewToggleIcon(reviewed) {\n  return reviewed\n    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4m0 4h.01"></path><path d="M10.3 4.7 3.9 16a2 2 0 0 0 1.7 3h12.8a2 2 0 0 0 1.7-3L13.7 4.7a2 2 0 0 0-3.4 0Z"></path></svg>'\n    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4L19 6"></path></svg>';\n}\n\nfunction renderAttendanceReviewPagination(review) {'''
+          )
+          replace_once(
+              'src/renderer/renderer-records-views.js',
+              '''<button class="settings-icon-btn attendance-review-action-btn attendance-review-toggle ${row.reviewed ? "is-reviewed" : "is-unreviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}" aria-label="${row.reviewed ? "取消審核" : "審核"}" title="${row.reviewed ? "取消審核" : "審核"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l1 2h3v15H5V6h3l1-2z"></path><path d="m9 13 2 2 4-5"></path></svg></button>''',
+              '''<button class="settings-icon-btn attendance-review-action-btn attendance-review-toggle ${row.reviewed ? "is-set-unreviewed" : "is-set-reviewed"}" type="button" data-toggle-attendance-review="${escapeHtml(token)}" data-reviewed="${row.reviewed ? "true" : "false"}" aria-label="${row.reviewed ? "設為未審" : "設為已審"}" title="${row.reviewed ? "設為未審" : "設為已審"}">${renderAttendanceReviewToggleIcon(row.reviewed)}</button>'''
+          )
+
+          # 保存後端回傳的可打卡單位，供編輯視窗選擇。
+          replace_once(
+              'src/renderer/renderer-foundation.js',
+              '''      rows: [],\n      members: [],\n      issueTypes: [],''',
+              '''      rows: [],\n      members: [],\n      departments: [],\n      issueTypes: [],'''
+          )
+          replace_once(
+              'src/renderer/renderer-records-page.js',
+              '''    rows: current.rows || [],\n    members: current.members || [],\n    issueTypes: current.issueTypes || [],''',
+              '''    rows: current.rows || [],\n    members: current.members || [],\n    departments: current.departments || [],\n    issueTypes: current.issueTypes || [],'''
+          )
+          replace_once(
+              'src/renderer/renderer-records-page.js',
+              '''        rows: result.rows || [],\n        members: result.members || [],\n        issueTypes: result.issueTypes || [],''',
+              '''        rows: result.rows || [],\n        members: result.members || [],\n        departments: result.departments || [],\n        issueTypes: result.issueTypes || [],'''
+          )
+
+          # 編輯視窗加入上下班地點；歷程操作與變更內容中文化。
+          replace_once(
+              'src/renderer/renderer-records-actions.js',
+              'function openAttendanceReviewEditModal(token) {',
+              '''function attendanceReviewLocationOptions(row, location) {\n  const review = ensureAttendanceReviewState();\n  const groupId = String(row?.groupId || "");\n  const currentId = String(location?.departmentId || "");\n  const currentName = String(location?.name || "");\n  const departments = (review.departments || [])\n    .filter((department) => !groupId || String(department.group_id || department.groupId || "") === groupId)\n    .map((department) => ({ id: String(department.id || ""), name: String(department.name || "") }))\n    .filter((department) => department.id);\n  if (currentId && !departments.some((department) => department.id === currentId)) {\n    departments.unshift({ id: currentId, name: currentName || "目前打卡地點" });\n  }\n  const emptyLabel = currentName && !currentId ? `保留目前地點（${currentName}）` : "管理員補登";\n  return `<option value="" ${!currentId ? "selected" : ""}>${escapeHtml(emptyLabel)}</option>${departments\n    .map((department) => `<option value="${escapeHtml(department.id)}" ${department.id === currentId ? "selected" : ""}>${escapeHtml(department.name || department.id)}</option>`)\n    .join("")}`;\n}\n\nfunction openAttendanceReviewEditModal(token) {'''
+          )
+          replace_once(
+              'src/renderer/renderer-records-actions.js',
+              '''      <div class="form-row"><label>上班時間</label><input id="reviewClockInTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_in_at))}"></div>\n      <div class="form-row"><label>下班時間</label><input id="reviewClockOutTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_out_at))}"></div>\n      <div class="form-row"><label>上班時數</label>''',
+              '''      <div class="form-row"><label>上班時間</label><input id="reviewClockInTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_in_at))}"></div>\n      <div class="form-row"><label>下班時間</label><input id="reviewClockOutTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_out_at))}"></div>\n      <div class="form-row"><label>上班地點</label><select id="reviewClockInLocation">${attendanceReviewLocationOptions(row, row.clock_in_location)}</select></div>\n      <div class="form-row"><label>下班地點</label><select id="reviewClockOutLocation">${attendanceReviewLocationOptions(row, row.clock_out_location)}</select></div>\n      <div class="form-row"><label>上班時數</label>'''
+          )
+          replace_once(
+              'src/renderer/renderer-records-actions.js',
+              '''      clockInTime: document.getElementById("reviewClockInTime")?.value || "",\n      clockOutTime: document.getElementById("reviewClockOutTime")?.value || "",\n      regularHours:''',
+              '''      clockInTime: document.getElementById("reviewClockInTime")?.value || "",\n      clockOutTime: document.getElementById("reviewClockOutTime")?.value || "",\n      clockInLocationDepartmentId: document.getElementById("reviewClockInLocation")?.value || "",\n      clockOutLocationDepartmentId: document.getElementById("reviewClockOutLocation")?.value || "",\n      regularHours:'''
+          )
+          replace_once(
+              'src/renderer/renderer-records-actions.js',
+              'async function openAttendanceHistoryModal(recordId) {',
+              '''function attendanceHistoryActionLabel(value) {\n  const labels = {\n    clock_in: "上班打卡",\n    clock_out: "下班打卡",\n    employee_regularHours: "修改上班時數",\n    employee_overtimeHours: "修改加班時數",\n    employee_note: "修改備註",\n    admin_edit: "主管修正",\n    reviewed: "設為已審",\n    returned: "設為未審",\n    unreviewed: "設為未審"\n  };\n  return labels[String(value || "")] || String(value || "異動紀錄");\n}\n\nfunction attendanceHistoryLocationLabel(location) {\n  if (!location || typeof location !== "object") return "未指定";\n  return String(location.name || location.departmentId || "未指定");\n}\n\nfunction attendanceHistoryChangeSummary(log = {}) {\n  const before = log.before_data && typeof log.before_data === "object" ? log.before_data : {};\n  const after = log.after_data && typeof log.after_data === "object" ? log.after_data : {};\n  const parts = [];\n  if (String(before.clock_in_at || "") !== String(after.clock_in_at || "")) {\n    parts.push(`上班 ${before.clock_in_at ? formatClockTime(before.clock_in_at) : "未填"} → ${after.clock_in_at ? formatClockTime(after.clock_in_at) : "未填"}`);\n  }\n  if (String(before.clock_out_at || "") !== String(after.clock_out_at || "")) {\n    parts.push(`下班 ${before.clock_out_at ? formatClockTime(before.clock_out_at) : "未填"} → ${after.clock_out_at ? formatClockTime(after.clock_out_at) : "未填"}`);\n  }\n  if (attendanceHistoryLocationLabel(before.clock_in_location) !== attendanceHistoryLocationLabel(after.clock_in_location)) {\n    parts.push(`上班地點 ${attendanceHistoryLocationLabel(before.clock_in_location)} → ${attendanceHistoryLocationLabel(after.clock_in_location)}`);\n  }\n  if (attendanceHistoryLocationLabel(before.clock_out_location) !== attendanceHistoryLocationLabel(after.clock_out_location)) {\n    parts.push(`下班地點 ${attendanceHistoryLocationLabel(before.clock_out_location)} → ${attendanceHistoryLocationLabel(after.clock_out_location)}`);\n  }\n  if (before.regular_minutes !== after.regular_minutes) {\n    parts.push(`上班時數 ${before.regular_minutes == null ? "未填" : Number(before.regular_minutes) / 60} → ${after.regular_minutes == null ? "未填" : Number(after.regular_minutes) / 60}`);\n  }\n  if (before.overtime_minutes !== after.overtime_minutes) {\n    parts.push(`加班時數 ${before.overtime_minutes == null ? "未填" : Number(before.overtime_minutes) / 60} → ${after.overtime_minutes == null ? "未填" : Number(after.overtime_minutes) / 60}`);\n  }\n  if (String(before.note || "") !== String(after.note || "")) parts.push("備註已修改");\n  return parts.join("；") || "-";\n}\n\nasync function openAttendanceHistoryModal(recordId) {'''
+          )
+          replace_once(
+              'src/renderer/renderer-records-actions.js',
+              '''body: `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>時間</th><th>操作</th><th>原因</th><th>操作人</th></tr></thead><tbody>${(result.logs || []).map((log) => `<tr><td>${formatRecordDateTime(log.created_at)}</td><td>${escapeHtml(log.action || "")}</td><td>${escapeHtml(log.reason || "")}</td><td>${escapeHtml(log.operator_name || "")}</td></tr>`).join("") || '<tr><td colspan="4">沒有歷程</td></tr>'}</tbody></table></div>`''',
+              '''body: `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>時間</th><th>操作</th><th>變更內容</th><th>原因</th><th>操作人</th></tr></thead><tbody>${(result.logs || []).map((log) => `<tr><td>${formatRecordDateTime(log.created_at)}</td><td>${escapeHtml(attendanceHistoryActionLabel(log.action))}</td><td>${escapeHtml(attendanceHistoryChangeSummary(log))}</td><td>${escapeHtml(log.reason || "")}</td><td>${escapeHtml(log.operator_name || "")}</td></tr>`).join("") || '<tr><td colspan="5">沒有歷程</td></tr>'}</tbody></table></div>`'''
+          )
+
+          # 後端清單回傳同群組且已開放打卡的單位；保存時再次做群組與打卡權限驗證。
+          replace_once(
+              'supabase/functions/attendance-review-groups/index.ts',
+              '''  if (!groupIds.length) return { ok: true, members: [], issueTypes: ISSUE_TYPES, rows: [], total: 0, page, pageSize: PAGE_SIZE };''',
+              '''  if (!groupIds.length) return { ok: true, members: [], departments: [], issueTypes: ISSUE_TYPES, rows: [], total: 0, page, pageSize: PAGE_SIZE };'''
+          )
+          replace_once(
+              'supabase/functions/attendance-review-groups/index.ts',
+              '''    ctx.supabaseAdmin.from("set_departments").select("id,name,group_id").in("group_id", groupIds)''',
+              '''    ctx.supabaseAdmin.from("set_departments").select("id,name,address,group_id,attendance_enabled,deleted_at").in("group_id", groupIds).is("deleted_at", null)'''
+          )
+          replace_once(
+              'supabase/functions/attendance-review-groups/index.ts',
+              '''    members: members.map((member: any) => ({ id: member.id, employee_code: member.employee_code, full_name: member.full_name, group_id: member.group_id })),\n    issueTypes: ISSUE_TYPES,''',
+              '''    members: members.map((member: any) => ({ id: member.id, employee_code: member.employee_code, full_name: member.full_name, group_id: member.group_id })),\n    departments: (departmentResult.data || [])\n      .filter((department: any) => department.attendance_enabled === true)\n      .map((department: any) => ({ id: department.id, name: department.name || "", group_id: department.group_id })),\n    issueTypes: ISSUE_TYPES,'''
+          )
+          replace_once(
+              'supabase/functions/attendance-review-groups/index.ts',
+              'async function reviewSave(ctx: any, body: any, actor: any) {',
+              '''async function resolveAdminClockLocation(ctx: any, target: any, departmentIdValue: unknown, oldLocation: any, clockAt: string | null) {\n  if (!clockAt) return null;\n  const departmentId = String(departmentIdValue || "").trim();\n  if (!departmentId) return oldLocation || { name: "管理員補登", source: "管理員補登" };\n  const result = await ctx.supabaseAdmin.from("set_departments")\n    .select("id,name,address,group_id,attendance_enabled,deleted_at")\n    .eq("id", departmentId).is("deleted_at", null).maybeSingle();\n  if (result.error) throw result.error;\n  if (!result.data) throw new Error("找不到指定的打卡地點");\n  if (String(result.data.group_id || "") !== String(target.group_id || "")) throw new Error("打卡地點不屬於該人員群組");\n  if (result.data.attendance_enabled !== true) throw new Error("此單位目前未開放打卡");\n  return {\n    departmentId: result.data.id,\n    name: result.data.name || "",\n    address: result.data.address || "",\n    source: "管理員修改",\n    accuracy: null,\n    distance: null\n  };\n}\n\nasync function reviewSave(ctx: any, body: any, actor: any) {'''
+          )
+          replace_once(
+              'supabase/functions/attendance-review-groups/index.ts',
+              '''  await ensureTargetAllowed(ctx, actor, userId);\n  const old = await getOrCreateDay(ctx, userId, workDate);''',
+              '''  const target = await ensureTargetAllowed(ctx, actor, userId);\n  const old = await getOrCreateDay(ctx, userId, workDate);'''
+          )
+          replace_once(
+              'supabase/functions/attendance-review-groups/index.ts',
+              '''  update.clock_in_location = clockInAt ? (old.clock_in_location || { name: "管理員補登", source: "管理員補登" }) : null;\n  update.clock_out_location = clockOutAt ? (old.clock_out_location || { name: "管理員補登", source: "管理員補登" }) : null;''',
+              '''  [update.clock_in_location, update.clock_out_location] = await Promise.all([\n    resolveAdminClockLocation(ctx, target, body?.clockInLocationDepartmentId, old.clock_in_location, clockInAt),\n    resolveAdminClockLocation(ctx, target, body?.clockOutLocationDepartmentId, old.clock_out_location, clockOutAt)\n  ]);'''
+          )
+
+          # 新增跨模組回歸測試，避免 UI 有欄位但後端未保存、或按鈕狀態再退化。
+          Path('tests/attendance-review-location-history.test.js').write_text(r'''const test = require("node:test");
+          const assert = require("node:assert/strict");
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          const root = path.resolve(__dirname, "..");
+          const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+
+          test("簽到審核操作圖示與表頭狀態清楚", () => {
+            const view = read("src/renderer/renderer-records-views.js");
+            const css = read("src/renderer/css/pages.css");
+            assert.match(view, /M5 12l4 4L19 6/);
+            assert.match(view, /M12 9v4m0 4h\.01/);
+            assert.match(view, /is-set-reviewed/);
+            assert.match(view, /is-set-unreviewed/);
+            assert.match(css, /\.attendance-review-table thead th \{\s*text-align: center;/);
+          });
+
+          test("簽到審核編輯上下班地點會完整傳到後端並受群組權限驗證", () => {
+            const actions = read("src/renderer/renderer-records-actions.js");
+            const page = read("src/renderer/renderer-records-page.js");
+            const edge = read("supabase/functions/attendance-review-groups/index.ts");
+            assert.match(actions, /reviewClockInLocation/);
+            assert.match(actions, /reviewClockOutLocation/);
+            assert.match(actions, /clockInLocationDepartmentId/);
+            assert.match(actions, /clockOutLocationDepartmentId/);
+            assert.match(page, /departments: result\.departments \|\| \[\]/);
+            assert.match(edge, /attendance_enabled/);
+            assert.match(edge, /打卡地點不屬於該人員群組/);
+            assert.match(edge, /此單位目前未開放打卡/);
+            assert.match(edge, /resolveAdminClockLocation\(ctx, target, body\?\.clockInLocationDepartmentId/);
+            assert.match(edge, /resolveAdminClockLocation\(ctx, target, body\?\.clockOutLocationDepartmentId/);
+          });
+
+          test("簽到修改歷程使用中文操作名稱並顯示時間與地點前後值", () => {
+            const actions = read("src/renderer/renderer-records-actions.js");
+            assert.match(actions, /admin_edit: "主管修正"/);
+            assert.match(actions, /reviewed: "設為已審"/);
+            assert.match(actions, /returned: "設為未審"/);
+            assert.match(actions, /上班地點/);
+            assert.match(actions, /下班地點/);
+            assert.match(actions, /變更內容/);
+          });
+          '''.replace(/^          /gm, ''), encoding='utf-8')
+          PY
+
+      - name: Install
+        run: npm ci
+      - name: Build static web
+        run: npm run web:publish
+      - name: Full validation without temporary workflow
+        shell: bash
+        run: |
+          mkdir -p .tmp-workflow
+          mv .github/workflows/temp-attendance-review-v3.yml .tmp-workflow/temp-attendance-review-v3.yml
+          trap 'mv .tmp-workflow/temp-attendance-review-v3.yml .github/workflows/temp-attendance-review-v3.yml 2>/dev/null || true' EXIT
+          npm run ci:check
+          mv .tmp-workflow/temp-attendance-review-v3.yml .github/workflows/temp-attendance-review-v3.yml
+          rmdir .tmp-workflow
+          trap - EXIT
+      - name: Commit source and generated files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/renderer supabase/functions/attendance-review-groups/index.ts tests docs
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Update attendance review location editing and history"
+          git push origin HEAD:agent/attendance-review-ui-location-history-v3
