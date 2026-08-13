@@ -110,6 +110,25 @@ replace_once(
 )
 
 
+# 更新正式測試契約：管理員編輯可選群組內所有未刪除單位，前端不得出現「管理員補登」。
+replace_once(
+    "tests/attendance-review-location-history.test.js",
+    '''  assert.match(page, /departments: result\\.departments \\|\\| \\[\\]/);
+  assert.match(edge, /attendance_enabled/);
+  assert.match(edge, /打卡地點不屬於該人員群組/);
+  assert.match(edge, /此單位目前未開放打卡/);
+''',
+    '''  assert.match(page, /departments: result\\.departments \\|\\| \\[\\]/);
+  assert.match(actions, /\\.filter\\(\\(department\\) => groupId &&/);
+  assert.doesNotMatch(actions, /departments\\.unshift/);
+  assert.doesNotMatch(actions, /管理員補登/);
+  assert.match(edge, /打卡地點不屬於該人員群組/);
+  assert.doesNotMatch(edge, /\\.filter\\(\\(department: any\\) => department\\.attendance_enabled === true\\)/);
+  assert.doesNotMatch(edge, /此單位目前未開放打卡/);
+''',
+)
+
+
 # Focused regression guards for this request.
 frontend = Path("src/renderer/renderer-records-actions.js").read_text(encoding="utf-8")
 function_text = frontend.split("function attendanceReviewLocationOptions", 1)[1].split("\n}\n", 1)[0]
