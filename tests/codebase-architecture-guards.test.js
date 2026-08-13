@@ -100,3 +100,15 @@ test("schedulerApi 只有正式後端提供者可以建立，其他畫面模組�
     .filter((name) => /window\.schedulerApi\s*=/.test(read(`src/renderer/${name}`)));
   assert.deepEqual(owners, ["web-api.js"]);
 });
+
+test("schedulerApi 在提供者載入前建立唯讀後端門面", () => {
+  const html = read("src/renderer/index.html");
+  const configIndex = html.indexOf('<script src="./app-config.js');
+  const boundaryIndex = html.indexOf('Object.defineProperty(window, "schedulerApi"');
+  const appIndex = html.indexOf('<script src="./app.js');
+  assert.ok(configIndex >= 0 && boundaryIndex > configIndex && appIndex > boundaryIndex);
+  assert.match(html, /new Proxy\(value/);
+  assert.match(html, /set:\s*\(\)\s*=>\s*false/);
+  assert.match(html, /defineProperty:\s*\(\)\s*=>\s*false/);
+  assert.match(html, /deleteProperty:\s*\(\)\s*=>\s*false/);
+});
