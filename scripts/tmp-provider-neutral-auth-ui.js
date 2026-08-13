@@ -19,7 +19,7 @@ replaceOne(
           session: user ? Object.freeze({ user }) : null,
           profile
         });`,
-  `        const authenticated = Boolean(user);
+  `        const authenticated = Boolean(user?.id);
         return Object.freeze({
           authenticated,
           user: authenticated ? user : null,
@@ -174,6 +174,21 @@ replaceOne(
   `  assert.doesNotMatch(pageData, /schedulerApi\\.[A-Za-z0-9_]+\\s*=/);
   assert.doesNotMatch(pageData, /currentSession|authContext\\?\\.session/);
   assert.match(pageData, /applyAuthContext\\(authContext\\)/);`
+);
+
+replaceOne(
+  "tests/attendance-review-and-page-stability.test.js",
+  String.raw`  assert.match(source, /if \(!currentSession\?\.user\)[\s\S]*?appView = "home";/);`,
+  String.raw`  assert.match(source, /if \(!authContext\?\.authenticated \|\| !authContext\?\.user\)[\s\S]*?appView = "home";/);`
+);
+
+replaceOne(
+  "tests/codebase-architecture-guards.test.js",
+  String.raw`  assert.match(html, /session: user \? Object\.freeze\(\{ user \}\) : null/);`,
+  String.raw`  assert.match(html, /const authenticated = Boolean\(user\?\.id\)/);
+  assert.match(html, /user: authenticated \? user : null/);
+  assert.match(html, /profile: authenticated \? profile : null/);
+  assert.doesNotMatch(html, /session: user \?/);`
 );
 
 console.log("Provider-neutral renderer auth refactor applied.");
