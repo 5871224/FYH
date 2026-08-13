@@ -108,7 +108,10 @@ test("schedulerApi facade is readonly and strips provider auth tokens", () => {
   assert.ok(configIndex >= 0 && boundaryIndex > configIndex && appIndex > boundaryIndex);
   assert.match(html, /const sanitizeAuthContext = \(context\) =>/);
   assert.match(html, /const createFacade = \(value\) =>/);
-  assert.match(html, /session: user \? Object\.freeze\(\{ user \}\) : null/);
+  assert.match(html, /const authenticated = Boolean\(user\?\.id\)/);
+  assert.match(html, /user: authenticated \? user : null/);
+  assert.match(html, /profile: authenticated \? profile : null/);
+  assert.doesNotMatch(html, /session: user \?/);
   assert.match(html, /return Object\.freeze\(facade\)/);
   assert.match(html, /provider = createFacade\(value\)/);
 });

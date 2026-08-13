@@ -127,10 +127,11 @@
         const profile = source.profile && typeof source.profile === "object"
           ? Object.freeze({ ...source.profile })
           : null;
+        const authenticated = Boolean(user?.id);
         return Object.freeze({
-          user,
-          session: user ? Object.freeze({ user }) : null,
-          profile
+          authenticated,
+          user: authenticated ? user : null,
+          profile: authenticated ? profile : null
         });
       };
 
@@ -165,6 +166,6 @@
       });
     })();
   </script>
-  <script src="./app.js?v=cc933dfe38cb"></script>
+  <script src="./app.js?v=fddf68650972"></script>
 </body>
 </html>

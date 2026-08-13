@@ -28,8 +28,7 @@ async function handleSignOut() {
   authErrorMessage = "";
   authPromptMessage = "";
   authModalOpen = false;
-  currentSession = null;
-  currentProfile = null;
+  clearAuthIdentity();
   resetLoadedUserRuntimeState();
   closeModal();
   closeCoreActionsMenu();

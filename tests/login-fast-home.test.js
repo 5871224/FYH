@@ -15,6 +15,8 @@ test("登入首頁與班表延後載入由正式 bundle 模組提供", () => {
   assert.match(pageData, /async function initializeAuthenticatedHome/);
   assert.match(pageData, /async function ensureScheduleApplicationLoaded/);
   assert.doesNotMatch(pageData, /schedulerApi\.[A-Za-z0-9_]+\s*=/);
+  assert.doesNotMatch(pageData, /currentSession|authContext\?\.session/);
+  assert.match(pageData, /applyAuthContext\(authContext\)/);
 });
 
 test("登入成功後直接沿用 signIn 回傳身分，不重做 initializeAuth", () => {

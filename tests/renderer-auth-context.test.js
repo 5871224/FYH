@@ -31,7 +31,8 @@ test("管理能力應完全由權限項目與適用群組決定", () => {
   const end = authContext.indexOf("async function ensureManagerDirectoryLoaded", start);
   let permissions = [];
   const context = {
-    currentSession: { user: { id: "U1" } },
+    authenticated: true,
+    currentUser: { id: "U1" },
     groupFeatureState: { currentGroupId: "G1" },
     getAccessPermissions: () => permissions,
     hasPermission: (permission) => permissions.includes(permission),

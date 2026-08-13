@@ -15,8 +15,7 @@ function bindScheduleSessionEvents() {
     authErrorMessage = "登入已逾時，請重新登入";
     authPromptMessage = "";
     authModalOpen = true;
-    currentSession = null;
-    currentProfile = null;
+    clearAuthIdentity();
     currentMember = null;
     managerDirectoryLoaded = false;
     managerDirectoryLoading = null;

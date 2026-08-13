@@ -48,10 +48,9 @@ test("登入結果不得把 Access Token 或 Refresh Token 暴露給 renderer", 
   const auth = await api.initializeAuth();
 
   assert.equal(provider.getAuthContext().session.access_token, "access-secret");
-  assert.equal(auth.session.access_token, undefined);
-  assert.equal(auth.session.refresh_token, undefined);
-  assert.equal(auth.session.expires_at, undefined);
-  assert.deepEqual(Object.keys(auth.session), ["user"]);
+  assert.equal(auth.authenticated, true);
+  assert.equal(auth.session, undefined);
+  assert.deepEqual(Object.keys(auth).sort(), ["authenticated", "profile", "user"]);
   assert.deepEqual(Object.keys(auth.user).sort(), ["email", "id"]);
   assert.equal(auth.user.id, "U1");
   assert.equal(auth.user.email, "u1@local.invalid");
@@ -71,11 +70,30 @@ test("同步登入狀態與一般 API 也必須經過同一個唯讀門面", () 
   const { api } = createFacade(rawContext);
   const auth = api.getAuthContext();
 
-  assert.equal(auth.session.access_token, undefined);
+  assert.equal(auth.authenticated, true);
+  assert.equal(auth.session, undefined);
   assert.equal(auth.user.id, "U2");
   assert.equal(api.ping("ok"), "pong:ok");
   assert.equal(Object.isFrozen(api), true);
   assert.equal(Object.isFrozen(auth), true);
-  assert.equal(Object.isFrozen(auth.session), true);
+  assert.equal(Object.isFrozen(auth.profile), true);
   assert.equal(Object.isFrozen(auth.user), true);
+});
+
+
+test("renderer 登入狀態不得依賴 provider Session 結構", () => {
+  const rendererFiles = [
+    "renderer-auth-context.js",
+    "renderer-page-data.js",
+    "renderer-auth-actions.js",
+    "renderer-events-session.js",
+    "renderer.js"
+  ];
+  const source = rendererFiles
+    .map((name) => fs.readFileSync(path.join(root, "src", "renderer", name), "utf8"))
+    .join("\n");
+  assert.doesNotMatch(source, /\bcurrentSession\b|authContext\?\.session|\.session\?\.user/);
+  assert.match(source, /\blet authenticated = false;/);
+  assert.match(source, /\blet currentUser = null;/);
+  assert.match(source, /authenticated && Boolean\(currentUser\?\.id\)/);
 });

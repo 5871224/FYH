@@ -8041,8 +8041,22 @@ function initializeGroupPermissionState(payload) {
  * 由固定建置清單載入。
  */
 
+function applyAuthContext(context) {
+  const source = context && typeof context === "object" ? context : {};
+  authenticated = Boolean(source.authenticated && source.user);
+  currentUser = authenticated ? source.user : null;
+  currentProfile = authenticated ? (source.profile || null) : null;
+  return authenticated;
+}
+
+function clearAuthIdentity() {
+  authenticated = false;
+  currentUser = null;
+  currentProfile = null;
+}
+
 function isLoggedIn() {
-  return Boolean(currentSession?.user);
+  return authenticated && Boolean(currentUser?.id);
 }
 
 function resolveCurrentMember() {
@@ -8106,7 +8120,7 @@ async function ensureManagerDirectoryLoaded() {
 }
 
 function getCurrentProfileName() {
-  return currentProfile?.full_name || currentSession?.user?.email || "";
+  return currentProfile?.full_name || currentUser?.email || "";
 }
 
 function getRoleLabel(roleId) {
@@ -9932,9 +9946,7 @@ function clearScheduleApplicationState() {
 }
 
 async function initializeAuthenticatedHome(authContext) {
-  currentSession = authContext?.session || null;
-  currentProfile = authContext?.profile || null;
-  if (!currentSession?.user) return false;
+  if (!applyAuthContext(authContext)) return false;
 
   state = createEmptyState();
   resetLoadedUserRuntimeState();
@@ -11243,8 +11255,7 @@ async function handleSignOut() {
   authErrorMessage = "";
   authPromptMessage = "";
   authModalOpen = false;
-  currentSession = null;
-  currentProfile = null;
+  clearAuthIdentity();
   resetLoadedUserRuntimeState();
   closeModal();
   closeCoreActionsMenu();
@@ -11912,8 +11923,7 @@ function bindScheduleSessionEvents() {
     authErrorMessage = "登入已逾時，請重新登入";
     authPromptMessage = "";
     authModalOpen = true;
-    currentSession = null;
-    currentProfile = null;
+    clearAuthIdentity();
     currentMember = null;
     managerDirectoryLoaded = false;
     managerDirectoryLoading = null;
@@ -12901,7 +12911,8 @@ let coreActionsOpen = false;
 let appView = "home";
 const APP_BACK_HISTORY_STATE = { schedulerBackGuard: true };
 let departmentSettingsView = "department";
-let currentSession = null;
+let authenticated = false;
+let currentUser = null;
 let currentProfile = null;
 let currentMember = null;
 let managerDirectoryLoaded = false;
@@ -12950,9 +12961,8 @@ async function loadApp() {
   authErrorMessage = "";
   try {
     const authContext = await window.schedulerApi.initializeAuth();
-    currentSession = authContext.session;
-    currentProfile = authContext.profile;
-    if (!currentSession?.user) {
+    if (!authContext?.authenticated || !authContext?.user) {
+      clearAuthIdentity();
       state = createEmptyState();
       resetLoadedUserRuntimeState();
       clearScheduleApplicationState();
@@ -12967,8 +12977,7 @@ async function loadApp() {
     setSaveStatus(`載入失敗：${error.message}`);
     authErrorMessage = error.message || "載入失敗";
     state = createEmptyState();
-    currentSession = null;
-    currentProfile = null;
+    clearAuthIdentity();
     resetLoadedUserRuntimeState();
     clearScheduleApplicationState();
     renderAll();

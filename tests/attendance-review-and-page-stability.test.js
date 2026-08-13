@@ -38,7 +38,7 @@ test("背景初始化完成後不強制把已開啟頁面切回首頁", () => {
   const source = read("src/renderer/renderer.js");
   assert.equal(source.includes('currentMember = resolveCurrentMember();\n    appView = "home";'), false);
   assert.match(source, /let appView = "home";/);
-  assert.match(source, /if \(!currentSession\?\.user\)[\s\S]*?appView = "home";/);
+  assert.match(source, /if \(!authContext\?\.authenticated \|\| !authContext\?\.user\)[\s\S]*?appView = "home";/);
 });
 
 test("個人記錄輸入採暫存與靜默重新讀取", () => {
