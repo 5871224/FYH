@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
+// 這組測試固定通用 schedulerApi 與目前底層 Provider 之間的恢復契約。
 const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "src", "renderer", "index.html"), "utf8");
 
