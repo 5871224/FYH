@@ -110,6 +110,25 @@
   <div id="authRoot"></div>
 
   <script src="./app-config.js?v=20260807-permission-tags-loading"></script>
+  <script>
+    (() => {
+      let provider = null;
+      Object.defineProperty(window, "schedulerApi", {
+        configurable: true,
+        enumerable: true,
+        get: () => provider,
+        set: (value) => {
+          provider = value && typeof value === "object"
+            ? new Proxy(value, {
+                set: () => false,
+                defineProperty: () => false,
+                deleteProperty: () => false
+              })
+            : null;
+        }
+      });
+    })();
+  </script>
   <script src="./app.js?v=cc933dfe38cb"></script>
 </body>
 </html>
