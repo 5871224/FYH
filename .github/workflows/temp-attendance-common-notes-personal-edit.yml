@@ -29,7 +29,7 @@ jobs:
         with:
           deno-version: v2.x
       - name: Apply source changes
-        run: python3 scripts/temp-attendance-common-notes-personal-edit.py
+        run: python3 scripts/temp-attendance-common-notes-personal-edit-v2.py
       - name: Install
         run: npm ci
       - name: Build static web
@@ -40,10 +40,12 @@ jobs:
           mkdir -p .tmp-runner
           mv .github/workflows/temp-attendance-common-notes-personal-edit.yml .tmp-runner/temp-workflow.yml
           mv scripts/temp-attendance-common-notes-personal-edit.py .tmp-runner/temp-updater.py
-          trap 'mv .tmp-runner/temp-workflow.yml .github/workflows/temp-attendance-common-notes-personal-edit.yml 2>/dev/null || true; mv .tmp-runner/temp-updater.py scripts/temp-attendance-common-notes-personal-edit.py 2>/dev/null || true' EXIT
+          mv scripts/temp-attendance-common-notes-personal-edit-v2.py .tmp-runner/temp-updater-v2.py
+          trap 'mv .tmp-runner/temp-workflow.yml .github/workflows/temp-attendance-common-notes-personal-edit.yml 2>/dev/null || true; mv .tmp-runner/temp-updater.py scripts/temp-attendance-common-notes-personal-edit.py 2>/dev/null || true; mv .tmp-runner/temp-updater-v2.py scripts/temp-attendance-common-notes-personal-edit-v2.py 2>/dev/null || true' EXIT
           npm run ci:check
           mv .tmp-runner/temp-workflow.yml .github/workflows/temp-attendance-common-notes-personal-edit.yml
           mv .tmp-runner/temp-updater.py scripts/temp-attendance-common-notes-personal-edit.py
+          mv .tmp-runner/temp-updater-v2.py scripts/temp-attendance-common-notes-personal-edit-v2.py
           rmdir .tmp-runner
           trap - EXIT
       - name: Commit source and generated files
