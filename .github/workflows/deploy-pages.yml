@@ -24,6 +24,9 @@ jobs:
           node <<'NODE'
           const fs = require("node:fs");
           const file = "src/renderer/web-api.js";
+          const baseUrl = "${baseUrl}";
+          const pathname = "${pathname}";
+          const functionName = "${functionName}";
           let source = fs.readFileSync(file, "utf8");
           const replaceOne = (before, after) => {
             if (!source.includes(before)) throw new Error("Expected text not found");
