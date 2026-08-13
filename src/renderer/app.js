@@ -10023,7 +10023,7 @@ function openAttendanceCommonNotesModal() {
   openEntityListModal({
     title: "常用備註",
     hideFooterClose: true,
-    body: `<div class="form-row"><label>常用備註</label><textarea id="attendanceCommonNotesInput" rows="10" placeholder="每行一個常用備註">${escapeHtml(notes.join("\n"))}</textarea></div>`,
+    body: `<div class="form-row"><label>每個備註請用換行分隔</label><textarea id="attendanceCommonNotesInput" rows="10" placeholder="每行一個常用備註">${escapeHtml(notes.join("\n"))}</textarea></div>`,
     footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-attendance-common-notes="true">儲存</button>`
   });
 }
