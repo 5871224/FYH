@@ -113,18 +113,54 @@
   <script>
     (() => {
       let provider = null;
+      const authMethodNames = new Set(["initializeAuth", "signIn", "signOut"]);
+
+      const sanitizeAuthContext = (context) => {
+        const source = context && typeof context === "object" ? context : {};
+        const rawUser = source.user || source.session?.user || null;
+        const user = rawUser && typeof rawUser === "object"
+          ? Object.freeze({
+              id: String(rawUser.id || ""),
+              email: String(rawUser.email || "")
+            })
+          : null;
+        const profile = source.profile && typeof source.profile === "object"
+          ? Object.freeze({ ...source.profile })
+          : null;
+        return Object.freeze({
+          user,
+          session: user ? Object.freeze({ user }) : null,
+          profile
+        });
+      };
+
+      const createFacade = (value) => {
+        if (!value || typeof value !== "object") return null;
+        const facade = {};
+        for (const [name, member] of Object.entries(value)) {
+          if (typeof member !== "function") {
+            facade[name] = member;
+            continue;
+          }
+          if (name === "getAuthContext") {
+            facade[name] = (...args) => sanitizeAuthContext(member.apply(value, args));
+            continue;
+          }
+          if (authMethodNames.has(name)) {
+            facade[name] = async (...args) => sanitizeAuthContext(await member.apply(value, args));
+            continue;
+          }
+          facade[name] = member.bind(value);
+        }
+        return Object.freeze(facade);
+      };
+
       Object.defineProperty(window, "schedulerApi", {
         configurable: true,
         enumerable: true,
         get: () => provider,
         set: (value) => {
-          provider = value && typeof value === "object"
-            ? new Proxy(value, {
-                set: () => false,
-                defineProperty: () => false,
-                deleteProperty: () => false
-              })
-            : null;
+          provider = createFacade(value);
         }
       });
     })();
