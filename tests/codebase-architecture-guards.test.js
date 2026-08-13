@@ -82,3 +82,21 @@ test("匯出流程不得由後載入模組覆寫正式 API 或匯出器", () => 
   const webApi = read("src/renderer/web-api.js");
   assert.doesNotMatch(exporter + webApi, /approvedOvertimeRows|hasOfficialScheduleExportRows|originalExporters/);
 });
+
+test("畫面模組只能透過 schedulerApi 存取後端，不直接依賴 Supabase 傳輸與 Token", () => {
+  const rendererDir = path.join(root, "src", "renderer");
+  const providerFiles = new Set(["app-config.js", "app.js", "web-api.js"]);
+  const supabaseMarkers = /(?:\bsupabase\b|supabaseUrl|supabaseAnonKey|access_token|refresh_token|\/auth\/v1\/|\/rest\/v1\/|\/functions\/v1\/|\bapikey\b)/i;
+  const offenders = fs.readdirSync(rendererDir)
+    .filter((name) => name.endsWith(".js") && !providerFiles.has(name))
+    .filter((name) => supabaseMarkers.test(read(`src/renderer/${name}`)));
+  assert.deepEqual(offenders, []);
+});
+
+test("schedulerApi 只有正式後端提供者可以建立，其他畫面模組不得另建第二套 API", () => {
+  const rendererDir = path.join(root, "src", "renderer");
+  const owners = fs.readdirSync(rendererDir)
+    .filter((name) => name.endsWith(".js") && name !== "app.js")
+    .filter((name) => /window\.schedulerApi\s*=/.test(read(`src/renderer/${name}`)));
+  assert.deepEqual(owners, ["web-api.js"]);
+});
