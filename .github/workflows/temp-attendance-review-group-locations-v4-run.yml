@@ -1,0 +1,58 @@
+name: Temporary Attendance Review Group Locations V4 Runner
+
+on:
+  push:
+    branches:
+      - agent/attendance-review-group-departments-v4
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temp-attendance-review-group-locations-v4-runner
+  cancel-in-progress: true
+
+jobs:
+  update:
+    if: github.event.head_commit.message != 'Update attendance review group location options'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/attendance-review-group-departments-v4
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Apply source changes
+        run: python3 scripts/temp-attendance-review-group-locations-v4.py
+      - name: Install
+        run: npm ci
+      - name: Build static web
+        run: npm run web:publish
+      - name: Full validation
+        shell: bash
+        run: |
+          mkdir -p .tmp-workflow
+          mv .github/workflows/temp-attendance-review-group-locations-v4-run.yml .tmp-workflow/temp-attendance-review-group-locations-v4-run.yml
+          trap 'mv .tmp-workflow/temp-attendance-review-group-locations-v4-run.yml .github/workflows/temp-attendance-review-group-locations-v4-run.yml 2>/dev/null || true' EXIT
+          npm run ci:check
+          mv .tmp-workflow/temp-attendance-review-group-locations-v4-run.yml .github/workflows/temp-attendance-review-group-locations-v4-run.yml
+          rmdir .tmp-workflow
+          trap - EXIT
+      - name: Commit source and generated files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/renderer supabase/functions/attendance-review-groups/index.ts docs
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Update attendance review group location options"
+          git push origin HEAD:agent/attendance-review-group-departments-v4
