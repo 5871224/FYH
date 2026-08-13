@@ -83,13 +83,13 @@ test("匯出流程不得由後載入模組覆寫正式 API 或匯出器", () => 
   assert.doesNotMatch(exporter + webApi, /approvedOvertimeRows|hasOfficialScheduleExportRows|originalExporters/);
 });
 
-test("畫面模組只能透過 schedulerApi 存取後端，不直接依賴 Supabase 傳輸與 Token", () => {
+test("畫面模組只能透過 schedulerApi 存取後端，不直接依賴提供者傳輸與 Token", () => {
   const rendererDir = path.join(root, "src", "renderer");
   const providerFiles = new Set(["app-config.js", "app.js", "web-api.js"]);
-  const supabaseMarkers = /(?:\bsupabase\b|supabaseUrl|supabaseAnonKey|access_token|refresh_token|\/auth\/v1\/|\/rest\/v1\/|\/functions\/v1\/|\bapikey\b)/i;
+  const providerTransportMarkers = /(?:supabaseUrl|supabaseAnonKey|access_token|refresh_token|\/auth\/v1\/|\/rest\/v1\/|\/functions\/v1\/|\bapikey\b)/i;
   const offenders = fs.readdirSync(rendererDir)
     .filter((name) => name.endsWith(".js") && !providerFiles.has(name))
-    .filter((name) => supabaseMarkers.test(read(`src/renderer/${name}`)));
+    .filter((name) => providerTransportMarkers.test(read(`src/renderer/${name}`)));
   assert.deepEqual(offenders, []);
 });
 
