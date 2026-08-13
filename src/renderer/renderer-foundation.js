@@ -164,6 +164,7 @@ function createRecordsState() {
       total: 0,
       page: 1,
       pageSize: 50,
+      requestId: 0,
       filters: {
         status: "unreviewed",
         fromDate: addDaysToDateString(today, -30),

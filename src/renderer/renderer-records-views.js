@@ -237,9 +237,9 @@ function renderAttendanceReviewPagination(review) {
   const total = Number(review.total || 0);
   const pages = Math.max(1, Math.ceil(total / pageSize));
   return `<div class="records-filter-row records-pagination">
-    <button class="ghost-btn compact-btn" type="button" data-attendance-review-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button>
+    <button class="ghost-btn compact-btn" type="button" data-attendance-review-page="${page - 1}" ${(page <= 1 || review.loading) ? "disabled" : ""}>上一頁</button>
     <span>共 ${total} 筆，第 ${page} / ${pages} 頁</span>
-    <button class="ghost-btn compact-btn" type="button" data-attendance-review-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button>
+    <button class="ghost-btn compact-btn" type="button" data-attendance-review-page="${page + 1}" ${(page >= pages || review.loading) ? "disabled" : ""}>下一頁</button>
   </div>`;
 }
 

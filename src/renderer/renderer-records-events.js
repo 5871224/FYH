@@ -73,8 +73,10 @@ function bindRecordsEvents() {
       return;
     }
     if (target.dataset.attendanceReviewPage) {
+      const review = ensureAttendanceReviewState();
+      if (review.loading) return;
       const page = Number(target.dataset.attendanceReviewPage || 1);
-      if (page > 0) { ensureAttendanceReviewState().page = page; void loadAttendanceReview(); }
+      if (page > 0) { review.page = page; void loadAttendanceReview(); }
       return;
     }
     if (target.dataset.attendanceCommonNotes !== undefined) { openAttendanceCommonNotesModal(); return; }

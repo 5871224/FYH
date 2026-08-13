@@ -86,6 +86,7 @@ function ensureAttendanceReviewState() {
     total: Number(current.total || 0),
     page: Number(current.page || 1),
     pageSize: Number(current.pageSize || 50),
+    requestId: Number(current.requestId || 0),
     filters: {
       status: filters.status || "unreviewed",
       fromDate: filters.fromDate || addDaysToDateString(getTodayDateString(), -30),
@@ -126,23 +127,28 @@ async function loadRecordsPage(shouldRender = true) {
 }
 
 async function loadAttendanceReview(shouldRender = true) {
-  if (!hasPermission("attendance_review")) return;
+  if (!hasPermission("attendance_review")) return false;
   const review = ensureAttendanceReviewState();
+  const requestId = Number(review.requestId || 0) + 1;
+  const requestFilters = { ...review.filters };
+  const requestPage = Math.max(1, Number(review.page || 1));
   recordsState = {
     ...recordsState,
-    attendanceReview: { ...review, loading: true, error: "" }
+    attendanceReview: { ...review, loading: true, error: "", requestId }
   };
   if (shouldRender) renderAll();
   try {
     const result = await window.schedulerApi.getAttendanceReviewList({
-      ...recordsState.attendanceReview.filters,
-      page: recordsState.attendanceReview.page
+      ...requestFilters,
+      page: requestPage
     });
+    const current = ensureAttendanceReviewState();
+    if (Number(current.requestId || 0) !== requestId) return false;
     recordsState = {
       ...recordsState,
       commonAttendanceNotes: Array.isArray(result.commonNotes) ? result.commonNotes : recordsState.commonAttendanceNotes,
       attendanceReview: {
-        ...recordsState.attendanceReview,
+        ...current,
         loading: false,
         loaded: true,
         rows: result.rows || [],
@@ -150,24 +156,25 @@ async function loadAttendanceReview(shouldRender = true) {
         departments: result.departments || [],
         issueTypes: result.issueTypes || [],
         total: Number(result.total || 0),
-        page: Number(result.page || 1),
+        page: Number(result.page || requestPage),
         pageSize: Number(result.pageSize || 50),
         error: ""
       }
     };
   } catch (error) {
+    const current = ensureAttendanceReviewState();
+    if (Number(current.requestId || 0) !== requestId) return false;
     recordsState = {
       ...recordsState,
       attendanceReview: {
-        ...recordsState.attendanceReview,
+        ...current,
         loading: false,
-        loaded: false,
-        rows: [],
         error: error.message || "讀取簽到審核失敗"
       }
     };
   }
   if (shouldRender) renderAll();
+  return !recordsState.attendanceReview.error;
 }
 
 async function loadMealReport(shouldRender = true) {

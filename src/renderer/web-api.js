@@ -49,6 +49,16 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   };
 }
 
+  function addMinutesToClockTime(value, minutesToAdd) {
+    const match = String(value || "").match(/^([01]\d|2[0-3]):([0-5]\d)/);
+    if (!match) return "";
+    const baseMinutes = Number(match[1]) * 60 + Number(match[2]);
+    const delta = Number(minutesToAdd || 0);
+    if (!Number.isFinite(delta)) return `${match[1]}:${match[2]}`;
+    const normalizedMinutes = ((baseMinutes + Math.round(delta)) % 1440 + 1440) % 1440;
+    return `${String(Math.floor(normalizedMinutes / 60)).padStart(2, "0")}:${String(normalizedMinutes % 60).padStart(2, "0")}`;
+  }
+
   function downloadBlob(blob, fileName) {
     const objectUrl = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -254,17 +264,26 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   async function requestFunction(functionName, payload, { retryTransientOnce = false } = {}) {
     for (let attempt = 0; ; attempt += 1) {
       assertSessionActive();
-      const response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
-        method: "POST",
-        cache: "no-store",
-        headers: buildHeaders({
-          auth: true,
-          extra: {
-            Accept: "application/json"
-          }
-        }),
-        body: JSON.stringify(payload || {})
-      });
+      let response;
+      try {
+        response = await fetch(`${baseUrl}/functions/v1/${functionName}`, {
+          method: "POST",
+          cache: "no-store",
+          headers: buildHeaders({
+            auth: true,
+            extra: {
+              Accept: "application/json"
+            }
+          }),
+          body: JSON.stringify(payload || {})
+        });
+      } catch (error) {
+        if (retryTransientOnce && attempt === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          continue;
+        }
+        throw error;
+      }
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error(`尚未部署 ${functionName} Edge Function`);
@@ -1280,6 +1299,9 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       const scheduledEnd = row.restDayScheduled ? String(row.scheduledShiftEndTime || "") : "";
       if (scheduledStart && scheduledEnd) {
         const adjustedStart = subtractOvertimeHoursFromClockTime(scheduledStart, row.overtimeHours);
+        const overtimeStart = adjustedStart.time || scheduledStart;
+        const rest1Start = addMinutesToClockTime(overtimeStart, 4 * 60);
+        const rest1End = addMinutesToClockTime(overtimeStart, 5 * 60);
         return [{
           employee_code: row.employee_code || "",
           work_date: row.work_date || "",
@@ -1288,7 +1310,10 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
           overtime_end_time: scheduledEnd,
           overtime_previous_day: adjustedStart.previousDay,
           overtime_subsidy_type: 1,
-          overtime_use_rest_1: false,
+          overtime_use_rest_1: true,
+          overtime_rest_1_start_time: rest1Start,
+          overtime_rest_1_end_time: rest1End,
+          overtime_rest_1_paid: 0,
           overtime_use_rest_2: false
         }];
       }
