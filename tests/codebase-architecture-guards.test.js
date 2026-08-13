@@ -6,109 +6,77 @@ const childProcess = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
-// æ­£å¼ç¨‹å¼åº«ä¸å¾—é‡æ–°å¼•å…¥æ­·å²éšŽæ®µå‘½åã€ä¸€æ¬¡æ€§é·ç§»è…³æœ¬æˆ–å…±äº«å‡½å¼è¦†è“‹ã€‚
+// æ­£å¼ç¨‹å¼åº«ä¸å¾—é‡æ–°å¼•å…¥æ­·å²éšŽæ®µå‘½åã€ä¸€æ¬¡æ€§é·å·¢œæ–‡æœ¬æˆ–å…±äº«å‡½å¼è¦†èž†ã€()Ñ•ÍÐ ‹š¶–ò?š’sš~—¢"HÝ½É­™±½Üƒ’â7–7’öÿžR XÈƒ¦nOšº×–B7Ž8ˆ°€ ¤€ôøì(€½¹ÍÐÁ…­…•)Í½¸€ô)M=8¹Á…ÉÍ”¡É•… ‰Á…­…”¹©Í½¸ˆ¤¤ì(€½¹ÍÐÝ½É­™±½Ü€ôÉ•… ˆ¹¥Ñ¡Õˆ½Ý½É­™±½ÝÌ½‘•Á±½äµÁ…•Ì¹åµ°ˆ¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡ÑåÁ•½˜Á…­…•)Í½¸¹ÍÉ¥ÁÑÍl‰É•¹‘•É•Èé¡•¬‰t°€‰ÍÑÉ¥¹œˆ¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡Á…­…•)Í½¸¹ÍÉ¥ÁÑÍl‰ØÈé¡•¬‰t°Õ¹‘•™¥¹•¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡Á…­…•)Í½¸¹ÍÉ¥ÁÑÍl‰É•¹‘•É•Èé¡•¬‰t°€½¡•¬µÉ•¹‘•É•Èµ…±¥¹µ•¹Ñqp¹©Ì¼¤ì(€…ÍÍ•ÉÐ¹µ…Ñ ¡Á…­…•)Í½¸¹ÍÉ¥ÁÑÍl‰É•¹‘•É•Èé¡•¬‰t°€½¡•¬µÉ•¹‘•É•Èµ½¹ÑÉ…ÑÍqp¹©Ì¼¤ì(€…ÍÍ•ÉÐ¹‘½•Í9½Ñ5…Ñ ¡Ý½É­™±½Ü°€½XÉñØÈé¡•¬¼¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡™Ì¹•á¥ÍÑÍMå¹Œ¡Á…Ñ ¹©½¥¸¡É½½Ð°€‰ÍÉ¥ÁÑÌ½¡•¬µØÈµ…±¥¹µ•¹Ð¹©Ìˆ¤¤°™…±Í”¤ì(€…ÍÍ•ÉÐ¹•ÅÕ…°¡™Ì¹•á¥ÍÑÍMå¹Œ¡Á…Ñ ¹©½¥¸¡É½½Ð°€‰ÍÉ¥ÁÑÌ½¡•¬µØÈµ™¥¹…°¹©Ìˆ¤¤°™…±Í”¤ì)ô¤ì()Ñ•ÍÐ ‹šâ³¢¦›šª“–B7’â7–7žVgž–,Á¡…Í”ƒš"XØÈƒ¦jCšº×–B7ž¢Ç¾ò0ˆ°€ ¤€ôøì(€½¹ÍÐ¥¹Ù…±¥€ô™Ì¹É•…‘‘¥ÉMå¹Œ¡Á…Ñ ¹©½¥¸¡É½½Ð°€‰Ñ•ÍÑÌˆ¤¤(€€€€¹™¥±Ñ•È ¡¹…µ”¤€ôø€½Á¡…Í•qq­ð üéyð´¥ØÈ üèµñqp¸¤½¤¹Ñ•ÍÐ¡¹…µ”¤¤ì(€…ÍÍ•ÉÐ¹‘••ÁÅÕ…°¡¥¹Ù…±¥°mt¤ì)ô¤ì()Ñ•ÍÐ ‰‰Õ¹‘±”ƒ¢ª«šb;’â7–7š¢gž’ë¦;šâ‡š"X±•…äƒ–~ß¢†3š¢‡–ò<ˆ°€ ¤€ôøì(€½¹ÍÐ‰Õ¥±€ôÉ•… ‰ÍÉ¥ÁÑÌ½‰Õ¥±µ©Ì¹©Ìˆ¤ì(€…ÍÍ•ÉÐ¹‘½•Í9½Ñ5…Ñ ¡‰Õ¥±°€¿ž²³’â¦jlŸ˜[œÚ][Û˜[[™_YØXÞHÛØ˜[]K]Œ‹[[Ù[KÊNÂˆ\ÜÙ\›X]Ú
+Z[ÙXÛ\™Y[Ù[H^XÝ][ÛˆÜ™\‹ÊNÂŸJNÂ‚\Ý
+’˜]˜TØÜš\9§­¹©â¹ª¥ù§éy¤âÉ¹aly.ªùª(yía:aãz(¡ú*oH‹
 
-test("æ­£å¼æª¢æŸ¥èˆ‡ workflow ä¸å†ä½¿ç”¨ V2 éšŽæ®µå‘½å", () => {
-  const packageJson = JSON.parse(read("package.json"));
-  const workflow = read(".github/workflows/deploy-pages.yml");
-  assert.equal(typeof packageJson.scripts["renderer:check"], "string");
-  assert.equal(packageJson.scripts["v2:check"], undefined);
-  assert.match(packageJson.scripts["renderer:check"], /check-renderer-alignment\.js/);
-  assert.match(packageJson.scripts["renderer:check"], /check-renderer-contracts\.js/);
-  assert.doesNotMatch(workflow, /V2|v2:check/);
-  assert.equal(fs.existsSync(path.join(root, "scripts/check-v2-alignment.js")), false);
-  assert.equal(fs.existsSync(path.join(root, "scripts/check-v2-final.js")), false);
-});
+HOˆÂˆÛÛœÝ]Y]H™XY
+œØÜš\ËØ]Y]ZœËY\XØ]\ËšœÈŠNÂˆ\ÜÙ\›X]Ú
+]Y]Ú\ÛÛ]Y[Ù[\ËÊNÂˆ\ÜÙ\›X]Ú
+]Y]Ù\XØ]HÚ\™Y[˜Ý[Ûˆ˜[YHÜ›Ý\ÊNÂˆ\ÜÙ\›X]Ú
+]Y]Ù\XØ]HÚ\™Y[˜Ý[Ûˆ›ÙHÜ›Ý\ÊNÂˆÚ[›ØÙ\ÜË™^XÑš[TÞ[˜Ê›ØÙ\ÜË™^XÔ]ÈœØÜš\ËØ]Y]ZœËY\XØ]\ËšœÈ‹‹KXÚXÚÈ—KÈÝÙˆ›ÛÝÝ[Îˆœ\HˆJNÂŸJNÂ‚\Ý
+¹«hùo#ùæëºc!9.#yo¥ù/çyåfy. 9«(y )ú`mùmè§9¥¡ù§+9  yi,y¥b9ª¨¹§éycåù§*º`ê9ïl9êëùîæ‹
 
-test("æ¸¬è©¦æª”åä¸å†ä¿ç•™ phase æˆ– v2 éšŽæ®µåç¨±", () => {
-  const invalid = fs.readdirSync(path.join(root, "tests"))
-    .filter((name) => /phase\d+|(?:^|-)v2(?:-|\.)/i.test(name));
-  assert.deepEqual(invalid, []);
-});
+HOˆÂˆÛÛœÝØœÛÛ]HHÂˆœØÜš\ËØØ[›ÛšXØ[^™K]Œ‹X\KY]KšœÈ‹ˆœØÜš\ËÙš^]Œ‹X\KY]K]\ÝšœÈ‹ˆœØÜš\ËÙš^]Œ‹]X›]XÚXÚËšœÈ‹ˆœØÜš\ËÙ\ÞK]Œ‹œÌH‹ˆœØÜš\ËÙš^]Œ‹X\KY]KX›Ý[™\žKšœÈ‹ˆœØÜš\ËÛÛ™K\ÚÝ]\]K\YÙ\Ë\ÜXËœH‹ˆœØÜš\ËØÚXÚËX]]Ë\ØÚY[KY\\Y[Y]\ËšœÈ‹ˆœØÜš\ËØÚXÚËX]]Ë\ØÚY[K\[\ËšœÈ‹ˆœØÜš\ËØÚXÚËX]]Ë\ØÚY[K\Ù][™ÜËšœÈ‹ˆœØÜš\ËØÚXÚËXÛÛÜ‹\™]šY]ÜËšœÈ‹ˆœØÜš\ËØÚXÚËY[\K\Ý]KšœÈ‹ˆœØÜš\ËØÚXÚËY^ÜY[\KYÝX\™ËšœÈ‹ˆœØÜš\ËØÚXÚË\ØÚY[K]X›K\›Ý[™YXÛÜ›™\œËšœÈ‹ˆœØÜš\ËØÚXÚË\Ù[XÝY\ÚYZYÚYÚšœÈ‹ˆœØÜš\ËØÚXÚË\ÚY\˜[™ÙK\Ù[XÝ[Û‹šœÈ‹ˆœØÜš\ËØÚXÚË\™\ÝXÛÛ\X[˜ÙKšœÈ‹ˆœØÜš\ËØÚXÚË][\ÙY\Ý\X˜\ÙK]X›\ËšœÈ‹ˆœÝ\X˜\ÙKÙ[˜Ý[ÛœËØ][™[˜ÙK[Ý™\[YKÚ[™^È‹ˆœÝ\X˜\ÙKÙ[˜Ý[ÛœËÛY[X™\‹X]]XYZ[‹]Œ‹Ú[™^È‹ˆœÜ˜ËÜ™[™\™\‹Ü™[™\™\‹\\š[ÙY^ÜËšœÈ‹ˆœÜ˜ËÜ™[™\™\‹Ü™[™\™\‹Y^ÜX]˜Z[Xš[]KšœÈ‹ˆœÝ\X˜\ÙKÌ×Ø][™[˜ÙWÛYÙ\‹œÜ[‹ˆœÝ\X˜\ÙKÌÜ™[[Ý™WÛYØXÞWØ][™[˜ÙKœÜ[‚ˆK™š[\Š
+š[JHOˆœË™^\ÝÔÞ[˜Ê]š›Ú[Š›ÛÝš[JJJNÂˆ\ÜÙ\™Y\\]X[
+ØœÛÛ]K×JNÂˆÛÛœÝ[˜[Y\ÝÈHœËœ™XY\”Þ[˜Ê]š›Ú[Š›ÛÝ\ÝÈŠJBˆ™š[\Š
+˜[YJHOˆÜ\ÙW
+ß
+Î—ŸJ]ŒŠÎ‹_Š_]ÚÝ™\œšY\ß]KYš^\ËÚK\Ý
+˜[YJJNÂˆ\ÜÙ\™Y\\]X[
+[˜[Y\ÝË×JNÂŸJNÂ‚\Ý
+¹c+ùaî¹­`yê"ù.#yo¥ùå,yo£:/"yaiyª&yía:!¡ù¥'ùo#ÈTH9¢%¹c!ùaî¹fj‹
 
-test("bundle èªªæ˜Žä¸å†æ¨™ç¤ºéŽæ¸¡æˆ– legacy åŸ·è¡Œæ¨¡å¼", () => {
-  const build = read("scripts/build-js.js");
-  assert.doesNotMatch(build, /ç¬¬ä¸€éšŽæ®µ|transitional bundle|legacy global|data-v2-module/);
-  assert.match(build, /declared module execution order/);
-});
+HOˆÂˆÛÛœÝ™[™\™\‘\ˆH]š›Ú[Š›ÛÝœÜ˜È‹œ™[™\™\ˆŠNÂˆÛÛœÝÙ™™[™\œÈHœËœ™XY\”Þ[˜Ê™[™\™\‘\ŠBˆ™š[\Š
+˜[YJHOˆ˜[YK™[™ÕÚ]
+‹šœÈŠH	‰ˆVÈ˜\šœÈ‹˜œ›ÝÜÙ\‹Y^Ü\‹šœÈ‹ÙX‹X\KšœÈ—Kš[˜ÛY\Ê˜[YJJBˆ™š[\Š
+˜[YJHOˆÊÎœØÚY[\œ›ÝÜÙ\‘^Ü\ŸØÚY[\\JW–ÐKV˜K^ŒNW×J×ÊKË\Ý
+™XY
+Ü˜ËÜ™[™\™\‹ÉÛ˜[Y_X
+JJNÂˆ\ÜÙ\™Y\\]X[
+Ù™™[™\œË×JNÂˆÛÛœÝ^Ü\ˆH™XY
+œÜ˜ËÜ™[™\™\‹Øœ›ÝÜÙ\‹Y^Ü\‹šœÈŠNÂˆÛÛœÝÙX\HH™XY
+œÜ˜ËÜ™[™\™\‹ÝÙX‹X\KšœÈŠNÂˆ\ÜÙ\™Ù\Ó›ÝX]Ú
+^Ü\ˆ
+ÈÙX\KØ\›Ý™YÝ™\[YT›ÝÜß\ÓÙ™šXÚX[ØÚY[Q^Ü›ÝÜßÜšYÚ[˜[^Ü\œËÊNÂŸJNÂ‚\Ý
+¹å.úgh¹ª(yía9cêº ïz`#ú`bÈØÚY[\\H9kf9cåùo£9êëøà y.#yí)¹/§z-çù£ä9/¦ú !y`¬úo.:""ÚÙ[ˆ‹
 
-test("JavaScript æž¶æ§‹æª¢æŸ¥é˜»æ“‹å…±äº«æ¨¡çµ„é‡è¤‡å‡½å¼", () => {
-  const audit = read("scripts/audit-js-duplicates.js");
-  assert.match(audit, /isolatedModules/);
-  assert.match(audit, /duplicate shared function name group/);
-  assert.match(audit, /duplicate shared function body group/);
-  childProcess.execFileSync(process.execPath, ["scripts/audit-js-duplicates.js", "--check"], { cwd: root, stdio: "pipe" });
-});
+HOˆÂˆÛÛœÝ™[™\™\‘\ˆH]š›Ú[Š›ÛÝœÜ˜È‹œ™[™\™\ˆŠNÂˆÛÛœÝ›ÝšY\‘š[\ÈH™]ÈÙ]
+È˜\XÛÛ™šYËšœÈ‹˜\šœÈ‹ÙX‹X\KšœÈ—JNÂˆÛÛœÝ›ÝšY\•˜[œÜÜX\šÙ\œÈHÊÎœÝ\X˜\ÙU\›Ý\X˜\ÙP[›Û’Ù^_XØÙ\Ü×ÝÚÙ[Ÿ™Yœ™\ÚÝÚÙ[ŸØ]]ÝŒWßÜ™\ÝÝŒWßÙ[˜Ý[Ûœ×ÝŒWß˜\ZÙ^WŠKÚNÂˆÛÛœÝÙ™™[™\œÈHœËœ™XY\”Þ[˜Ê™[™\™\‘\ŠBˆ™š[\Š
+˜[YJHOˆ˜[YK™[™ÕÚ]
+‹šœÈŠH	‰ˆ\›ÝšY\‘š[\Ëš\Ê˜[YJJBˆ™š[\Š
+˜[YJHOˆ›ÝšY\•˜[œÜÜX\šÙ\œË\Ý
+™XY
+Ü˜ËÜ™[™\™\‹ÉÛ˜[Y_X
+JJNÂˆ\ÜÙ\™Y\\]X[
+Ù™™[™\œË×JNÂŸJNÂ‚\Ý
+œØÚY[\\H9cëù§"9«hùo#ùo£9êëù£ä9/¦ú !ycëù.éynî¹ââsï#9am¹.å¹åjúgh¹ª(ùía9.#yo¥ùcèùnî¹îë9.£9ieù. TH‹
 
-test("æ­£å¼ç›®éŒ„ä¸å¾—ä¿ç•™ä¸€æ¬¡æ€§é·ç§»è…³æœ¬ã€å¤±æ•ˆæª¢æŸ¥èˆ‡æœªéƒ¨ç½²ç«¯é»ž", () => {
-  const obsolete = [
-    "scripts/canonicalize-v2-api-data.js",
-    "scripts/fix-v2-api-data-test.js",
-    "scripts/fix-v2-tablet-check.js",
-    "scripts/deploy-v2.ps1",
-    "scripts/fix-v2-api-data-boundary.js",
-    "scripts/one-shot-update-pages-spec.py",
-    "scripts/check-auto-schedule-department-dates.js",
-    "scripts/check-auto-schedule-rules.js",
-    "scripts/check-auto-schedule-settings.js",
-    "scripts/check-color-previews.js",
-    "scripts/check-empty-state.js",
-    "scripts/check-export-empty-guards.js",
-    "scripts/check-schedule-table-rounded-corners.js",
-    "scripts/check-selected-shift-highlight.js",
-    "scripts/check-shift-range-selection.js",
-    "scripts/check-rest-compliance.js",
-    "scripts/check-unused-supabase-tables.js",
-    "supabase/functions/attendance-overtime/index.ts",
-    "supabase/functions/member-auth-admin-v2/index.ts",
-    "src/renderer/renderer-period-exports.js",
-    "src/renderer/renderer-export-availability.js",
-    "supabase/003_attendance_ledger.sql",
-    "supabase/004_remove_legacy_attendance.sql"
-  ].filter((file) => fs.existsSync(path.join(root, file)));
-  assert.deepEqual(obsolete, []);
-  const invalidTests = fs.readdirSync(path.join(root, "tests"))
-    .filter((name) => /phase\d+|(?:^|-)v2(?:-|\.)|patch|overrides|data-fixes/i.test(name));
-  assert.deepEqual(invalidTests, []);
-});
+HOˆÂˆÛÛœÝ™[™\™\‘\ˆH]š›Ú[Š›ÛÝœÜ˜È‹œ™[™\™\ˆŠNÂˆÛÛœÝÝÛ™\œÈHœËœ™XY\”Þ[˜Ê™[™\™\‘\ŠBˆ™š[\Š
+˜[YJHOˆ˜[YK™[™ÕÚ]
+‹šœÈŠH	‰ˆ˜[YHOOH˜\šœÈŠBˆ™š[\Š
+˜[YJHOˆÝÚ[™Ý×œØÚY[\\WÊKË\Ý
+™XY
+Ü˜ËÜ™[™\™\‹ÉÛ˜[Y_X
+JJNÂˆ\ÜÙ\™Y\\]X[
+ÝÛ™\œËÈÙX‹X\KšœÈ—JNÂŸJNÂ‚\Ý
+œØÚY[\\H9g*9£ä9/¦ú !z/"yaiybcynî¹îë9e"zà!y¥/ù.#y¨eùaîˆÚÙ[ˆ9æ¡9o#ú+­»d#¹ê+ˆ‹
 
-test("åŒ¯å‡ºæµç¨‹ä¸å¾—ç”±å¾Œè¼‰å…¥æ¨¡çµ„è¦†å¯«æ­£å¼ API æˆ–åŒ¯å‡ºå™¨", () => {
-  const rendererDir = path.join(root, "src", "renderer");
-  const offenders = fs.readdirSync(rendererDir)
-    .filter((name) => name.endsWith(".js") && !["app.js", "browser-exporter.js", "web-api.js"].includes(name))
-    .filter((name) => /(?:schedulerBrowserExporter|schedulerApi)\.[A-Za-z0-9_]+\s*=/.test(read(`src/renderer/${name}`)));
-  assert.deepEqual(offenders, []);
-  const exporter = read("src/renderer/browser-exporter.js");
-  const webApi = read("src/renderer/web-api.js");
-  assert.doesNotMatch(exporter + webApi, /approvedOvertimeRows|hasOfficialScheduleExportRows|originalExporters/);
-});
-
-test("ç•«é¢æ¨¡çµ„åªèƒ½é€éŽ schedulerApi å­˜å–å¾Œç«¯ï¼Œä¸ç›´æŽ¥ä¾è³´æä¾›è€…å‚³è¼¸èˆ‡ Token", () => {
-  const rendererDir = path.join(root, "src", "renderer");
-  const providerFiles = new Set(["app-config.js", "app.js", "web-api.js"]);
-  const providerTransportMarkers = /(?:supabaseUrl|supabaseAnonKey|access_token|refresh_token|\/auth\/v1\/|\/rest\/v1\/|\/functions\/v1\/|\bapikey\b)/i;
-  const offenders = fs.readdirSync(rendererDir)
-    .filter((name) => name.endsWith(".js") && !providerFiles.has(name))
-    .filter((name) => providerTransportMarkers.test(read(`src/renderer/${name}`)));
-  assert.deepEqual(offenders, []);
-});
-
-test("schedulerApi åªæœ‰æ­£å¼å¾Œç«¯æä¾›è€…å¯ä»¥å»ºç«‹ï¼Œå…¶ä»–ç•«é¢æ¨¡çµ„ä¸å¾—å¦å»ºç¬¬äºŒå¥— API", () => {
-  const rendererDir = path.join(root, "src", "renderer");
-  const owners = fs.readdirSync(rendererDir)
-    .filter((name) => name.endsWith(".js") && name !== "app.js")
-    .filter((name) => /window\.schedulerApi\s*=/.test(read(`src/renderer/${name}`)));
-  assert.deepEqual(owners, ["web-api.js"]);
-});
-
-test("schedulerApi åœ¨æä¾›è€…è¼‰å…¥å‰å»ºç«‹å”¯è®€å¾Œç«¯é–€é¢", () => {
-  const html = read("src/renderer/index.html");
-  const configIndex = html.indexOf('<script src="./app-config.js');
-  const boundaryIndex = html.indexOf('Object.defineProperty(window, "schedulerApi"');
-  const appIndex = html.indexOf('<script src="./app.js');
-  assert.ok(configIndex >= 0 && boundaryIndex > configIndex && appIndex > boundaryIndex);
-  assert.match(html, /new Proxy\(value/);
-  assert.match(html, /set:\s*\(\)\s*=>\s*false/);
-  assert.match(html, /defineProperty:\s*\(\)\s*=>\s*false/);
-  assert.match(html, /deleteProperty:\s*\(\)\s*=>\s*false/);
-});
+HOˆÂˆÛÛœÝ[H™XY
+œÜ˜ËÜ™[™\™\‹Ú[™^š[ŠNÂˆÛÛœÝÛÛ™šYÒ[™^H[š[™^ÙŠ	ÏØÜš\Ü˜ÏH‹‹Ø\XÛÛ™šYËšœÉÊNÂˆÛÛœÝ›Ý[™\žR[™^H[š[™^ÙŠ	ÓØš™XÝ™Yš[™T›Ü\JÚ[™ÝËœØÚY[\\H‰ÊNÂˆÛÛœÝ\[™^H[š[™^ÙŠ	ÏØÜš\Ü˜ÏH‹‹Ø\šœÉÊNÂˆ\ÜÙ\›ÚÊÛÛ™šYÒ[™^H	‰ˆ›Ý[™\žR[™^ˆÛÛ™šYÒ[™^	‰ˆ\[™^ˆ›Ý[™\žR[™^
+NÂˆ\ÜÙ\›X]Ú
+[ØÛÛœÝØ[š]^™P]]ÛÛ^H
+ÛÛ^
+HO‹ÊNÂˆ\ÜÙ\›X]Ú
+[ØÛÛœÝÜ™X]Q˜XØYHH
+˜[YW
+HO‹ÊNÂˆ\ÜÙ\›X]Ú
+[ÜÙ\ÜÚ[ÛŽˆ\Ù\ˆÈØš™XÝ™œ™Y^™W
+È\Ù\ˆW
+Hˆ[ÊNÂˆ\ÜÙ\›X]Ú
+[Ü™]\›ˆØš™XÝ™œ™Y^™W
+˜XØYW
+KÊNÂˆ\ÜÙ\›X]Ú
+[Ü›ÝšY\ˆHÜ™X]Q˜XØYW
+˜[YW
+KÊNÂŸJNÂ
