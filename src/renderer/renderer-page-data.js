@@ -45,9 +45,7 @@ function clearScheduleApplicationState() {
 }
 
 async function initializeAuthenticatedHome(authContext) {
-  currentSession = authContext?.session || null;
-  currentProfile = authContext?.profile || null;
-  if (!currentSession?.user) return false;
+  if (!applyAuthContext(authContext)) return false;
 
   state = createEmptyState();
   resetLoadedUserRuntimeState();

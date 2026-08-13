@@ -14,7 +14,8 @@ let coreActionsOpen = false;
 let appView = "home";
 const APP_BACK_HISTORY_STATE = { schedulerBackGuard: true };
 let departmentSettingsView = "department";
-let currentSession = null;
+let authenticated = false;
+let currentUser = null;
 let currentProfile = null;
 let currentMember = null;
 let managerDirectoryLoaded = false;
@@ -63,9 +64,8 @@ async function loadApp() {
   authErrorMessage = "";
   try {
     const authContext = await window.schedulerApi.initializeAuth();
-    currentSession = authContext.session;
-    currentProfile = authContext.profile;
-    if (!currentSession?.user) {
+    if (!authContext?.authenticated || !authContext?.user) {
+      clearAuthIdentity();
       state = createEmptyState();
       resetLoadedUserRuntimeState();
       clearScheduleApplicationState();
@@ -80,8 +80,7 @@ async function loadApp() {
     setSaveStatus(`載入失敗：${error.message}`);
     authErrorMessage = error.message || "載入失敗";
     state = createEmptyState();
-    currentSession = null;
-    currentProfile = null;
+    clearAuthIdentity();
     resetLoadedUserRuntimeState();
     clearScheduleApplicationState();
     renderAll();

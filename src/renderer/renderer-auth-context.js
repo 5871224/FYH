@@ -2,8 +2,22 @@
  * 由固定建置清單載入。
  */
 
+function applyAuthContext(context) {
+  const source = context && typeof context === "object" ? context : {};
+  authenticated = Boolean(source.authenticated && source.user);
+  currentUser = authenticated ? source.user : null;
+  currentProfile = authenticated ? (source.profile || null) : null;
+  return authenticated;
+}
+
+function clearAuthIdentity() {
+  authenticated = false;
+  currentUser = null;
+  currentProfile = null;
+}
+
 function isLoggedIn() {
-  return Boolean(currentSession?.user);
+  return authenticated && Boolean(currentUser?.id);
 }
 
 function resolveCurrentMember() {
@@ -67,7 +81,7 @@ async function ensureManagerDirectoryLoaded() {
 }
 
 function getCurrentProfileName() {
-  return currentProfile?.full_name || currentSession?.user?.email || "";
+  return currentProfile?.full_name || currentUser?.email || "";
 }
 
 function getRoleLabel(roleId) {
