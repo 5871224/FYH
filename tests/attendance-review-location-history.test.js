@@ -25,9 +25,12 @@ test("簽到審核編輯上下班地點會完整傳到後端並受群組權限�
   assert.match(actions, /clockInLocationDepartmentId/);
   assert.match(actions, /clockOutLocationDepartmentId/);
   assert.match(page, /departments: result\.departments \|\| \[\]/);
-  assert.match(edge, /attendance_enabled/);
+  assert.match(actions, /\.filter\(\(department\) => groupId &&/);
+  assert.doesNotMatch(actions, /departments\.unshift/);
+  assert.doesNotMatch(actions, /管理員補登/);
   assert.match(edge, /打卡地點不屬於該人員群組/);
-  assert.match(edge, /此單位目前未開放打卡/);
+  assert.doesNotMatch(edge, /\.filter\(\(department: any\) => department\.attendance_enabled === true\)/);
+  assert.doesNotMatch(edge, /此單位目前未開放打卡/);
   assert.match(edge, /resolveAdminClockLocation\(ctx, target, body\?\.clockInLocationDepartmentId/);
   assert.match(edge, /resolveAdminClockLocation\(ctx, target, body\?\.clockOutLocationDepartmentId/);
 });

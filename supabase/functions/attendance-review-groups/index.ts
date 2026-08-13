@@ -280,7 +280,6 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
     ok: true,
     members: members.map((member: any) => ({ id: member.id, employee_code: member.employee_code, full_name: member.full_name, group_id: member.group_id })),
     departments: (departmentResult.data || [])
-      .filter((department: any) => department.attendance_enabled === true)
       .map((department: any) => ({ id: department.id, name: department.name || "", group_id: department.group_id })),
     issueTypes: ISSUE_TYPES,
     rows: exportOnly ? rows : rows.slice(offset, offset + PAGE_SIZE),
@@ -294,12 +293,11 @@ async function resolveAdminClockLocation(ctx: any, target: any, departmentIdValu
   if (!departmentId) return oldLocation || { name: "管理員補登", source: "管理員補登" };
   if (String(oldLocation?.departmentId || "") === departmentId) return oldLocation;
   const result = await ctx.supabaseAdmin.from("set_departments")
-    .select("id,name,address,group_id,attendance_enabled,deleted_at")
+    .select("id,name,address,group_id,deleted_at")
     .eq("id", departmentId).is("deleted_at", null).maybeSingle();
   if (result.error) throw result.error;
   if (!result.data) throw new Error("找不到指定的打卡地點");
   if (String(result.data.group_id || "") !== String(target.group_id || "")) throw new Error("打卡地點不屬於該人員群組");
-  if (result.data.attendance_enabled !== true) throw new Error("此單位目前未開放打卡");
   return {
     departmentId: result.data.id,
     name: result.data.name || "",

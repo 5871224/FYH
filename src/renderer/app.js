@@ -9942,20 +9942,14 @@ function findAttendanceReviewRow(token) {
 
 function attendanceReviewLocationOptions(row, location) {
   const review = ensureAttendanceReviewState();
-  const groupId = String(row?.groupId || "");
-  const currentId = String(location?.departmentId || "");
-  const currentName = String(location?.name || "");
-  const departments = (review.departments || [])
-    .filter((department) => !groupId || String(department.group_id || department.groupId || "") === groupId)
-    .map((department) => ({ id: String(department.id || ""), name: String(department.name || "") }))
-    .filter((department) => department.id);
-  if (currentId && !departments.some((department) => department.id === currentId)) {
-    departments.unshift({ id: currentId, name: currentName || "目前打卡地點" });
-  }
-  const emptyLabel = currentName && !currentId ? `保留目前地點（${currentName}）` : "管理員補登";
-  return `<option value="" ${!currentId ? "selected" : ""}>${escapeHtml(emptyLabel)}</option>${departments
+  const groupId = String(row?.groupId || "").trim();
+  const currentId = String(location?.departmentId || "").trim();
+  return (review.departments || [])
+    .filter((department) => groupId && String(department.group_id || department.groupId || "").trim() === groupId)
+    .map((department) => ({ id: String(department.id || "").trim(), name: String(department.name || "").trim() }))
+    .filter((department) => department.id)
     .map((department) => `<option value="${escapeHtml(department.id)}" ${department.id === currentId ? "selected" : ""}>${escapeHtml(department.name || department.id)}</option>`)
-    .join("")}`;
+    .join("");
 }
 
 function openAttendanceReviewEditModal(token) {
