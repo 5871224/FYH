@@ -39,3 +39,22 @@ test("正式 API 使用版本化具名路徑，不提供通用動態 CRUD", () =
   assert.match(contract, /auth\/password/);
   assert.doesNotMatch(contract, /restSelect|restInsert|restUpdate|restDelete|tableName|operationName/);
 });
+
+test("一般 PostgreSQL 資料層不得依賴 Supabase HTTP transport", () => {
+  const files = [
+    "src/backend/db/database.js",
+    "src/backend/db/postgres.js",
+    "src/backend/repositories/auth-account-repository.js"
+  ];
+  const source = files.map(read).join("\n");
+  assert.doesNotMatch(source, /\/auth\/v1|\/rest\/v1|\/functions\/v1|apikey|supabaseAnonKey|supabaseUrl/i);
+  assert.match(read("src/backend/repositories/auth-account-repository.js"), /lower\(account\.login_account\) = \$1/);
+  assert.match(read("src/backend/repositories/auth-account-repository.js"), /password_hash = \$2/);
+});
+
+test("福園號密碼雜湊使用 Node crypto scrypt，不依賴 Provider Token", () => {
+  const hasher = read("src/backend/auth/password-hasher.js");
+  assert.match(hasher, /scrypt/);
+  assert.match(hasher, /timingSafeEqual/);
+  assert.doesNotMatch(hasher, /access_token|refresh_token|supabase/i);
+});
