@@ -135,8 +135,44 @@
         });
       };
 
+      const isRecoverableAuthError = (error) => {
+        const message = String(error?.message || error || "");
+        return /(?:\bHTTP 401\b|unauthorized|\bjwt\b.*\b(?:expired|invalid)\b|\b(?:expired|invalid)\b.*\bjwt\b|\btoken\b.*\bexpired\b)/i.test(message);
+      };
+
       const createFacade = (value) => {
         if (!value || typeof value !== "object") return null;
+
+        const authProvider = Object.freeze({
+          initialize: (...args) => value.initializeAuth(...args),
+          getCurrentContext: (...args) => value.getAuthContext(...args),
+          login: (...args) => value.signIn(...args),
+          logout: (...args) => value.signOut(...args),
+          changePassword: (...args) => value.changePassword(...args)
+        });
+
+        const retryBackendOnce = async (member, args, originalError) => {
+          if (!isRecoverableAuthError(originalError)) throw originalError;
+          const auth = sanitizeAuthContext(await authProvider.initialize());
+          if (!auth.authenticated) {
+            throw new Error("登入已失效，請重新登入");
+          }
+          return member.apply(value, args);
+        };
+
+        const callBackendWithAuthRecovery = (member, args) => {
+          try {
+            const result = member.apply(value, args);
+            if (result && typeof result.then === "function") {
+              return result.catch((error) => retryBackendOnce(member, args, error));
+            }
+            return result;
+          } catch (error) {
+            if (!isRecoverableAuthError(error)) throw error;
+            return retryBackendOnce(member, args, error);
+          }
+        };
+
         const facade = {};
         for (const [name, member] of Object.entries(value)) {
           if (typeof member !== "function") {
@@ -144,15 +180,44 @@
             continue;
           }
           if (name === "getAuthContext") {
-            facade[name] = (...args) => sanitizeAuthContext(member.apply(value, args));
+            facade[name] = (...args) => sanitizeAuthContext(authProvider.getCurrentContext(...args));
             continue;
           }
-          if (authMethodNames.has(name)) {
-            facade[name] = async (...args) => sanitizeAuthContext(await member.apply(value, args));
+          if (name === "initializeAuth") {
+            facade[name] = async (...args) => sanitizeAuthContext(await authProvider.initialize(...args));
             continue;
           }
-          facade[name] = member.bind(value);
+          if (name === "signIn") {
+            facade[name] = async (...args) => sanitizeAuthContext(await authProvider.login(...args));
+            continue;
+          }
+          if (name === "signOut") {
+            facade[name] = async (...args) => sanitizeAuthContext(await authProvider.logout(...args));
+            continue;
+          }
+          if (name === "getAppInfo") {
+            facade[name] = async (...args) => {
+              const info = await member.apply(value, args);
+              return Object.freeze({
+                databasePath: "福園號資料服務",
+                backend: "fyh-api",
+                updatedAt: info?.updatedAt || null
+              });
+            };
+            continue;
+          }
+          if (name === "changePassword") {
+            facade[name] = (...args) => callBackendWithAuthRecovery(authProvider.changePassword, args);
+            continue;
+          }
+          facade[name] = (...args) => callBackendWithAuthRecovery(member, args);
         }
+        Object.defineProperty(facade, "backendContractVersion", {
+          value: 1,
+          enumerable: false,
+          configurable: false,
+          writable: false
+        });
         return Object.freeze(facade);
       };
 
