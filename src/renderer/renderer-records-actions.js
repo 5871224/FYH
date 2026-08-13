@@ -65,6 +65,35 @@ async function saveAttendanceReviewEdit(token) {
   }
 }
 
+function normalizeAttendanceCommonNotes(value) {
+  const source = Array.isArray(value) ? value : String(value || "").split(/\r?\n/);
+  return [...new Set(source.map((note) => String(note || "").trim()).filter(Boolean))];
+}
+
+function openAttendanceCommonNotesModal() {
+  const notes = normalizeAttendanceCommonNotes(ensureRecordsState().commonAttendanceNotes || []);
+  openEntityListModal({
+    title: "常用備註",
+    hideFooterClose: true,
+    body: `<div class="form-row"><label>常用備註</label><textarea id="attendanceCommonNotesInput" rows="10" placeholder="每行一個常用備註">${escapeHtml(notes.join("\n"))}</textarea></div>`,
+    footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-attendance-common-notes="true">儲存</button>`
+  });
+}
+
+async function saveAttendanceCommonNotes() {
+  const input = document.getElementById("attendanceCommonNotesInput");
+  const notes = normalizeAttendanceCommonNotes(input?.value || "");
+  try {
+    const result = await window.schedulerApi.saveAttendanceCommonNotes({ notes });
+    ensureRecordsState().commonAttendanceNotes = normalizeAttendanceCommonNotes(result?.commonNotes || notes);
+    closeModal();
+    renderAll();
+    showInfoMessage("常用備註已儲存");
+  } catch (error) {
+    setSaveStatus(`儲存常用備註失敗：${error.message}`);
+  }
+}
+
 async function savePersonalAttendanceInput(input) {
   if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) return;
   const field = input.dataset.personalAttendanceField || "";

@@ -723,6 +723,11 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     );
   }
 
+  async function saveAttendanceCommonNotes(payload = {}) {
+    ensureSignedIn();
+    return requestFunction("attendance-review-groups", { action: "common_notes_save", ...payload });
+  }
+
   async function saveAttendanceReviewRecord(payload = {}) {
     ensureSignedIn();
     return requestFunction("attendance-review-groups", { action: "review_save", ...payload });
@@ -1411,6 +1416,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     getPersonalRecords,
     savePersonalAttendanceDay,
     getAttendanceReviewList,
+    saveAttendanceCommonNotes,
     saveAttendanceReviewRecord,
     setAttendanceReviewed,
     getAttendanceHistory,

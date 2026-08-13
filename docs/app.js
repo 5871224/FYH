@@ -1928,6 +1928,11 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     );
   }
 
+  async function saveAttendanceCommonNotes(payload = {}) {
+    ensureSignedIn();
+    return requestFunction("attendance-review-groups", { action: "common_notes_save", ...payload });
+  }
+
   async function saveAttendanceReviewRecord(payload = {}) {
     ensureSignedIn();
     return requestFunction("attendance-review-groups", { action: "review_save", ...payload });
@@ -2616,6 +2621,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     getPersonalRecords,
     savePersonalAttendanceDay,
     getAttendanceReviewList,
+    saveAttendanceCommonNotes,
     saveAttendanceReviewRecord,
     setAttendanceReviewed,
     getAttendanceHistory,
@@ -2832,6 +2838,7 @@ function createRecordsState() {
     activeTab: "personal",
     personal: [],
     personalDrafts: {},
+    commonAttendanceNotes: [],
     personalFilters: { fromDate: addDaysToDateString(today, -49), toDate: today },
     personalPage: 1,
     personalTotal: 0,
@@ -8643,6 +8650,13 @@ function renderPersonalHoursInput(record, field) {
   return `<input class="attendance-hours-input" type="number" min="0" step="0.5" inputmode="decimal" value="${displayValue}" data-personal-attendance-field="${field}" data-personal-attendance-date="${escapeHtml(record.date)}">`;
 }
 
+function renderPersonalNoteInput(record) {
+  const value = String(getPersonalAttendanceValue(record, "note") ?? "");
+  const editable = record.editable !== false && !record.reviewed;
+  if (!editable) return escapeHtml(value);
+  return `<input class="attendance-note-input" type="text" list="personalAttendanceCommonNotes" value="${escapeHtml(value)}" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}">`;
+}
+
 function renderReviewStatus(reviewed) {
   return `<span class="attendance-review-status ${reviewed ? "is-reviewed" : "is-unreviewed"}">${reviewed ? "已審" : "未審"}</span>`;
 }
@@ -8663,8 +8677,9 @@ function renderPersonalRecordsSection() {
       </div>
     </div>
     ${attendanceState.error ? `<div class="auth-error">${escapeHtml(attendanceState.error)}</div>` : ""}
+    <datalist id="personalAttendanceCommonNotes">${(recordsState.commonAttendanceNotes || []).map((note) => `<option value="${escapeHtml(note)}"></option>`).join("")}</datalist>
     <div class="records-table-wrap"><table class="records-table personal-record-table attendance-ledger-table">
-      <thead><tr><th class="personal-record-date-col">日期</th><th class="personal-schedule-icon-col">圖示</th><th class="personal-record-shift-col">班別</th><th class="personal-record-clock-col">打卡時間</th><th class="personal-record-hours-col">上班時數</th><th class="personal-record-hours-col">加班時數</th><th class="personal-record-note-col">備註</th><th class="personal-record-meal-col">訂餐</th><th class="personal-record-review-col">審核</th></tr></thead>
+      <thead><tr><th class="personal-record-date-col">日期</th><th class="personal-schedule-icon-col">圖示</th><th class="personal-record-shift-col">班別</th><th class="personal-record-clock-col">打卡時間</th><th class="personal-record-hours-col">上班時數</th><th class="personal-record-hours-col">加班時數</th><th class="personal-record-note-col">備註</th><th class="personal-record-review-col">審核</th></tr></thead>
       <tbody>${(recordsState.personal || []).map((record) => `<tr class="${record.date === getTodayDateString() ? "is-today-row" : ""}">
         <td class="personal-record-date-col">${escapeHtml(record.date || "")}</td>
         <td class="personal-schedule-icon-col">${renderScheduleIcon(record)}</td>
@@ -8672,12 +8687,9 @@ function renderPersonalRecordsSection() {
         <td class="personal-record-clock-col">${renderPersonalClockCell(record)}</td>
         <td class="personal-record-hours-col">${renderPersonalHoursInput(record, "regularHours")}</td>
         <td class="personal-record-hours-col">${renderPersonalHoursInput(record, "overtimeHours")}</td>
-        <td class="personal-record-note-col">${record.editable !== false && !record.reviewed
-          ? `<input class="attendance-note-input" type="text" value="${escapeHtml(String(getPersonalAttendanceValue(record, "note") ?? ""))}" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}">`
-          : escapeHtml(record.note || "")}</td>
-        <td class="personal-record-meal-col"><span class="meal-record-text">${escapeHtml(record.mealText || "-")}</span>${record.mealClockDeletedWarning ? '<br><span class="auth-error-inline">所依據的上班打卡已被刪除</span>' : ""}</td>
+        <td class="personal-record-note-col">${renderPersonalNoteInput(record)}</td>
         <td class="personal-record-review-col">${renderReviewStatus(record.reviewed)}</td>
-      </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
+      </tr>`).join("") || '<tr><td colspan="8">沒有資料</td></tr>'}</tbody>
     </table></div>
     <div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>
   </section>`;
@@ -8797,6 +8809,7 @@ function renderAttendanceReviewSection() {
         </select></label>
       </div>
       <div class="records-admin-actions overtime-review-actions attendance-review-actions">
+        <button class="ghost-btn compact-btn" type="button" data-attendance-common-notes="true">常用備註</button>
         <button class="ghost-btn compact-btn" type="button" data-export-attendance-review="true">匯出加班</button>
         <button class="primary-btn compact-btn" type="button" data-attendance-review-batch="reviewed">批次審核</button>
         <button class="ghost-btn compact-btn" type="button" data-attendance-review-batch="returned">批次退回</button>
@@ -9443,6 +9456,7 @@ function ensureRecordsState() {
   recordsState.personalTotal = Number(recordsState.personalTotal || 0);
   recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
   recordsState.personalDrafts = recordsState.personalDrafts || {};
+  recordsState.commonAttendanceNotes = Array.isArray(recordsState.commonAttendanceNotes) ? recordsState.commonAttendanceNotes : [];
   recordsState.mealPage = Number(recordsState.mealPage || 1);
   recordsState.mealReportView = recordsState.mealReportView || "detail";
   recordsState.attendanceReview = recordsState.attendanceReview || createRecordsState().attendanceReview;
@@ -9545,6 +9559,7 @@ async function loadRecordsPage(shouldRender = true) {
       ...recordsState,
       loading: false,
       personal: result.records || [],
+      commonAttendanceNotes: Array.isArray(result.commonNotes) ? result.commonNotes : recordsState.commonAttendanceNotes,
       personalTotal: Number(result.total || 0),
       personalPage: Number(result.page || 1),
       personalPageSize: Number(result.pageSize || 50),
@@ -9571,6 +9586,7 @@ async function loadAttendanceReview(shouldRender = true) {
     });
     recordsState = {
       ...recordsState,
+      commonAttendanceNotes: Array.isArray(result.commonNotes) ? result.commonNotes : recordsState.commonAttendanceNotes,
       attendanceReview: {
         ...recordsState.attendanceReview,
         loading: false,
@@ -9720,6 +9736,8 @@ function bindRecordsEvents() {
       if (page > 0) { ensureAttendanceReviewState().page = page; void loadAttendanceReview(); }
       return;
     }
+    if (target.dataset.attendanceCommonNotes !== undefined) { openAttendanceCommonNotesModal(); return; }
+    if (target.dataset.saveAttendanceCommonNotes !== undefined) { void saveAttendanceCommonNotes(); return; }
     if (target.dataset.exportAttendanceReview !== undefined) { void exportAttendanceReview(); return; }
     if (target.dataset.attendanceReviewBatch) { void batchReviewAttendance(target.dataset.attendanceReviewBatch); return; }
     if (target.dataset.cancelRecordMeal) { void cancelMealFromRecords(); }
@@ -9992,6 +10010,35 @@ async function saveAttendanceReviewEdit(token) {
     showInfoMessage("簽到資料已更新，狀態已回到未審");
   } catch (error) {
     setSaveStatus(`儲存簽到資料失敗：${error.message}`);
+  }
+}
+
+function normalizeAttendanceCommonNotes(value) {
+  const source = Array.isArray(value) ? value : String(value || "").split(/\r?\n/);
+  return [...new Set(source.map((note) => String(note || "").trim()).filter(Boolean))];
+}
+
+function openAttendanceCommonNotesModal() {
+  const notes = normalizeAttendanceCommonNotes(ensureRecordsState().commonAttendanceNotes || []);
+  openEntityListModal({
+    title: "常用備註",
+    hideFooterClose: true,
+    body: `<div class="form-row"><label>常用備註</label><textarea id="attendanceCommonNotesInput" rows="10" placeholder="每行一個常用備註">${escapeHtml(notes.join("\n"))}</textarea></div>`,
+    footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-save-attendance-common-notes="true">儲存</button>`
+  });
+}
+
+async function saveAttendanceCommonNotes() {
+  const input = document.getElementById("attendanceCommonNotesInput");
+  const notes = normalizeAttendanceCommonNotes(input?.value || "");
+  try {
+    const result = await window.schedulerApi.saveAttendanceCommonNotes({ notes });
+    ensureRecordsState().commonAttendanceNotes = normalizeAttendanceCommonNotes(result?.commonNotes || notes);
+    closeModal();
+    renderAll();
+    showInfoMessage("常用備註已儲存");
+  } catch (error) {
+    setSaveStatus(`儲存常用備註失敗：${error.message}`);
   }
 }
 

@@ -10,6 +10,7 @@ function ensureRecordsState() {
   recordsState.personalTotal = Number(recordsState.personalTotal || 0);
   recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
   recordsState.personalDrafts = recordsState.personalDrafts || {};
+  recordsState.commonAttendanceNotes = Array.isArray(recordsState.commonAttendanceNotes) ? recordsState.commonAttendanceNotes : [];
   recordsState.mealPage = Number(recordsState.mealPage || 1);
   recordsState.mealReportView = recordsState.mealReportView || "detail";
   recordsState.attendanceReview = recordsState.attendanceReview || createRecordsState().attendanceReview;
@@ -112,6 +113,7 @@ async function loadRecordsPage(shouldRender = true) {
       ...recordsState,
       loading: false,
       personal: result.records || [],
+      commonAttendanceNotes: Array.isArray(result.commonNotes) ? result.commonNotes : recordsState.commonAttendanceNotes,
       personalTotal: Number(result.total || 0),
       personalPage: Number(result.page || 1),
       personalPageSize: Number(result.pageSize || 50),
@@ -138,6 +140,7 @@ async function loadAttendanceReview(shouldRender = true) {
     });
     recordsState = {
       ...recordsState,
+      commonAttendanceNotes: Array.isArray(result.commonNotes) ? result.commonNotes : recordsState.commonAttendanceNotes,
       attendanceReview: {
         ...recordsState.attendanceReview,
         loading: false,

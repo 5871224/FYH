@@ -12,6 +12,7 @@ create table if not exists public.scheduler_settings (
   week_start integer not null default 0 check (week_start between 0 and 6),
   month_start_day integer not null default 1 check (month_start_day between 1 and 31),
   eight_week_start_date date,
+  attendance_common_notes text not null default '',
   updated_at timestamptz not null default now()
 );
 

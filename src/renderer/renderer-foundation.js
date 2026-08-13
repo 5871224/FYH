@@ -147,6 +147,7 @@ function createRecordsState() {
     activeTab: "personal",
     personal: [],
     personalDrafts: {},
+    commonAttendanceNotes: [],
     personalFilters: { fromDate: addDaysToDateString(today, -49), toDate: today },
     personalPage: 1,
     personalTotal: 0,

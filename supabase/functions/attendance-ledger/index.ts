@@ -164,11 +164,23 @@ function scheduleDisplay(context: any, userId: string, date: string) {
   };
 }
 
+function normalizeCommonNotes(value: unknown) {
+  return [...new Set(String(value || "").split(/\r?\n/).map((note) => note.trim()).filter(Boolean))];
+}
+
+async function getCommonNotes(ctx: any) {
+  const result = await ctx.supabaseAdmin.from("scheduler_settings")
+    .select("attendance_common_notes").eq("id", "default").maybeSingle();
+  if (result.error) throw result.error;
+  return normalizeCommonNotes(result.data?.attendance_common_notes);
+}
+
 async function personalList(ctx: any, body: any, actor: any) {
   const today = taipeiDate();
   const toDate = validDate(body?.toDate, today);
   const fromDate = validDate(body?.fromDate, addDays(today, -49));
   const page = pageNumber(body?.page);
+  const commonNotes = await getCommonNotes(ctx);
   const [attendanceResult, mealResult, scheduleContext, mealSettingResult] = await Promise.all([
     ctx.supabaseAdmin.from("attendance_days").select("*").eq("user_id", actor.id).gte("work_date", fromDate).lte("work_date", toDate),
     ctx.supabaseAdmin.from("meal_orders").select("*").eq("user_id", actor.id).gte("order_date", fromDate).lte("order_date", toDate),
@@ -206,7 +218,7 @@ async function personalList(ctx: any, body: any, actor: any) {
         reviewed: Boolean(row?.reviewed_at),
         reviewedAt: row?.reviewed_at || null,
         issues: attendanceIssues(row || { work_date: date }, schedule.shift, date, today),
-        editable: date === today && !row?.reviewed_at,
+        editable: !row?.reviewed_at,
         mealText: mealRows.map((meal) => `${meal.product_name_snapshot}×${meal.quantity}`).join("、"),
         mealOrderId: mealRows[0]?.order_id || "",
         canCancelMeal: Boolean(mealRows.length && date === today && nowTime <= cutoff),
@@ -214,7 +226,7 @@ async function personalList(ctx: any, body: any, actor: any) {
       };
     });
   const offset = (page - 1) * PAGE_SIZE;
-  return { ok: true, records: records.slice(offset, offset + PAGE_SIZE), total: records.length, page, pageSize: PAGE_SIZE, fromDate, toDate, serverDate: today };
+  return { ok: true, records: records.slice(offset, offset + PAGE_SIZE), commonNotes, total: records.length, page, pageSize: PAGE_SIZE, fromDate, toDate, serverDate: today };
 }
 
 async function getOrCreateDay(ctx: any, userId: string, workDate: string) {
@@ -241,9 +253,8 @@ async function writeAudit(ctx: any, rowId: string, action: string, actorId: stri
 }
 
 async function personalSave(ctx: any, body: any, actor: any) {
-  const today = taipeiDate();
   const workDate = validDate(body?.workDate, "");
-  if (!workDate || workDate !== today) throw new Error("員工只能修改今天的簽到資料");
+  if (!workDate || !employedOn(actor, workDate)) throw new Error("只能修改任職期間的簽到資料");
   const field = String(body?.field || "");
   if (!["regularHours", "overtimeHours", "note"].includes(field)) throw new Error("不支援的簽到欄位");
   const old = await getOrCreateDay(ctx, actor.id, workDate);

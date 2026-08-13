@@ -107,6 +107,27 @@ function catalogSegment(category: string, item: any) {
   };
 }
 
+function normalizeCommonNotes(value: unknown) {
+  const source = Array.isArray(value) ? value : String(value || "").split(/\r?\n/);
+  return [...new Set(source.map((note) => String(note || "").trim()).filter(Boolean))];
+}
+
+async function getCommonNotes(ctx: any) {
+  const result = await ctx.supabaseAdmin.from("scheduler_settings")
+    .select("attendance_common_notes").eq("id", "default").maybeSingle();
+  if (result.error) throw result.error;
+  return normalizeCommonNotes(result.data?.attendance_common_notes);
+}
+
+async function saveCommonNotes(ctx: any, body: any) {
+  const notes = normalizeCommonNotes(body?.notes);
+  const result = await ctx.supabaseAdmin.from("scheduler_settings")
+    .update({ attendance_common_notes: notes.join("\n"), updated_at: new Date().toISOString() })
+    .eq("id", "default");
+  if (result.error) throw result.error;
+  return { ok: true, commonNotes: notes };
+}
+
 async function getActor(ctx: any) {
   const userId = actorIdOf(ctx);
   const result = await ctx.supabaseAdmin.from("set_employee")
@@ -225,7 +246,8 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
   const status = exportOnly ? "reviewed" : String(body?.status || "unreviewed");
   const issueType = String(body?.issueType || "");
   const page = pageNumber(body?.page);
-  if (!groupIds.length) return { ok: true, members: [], departments: [], issueTypes: ISSUE_TYPES, rows: [], total: 0, page, pageSize: PAGE_SIZE };
+  const commonNotes = await getCommonNotes(ctx);
+  if (!groupIds.length) return { ok: true, members: [], departments: [], issueTypes: ISSUE_TYPES, commonNotes, rows: [], total: 0, page, pageSize: PAGE_SIZE };
 
   const [memberResult, groupResult, departmentResult] = await Promise.all([
     ctx.supabaseAdmin.from("set_employee")
@@ -282,6 +304,7 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
     departments: (departmentResult.data || [])
       .map((department: any) => ({ id: department.id, name: department.name || "", group_id: department.group_id })),
     issueTypes: ISSUE_TYPES,
+    commonNotes,
     rows: exportOnly ? rows : rows.slice(offset, offset + PAGE_SIZE),
     total: rows.length, page, pageSize: exportOnly ? rows.length : PAGE_SIZE
   };
@@ -480,6 +503,7 @@ export default {
       if (body?.action === "review_save") return Response.json(await reviewSave(ctx, body, actor));
       if (body?.action === "review_set") return Response.json(await reviewSet(ctx, body, actor));
       if (body?.action === "history") return Response.json(await history(ctx, body, actor));
+      if (body?.action === "common_notes_save") return Response.json(await saveCommonNotes(ctx, body));
       return Response.json({ message: "不支援的簽到審核操作" }, { status: 400 });
     } catch (error) {
       return Response.json({ message: error instanceof Error ? error.message : "簽到審核操作失敗" }, { status: 400 });

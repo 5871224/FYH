@@ -2051,3 +2051,7 @@ grant execute on function public.reorder_settings_v3(text,uuid[]) to authenticat
 grant execute on function public.get_schedule_export_rows_v2(date,date) to authenticated,service_role;
 
 commit;
+
+-- 簽到審核常用備註（每行一個項目）
+alter table public.scheduler_settings
+  add column if not exists attendance_common_notes text not null default '';
