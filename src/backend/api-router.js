@@ -4,6 +4,7 @@ const { getSessionIdleMs, normalizeDeviceType } = require("./session-store");
 
 const SESSION_COOKIE_NAME = "fyh_session";
 const MAX_JSON_BYTES = 64 * 1024;
+const MAX_SCHEDULE_JSON_BYTES = 2 * 1024 * 1024;
 
 function parseCookies(headerValue) {
   return String(headerValue || "")
@@ -46,12 +47,12 @@ function sendJson(response, statusCode, payload, headers = {}) {
   response.end(JSON.stringify(payload));
 }
 
-async function readJson(request) {
+async function readJson(request, maxBytes = MAX_JSON_BYTES) {
   const chunks = [];
   let size = 0;
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > MAX_JSON_BYTES) {
+    if (size > maxBytes) {
       throw new BackendError(413, "REQUEST_TOO_LARGE", "請求內容過大");
     }
     chunks.push(chunk);
@@ -114,11 +115,10 @@ function createApiRouter(options = {}) {
     };
   }
 
-  function requireScheduleService() {
+  function requireScheduleService(methods = ["getBootstrap", "getEntries"]) {
     const service = services.schedule;
-    if (!service
-      || typeof service.getBootstrap !== "function"
-      || typeof service.getEntries !== "function") {
+    const ready = service && methods.every((method) => typeof service[method] === "function");
+    if (!ready) {
       throw new BackendError(503, "SCHEDULE_SERVICE_UNAVAILABLE", "班表 Backend Service 尚未啟用");
     }
     return service;
@@ -217,7 +217,7 @@ function createApiRouter(options = {}) {
   }
 
   async function handleScheduleBootstrap(request, response, url) {
-    const service = requireScheduleService();
+    const service = requireScheduleService(["getBootstrap"]);
     const { sessionId, record, context } = await requireActiveContext(request);
     const payload = await service.getBootstrap(
       context.user.id,
@@ -227,7 +227,7 @@ function createApiRouter(options = {}) {
   }
 
   async function handleScheduleEntries(request, response, url) {
-    const service = requireScheduleService();
+    const service = requireScheduleService(["getEntries"]);
     const { sessionId, record, context } = await requireActiveContext(request);
     const rows = await service.getEntries(
       context.user.id,
@@ -241,6 +241,14 @@ function createApiRouter(options = {}) {
     sendJson(response, 200, rows, sessionCookieHeaders(sessionId, record));
   }
 
+  async function handleScheduleEntriesSave(request, response) {
+    const service = requireScheduleService(["saveEntries"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request, MAX_SCHEDULE_JSON_BYTES);
+    const rows = await service.saveEntries(context.user.id, body.entries);
+    sendJson(response, 200, rows, sessionCookieHeaders(sessionId, record));
+  }
+
   const handlers = {
     health: handleHealth,
     authSignIn: handleSignIn,
@@ -248,7 +256,8 @@ function createApiRouter(options = {}) {
     authSignOut: handleSignOut,
     authPassword: handlePassword,
     scheduleBootstrap: handleScheduleBootstrap,
-    scheduleEntries: handleScheduleEntries
+    scheduleEntries: handleScheduleEntries,
+    scheduleEntriesSave: handleScheduleEntriesSave
   };
 
   async function handle(request, response, url) {
