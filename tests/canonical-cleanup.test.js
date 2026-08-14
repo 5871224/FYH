@@ -10,8 +10,9 @@ test("canonical renderer has no legacy role state or guessed schedule ids", () =
   const webApi = read("src/renderer/web-api.js");
   assert.doesNotMatch(foundation, /ROLE_OPTIONS|role:\s*"manager"/);
   assert.doesNotMatch(normalization, /merged\.role|fallbackOvertimeId/);
-  assert.doesNotMatch(webApi, /resolveManagerMemberProfileId/);
-  assert.match(webApi, /isUuid\(profileMemberId\)/);
+  assert.doesNotMatch(webApi, /resolveManagerMemberProfileId|profileMemberId/);
+  assert.match(webApi, /function makeScheduleKey\(memberId,workDate\)/);
+  assert.match(webApi, /if\(!isUuid\(memberId\)\|\|!workDate\)throw new Error\("schedule cell member UUID and date are required"\)/);
 });
 
 test("group state keeps canonical metadata directly and archive ranges separately", () => {
