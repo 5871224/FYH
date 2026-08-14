@@ -65,10 +65,9 @@ test("純文件變更只跑輕量守門測試，其他異動跑完整驗證", ()
   );
 
   const fullValidationSteps = [
-    "Build static web",
-    "Check reproducible static publish",
+    "Build web app",
+    "Check browser backend boundary",
     "Run unit tests",
-    "Check public Supabase settings",
     "Check normalized storage",
     "Check expansion acceptance",
     "Check settings lists",
