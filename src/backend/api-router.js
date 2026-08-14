@@ -164,6 +164,14 @@ function createApiRouter(options = {}) {
     return api;
   }
 
+  function requireScheduleExtraApi(method) {
+    const api = services.scheduleExtra;
+    if (!api || typeof api[method] !== "function") {
+      throw new BackendError(503, "SCHEDULE_EXTRA_API_UNAVAILABLE", "班表附加功能尚未啟用");
+    }
+    return api;
+  }
+
   async function requireSession(request) {
     const sessionId = getSessionId(request);
     const record = sessionId ? await sessionStore.read(sessionId) : null;
@@ -299,6 +307,25 @@ function createApiRouter(options = {}) {
     const body = await readJson(request);
     const result = await api.unarchive(context.user.id, body.archiveId);
     sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleScheduleHolidaysSave(request, response) {
+    const api = requireScheduleExtraApi("saveHolidays");
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await api.saveHolidays(context.user.id, body.holidays);
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleScheduleExportRows(request, response, url) {
+    const api = requireScheduleExtraApi("exportRows");
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const rows = await api.exportRows(
+      context.user.id,
+      url.searchParams.get("startDate"),
+      url.searchParams.get("endDate")
+    );
+    sendJson(response, 200, rows, sessionCookieHeaders(sessionId, record));
   }
 
   async function handleSettingsReorder(request, response) {
@@ -449,6 +476,8 @@ function createApiRouter(options = {}) {
     scheduleArchiveCreate: handleScheduleArchiveCreate,
     scheduleArchiveEntries: handleScheduleArchiveEntries,
     scheduleArchiveUnarchive: handleScheduleArchiveUnarchive,
+    scheduleHolidaysSave: handleScheduleHolidaysSave,
+    scheduleExportRows: handleScheduleExportRows,
     settingsReorder: handleSettingsReorder,
     departmentSave: handleDepartmentSave,
     departmentDelete: handleDepartmentDelete,
