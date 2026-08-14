@@ -115,6 +115,12 @@ function createApiRouter(options = {}) {
     };
   }
 
+  function clearedSessionHeaders() {
+    return {
+      "Set-Cookie": formatSessionCookie("", { clear: true, secure: secureCookies })
+    };
+  }
+
   function requireScheduleService(methods = ["getBootstrap", "getEntries"]) {
     const service = services.schedule;
     const ready = service && methods.every((method) => typeof service[method] === "function");
@@ -138,6 +144,15 @@ function createApiRouter(options = {}) {
     const ready = service && methods.every((method) => typeof service[method] === "function");
     if (!ready) {
       throw new BackendError(503, "MASTER_DATA_SERVICE_UNAVAILABLE", "主檔 Backend Service 尚未啟用");
+    }
+    return service;
+  }
+
+  function requireMemberService(methods) {
+    const service = services.members;
+    const ready = service && methods.every((method) => typeof service[method] === "function");
+    if (!ready) {
+      throw new BackendError(503, "MEMBER_SERVICE_UNAVAILABLE", "人員 Backend Service 尚未啟用");
     }
     return service;
   }
@@ -215,9 +230,7 @@ function createApiRouter(options = {}) {
     } finally {
       await sessionStore.remove(sessionId);
     }
-    sendJson(response, 200, sanitizeAuthContext(null), {
-      "Set-Cookie": formatSessionCookie("", { clear: true, secure: secureCookies })
-    });
+    sendJson(response, 200, sanitizeAuthContext(null), clearedSessionHeaders());
   }
 
   async function handlePassword(request, response) {
@@ -327,6 +340,67 @@ function createApiRouter(options = {}) {
     sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
   }
 
+  async function handleMembersDirectory(request, response) {
+    const service = requireMemberService(["getDirectory"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const rows = await service.getDirectory(context.user.id);
+    sendJson(response, 200, rows, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleMemberSave(request, response) {
+    const service = requireMemberService(["saveMember"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.saveMember(
+      context.user.id,
+      body.member,
+      body.previousEmployeeCode
+    );
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleMemberGroupChangeValidate(request, response) {
+    const service = requireMemberService(["validateGroupChange"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.validateGroupChange(
+      context.user.id,
+      body.employeeCode,
+      body.newGroupId || body.groupId
+    );
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleMemberPasswordReset(request, response) {
+    const service = requireMemberService(["resetPassword"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.resetPassword(context.user.id, body.employeeCode, body.password);
+    sendJson(
+      response,
+      200,
+      result,
+      result?.selfReset ? clearedSessionHeaders() : sessionCookieHeaders(sessionId, record)
+    );
+  }
+
+  async function handleMemberDelete(request, response) {
+    const service = requireMemberService(["deleteMember"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.deleteMember(
+      context.user.id,
+      body.employeeCode,
+      body.currentPassword
+    );
+    sendJson(
+      response,
+      200,
+      result,
+      result?.selfDelete ? clearedSessionHeaders() : sessionCookieHeaders(sessionId, record)
+    );
+  }
+
   const handlers = {
     health: handleHealth,
     authSignIn: handleSignIn,
@@ -342,7 +416,12 @@ function createApiRouter(options = {}) {
     departmentDelete: handleDepartmentDelete,
     shiftSave: handleShiftSave,
     catalogSave: handleCatalogSave,
-    catalogDelete: handleCatalogDelete
+    catalogDelete: handleCatalogDelete,
+    membersDirectory: handleMembersDirectory,
+    memberSave: handleMemberSave,
+    memberGroupChangeValidate: handleMemberGroupChangeValidate,
+    memberPasswordReset: handleMemberPasswordReset,
+    memberDelete: handleMemberDelete
   };
 
   async function handle(request, response, url) {
@@ -367,9 +446,7 @@ function createApiRouter(options = {}) {
           code: normalized.code,
           message: normalized.message
         }
-      }, normalized.statusCode === 401 ? {
-        "Set-Cookie": formatSessionCookie("", { clear: true, secure: secureCookies })
-      } : {});
+      }, normalized.statusCode === 401 ? clearedSessionHeaders() : {});
     }
     return true;
   }

@@ -16,7 +16,12 @@ const ROUTES = Object.freeze({
   departmentDelete: Object.freeze({ method: "POST", path: `${API_PREFIX}/settings/department/delete`, auth: true }),
   shiftSave: Object.freeze({ method: "PUT", path: `${API_PREFIX}/settings/shift`, auth: true }),
   catalogSave: Object.freeze({ method: "PUT", path: `${API_PREFIX}/settings/catalog`, auth: true }),
-  catalogDelete: Object.freeze({ method: "POST", path: `${API_PREFIX}/settings/catalog/delete`, auth: true })
+  catalogDelete: Object.freeze({ method: "POST", path: `${API_PREFIX}/settings/catalog/delete`, auth: true }),
+  membersDirectory: Object.freeze({ method: "GET", path: `${API_PREFIX}/members`, auth: true }),
+  memberSave: Object.freeze({ method: "PUT", path: `${API_PREFIX}/members`, auth: true }),
+  memberGroupChangeValidate: Object.freeze({ method: "POST", path: `${API_PREFIX}/members/group-change/validate`, auth: true }),
+  memberPasswordReset: Object.freeze({ method: "POST", path: `${API_PREFIX}/members/password/reset`, auth: true }),
+  memberDelete: Object.freeze({ method: "POST", path: `${API_PREFIX}/members/delete`, auth: true })
 });
 
 function findRoute(method, pathname) {
