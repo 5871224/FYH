@@ -56,23 +56,39 @@ test("leave and overtime saves use explicit domain paths", () => {
   assert.match(catalog, /async function persistNamedCatalogItem/);
 });
 
-test("SQL canonical source has no text-role compatibility model or dynamic policy rewriting", () => {
+test("SQL canonical source is portable PostgreSQL without legacy authorization APIs", () => {
   const schema = read("supabase/001_current_schema.sql");
   const updates = read("supabase/002_current_updates.sql");
   const combined = `${schema}\n${updates}`;
+  const executableSql = combined.replace(/--.*$/gm, "");
+
   assert.doesNotMatch(combined, /legacy_role|access_role_legacy_role|employee\.role|new\.role|ROLE_OPTIONS/);
   assert.doesNotMatch(schema, /\brole text not null default 'employee'/);
-  assert.doesNotMatch(updates, /Performance Advisor: remaining public RLS auth context uses init-plan evaluation/);
-  assert.match(updates, /get_my_profile_v3/);
-  assert.match(updates, /get_schedule_archive_ranges_v1/);
-  assert.doesNotMatch(updates, /get_group_entity_map_v1\(\)/);
+  for (const pattern of [
+    /auth\.uid\s*\(/i,
+    /auth\.role\s*\(/i,
+    /create\s+policy/i,
+    /enable\s+row\s+level\s+security/i,
+    /\bservice_role\b/i,
+    /\bauthenticated\b/i,
+    /\banon\b/i,
+    /get_my_profile_v3/i,
+    /get_schedule_archive_ranges_v1/i,
+    /get_group_entity_map_v1/i
+  ]) {
+    assert.doesNotMatch(executableSql, pattern);
+  }
+
+  assert.match(updates, /create or replace function public\.is_employee_account_effective/);
+  assert.match(updates, /create or replace function public\.is_schedule_date_archived/);
+  assert.match(updates, /create or replace function public\.protect_archived_schedule_v1/);
 });
 
-test("each final RLS policy is created once and authenticated has no direct write policy", () => {
+test("canonical SQL keeps only PostgreSQL integrity triggers instead of application RLS", () => {
   const sql = read("supabase/002_current_updates.sql");
-  const names = [...sql.matchAll(/create\s+policy\s+([a-z0-9_]+)\s+on\s+public\.([a-z0-9_]+)/gi)].map((match) => `${match[2]}.${match[1]}`);
-  assert.equal(new Set(names).size, names.length);
-  for (const statement of sql.match(/create\s+policy[\s\S]*?;/gi) || []) {
-    if (/to\s+authenticated/i.test(statement)) assert.doesNotMatch(statement, /for\s+(insert|update|delete|all)\b/i);
-  }
+  const executableSql = sql.replace(/--.*$/gm, "");
+  assert.doesNotMatch(executableSql, /create\s+policy/i);
+  assert.doesNotMatch(executableSql, /enable\s+row\s+level\s+security/i);
+  assert.match(sql, /create trigger trg_schedule_entries_protect_archive/);
+  assert.match(sql, /create trigger trg_schedule_entries_set_group/);
 });
