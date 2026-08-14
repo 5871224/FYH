@@ -124,6 +124,15 @@ function createApiRouter(options = {}) {
     return service;
   }
 
+  function requireSettingsService(methods = ["saveSchedulerPreferences", "reorderSettings"]) {
+    const service = services.settings;
+    const ready = service && methods.every((method) => typeof service[method] === "function");
+    if (!ready) {
+      throw new BackendError(503, "SETTINGS_SERVICE_UNAVAILABLE", "設定 Backend Service 尚未啟用");
+    }
+    return service;
+  }
+
   async function requireSession(request) {
     const sessionId = getSessionId(request);
     const record = sessionId ? await sessionStore.read(sessionId) : null;
@@ -249,6 +258,26 @@ function createApiRouter(options = {}) {
     sendJson(response, 200, rows, sessionCookieHeaders(sessionId, record));
   }
 
+  async function handleSchedulePreferencesSave(request, response) {
+    const service = requireSettingsService(["saveSchedulerPreferences"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.saveSchedulerPreferences(
+      context.user.id,
+      body.documentId || "default",
+      body.settings
+    );
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleSettingsReorder(request, response) {
+    const service = requireSettingsService(["reorderSettings"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.reorderSettings(context.user.id, body.category, body.ids);
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
   const handlers = {
     health: handleHealth,
     authSignIn: handleSignIn,
@@ -257,7 +286,9 @@ function createApiRouter(options = {}) {
     authPassword: handlePassword,
     scheduleBootstrap: handleScheduleBootstrap,
     scheduleEntries: handleScheduleEntries,
-    scheduleEntriesSave: handleScheduleEntriesSave
+    scheduleEntriesSave: handleScheduleEntriesSave,
+    schedulePreferencesSave: handleSchedulePreferencesSave,
+    settingsReorder: handleSettingsReorder
   };
 
   async function handle(request, response, url) {

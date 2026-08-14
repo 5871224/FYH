@@ -40,6 +40,8 @@ test("正式 API 使用版本化具名路徑，不提供通用動態 CRUD", () =
   assert.match(contract, /scheduleBootstrap:[\s\S]*method: "GET"[\s\S]*schedule\/bootstrap/);
   assert.match(contract, /scheduleEntries:[\s\S]*method: "GET"[\s\S]*schedule\/entries/);
   assert.match(contract, /scheduleEntriesSave:[\s\S]*method: "PUT"[\s\S]*schedule\/entries/);
+  assert.match(contract, /schedulePreferencesSave:[\s\S]*method: "PUT"[\s\S]*schedule\/preferences/);
+  assert.match(contract, /settingsReorder:[\s\S]*method: "PUT"[\s\S]*settings\/order/);
   assert.doesNotMatch(contract, /restSelect|restInsert|restUpdate|restDelete|tableName|operationName/);
 });
 
@@ -55,12 +57,14 @@ test("一般 PostgreSQL 資料層不得依賴 Supabase HTTP transport", () => {
   assert.match(read("src/backend/repositories/auth-account-repository.js"), /password_hash = \$2/);
 });
 
-test("Native 身分、權限與班表 Repository 只使用一般 PostgreSQL 身分參數", () => {
+test("Native 身分、權限、班表與設定 Repository 只使用一般 PostgreSQL 身分參數", () => {
   const files = [
     "src/backend/repositories/native-identity-repository.js",
     "src/backend/repositories/native-access-repository.js",
     "src/backend/repositories/native-schedule-repository.js",
+    "src/backend/repositories/native-settings-repository.js",
     "src/backend/services/native-schedule-service.js",
+    "src/backend/services/native-settings-service.js",
     "src/backend/postgres-session-store.js"
   ];
   const source = files.map(read).join("\n");
@@ -68,7 +72,7 @@ test("Native 身分、權限與班表 Repository 只使用一般 PostgreSQL 身�
   assert.match(read("src/backend/repositories/native-identity-repository.js"), /public\.auth_accounts/);
   assert.match(read("src/backend/repositories/native-access-repository.js"), /\$1::uuid/);
   assert.match(read("src/backend/repositories/native-schedule-repository.js"), /employee\.id = \$1::uuid/);
-  assert.match(read("src/backend/repositories/native-schedule-repository.js"), /public\.schedule_entries/);
+  assert.match(read("src/backend/repositories/native-settings-repository.js"), /employee\.id = \$1::uuid/);
   assert.match(read("src/backend/postgres-session-store.js"), /sha256/);
 });
 
@@ -84,13 +88,28 @@ test("Native 班表寫入必須先驗權限並在單一 Database transaction 內
   assert.doesNotMatch(schedule, /auth\.uid\(\)|save_schedule_entries_v3|\/rest\/v1\/rpc/i);
 });
 
-test("Native runtime 必須把權限與班表 Repository 注入服務", () => {
+test("Native 設定排序必須依權限與適用群組，並使用 Database transaction", () => {
+  const settings = read("src/backend/repositories/native-settings-repository.js");
+  assert.match(settings, /department_settings/);
+  assert.match(settings, /member_settings/);
+  assert.match(settings, /schedule_manage/);
+  assert.match(settings, /leave_settings/);
+  assert.match(settings, /permission_settings/);
+  assert.match(settings, /public\.access_role_groups/);
+  assert.match(settings, /database\.transaction\(async \(transaction\) =>/);
+  assert.doesNotMatch(settings, /auth\.uid\(\)|reorder_settings_v3|save_scheduler_preferences_v3|\/rest\/v1\/rpc/i);
+});
+
+test("Native runtime 必須把權限、班表與設定 Repository 注入服務", () => {
   const runtime = read("src/backend/native-runtime.js");
   assert.match(runtime, /createNativeAccessRepository/);
   assert.match(runtime, /createNativeScheduleRepository/);
+  assert.match(runtime, /createNativeSettingsRepository/);
   assert.match(runtime, /createNativeScheduleService/);
+  assert.match(runtime, /createNativeSettingsService/);
   assert.match(runtime, /createNativeAuthProvider\(identityRepository, \{ accessRepository \}\)/);
   assert.match(runtime, /schedule: scheduleService/);
+  assert.match(runtime, /settings: settingsService/);
 });
 
 test("福園號密碼雜湊使用 Node crypto scrypt，不依賴 Provider Token", () => {
