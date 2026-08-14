@@ -94,6 +94,7 @@ function detectDeviceType(request, body = {}) {
 function createApiRouter(options = {}) {
   const provider = options.provider;
   const sessionStore = options.sessionStore;
+  const services = options.services || {};
   const secureCookies = Boolean(options.secureCookies);
 
   if (!provider || !sessionStore) {
@@ -102,6 +103,25 @@ function createApiRouter(options = {}) {
 
   function getSessionId(request) {
     return parseCookies(request.headers.cookie)[SESSION_COOKIE_NAME] || "";
+  }
+
+  function sessionCookieHeaders(sessionId, record) {
+    return {
+      "Set-Cookie": formatSessionCookie(sessionId, {
+        deviceType: record.deviceType,
+        secure: secureCookies
+      })
+    };
+  }
+
+  function requireScheduleService() {
+    const service = services.schedule;
+    if (!service
+      || typeof service.getBootstrap !== "function"
+      || typeof service.getEntries !== "function") {
+      throw new BackendError(503, "SCHEDULE_SERVICE_UNAVAILABLE", "班表 Backend Service 尚未啟用");
+    }
+    return service;
   }
 
   async function requireSession(request) {
@@ -122,6 +142,15 @@ function createApiRouter(options = {}) {
     });
     await sessionStore.touch(sessionId);
     return context;
+  }
+
+  async function requireActiveContext(request) {
+    const { sessionId, record } = await requireSession(request);
+    const context = await refreshContext(sessionId, record);
+    if (!context?.user?.id) {
+      throw new BackendError(401, "AUTH_REQUIRED", "請先登入");
+    }
+    return { sessionId, record, context };
   }
 
   async function handleHealth(_request, response) {
@@ -157,14 +186,8 @@ function createApiRouter(options = {}) {
   }
 
   async function handleContext(request, response) {
-    const { sessionId, record } = await requireSession(request);
-    const context = await refreshContext(sessionId, record);
-    sendJson(response, 200, sanitizeAuthContext(context), {
-      "Set-Cookie": formatSessionCookie(sessionId, {
-        deviceType: record.deviceType,
-        secure: secureCookies
-      })
-    });
+    const { sessionId, record, context } = await requireActiveContext(request);
+    sendJson(response, 200, sanitizeAuthContext(context), sessionCookieHeaders(sessionId, record));
   }
 
   async function handleSignOut(request, response) {
@@ -190,12 +213,32 @@ function createApiRouter(options = {}) {
       });
     }
     await sessionStore.touch(sessionId);
-    sendJson(response, 200, { ok: true }, {
-      "Set-Cookie": formatSessionCookie(sessionId, {
-        deviceType: record.deviceType,
-        secure: secureCookies
-      })
-    });
+    sendJson(response, 200, { ok: true }, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleScheduleBootstrap(request, response, url) {
+    const service = requireScheduleService();
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const payload = await service.getBootstrap(
+      context.user.id,
+      url.searchParams.get("documentId") || "default"
+    );
+    sendJson(response, 200, payload, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleScheduleEntries(request, response, url) {
+    const service = requireScheduleService();
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const rows = await service.getEntries(
+      context.user.id,
+      url.searchParams.get("startDate"),
+      url.searchParams.get("endDate"),
+      {
+        offset: url.searchParams.get("offset"),
+        limit: url.searchParams.get("limit")
+      }
+    );
+    sendJson(response, 200, rows, sessionCookieHeaders(sessionId, record));
   }
 
   const handlers = {
@@ -203,7 +246,9 @@ function createApiRouter(options = {}) {
     authSignIn: handleSignIn,
     authContext: handleContext,
     authSignOut: handleSignOut,
-    authPassword: handlePassword
+    authPassword: handlePassword,
+    scheduleBootstrap: handleScheduleBootstrap,
+    scheduleEntries: handleScheduleEntries
   };
 
   async function handle(request, response, url) {
@@ -220,7 +265,7 @@ function createApiRouter(options = {}) {
 
     const [name] = match;
     try {
-      await handlers[name](request, response);
+      await handlers[name](request, response, url);
     } catch (error) {
       const normalized = normalizeBackendError(error);
       sendJson(response, normalized.statusCode, {

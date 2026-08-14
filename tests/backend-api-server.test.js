@@ -64,6 +64,16 @@ function cookieFrom(response) {
   return String(response.headers.get("set-cookie") || "").split(";")[0];
 }
 
+async function signInForCookie(baseUrl) {
+  const response = await fetch(`${baseUrl}/api/v1/auth/sign-in`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ loginAccount: "0001", password: "pw", deviceType: "desktop" })
+  });
+  assert.equal(response.status, 200);
+  return cookieFrom(response);
+}
+
 test("/api/v1/health 使用福園號通用服務名稱與契約版本", async () => {
   const { provider } = createMockProvider();
   await withServer({ provider }, async (baseUrl) => {
@@ -126,6 +136,65 @@ test("登入後只把 HttpOnly 不透明 Session ID 放到瀏覽器，不回傳 
     assert.equal((await signOutResponse.json()).authenticated, false);
 
     assert.deepEqual(calls, { signIn: 1, context: 1, signOut: 1, password: 1 });
+  });
+});
+
+test("班表讀取 API 只採用登入 Session 身分，不接受查詢字串冒用 userId", async () => {
+  const { provider } = createMockProvider();
+  const scheduleCalls = [];
+  const schedule = {
+    getBootstrap: async (employeeId, documentId) => {
+      scheduleCalls.push(["bootstrap", employeeId, documentId]);
+      return {
+        settings: {},
+        departments: [],
+        members: [],
+        shifts: [],
+        leaves: [],
+        overtime: [],
+        holidays: [],
+        accessBundle: { actor: {}, groups: [], roles: [] }
+      };
+    },
+    getEntries: async (employeeId, startDate, endDate, options) => {
+      scheduleCalls.push(["entries", employeeId, startDate, endDate, options]);
+      return [{ id: "ENTRY-1", work_date: startDate }];
+    }
+  };
+
+  await withServer({ provider, services: { schedule } }, async (baseUrl) => {
+    const cookie = await signInForCookie(baseUrl);
+
+    const bootstrapResponse = await fetch(
+      `${baseUrl}/api/v1/schedule/bootstrap?documentId=roster&userId=FORGED`,
+      { headers: { Cookie: cookie } }
+    );
+    assert.equal(bootstrapResponse.status, 200);
+    assert.deepEqual((await bootstrapResponse.json()).members, []);
+
+    const entriesResponse = await fetch(
+      `${baseUrl}/api/v1/schedule/entries?startDate=2026-08-01&endDate=2026-08-31&offset=10&limit=20&employeeId=FORGED`,
+      { headers: { Cookie: cookie } }
+    );
+    assert.equal(entriesResponse.status, 200);
+    assert.deepEqual(await entriesResponse.json(), [{ id: "ENTRY-1", work_date: "2026-08-01" }]);
+
+    assert.deepEqual(scheduleCalls, [
+      ["bootstrap", "U1", "roster"],
+      ["entries", "U1", "2026-08-01", "2026-08-31", { offset: "10", limit: "20" }]
+    ]);
+  });
+});
+
+test("未啟用班表 Backend Service 時不退回 Supabase RPC，明確回 503", async () => {
+  const { provider } = createMockProvider();
+  await withServer({ provider }, async (baseUrl) => {
+    const cookie = await signInForCookie(baseUrl);
+    const response = await fetch(`${baseUrl}/api/v1/schedule/bootstrap`, {
+      headers: { Cookie: cookie }
+    });
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).error.code, "SCHEDULE_SERVICE_UNAVAILABLE");
   });
 });
 

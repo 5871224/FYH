@@ -37,6 +37,8 @@ test("正式 API 使用版本化具名路徑，不提供通用動態 CRUD", () =
   assert.match(contract, /auth\/context/);
   assert.match(contract, /auth\/sign-out/);
   assert.match(contract, /auth\/password/);
+  assert.match(contract, /schedule\/bootstrap/);
+  assert.match(contract, /schedule\/entries/);
   assert.doesNotMatch(contract, /restSelect|restInsert|restUpdate|restDelete|tableName|operationName/);
 });
 
@@ -50,6 +52,32 @@ test("一般 PostgreSQL 資料層不得依賴 Supabase HTTP transport", () => {
   assert.doesNotMatch(source, /\/auth\/v1|\/rest\/v1|\/functions\/v1|apikey|supabaseAnonKey|supabaseUrl/i);
   assert.match(read("src/backend/repositories/auth-account-repository.js"), /lower\(account\.login_account\) = \$1/);
   assert.match(read("src/backend/repositories/auth-account-repository.js"), /password_hash = \$2/);
+});
+
+test("Native 身分、權限與班表 Repository 只使用一般 PostgreSQL 身分參數", () => {
+  const files = [
+    "src/backend/repositories/native-identity-repository.js",
+    "src/backend/repositories/native-access-repository.js",
+    "src/backend/repositories/native-schedule-repository.js",
+    "src/backend/services/native-schedule-service.js",
+    "src/backend/postgres-session-store.js"
+  ];
+  const source = files.map(read).join("\n");
+  assert.doesNotMatch(source, /\/auth\/v1|\/rest\/v1|\/functions\/v1|access_token|refresh_token|apikey|supabaseAnonKey|supabaseUrl|auth\.uid\(\)/i);
+  assert.match(read("src/backend/repositories/native-identity-repository.js"), /public\.auth_accounts/);
+  assert.match(read("src/backend/repositories/native-access-repository.js"), /\$1::uuid/);
+  assert.match(read("src/backend/repositories/native-schedule-repository.js"), /employee\.id = \$1::uuid/);
+  assert.match(read("src/backend/repositories/native-schedule-repository.js"), /public\.schedule_entries/);
+  assert.match(read("src/backend/postgres-session-store.js"), /sha256/);
+});
+
+test("Native runtime 必須把權限與班表 Repository 注入服務", () => {
+  const runtime = read("src/backend/native-runtime.js");
+  assert.match(runtime, /createNativeAccessRepository/);
+  assert.match(runtime, /createNativeScheduleRepository/);
+  assert.match(runtime, /createNativeScheduleService/);
+  assert.match(runtime, /createNativeAuthProvider\(identityRepository, \{ accessRepository \}\)/);
+  assert.match(runtime, /schedule: scheduleService/);
 });
 
 test("福園號密碼雜湊使用 Node crypto scrypt，不依賴 Provider Token", () => {
