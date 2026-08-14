@@ -41,7 +41,7 @@ function normalizeMember(member = {}) {
   const shiftIds = Array.isArray(member.scheduleShiftIds) ? member.scheduleShiftIds : [];
   const scheduleShiftIds = [...new Set(shiftIds.map((value) => requireUuid(value, "排班班別識別碼")))];
   const fixedRestWeekday = Math.min(6, Math.max(0, Math.trunc(Number(member.fixedRestWeekday) || 0)));
-  const monthlyRestDays = Math.max(0, Math.trunc(Number(member.monthlyRestDays) || 0));
+  const monthlyRestDays = Math.min(31, Math.max(0, Math.trunc(Number(member.monthlyRestDays) || 0)));
 
   return {
     id: randomUUID(),
