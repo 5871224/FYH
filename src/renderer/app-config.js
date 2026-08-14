@@ -8,6 +8,10 @@ window.SCHEDULER_CONFIG = {
 // The generated app bundle does not persist schedule-table drag order itself,
 // so these wrappers write the resulting order through reorderSettings().
 (function installPublishedScheduleOrderPersistence() {
+  if (typeof document === "undefined") {
+    return;
+  }
+
   function install() {
     if (!window.schedulerApi?.reorderSettings || typeof window.getSortableSettingsList !== "function") {
       return;
