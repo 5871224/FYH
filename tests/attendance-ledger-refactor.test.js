@@ -24,10 +24,16 @@ test("個人記錄與簽到審核欄位完整", () => {
   assert.equal(views.includes("批次退回"), true);
 });
 
-test("前端只呼叫統一 attendance-ledger API", () => {
+test("前端只呼叫統一 FYH attendance API", () => {
   const api = read("src/renderer/web-api.js");
-  assert.equal(api.includes('requestFunction("attendance-ledger"'), true);
-  assert.equal(api.includes('requestFunction("attendance-ledger-export"'), true);
+  for (const endpoint of [
+    "/api/v1/attendance/personal/list",
+    "/api/v1/attendance/review/list",
+    "/api/v1/attendance/review/export"
+  ]) {
+    assert.equal(api.includes(endpoint), true, `缺少 FYH API：${endpoint}`);
+  }
+  assert.doesNotMatch(api, /\brequestFunction\s*\(/);
   for (const oldName of ["attendance-overtime-admin-list", "attendance-admin-list-v2", "personal-records-v2"]) {
     assert.equal(api.includes(oldName), false, `仍有舊 API：${oldName}`);
   }
