@@ -157,6 +157,15 @@ function createApiRouter(options = {}) {
     return service;
   }
 
+  function requireGroupRoleService(methods) {
+    const service = services.groupRoles;
+    const ready = service && methods.every((method) => typeof service[method] === "function");
+    if (!ready) {
+      throw new BackendError(503, "GROUP_ROLE_SERVICE_UNAVAILABLE", "群組與角色 Backend Service 尚未啟用");
+    }
+    return service;
+  }
+
   async function requireSession(request) {
     const sessionId = getSessionId(request);
     const record = sessionId ? await sessionStore.read(sessionId) : null;
@@ -401,6 +410,53 @@ function createApiRouter(options = {}) {
     );
   }
 
+  async function handleAccessBundle(request, response) {
+    const service = requireGroupRoleService(["getAccessBundle"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const bundle = await service.getAccessBundle(context.user.id);
+    sendJson(response, 200, bundle, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleGroupSave(request, response) {
+    const service = requireGroupRoleService(["saveGroup"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.saveGroup(context.user.id, body.group);
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleGroupDelete(request, response) {
+    const service = requireGroupRoleService(["deleteGroup"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.deleteGroup(context.user.id, body.groupId, body.confirmName);
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleGroupsReorder(request, response) {
+    const service = requireGroupRoleService(["reorderGroups"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.reorderGroups(context.user.id, body.groupIds || body.ids);
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleAccessRoleSave(request, response) {
+    const service = requireGroupRoleService(["saveRole"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.saveRole(context.user.id, body.role);
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleAccessRoleDelete(request, response) {
+    const service = requireGroupRoleService(["deleteRole"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.deleteRole(context.user.id, body.roleId);
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
   const handlers = {
     health: handleHealth,
     authSignIn: handleSignIn,
@@ -421,7 +477,13 @@ function createApiRouter(options = {}) {
     memberSave: handleMemberSave,
     memberGroupChangeValidate: handleMemberGroupChangeValidate,
     memberPasswordReset: handleMemberPasswordReset,
-    memberDelete: handleMemberDelete
+    memberDelete: handleMemberDelete,
+    accessBundle: handleAccessBundle,
+    groupSave: handleGroupSave,
+    groupDelete: handleGroupDelete,
+    groupsReorder: handleGroupsReorder,
+    accessRoleSave: handleAccessRoleSave,
+    accessRoleDelete: handleAccessRoleDelete
   };
 
   async function handle(request, response, url) {
