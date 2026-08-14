@@ -72,7 +72,7 @@ function createNativeGroupRoleRepository(database) {
       return await database.transaction(async (transaction) => {
         const actor = await getActor(transaction, employeeId);
         requirePermission(actor, GROUP_PERMISSION, "沒有群組設定權限");
-        const existing = group.id
+        const existing = group.suppliedId
           ? await transaction.one(`
               select id, deleted_at
               from public.schedule_groups
@@ -81,10 +81,10 @@ function createNativeGroupRoleRepository(database) {
             `, [group.id])
           : null;
         const created = !existing?.id;
-        if (group.id && !existing?.id) {
-          throw new BackendError(404, "GROUP_NOT_FOUND", "找不到群組");
-        }
         if (existing?.id && !actorCanGroup(actor, existing.id)) {
+          throw new BackendError(403, "GROUP_MANAGE_DENIED", "此角色不可管理該群組");
+        }
+        if (group.suppliedId && !existing?.id && !actor.permissions.includes(ROLE_PERMISSION)) {
           throw new BackendError(403, "GROUP_MANAGE_DENIED", "此角色不可管理該群組");
         }
 
@@ -262,7 +262,7 @@ function createNativeGroupRoleRepository(database) {
         const actor = await getActor(transaction, employeeId);
         requirePermission(actor, ROLE_PERMISSION, "沒有權限設定權限");
 
-        const existing = role.id
+        const existing = role.suppliedId
           ? await transaction.one(`
               select id, code, name, permissions, is_system, sort_order
               from public.access_roles
@@ -270,7 +270,6 @@ function createNativeGroupRoleRepository(database) {
               for update
             `, [role.id])
           : null;
-        if (role.id && !existing?.id) throw new BackendError(404, "ACCESS_ROLE_NOT_FOUND", "找不到權限角色");
 
         const wasPrivileged = Array.isArray(existing?.permissions) && existing.permissions.includes(ROLE_PERMISSION);
         const willBePrivileged = role.permissions.includes(ROLE_PERMISSION);
