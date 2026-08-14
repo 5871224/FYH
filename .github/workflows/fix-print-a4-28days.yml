@@ -1,0 +1,80 @@
+name: 修正班表列印 A4 28天
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-print-a4-28days.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 修正正式來源與規格
+        shell: python
+        run: |
+          from pathlib import Path
+
+          app_path = Path('src/renderer/app-config.js')
+          text = app_path.read_text(encoding='utf-8')
+          replacements = [
+              (
+                  '.schedule-print-page[data-orientation="portrait"]{width:210mm;min-height:297mm}.schedule-print-page[data-orientation="landscape"]{width:297mm;min-height:210mm}',
+                  '.schedule-print-page[data-orientation="portrait"]{width:210mm;height:297mm;min-height:0;max-height:297mm}.schedule-print-page[data-orientation="landscape"]{width:297mm;height:210mm;min-height:0;max-height:210mm}'
+              ),
+              (
+                  'return preview.dates.length <= 7 ? "portrait" : "landscape";',
+                  'return preview.dates.length <= 14 ? "portrait" : "landscape";'
+              ),
+              (
+                  'const datePages = chunks(preview.dates, mode === "portrait" ? 7 : 14);',
+                  'const datePages = chunks(preview.dates, mode === "portrait" ? 14 : 28);'
+              ),
+              (
+                  '<div><label>方向 <select id="schedulePrintOrientation">',
+                  '<div><span style="font-weight:800">A4</span><label>方向 <select id="schedulePrintOrientation">'
+              ),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f'Expected exactly one app-config match: {old}')
+              text = text.replace(old, new, 1)
+          app_path.write_text(text, encoding='utf-8')
+
+          spec_path = Path('規格書.md')
+          spec = spec_path.read_text(encoding='utf-8')
+          old = '5. 紙張固定 A4，預覽提供「自動、直式、橫式」；自動模式 7 日以內採直式，超過 7 日採橫式。直式每頁最多 7 個日期欄，橫式每頁最多 14 個日期欄；日期或人員超出可列印範圍時由程式拆頁，不以縮到難以閱讀的方式強塞單頁。'
+          new = '5. 預覽與實際列印紙張尺寸固定為 A4（直式 210×297mm、橫式 297×210mm），提供「自動、直式、橫式」；自動模式 14 日以內採直式，超過 14 日採橫式。直式每頁最多 14 個日期欄，橫式每頁最多 28 個日期欄；日期或人員超出可列印範圍時由程式拆頁，不以縮到難以閱讀的方式強塞單頁。'
+          if spec.count(old) != 1:
+              raise SystemExit('Expected exactly one print spec match')
+          spec_path.write_text(spec.replace(old, new, 1), encoding='utf-8')
+
+          extra = Path('src/renderer/schedule-print-layout-v2.js')
+          if extra.exists():
+              extra.unlink()
+
+      - name: 建置與檢查
+        run: |
+          node --check src/renderer/app-config.js
+          npm run web:publish
+          npm run ci:check
+
+      - name: 提交正式修正並移除暫時工作流程
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/fix-print-a4-28days.yml
+          git add src/renderer/app-config.js docs/app-config.js 規格書.md src/renderer/schedule-print-layout-v2.js || true
+          git commit -m "fix: use true A4 pages with 28-day landscape print"
+          git push origin HEAD:main
