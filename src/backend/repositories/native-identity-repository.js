@@ -98,12 +98,23 @@ function createNativeIdentityRepository(database) {
     if (!id || !secret) throw new BackendError(400, "CREDENTIAL_REQUIRED", "新密碼不可空白");
     const encoded = await hashPassword(secret);
     const result = await database.query(`
-      update public.auth_accounts
+      update public.auth_accounts account
       set password_hash = $2,
           password_changed_at = now(),
           updated_at = now()
-      where employee_id = $1::uuid
-        and disabled_at is null
+      where account.employee_id = $1::uuid
+        and account.disabled_at is null
+        and exists (
+          select 1
+          from public.set_employee employee
+          where employee.id = account.employee_id
+            and employee.deleted_at is null
+            and public.is_employee_account_effective(
+              employee.hire_date,
+              employee.leave_date,
+              (timezone('Asia/Taipei', now()))::date
+            )
+        )
     `, [id, encoded]);
     return result.rowCount > 0;
   }
