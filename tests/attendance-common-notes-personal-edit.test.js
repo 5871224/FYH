@@ -11,8 +11,7 @@ test("簽到審核可維護共用常用備註，個人記錄可選擇或自由�
   const actions = read("src/renderer/renderer-records-actions.js");
   const events = read("src/renderer/renderer-records-events.js");
   const api = read("src/renderer/web-api.js");
-  const review = read("supabase/functions/attendance-review-groups/index.ts");
-  const ledger = read("supabase/functions/attendance-ledger/index.ts");
+  const attendance = read("src/backend/native-attendance.js");
   const schema = read("supabase/001_current_schema.sql");
 
   assert.match(views, /data-attendance-common-notes="true">常用備註<\/button>/);
@@ -24,21 +23,22 @@ test("簽到審核可維護共用常用備註，個人記錄可選擇或自由�
   assert.match(events, /openAttendanceCommonNotesModal/);
   assert.match(events, /saveAttendanceCommonNotes/);
   assert.match(api, /request\("\/api\/v1\/attendance\/review\/common-notes",\{method:"PUT"/);
-  assert.match(review, /attendance_common_notes/);
-  assert.match(ledger, /attendance_common_notes/);
+  assert.match(attendance, /async function commonNotes\(\)/);
+  assert.match(attendance, /async function saveCommonNotes\(/);
+  assert.match(attendance, /attendance_common_notes/);
   assert.match(schema, /attendance_common_notes text not null default ''/);
 });
 
 test("個人未審紀錄不限當日可修改工時與備註，且個人頁移除訂餐欄", () => {
   const views = read("src/renderer/renderer-records-views.js");
-  const ledger = read("supabase/functions/attendance-ledger/index.ts");
+  const attendance = read("src/backend/native-attendance.js");
   const personalSection = views.split("function renderPersonalRecordsSection", 2)[1]
     .split("function renderMealReportSection", 2)[0];
 
-  assert.match(ledger, /editable: !row\?\.reviewed_at/);
-  assert.equal(ledger.includes("workDate !== today"), false);
-  assert.match(ledger, /!employedOn\(actor, workDate\)/);
-  assert.match(ledger, /if \(old\.reviewed_at\) throw new Error\("此日簽到紀錄已審，無法修改"\)/);
+  assert.match(attendance, /editable:!rec\?\.reviewed_at/);
+  assert.equal(attendance.includes("workDate !== today"), false);
+  assert.match(attendance, /ATTENDANCE_DATE_INVALID/);
+  assert.match(attendance, /此日簽到紀錄已審，無法修改/);
   assert.equal(personalSection.includes("personal-record-meal-col"), false);
   assert.equal(personalSection.includes(">訂餐<"), false);
   assert.match(personalSection, /colspan="8"/);
