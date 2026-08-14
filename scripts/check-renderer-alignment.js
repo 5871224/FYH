@@ -76,20 +76,23 @@ for (const route of [
   assert(apiContract.includes(`${route}: Object.freeze(`), `FYH API contract is missing ${route}`);
 }
 
-// Native backend owns domain behavior. Database helpers may remain behind this boundary until the
-// dedicated Supabase residual-cleanup stage.
+// Native backend owns domain behavior and transaction boundaries.
 assert(attendance.includes("public.attendance_days"), "Attendance backend must use attendance_days");
 assert(attendance.includes("public.attendance_audit_logs"), "Attendance backend must use audit logs");
-assert(attendance.includes("public.save_attendance_clock"), "Clock mutation must remain atomic at the DB boundary");
+assert(attendance.includes("database.transaction(async(tx)=>"), "Clock mutation must use a native backend transaction");
+assert(attendance.includes("for update"), "Clock mutation must lock its daily row");
+assert(!attendance.includes("public.save_attendance_clock"), "Attendance backend must not call the legacy clock RPC");
 assert(attendance.includes("attendance_review"), "Attendance backend must validate review permission");
 assert(memberService.includes("memberRepository.saveMember"), "Member service must use native repository");
 assert(memberService.includes("memberRepository.resetPassword"), "Member password reset must use native repository");
 assert(memberService.includes("memberRepository.deleteMember"), "Member delete must use native repository");
-assert(meal.includes("public.save_meal_order"), "Meal mutation must remain atomic at the DB boundary");
+assert(meal.includes("database.transaction(async(tx)=>"), "Meal mutation must use a native backend transaction");
+assert(meal.includes("delete from public.meal_orders"), "Meal save must replace daily rows inside its transaction");
+assert(!meal.includes("public.save_meal_order"), "Meal backend must not call the legacy order RPC");
 assert(meal.includes("public.attendance_days"), "Meal backend must use current attendance model");
 
 // Canonical SQL can still contain database-side v3 helpers until the next cleanup phase, but the
-// renderer may not depend on them.
+// renderer and FYH backend may not depend on them as application APIs.
 for (const rpc of [
   "get_scheduler_bootstrap_v3",
   "get_schedule_entries_v3",
