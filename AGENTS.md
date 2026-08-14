@@ -80,6 +80,7 @@ PostgreSQL
 3. Repository 使用一般 PostgreSQL SQL 與 transaction；不得把平台 SDK 或平台角色當成必要資料存取層。
 4. PostgreSQL 可保留 constraint、index、trigger 與必要的內部 helper，但資料庫 function 不得成為瀏覽器 API。
 5. 需要原子性的跨表操作優先由 Backend transaction 實作；只有純資料完整性規則才放在 trigger/helper。
+6. Supabase 目前只作為 PostgreSQL 託管服務；Supabase 專案 Edge Functions 數量必須維持 0，不得重新部署舊 Function。
 
 ## PostgreSQL 長期規則
 
