@@ -82,7 +82,8 @@ test("Supabase Edge Function runtime 已移除，正式入口為 FYH Backend", (
   }
 
   assert.match(readme, /瀏覽器前端[\s\S]*\/api\/v1\/\*[\s\S]*FYH Node\.js Backend[\s\S]*PostgreSQL/);
-  assert.match(readme, /Supabase Edge Functions 已退出正式架構/);
+  assert.match(readme, /Supabase Edge Functions 已完全退出正式架構/);
+  assert.match(readme, /Edge Functions 數量為 0/);
 });
 
 test("正式文件不得描述切換期相容或補丁式執行", () => {
