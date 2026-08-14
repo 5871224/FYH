@@ -1,10 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
-const path = require("node:path");
 
-const root = path.resolve(__dirname, "..");
-const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const read = (path) => fs.readFileSync(path, "utf8");
 
 test("canonical renderer has no legacy role state or guessed schedule ids", () => {
   const foundation = read("src/renderer/renderer-foundation.js");
@@ -12,9 +10,8 @@ test("canonical renderer has no legacy role state or guessed schedule ids", () =
   const webApi = read("src/renderer/web-api.js");
   assert.doesNotMatch(foundation, /ROLE_OPTIONS|role:\s*"manager"/);
   assert.doesNotMatch(normalization, /merged\.role|fallbackOvertimeId/);
-  assert.doesNotMatch(webApi, /resolveManagerMemberProfileId|profileMemberId/);
-  assert.match(webApi, /function makeScheduleKey\(memberId,workDate\)/);
-  assert.match(webApi, /if\(!isUuid\(memberId\)\|\|!workDate\)throw new Error\("schedule cell member UUID and date are required"\)/);
+  assert.doesNotMatch(webApi, /resolveManagerMemberProfileId/);
+  assert.match(webApi, /isUuid\(profileMemberId\)/);
 });
 
 test("group state keeps canonical metadata directly and archive ranges separately", () => {
@@ -25,20 +22,21 @@ test("group state keeps canonical metadata directly and archive ranges separatel
   assert.match(groups, /getDefaultAccessRoleId/);
 });
 
-test("Supabase Edge Function runtime is removed and domain logic lives in FYH backend", () => {
-  assert.equal(fs.existsSync(path.join(root, "supabase", "functions")), false);
-  assert.equal(fs.existsSync(path.join(root, "scripts", "deploy-edge-functions.ps1")), false);
-  assert.equal(fs.existsSync(path.join(root, "scripts", "check-public-supabase.js")), false);
-  assert.equal(fs.existsSync(path.join(root, "deno.lock")), false);
-
-  const attendance = read("src/backend/native-attendance.js");
-  const meal = read("src/backend/native-meal.js");
-  const member = read("src/backend/services/native-member-service.js");
-  for (const token of ["taipeiDate", "actor", "reviewSet", "exportRows"]) assert.match(attendance, new RegExp(`function ${token}`));
-  assert.match(meal, /function createNativeMeal/);
-  assert.match(member, /memberRepository\.saveMember/);
-  assert.match(member, /memberRepository\.resetPassword/);
-  assert.match(member, /memberRepository\.deleteMember/);
+test("Edge Functions share Taipei/effective-account and permission primitives", () => {
+  const shared = read("supabase/functions/_shared/runtime.ts");
+  for (const token of ["taipeiDateString", "isProfileEffective", "actorIdOf", "hasPermission", "canAccessGroup"]) {
+    assert.match(shared, new RegExp(`function ${token}|export function ${token}`));
+  }
+  for (const path of [
+    "supabase/functions/attendance-clock/index.ts",
+    "supabase/functions/attendance-ledger/index.ts",
+    "supabase/functions/attendance-review-groups/index.ts",
+    "supabase/functions/attendance-ledger-export/index.ts",
+    "supabase/functions/meal-order/index.ts",
+    "supabase/functions/meal-report-v2/index.ts",
+    "supabase/functions/meal-cancel-v2/index.ts",
+    "supabase/functions/member-auth-admin/index.ts"
+  ]) assert.match(read(path), /\.\.\/_shared\/runtime\.ts/);
 });
 
 test("XLSX meal formatting belongs to exporter, not transport API", () => {
@@ -56,39 +54,23 @@ test("leave and overtime saves use explicit domain paths", () => {
   assert.match(catalog, /async function persistNamedCatalogItem/);
 });
 
-test("SQL canonical source is portable PostgreSQL without legacy authorization APIs", () => {
+test("SQL canonical source has no text-role compatibility model or dynamic policy rewriting", () => {
   const schema = read("supabase/001_current_schema.sql");
   const updates = read("supabase/002_current_updates.sql");
   const combined = `${schema}\n${updates}`;
-  const executableSql = combined.replace(/--.*$/gm, "");
-
   assert.doesNotMatch(combined, /legacy_role|access_role_legacy_role|employee\.role|new\.role|ROLE_OPTIONS/);
   assert.doesNotMatch(schema, /\brole text not null default 'employee'/);
-  for (const pattern of [
-    /auth\.uid\s*\(/i,
-    /auth\.role\s*\(/i,
-    /create\s+policy/i,
-    /enable\s+row\s+level\s+security/i,
-    /\bservice_role\b/i,
-    /\bauthenticated\b/i,
-    /\banon\b/i,
-    /get_my_profile_v3/i,
-    /get_schedule_archive_ranges_v1/i,
-    /get_group_entity_map_v1/i
-  ]) {
-    assert.doesNotMatch(executableSql, pattern);
-  }
-
-  assert.match(updates, /create or replace function public\.is_employee_account_effective/);
-  assert.match(updates, /create or replace function public\.is_schedule_date_archived/);
-  assert.match(updates, /create or replace function public\.protect_archived_schedule_v1/);
+  assert.doesNotMatch(updates, /Performance Advisor: remaining public RLS auth context uses init-plan evaluation/);
+  assert.match(updates, /get_my_profile_v3/);
+  assert.match(updates, /get_schedule_archive_ranges_v1/);
+  assert.doesNotMatch(updates, /get_group_entity_map_v1\(\)/);
 });
 
-test("canonical SQL keeps only PostgreSQL integrity triggers instead of application RLS", () => {
+test("each final RLS policy is created once and authenticated has no direct write policy", () => {
   const sql = read("supabase/002_current_updates.sql");
-  const executableSql = sql.replace(/--.*$/gm, "");
-  assert.doesNotMatch(executableSql, /create\s+policy/i);
-  assert.doesNotMatch(executableSql, /enable\s+row\s+level\s+security/i);
-  assert.match(sql, /create trigger trg_schedule_entries_protect_archive/);
-  assert.match(sql, /create trigger trg_schedule_entries_set_group/);
+  const names = [...sql.matchAll(/create\s+policy\s+([a-z0-9_]+)\s+on\s+public\.([a-z0-9_]+)/gi)].map((match) => `${match[2]}.${match[1]}`);
+  assert.equal(new Set(names).size, names.length);
+  for (const statement of sql.match(/create\s+policy[\s\S]*?;/gi) || []) {
+    if (/to\s+authenticated/i.test(statement)) assert.doesNotMatch(statement, /for\s+(insert|update|delete|all)\b/i);
+  }
 });

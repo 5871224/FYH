@@ -57,14 +57,15 @@ test("後端刪除失敗時不應先移除前端資料", async () => {
 test("安全目錄 API 與人員同步應由正式 web-api 提供", () => {
   const webApi = fs.readFileSync(path.join(root, "src", "renderer", "web-api.js"), "utf8");
   const build = fs.readFileSync(path.join(root, "scripts", "build-js.js"), "utf8");
-  assert.match(webApi, /async function deleteCatalogItem\(category,itemId\)/);
-  assert.match(webApi, /request\("\/api\/v1\/settings\/catalog\/delete",\{method:"POST",body:\{category,itemId\}\}\)/);
-  assert.doesNotMatch(webApi, /callRpc\(|requestFunction\(|catalog-admin/);
-  assert.match(webApi, /\bsaveCatalogItem,deleteCatalogItem,/);
-  assert.match(webApi, /previousEmployeeCode:String\(previousEmployeeCode\|\|""\)\.trim\(\)/);
-  assert.match(webApi, /groupId:member\?\.groupId\|\|""/);
-  assert.match(webApi, /accessRoleId:member\?\.roleId\|\|""/);
-  assert.doesNotMatch(webApi, /previousEmployeeCode:String\(previousEmployeeCode\|\|member\?\.code/);
+  assert.equal(webApi.includes('async function deleteCatalogItem(category, itemId)'), true);
+  assert.equal(webApi.includes('callRpc("delete_catalog_item_v3"'), true);
+  assert.equal(webApi.includes('p_item_id: String(itemId || "")'), true);
+  assert.equal(webApi.includes('requestFunction("catalog-admin"'), false);
+  assert.equal(webApi.includes("    deleteCatalogItem,"), true);
+  assert.equal(webApi.includes('previousEmployeeCode: String(previousEmployeeCode || "").trim()'), true);
+  assert.equal(webApi.includes('groupId: member?.groupId || ""'), true);
+  assert.equal(webApi.includes('accessRoleId: member?.roleId || ""'), true);
+  assert.equal(webApi.includes('previousEmployeeCode: String(previousEmployeeCode || member?.code'), false);
   assert.equal(fs.existsSync(path.join(root, "src", "renderer", "v2-admin-data-fixes.js")), false);
   assert.equal(build.includes("v2-admin-data-fixes.js"), false);
 });

@@ -7,20 +7,17 @@ const root = path.join(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 test("新增已停用假別代碼時由後端恢復原 ID 並覆寫新資料", () => {
-  const repository = read("src/backend/repositories/native-master-data-repository.js");
-  assert.match(repository, /async function saveCatalogItem\(/);
-  assert.match(repository, /where code = \$1\s+for update/);
-  assert.match(repository, /if \(!existingByCode\.deleted_at \|\| inputById\?\.id\)/);
-  assert.match(repository, /targetId = String\(existingByCode\.id\)/);
-  assert.match(repository, /restored = true/);
-  assert.match(repository, /deleted_at = null/);
-  assert.match(repository, /return \{ ok: true, id: String\(row\.id\), category, restored \}/);
+  const sql = read("supabase/002_current_updates.sql");
+  assert.match(sql, /where code=v_code\s+for update/);
+  assert.match(sql, /v_existing_deleted is null or v_input_id_exists/);
+  assert.match(sql, /v_id:=v_existing_id;\s+v_restored:=true/);
+  assert.match(sql, /deleted_at=null/);
+  assert.match(sql, /'restored',v_restored/);
 });
 
 test("啟用中的相同假別代碼仍然拒絕重複新增", () => {
-  const repository = read("src/backend/repositories/native-master-data-repository.js");
-  assert.match(repository, /LEAVE_CODE_DUPLICATE/);
-  assert.match(repository, /假別代碼已存在/);
+  const sql = read("supabase/002_current_updates.sql");
+  assert.match(sql, /raise exception '假別代碼已存在'/);
   const settings = read("src/renderer/renderer-settings-catalog.js");
   assert.match(settings, /!item\.deleted/);
   assert.match(settings, /假別代碼 \$\{selectedLeave\.code\} 已存在/);

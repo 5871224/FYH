@@ -6,73 +6,32 @@ const rootDir = path.resolve(__dirname, "..");
 const read = (...parts) => fs.readFileSync(path.join(rootDir, ...parts), "utf8");
 
 const schema = read("supabase", "001_current_schema.sql") + "\n" + read("supabase", "002_current_updates.sql");
-const executableSql = schema.replace(/--.*$/gm, "");
 const index = read("src", "renderer", "index.html");
 const { readRendererCore } = require("./renderer-core-source.js");
 const renderer = readRendererCore(rootDir);
 const styles = read("src", "renderer", "app.css");
 const webApi = read("src", "renderer", "web-api.js");
 const pageData = read("src", "renderer", "renderer-page-data.js");
-const apiContract = read("src", "backend", "api-contract.js");
-const sessionStore = read("src", "backend", "session-store.js");
-const attendance = read("src", "backend", "native-attendance.js");
-const meal = read("src", "backend", "native-meal.js");
-const memberService = read("src", "backend", "services", "native-member-service.js");
+const attendanceClock = read("supabase", "functions", "attendance-clock", "index.ts");
+const attendanceLedger = read("supabase", "functions", "attendance-ledger", "index.ts");
+const attendanceReview = read("supabase", "functions", "attendance-review-groups", "index.ts");
+const attendanceLedgerExport = read("supabase", "functions", "attendance-ledger-export", "index.ts");
+const memberAdmin = read("supabase", "functions", "member-auth-admin", "index.ts");
+const mealOrder = read("supabase", "functions", "meal-order", "index.ts");
+const deployScript = read("scripts", "deploy-edge-functions.ps1");
 
-// Canonical storage is normalized and portable PostgreSQL. Application authorization belongs to FYH Backend.
 assert(schema.includes("create table if not exists public.meal_orders"), "database should include meal orders");
-assert(schema.includes("create table if not exists public.schedule_entries"), "database should include schedule entries");
+assert(schema.includes("create policy read_schedule_entries"), "database should retain RLS as defense in depth");
 assert(schema.includes("access_role_id") && schema.includes("access_roles") && schema.includes("access_role_groups"), "database should use role ids, permissions, and applicable groups");
-assert(schema.includes("create or replace function public.is_schedule_date_archived"), "database should retain archive integrity helper");
-assert(schema.includes("create or replace function public.protect_archived_schedule_v1"), "database should retain archive protection trigger helper");
-for (const pattern of [
-  /auth\.uid\s*\(/i,
-  /auth\.role\s*\(/i,
-  /create\s+policy/i,
-  /enable\s+row\s+level\s+security/i,
-  /\bservice_role\b/i,
-  /\bauthenticated\b/i,
-  /\banon\b/i,
-  /get_scheduler_bootstrap_v3/i,
-  /save_schedule_entries_v3/i
-]) {
-  assert(!pattern.test(executableSql), `canonical SQL must not depend on Supabase-specific application mechanism: ${pattern}`);
-}
-assert(!fs.existsSync(path.join(rootDir, "supabase", "functions")), "Supabase Edge Function source must remain removed");
+assert(schema.toLowerCase().includes("function public.get_scheduler_bootstrap_v3"), "database should expose the canonical schedule bootstrap API");
+assert(schema.toLowerCase().includes("function public.save_schedule_entries_v3"), "database should expose the canonical schedule write API");
+assert(schema.includes("revoke all privileges on table public.set_employee from anon,authenticated;"), "browser roles should not receive direct employee table privileges");
 
-// FYH API is the only browser/server contract.
-for (const route of [
-  "scheduleBootstrap", "scheduleEntries", "scheduleEntriesSave",
-  "attendanceDepartmentSettings", "attendanceToday", "attendanceClock",
-  "attendancePersonalList", "attendancePersonalSave", "attendanceReviewList",
-  "attendanceCommonNotes", "attendanceReviewSave", "attendanceReviewSet",
-  "attendanceHistory", "attendanceExport",
-  "mealToday", "mealSave", "mealCancel", "mealAdminSettings", "mealAdminSettingsSave", "mealProductDelete", "mealReport",
-  "membersDirectory", "memberSave", "memberGroupChangeValidate", "memberPasswordReset", "memberDelete"
-]) {
-  assert(apiContract.includes(`${route}: Object.freeze(`), `FYH API contract should expose ${route}`);
-}
-assert(!webApi.includes("callRpc("), "browser must not call Supabase RPC directly");
-assert(!webApi.includes("requestFunction("), "browser must not call Supabase Edge Functions directly");
-assert(!webApi.includes("/rest/v1/"), "browser must not access Supabase REST tables directly");
-assert(webApi.includes('request(`/api/v1/schedule/bootstrap${qs({documentId})}`)'), "schedule bootstrap should use FYH API");
-assert(webApi.includes('request("/api/v1/attendance/clock",{method:"POST"'), "clocking should use FYH API");
-assert(webApi.includes('request("/api/v1/attendance/personal/list",{method:"POST"'), "personal attendance should use FYH API");
-assert(webApi.includes('request("/api/v1/attendance/review/list",{method:"POST"'), "attendance review should use FYH API");
-assert(webApi.includes('request("/api/v1/attendance/review/export",{method:"POST"'), "attendance export should use FYH API");
-assert(webApi.includes('request("/api/v1/meal/today",{method:"PUT"'), "meal ordering should use FYH API");
-assert(webApi.includes('request("/api/v1/members",{method:"PUT"'), "member administration should use FYH API");
-
-// Authentication/session lifetime is enforced by the backend rather than duplicated in browser code.
-assert(sessionStore.includes("PHONE_SESSION_IDLE_MS = 48 * 60 * 60 * 1000"), "phone sessions should retain the configured idle window");
-assert(sessionStore.includes("DESKTOP_SESSION_IDLE_MS = 30 * 60 * 1000"), "desktop/tablet sessions should retain the configured idle window");
-assert(sessionStore.includes("function getSessionIdleMs(deviceType)"), "backend should derive idle timeout from device type");
-assert(sessionStore.includes("record.expiresAt = currentTime + getSessionIdleMs(record.deviceType)"), "backend session touch should extend the correct idle window");
-
-// Core permission-derived UI and page lifecycle contracts.
 assert(renderer.includes("function canManagePermissions()") && renderer.includes("function canEditMemberAccount"), "UI should expose permission-derived capabilities");
 assert(renderer.includes('hasPermission("permission_settings")'), "administrator UI capability should derive from permission_settings");
 assert(renderer.includes('hasPermission("schedule_manage")'), "schedule editing should derive from schedule_manage");
+assert(webApi.includes("mobileSessionMaxIdleMs") && webApi.includes("desktopSessionMaxIdleMs"), "login should have device-specific idle windows");
+assert(webApi.includes("function assertSessionActive"), "authenticated requests should enforce idle timeout");
 assert(index.includes('id="homeCard"') && renderer.includes("function renderHomeDashboard"), "login should land on the home dashboard");
 assert(index.includes('id="scheduleCard" hidden'), "schedule table should be hidden until the schedule page is opened");
 assert(pageData.includes("async function initializeAuthenticatedHome") && pageData.includes("async function ensureScheduleApplicationLoaded"), "home and schedule loading should use the canonical page-data lifecycle");
@@ -93,49 +52,54 @@ assert(renderer.includes('hasPermission("attendance_review")'), "attendance revi
 assert(!renderer.includes("renderTodayOvertimePanel"), "standalone overtime request panel should be removed");
 assert(!renderer.includes("renderAttendanceAdminSection"), "standalone attendance admin tab should be removed");
 
-// Attendance domain is fully owned by FYH backend, including the clock transaction.
-assert(attendance.includes("MAX_GPS_DISTANCE_METERS = 300"), "clocking should enforce GPS distance");
-assert(attendance.includes("MAX_GPS_ACCURACY_METERS = 300"), "clocking should reject low-accuracy GPS fixes");
-assert(webApi.includes('deviceType:/Mobi|Mobile|iPhone|Android/i.test(navigator.userAgent||"")?"phone":"desktop"'), "clocking should distinguish phone GPS from desktop IP");
+assert(attendanceClock.includes("MAX_GPS_DISTANCE_METERS = 300"), "clocking should enforce GPS distance");
+assert(attendanceClock.includes("deviceType") && webApi.includes('deviceType: isPhoneDevice() ? "phone" : "desktop"'), "clocking should distinguish phone GPS from desktop IP");
 assert(renderer.includes("timeout: 15000") && renderer.includes("maximumAge: 0"), "phone GPS clocking should wait for a fresh high-accuracy location");
-assert(attendance.includes("public.attendance_days"), "attendance backend should use daily records");
-assert(attendance.includes("public.attendance_audit_logs"), "attendance backend should retain audit history");
-assert(attendance.includes("database.transaction(async(tx)=>"), "clocking should use a native backend transaction");
-assert(attendance.includes("for update"), "clocking should lock the daily attendance row");
-assert(attendance.includes("await audit(tx,old.id,kind,a.id,old,row)"), "clocking should write audit history in the same transaction");
-assert(!attendance.includes("public.save_attendance_clock"), "clocking must not call the legacy database RPC");
-assert(attendance.includes("'clock_in','clock_out'"), "clocking should support clock in and out");
-assert(attendance.includes("工時必須以 0.5 小時為單位"), "regular and overtime hours should use half-hour increments");
-assert(attendance.includes("attendance_review"), "attendance review should validate explicit permission");
-assert(attendance.includes("access_role_groups"), "attendance review should enforce applicable group scope");
-assert(!attendance.includes("attendance_records"), "attendance backend should not retain the retired attendance table");
+assert(attendanceClock.includes('.from("attendance_days")'), "clocking should read the daily attendance model");
+assert(attendanceClock.includes('rpc("save_attendance_clock"') && attendanceClock.includes('body?.action === "clock_in"') && attendanceClock.includes('body?.action === "clock_out"'), "clocking should call the atomic clock RPC for clock in and out");
+assert(!attendanceClock.includes("attendance_records"), "clocking should not retain the retired attendance table");
 
-// Member administration is native FYH service/repository work, not an Edge Function contract.
-assert(memberService.includes("accessRoleId") && memberService.includes("groupId"), "member service should normalize role and group ids");
-assert(memberService.includes("memberRepository.saveMember"), "member mutations should go through the native repository");
-assert(memberService.includes("memberRepository.resetPassword"), "password reset should go through the native repository");
-assert(memberService.includes("memberRepository.deleteMember"), "member deletion should go through the native repository");
-assert(memberService.includes("verifySelfPassword"), "self deletion should retain password verification");
+for (const action of ["personal_list", "personal_save"]) {
+  assert(attendanceLedger.includes(`body?.action === "${action}"`), `personal attendance ledger should support ${action}`);
+}
+for (const action of ["review_list", "review_save", "review_set", "history"]) {
+  assert(!attendanceLedger.includes(`body?.action === "${action}"`), `personal attendance ledger should not duplicate ${action}`);
+  assert(attendanceReview.includes(`body?.action === "${action}"`), `group-scoped attendance review should support ${action}`);
+}
+assert(attendanceLedger.includes('.from("attendance_days")'), "attendance ledger should use daily records");
+assert(attendanceLedger.includes('.from("attendance_audit_logs")'), "attendance ledger should retain audit history");
+assert(attendanceLedger.includes("工時必須以 0.5 小時為單位"), "regular and overtime hours should use half-hour increments");
+assert(attendanceLedger.includes("if (old.reviewed_at)") && attendanceLedger.includes("此日簽到紀錄已審，無法修改"), "reviewed personal attendance records should be immutable");
+assert(attendanceReview.includes("attendance_review") && attendanceReview.includes("can_access_group"), "attendance review should validate permission and applicable group");
+assert(attendanceLedgerExport.includes('.not("reviewed_at", "is", null)'), "attendance export should include reviewed records only");
+assert(attendanceLedgerExport.includes('hasPermission(ctx, actorId, "attendance_review")') && attendanceLedgerExport.includes('canAccessGroup(ctx, actorId, groupId, "attendance_review")'), "attendance export should enforce review permission and group scope through shared runtime helpers");
+assert(webApi.includes('requestFunction("attendance-ledger"') && webApi.includes('requestFunction("attendance-review-groups"') && webApi.includes('requestFunction("attendance-ledger-export"'), "frontend should use the canonical attendance endpoints");
 
-// Meal domain is fully owned by FYH backend, including order replacement as one transaction.
+assert(memberAdmin.includes("member_settings") && memberAdmin.includes("permission_settings"), "member account administration should validate explicit permissions");
+assert(memberAdmin.includes("accessRoleId") && memberAdmin.includes("roleAppliesToGroup"), "member account administration should validate the chosen access role and group");
+assert(!memberAdmin.includes('["manager", "admin"]') && !memberAdmin.includes('["admin", "manager"]'), "member administration should not authorize from legacy role strings");
+
 assert(index.includes('id="mealCard"') && renderer.includes("function renderMealPage"), "meal order page should be present");
 assert(renderer.includes('data-meal-tab="stats"') && renderer.includes("renderMealReportSection()"), "meal stats should live on the meal page");
 assert(renderer.includes('<table class="meal-order-table">'), "today meal order should render as a table");
 assert(renderer.includes("data-meal-product-row") && renderer.includes("commitMealProductOrderFromDom"), "meal settings should support drag ordering");
-assert(meal.includes("database.transaction(async(tx)=>"), "meal ordering should use a native backend transaction");
-assert(meal.includes("delete from public.meal_orders"), "meal save should replace the current daily order atomically");
-assert(!meal.includes("public.save_meal_order"), "meal ordering must not call the legacy database RPC");
-assert(meal.includes("public.attendance_days") && meal.includes("clock_in_location?.departmentId"), "meal ordering should require the clock-in location snapshot");
-assert(meal.includes('actor(employeeId,"meal_admin")'), "meal administration should require explicit permission");
-assert(meal.includes("access_role_groups"), "meal reports should enforce applicable group scope");
+assert(mealOrder.includes('rpc("save_meal_order"') && !mealOrder.includes("save_meal_order_v2"), "meal ordering should call only the canonical transaction RPC");
+assert(mealOrder.includes('.from("attendance_days")') && mealOrder.includes("clock_in_location?.departmentId"), "meal ordering should use the new clock-in location snapshot");
 assert(renderer.includes("data-meal-note-product-id"), "meal ordering should support per-item notes");
 
 assert(index.includes('id="recordsCard"') && renderer.includes("function renderRecordsPage"), "attendance ledger page should be present");
 assert(renderer.includes("function loadRecordsPage") && renderer.includes("function loadAttendanceReview"), "attendance ledger should load personal and permitted review data");
-assert(!webApi.includes('personal-records-v2'), "frontend should not call the retired personal records endpoint");
+assert(!webApi.includes('requestFunction("personal-records-v2"'), "frontend should not call the retired personal records endpoint");
+
+for (const name of ["member-auth-admin", "attendance-clock", "attendance-ledger", "attendance-review-groups", "attendance-ledger-export", "meal-order"]) {
+  assert(deployScript.includes(`"${name}"`), `deployment list should include ${name}`);
+}
+for (const oldName of ["catalog-admin", "member-delete-v2", "member-order-v2", "department-attendance-v2", "attendance-overtime-employee", "attendance-overtime-admin-list", "attendance-overtime-admin-action", "attendance-admin-list-v2", "attendance-admin-action-v2", "personal-records-v2"]) {
+  assert(!deployScript.includes(oldName), `deployment list should not include ${oldName}`);
+}
 
 for (const generic of ["restSelect(", "restInsert(", "restUpdate(", "restDelete(", "saveState(", "syncCatalogs("]) {
   assert(!webApi.includes(generic), `frontend should not retain generic data access: ${generic}`);
 }
 
-console.log("expansion acceptance checks passed for FYH backend architecture");
+console.log("expansion acceptance checks passed");

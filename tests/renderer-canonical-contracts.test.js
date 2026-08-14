@@ -15,12 +15,11 @@ test("renderer 不再含任何 v2 JavaScript 補丁", () => {
 test("帳號刪除由正式 API 與人員模組提供", () => {
   const api = read("src/renderer/web-api.js");
   const members = read("src/renderer/renderer-settings-member.js");
-  assert.match(api, /async function deleteMemberProfile\(employeeCode,currentPassword=""\)/);
-  assert.match(api, /request\("\/api\/v1\/members\/delete",\{method:"POST",body:\{employeeCode:String\(employeeCode\|\|""\)\.trim\(\),currentPassword:String\(currentPassword\|\|""\)\}\}\)/);
+  assert.match(api, /async function deleteMemberProfile\(employeeCode, currentPassword = ""\)/);
+  assert.match(api, /currentPassword: String\(currentPassword/);
   assert.match(members, /請輸入目前密碼以確認刪除帳號/);
   assert.match(members, /softDeleted/);
   assert.doesNotMatch(members, /deleteMember\s*=\s*async function/);
-  assert.doesNotMatch(api, /member-delete-v2|requestFunction\(|\/functions\/v1\//);
 });
 
 test("訂餐 Excel 由 exporter 建立，web-api 只協調下載", () => {

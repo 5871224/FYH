@@ -29,6 +29,8 @@ test("班別與假別重新渲染後仍可快速連點開啟修改", () => {
   assert.match(events, /openNamedColorFormModal\("leave", "edit", id\)/);
 });
 
-test("舊公開 Supabase 設定檢查已移除", () => {
-  assert.equal(fs.existsSync(path.join(root, "scripts", "check-public-supabase.js")), false);
+test("公開設定檢查不執行瀏覽器 DOM 初始化", () => {
+  const checker = read("scripts/check-public-supabase.js");
+  assert.match(checker, /addEventListener\(\) \{/);
+  assert.match(checker, /只讀取 SCHEDULER_CONFIG/);
 });

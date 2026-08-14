@@ -3,29 +3,26 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
+// 防止前端訂餐管理 action 再次與已部署的 meal-order Edge Function 分岔。
 const root = path.resolve(__dirname, "..");
 
-test("訂餐管理前端必須使用 FYH 具名 API", () => {
+test("訂餐管理前端 action 必須與 meal-order 後端一致", () => {
   const webApi = fs.readFileSync(path.join(root, "src", "renderer", "web-api.js"), "utf8");
   const sourceApp = fs.readFileSync(path.join(root, "src", "renderer", "app.js"), "utf8");
   const publishedApp = fs.readFileSync(path.join(root, "docs", "app.js"), "utf8");
+  const mealOrder = fs.readFileSync(path.join(root, "supabase", "functions", "meal-order", "index.ts"), "utf8");
 
-  const requiredEndpoints = [
-    "/api/v1/meal/admin",
-    "/api/v1/meal/admin/product/delete"
-  ];
-  requiredEndpoints.forEach((endpoint) => {
-    assert.equal(webApi.includes(endpoint), true, `來源前端缺少 API：${endpoint}`);
-    assert.equal(sourceApp.includes(endpoint), true, `執行 bundle 缺少 API：${endpoint}`);
-    assert.equal(publishedApp.includes(endpoint), true, `發布 bundle 缺少 API：${endpoint}`);
+  const requiredActions = ["admin_settings", "save_admin_settings", "delete_admin_product"];
+  requiredActions.forEach((action) => {
+    assert.equal(webApi.includes(`action: "${action}"`), true, `來源前端缺少 action：${action}`);
+    assert.equal(sourceApp.includes(`action: "${action}"`), true, `執行 bundle 缺少 action：${action}`);
+    assert.equal(publishedApp.includes(`action: "${action}"`), true, `發布 bundle 缺少 action：${action}`);
+    assert.equal(mealOrder.includes(`body?.action === "${action}"`), true, `後端缺少 action：${action}`);
   });
 
-  assert.match(webApi, /getMealAdminSettings[\s\S]*?request\("\/api\/v1\/meal\/admin"\)/);
-  assert.match(webApi, /saveMealAdminSettings[\s\S]*?request\("\/api\/v1\/meal\/admin",\{method:"PUT",body:payload\}\)/);
-  assert.match(webApi, /deleteMealProduct[\s\S]*?request\("\/api\/v1\/meal\/admin\/product\/delete",\{method:"POST"/);
   [webApi, sourceApp, publishedApp].forEach((source) => {
-    assert.doesNotMatch(source, /action:\s*"(?:admin_settings|save_admin_settings|delete_admin_product|admin_get|admin_save)"/);
-    assert.doesNotMatch(source, /\brequestFunction\s*\(/);
+    assert.equal(source.includes('action: "admin_get"'), false);
+    assert.equal(source.includes('action: "admin_save"'), false);
   });
   assert.equal(sourceApp, publishedApp);
 });
