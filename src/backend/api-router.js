@@ -104,9 +104,9 @@ function createApiRouter(options = {}) {
     return parseCookies(request.headers.cookie)[SESSION_COOKIE_NAME] || "";
   }
 
-  function requireSession(request) {
+  async function requireSession(request) {
     const sessionId = getSessionId(request);
-    const record = sessionStore.read(sessionId);
+    const record = sessionId ? await sessionStore.read(sessionId) : null;
     if (!sessionId || !record) {
       throw new BackendError(401, "AUTH_REQUIRED", "請先登入");
     }
@@ -115,12 +115,12 @@ function createApiRouter(options = {}) {
 
   async function refreshContext(sessionId, record) {
     const context = await provider.getAuthContext(record.payload.providerSession);
-    sessionStore.update(sessionId, {
+    await sessionStore.update(sessionId, {
       providerSession: context.providerSession,
       user: context.user,
       profile: context.profile
     });
-    sessionStore.touch(sessionId);
+    await sessionStore.touch(sessionId);
     return context;
   }
 
@@ -146,7 +146,7 @@ function createApiRouter(options = {}) {
       password: body.password
     });
     const deviceType = detectDeviceType(request, body);
-    const record = sessionStore.create({
+    const record = await sessionStore.create({
       providerSession: context.providerSession,
       user: context.user,
       profile: context.profile
@@ -157,7 +157,7 @@ function createApiRouter(options = {}) {
   }
 
   async function handleContext(request, response) {
-    const { sessionId, record } = requireSession(request);
+    const { sessionId, record } = await requireSession(request);
     const context = await refreshContext(sessionId, record);
     sendJson(response, 200, sanitizeAuthContext(context), {
       "Set-Cookie": formatSessionCookie(sessionId, {
@@ -168,11 +168,11 @@ function createApiRouter(options = {}) {
   }
 
   async function handleSignOut(request, response) {
-    const { sessionId, record } = requireSession(request);
+    const { sessionId, record } = await requireSession(request);
     try {
       await provider.signOut(record.payload.providerSession);
     } finally {
-      sessionStore.remove(sessionId);
+      await sessionStore.remove(sessionId);
     }
     sendJson(response, 200, sanitizeAuthContext(null), {
       "Set-Cookie": formatSessionCookie("", { clear: true, secure: secureCookies })
@@ -180,16 +180,16 @@ function createApiRouter(options = {}) {
   }
 
   async function handlePassword(request, response) {
-    const { sessionId, record } = requireSession(request);
+    const { sessionId, record } = await requireSession(request);
     const body = await readJson(request);
     const result = await provider.changePassword(record.payload.providerSession, body.newPassword);
     if (result?.providerSession) {
-      sessionStore.update(sessionId, {
+      await sessionStore.update(sessionId, {
         ...record.payload,
         providerSession: result.providerSession
       });
     }
-    sessionStore.touch(sessionId);
+    await sessionStore.touch(sessionId);
     sendJson(response, 200, { ok: true }, {
       "Set-Cookie": formatSessionCookie(sessionId, {
         deviceType: record.deviceType,
