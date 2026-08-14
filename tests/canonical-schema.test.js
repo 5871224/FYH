@@ -44,6 +44,25 @@ test("正式 SQL 保留群組、角色權限、班表封存與必要資料完整
   }
 });
 
+test("正式 SQL 不依賴 Supabase 專屬執行機制", () => {
+  const combined = read("supabase/001_current_schema.sql") + read("supabase/002_current_updates.sql");
+  for (const pattern of [
+    /auth\.uid\s*\(/i,
+    /auth\.role\s*\(/i,
+    /enable\s+row\s+level\s+security/i,
+    /create\s+policy/i,
+    /\bservice_role\b/i,
+    /\bauthenticated\b/i,
+    /\banon\b/i,
+    /save_attendance_clock/i,
+    /save_meal_order/i,
+    /get_scheduler_bootstrap_v3/i,
+    /save_schedule_entries_v3/i
+  ]) {
+    assert.doesNotMatch(combined, pattern);
+  }
+});
+
 test("Supabase Edge Function runtime 已移除，正式入口為 FYH Backend", () => {
   const readme = read("README.md");
   assert.equal(fs.existsSync(path.join(root, "supabase", "functions")), false);
