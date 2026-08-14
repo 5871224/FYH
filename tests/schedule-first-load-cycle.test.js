@@ -5,18 +5,26 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("首次班表只載入目前八週 56 天並由完整分頁查詢取得全部列", () => {
+test("首次班表只載入目前八週 56 天並由 FYH API 完整分頁取得全部列", () => {
   const webApi = read("src/renderer/web-api.js");
+  const entryStart = webApi.indexOf("async function loadEntryRows");
+  const entryEnd = webApi.indexOf("async function loadState", entryStart);
+  const entryBlock = webApi.slice(entryStart, entryEnd);
   const loadStart = webApi.indexOf("async function loadState()");
   const loadEnd = webApi.indexOf("async function loadScheduleEntries", loadStart);
-  const block = webApi.slice(loadStart, loadEnd);
-  assert.match(block, /const scheduleRange = getScheduleLoadRange\(settings\)/);
-  assert.match(block, /const visibleStartDate = scheduleRange\.startDate \|\| taipeiDateString\(\)/);
-  assert.match(block, /scheduleStartDate: visibleStartDate/);
-  assert.doesNotMatch(block, /settings\.schedule_start_date/);
-  assert.equal((block.match(/callRpcAllRows\("get_schedule_entries_v3"/g) || []).length, 1);
-  assert.doesNotMatch(block, /callRpc\("get_schedule_entries_v3"/);
-  assert.doesNotMatch(block, /restSelect|schedule_entries\?select/);
+  const loadBlock = webApi.slice(loadStart, loadEnd);
+
+  assert.match(loadBlock, /const range=scheduleRange\(settings\)/);
+  assert.match(loadBlock, /const rows=await loadEntryRows\(range\.startDate,range\.endDate\)/);
+  assert.match(loadBlock, /scheduleStartDate:range\.startDate/);
+  assert.match(loadBlock, /scheduleLoadedRanges:\[range\]/);
+  assert.doesNotMatch(loadBlock, /settings\.schedule_start_date/);
+
+  assert.match(entryBlock, /request\(`\/api\/v1\/schedule\/entries\$\{qs\(\{startDate,endDate,offset,limit:1000\}\)\}`\)/);
+  assert.match(entryBlock, /rows\.push\(\.\.\.page\)/);
+  assert.match(entryBlock, /if\(page\.length<1000\)break/);
+  assert.match(entryBlock, /offset\+=page\.length/);
+  assert.doesNotMatch(entryBlock, /callRpc|restSelect|schedule_entries\?select/);
 });
 
 test("班表初始化不再依賴頁面補丁或第二次同區間查詢", () => {
