@@ -29,15 +29,13 @@ test("班表頁外層寬度固定在頁面內，水平移動留在表格捲動�
   assert.equal(css.includes("width: calc(100% - var(--schedule-frozen-width))"), true);
 });
 
-test("班別假別加班刪除只走明確 RPC 契約", () => {
+test("班別假別加班刪除只走具名 FYH API 契約", () => {
   const webApi = read("src/renderer/web-api.js");
   const start = webApi.indexOf("async function deleteCatalogItem");
-  const end = webApi.indexOf("async function resolveManagerMemberProfileId", start);
+  const end = webApi.indexOf("async function reorderSettings", start);
   const block = webApi.slice(start, end);
-  assert.equal(block.includes('callRpc("delete_catalog_item_v3"'), true);
-  assert.equal(block.includes('p_category: String(category || "")'), true);
-  assert.equal(block.includes('p_item_id: String(itemId || "")'), true);
-  assert.equal(block.includes('requestFunction("catalog-admin"'), false);
+  assert.match(block, /request\("\/api\/v1\/settings\/catalog\/delete",\{method:"POST",body:\{category,itemId\}\}\)/);
+  assert.doesNotMatch(block, /callRpc|delete_catalog_item_v3|requestFunction\("catalog-admin"/);
 });
 
 test("設定刪除失敗時不得先關閉視窗或先移除本機資料", () => {
