@@ -52,6 +52,26 @@ test("一般 PostgreSQL 資料層不得依賴 Supabase HTTP transport", () => {
   assert.match(read("src/backend/repositories/auth-account-repository.js"), /password_hash = \$2/);
 });
 
+test("Native 身分與權限 Repository 只使用一般 PostgreSQL 身分參數", () => {
+  const files = [
+    "src/backend/repositories/native-identity-repository.js",
+    "src/backend/repositories/native-access-repository.js",
+    "src/backend/postgres-session-store.js"
+  ];
+  const source = files.map(read).join("\n");
+  assert.doesNotMatch(source, /\/auth\/v1|\/rest\/v1|\/functions\/v1|access_token|refresh_token|apikey|supabaseAnonKey|supabaseUrl|auth\.uid\(\)/i);
+  assert.match(read("src/backend/repositories/native-identity-repository.js"), /public\.auth_accounts/);
+  assert.match(read("src/backend/repositories/native-access-repository.js"), /\$1::uuid/);
+  assert.match(read("src/backend/postgres-session-store.js"), /sha256/);
+});
+
+test("Native runtime 必須把權限 Repository 注入登入 Context", () => {
+  const runtime = read("src/backend/native-runtime.js");
+  assert.match(runtime, /createNativeAccessRepository/);
+  assert.match(runtime, /createNativeAuthProvider\(identityRepository, \{ accessRepository \}\)/);
+  assert.match(runtime, /accessRepository/);
+});
+
 test("福園號密碼雜湊使用 Node crypto scrypt，不依賴 Provider Token", () => {
   const hasher = read("src/backend/auth/password-hasher.js");
   assert.match(hasher, /scrypt/);
