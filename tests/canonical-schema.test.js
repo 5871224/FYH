@@ -46,6 +46,7 @@ test("正式 SQL 保留群組、角色權限、班表封存與必要資料完整
 
 test("正式 SQL 不依賴 Supabase 專屬執行機制", () => {
   const combined = read("supabase/001_current_schema.sql") + read("supabase/002_current_updates.sql");
+  const executableSql = combined.replace(/--.*$/gm, "");
   for (const pattern of [
     /auth\.uid\s*\(/i,
     /auth\.role\s*\(/i,
@@ -59,7 +60,7 @@ test("正式 SQL 不依賴 Supabase 專屬執行機制", () => {
     /get_scheduler_bootstrap_v3/i,
     /save_schedule_entries_v3/i
   ]) {
-    assert.doesNotMatch(combined, pattern);
+    assert.doesNotMatch(executableSql, pattern);
   }
 });
 
