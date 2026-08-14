@@ -11,7 +11,7 @@ const checkOnly = process.argv.includes("--check");
 const modules = [
   "browser-exporter.js",
   "rest-compliance.js",
-  "web-api-native.js",
+  "web-api.js",
   "renderer-foundation.js",
   "renderer-settings-navigation.js",
   "renderer-schedule-layout.js",
