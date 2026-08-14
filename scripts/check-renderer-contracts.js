@@ -120,15 +120,19 @@ assert(attendancePage.includes("submitAttendanceClock") && attendancePage.includ
 assert(attendancePage.includes("timeout: 15000") && attendancePage.includes("maximumAge: 0"), "手機定位未使用即時位置設定");
 assert(!attendancePage.includes("maybePromptOvertimeAfterClockOut"), "下班後仍保留舊加班提醒流程");
 
-// Session and domain logic belongs to FYH backend rather than renderer/Edge Functions.
+// Session and domain logic belongs to FYH backend rather than renderer/Edge Functions/RPCs.
 assert(sessionStore.includes("PHONE_SESSION_IDLE_MS = 48 * 60 * 60 * 1000"), "Backend 缺少手機 Session 規則");
 assert(sessionStore.includes("DESKTOP_SESSION_IDLE_MS = 30 * 60 * 1000"), "Backend 缺少桌機 Session 規則");
 assert(attendanceBackend.includes("public.attendance_days"), "簽到 Backend 未使用 attendance_days");
 assert(attendanceBackend.includes("public.attendance_audit_logs"), "簽到 Backend 未使用 attendance_audit_logs");
-assert(attendanceBackend.includes("public.save_attendance_clock"), "打卡 Backend 缺少原子寫入契約");
+assert(attendanceBackend.includes("database.transaction(async(tx)=>"), "打卡 Backend 未使用 Native transaction");
+assert(attendanceBackend.includes("for update"), "打卡 Backend 未鎖定每日簽到列");
+assert(!attendanceBackend.includes("public.save_attendance_clock"), "打卡 Backend 仍依賴舊 DB RPC");
 assert(attendanceBackend.includes("attendance_review"), "簽到審核 Backend 缺少權限驗證");
 assert(mealBackend.includes("public.attendance_days"), "訂餐 Backend 未使用新版簽到模型");
-assert(mealBackend.includes("public.save_meal_order"), "訂餐 Backend 缺少原子寫入契約");
+assert(mealBackend.includes("database.transaction(async(tx)=>"), "訂餐 Backend 未使用 Native transaction");
+assert(mealBackend.includes("delete from public.meal_orders"), "訂餐 Backend 未在交易中重建當日訂單");
+assert(!mealBackend.includes("public.save_meal_order"), "訂餐 Backend 仍依賴舊 DB RPC");
 assert(memberService.includes("memberRepository.saveMember"), "人員管理未使用 Native Repository");
 assert(memberService.includes("memberRepository.resetPassword"), "人員密碼重設未使用 Native Repository");
 assert(memberService.includes("memberRepository.deleteMember"), "人員刪除未使用 Native Repository");
@@ -148,8 +152,7 @@ for (const indexFile of ["src/renderer/index.html", "docs/index.html"]) {
   assert(index.includes("app-config.js") && index.includes("app.js") && !index.includes("v2-api.js"), `${indexFile} 未只載入正式 JavaScript`);
 }
 
-// Documentation keeps the current normalized information architecture. Provider-specific residual
-// deployment notes are intentionally not part of this renderer contract and will be cleaned later.
+// Documentation keeps the current normalized information architecture.
 const readme = read("README.md");
 for (const sqlFile of ["001_current_schema.sql", "002_current_updates.sql"]) {
   assert(readme.includes(sqlFile), `README 未說明 SQL：${sqlFile}`);
