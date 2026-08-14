@@ -13,57 +13,35 @@ const { createNativeMemberService } = require("./services/native-member-service"
 const { createNativeGroupRoleService } = require("./services/native-group-role-service");
 const { createNativeArchive } = require("./native-archive");
 const { createNativeScheduleExtra } = require("./native-schedule-extra");
+const { createNativeAttendance } = require("./native-attendance");
+const { createNativeMeal } = require("./native-meal");
 const { createPostgresSessionStore } = require("./postgres-session-store");
 
 function createNativeRuntime(database, options = {}) {
-  const identityRepository = options.identityRepository
-    || createNativeIdentityRepository(database);
-  const accessRepository = options.accessRepository
-    || createNativeAccessRepository(database);
-  const scheduleRepository = options.scheduleRepository
-    || createNativeScheduleRepository(database);
-  const settingsRepository = options.settingsRepository
-    || createNativeSettingsRepository(database);
-  const masterDataRepository = options.masterDataRepository
-    || createNativeMasterDataRepository(database);
-  const memberRepository = options.memberRepository
-    || createNativeMemberRepository(database);
-  const groupRoleRepository = options.groupRoleRepository
-    || createNativeGroupRoleRepository(database);
-  const provider = options.provider
-    || createNativeAuthProvider(identityRepository, { accessRepository });
-  const sessionStore = options.sessionStore
-    || createPostgresSessionStore(database, options.sessionOptions);
-  const scheduleService = options.scheduleService
-    || createNativeScheduleService(scheduleRepository, accessRepository);
-  const settingsService = options.settingsService
-    || createNativeSettingsService(settingsRepository);
-  const masterDataService = options.masterDataService
-    || createNativeMasterDataService(masterDataRepository);
-  const memberService = options.memberService
-    || createNativeMemberService(memberRepository, options.memberServiceOptions);
-  const groupRoleService = options.groupRoleService
-    || createNativeGroupRoleService(groupRoleRepository, accessRepository);
+  const identityRepository = options.identityRepository || createNativeIdentityRepository(database);
+  const accessRepository = options.accessRepository || createNativeAccessRepository(database);
+  const scheduleRepository = options.scheduleRepository || createNativeScheduleRepository(database);
+  const settingsRepository = options.settingsRepository || createNativeSettingsRepository(database);
+  const masterDataRepository = options.masterDataRepository || createNativeMasterDataRepository(database);
+  const memberRepository = options.memberRepository || createNativeMemberRepository(database);
+  const groupRoleRepository = options.groupRoleRepository || createNativeGroupRoleRepository(database);
+  const provider = options.provider || createNativeAuthProvider(identityRepository, { accessRepository });
+  const sessionStore = options.sessionStore || createPostgresSessionStore(database, options.sessionOptions);
+  const scheduleService = options.scheduleService || createNativeScheduleService(scheduleRepository, accessRepository);
+  const settingsService = options.settingsService || createNativeSettingsService(settingsRepository);
+  const masterDataService = options.masterDataService || createNativeMasterDataService(masterDataRepository);
+  const memberService = options.memberService || createNativeMemberService(memberRepository, options.memberServiceOptions);
+  const groupRoleService = options.groupRoleService || createNativeGroupRoleService(groupRoleRepository, accessRepository);
   const archiveApi = options.archiveApi || createNativeArchive(database);
   const scheduleExtraApi = options.scheduleExtraApi || createNativeScheduleExtra(database);
+  const attendanceApi = options.attendanceApi || createNativeAttendance(database);
+  const mealApi = options.mealApi || createNativeMeal(database);
 
   return Object.freeze({
-    provider,
-    sessionStore,
-    identityRepository,
-    accessRepository,
-    scheduleRepository,
-    settingsRepository,
-    masterDataRepository,
-    memberRepository,
-    groupRoleRepository,
-    scheduleService,
-    settingsService,
-    masterDataService,
-    memberService,
-    groupRoleService,
-    archiveApi,
-    scheduleExtraApi,
+    provider, sessionStore,
+    identityRepository, accessRepository, scheduleRepository, settingsRepository, masterDataRepository, memberRepository, groupRoleRepository,
+    scheduleService, settingsService, masterDataService, memberService, groupRoleService,
+    archiveApi, scheduleExtraApi, attendanceApi, mealApi,
     services: Object.freeze({
       schedule: scheduleService,
       settings: settingsService,
@@ -71,11 +49,11 @@ function createNativeRuntime(database, options = {}) {
       members: memberService,
       groupRoles: groupRoleService,
       archives: archiveApi,
-      scheduleExtra: scheduleExtraApi
+      scheduleExtra: scheduleExtraApi,
+      attendance: attendanceApi,
+      meal: mealApi
     })
   });
 }
 
-module.exports = {
-  createNativeRuntime
-};
+module.exports = { createNativeRuntime };
