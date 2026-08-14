@@ -16,7 +16,18 @@ function detectDeviceType(request,body={}){const explicit=normalizeDeviceType(bo
 function createApiRouter(options={}){
   const provider=options.provider,sessionStore=options.sessionStore,services=options.services||{},secureCookies=Boolean(options.secureCookies);
   if(!provider||!sessionStore)throw new Error("createApiRouter requires provider and sessionStore");
-  const feature=(name,method)=>{const item=services[name];if(!item||typeof item[method]!=="function")throw new BackendError(503,"BACKEND_FEATURE_UNAVAILABLE","功能尚未啟用");return item;};
+  const featureErrors={
+    schedule:["SCHEDULE_SERVICE_UNAVAILABLE","班表 Backend Service 尚未啟用"],
+    settings:["SETTINGS_SERVICE_UNAVAILABLE","設定 Backend Service 尚未啟用"],
+    masterData:["MASTER_DATA_SERVICE_UNAVAILABLE","主檔 Backend Service 尚未啟用"],
+    members:["MEMBER_SERVICE_UNAVAILABLE","人員 Backend Service 尚未啟用"],
+    groupRoles:["GROUP_ROLE_SERVICE_UNAVAILABLE","群組與角色 Backend Service 尚未啟用"],
+    archives:["ARCHIVE_API_UNAVAILABLE","班表封存功能尚未啟用"],
+    scheduleExtra:["SCHEDULE_EXTRA_API_UNAVAILABLE","班表附加功能尚未啟用"],
+    attendance:["ATTENDANCE_API_UNAVAILABLE","簽到功能尚未啟用"],
+    meal:["MEAL_API_UNAVAILABLE","訂餐功能尚未啟用"]
+  };
+  const feature=(name,method)=>{const item=services[name];if(!item||typeof item[method]!=="function"){const [code,message]=featureErrors[name]||["BACKEND_FEATURE_UNAVAILABLE","功能尚未啟用"];throw new BackendError(503,code,message);}return item;};
   const cleared=()=>({"Set-Cookie":formatSessionCookie("",{clear:true,secure:secureCookies})});
   const cookie=(id,record)=>({"Set-Cookie":formatSessionCookie(id,{deviceType:record.deviceType,secure:secureCookies})});
   async function session(request){const id=parseCookies(request.headers.cookie)[SESSION_COOKIE_NAME]||"";const record=id?await sessionStore.read(id):null;if(!id||!record)throw new BackendError(401,"AUTH_REQUIRED","請先登入");return{id,record};}
@@ -72,7 +83,7 @@ function createApiRouter(options={}){
     membersDirectory:(q,r)=>withActive(q,r,"members","getDirectory",(a,s)=>a.getDirectory(s.context.user.id)),
     memberSave:(q,r)=>withActive(q,r,"members","saveMember",async(a,s)=>{const b=await readJson(q);return a.saveMember(s.context.user.id,b.member,b.previousEmployeeCode);}),
     memberGroupChangeValidate:(q,r)=>withActive(q,r,"members","validateGroupChange",async(a,s)=>{const b=await readJson(q);return a.validateGroupChange(s.context.user.id,b.employeeCode,b.newGroupId||b.groupId);}),
-    memberPasswordReset:(q,r)=>withActive(q,r,"members","resetPassword",async(a,s)=>a.resetPassword(s.context.user.id,(await readJson(q)).employeeCode,"0000")),
+    memberPasswordReset:async(q,r)=>{const s=await active(q),a=feature("members","resetPassword"),b=await readJson(q),result=await a.resetPassword(s.context.user.id,b.employeeCode,b.password);sendJson(r,200,result,result?.selfReset?cleared():cookie(s.id,s.record));},
     memberDelete:async(q,r)=>{const s=await active(q),a=feature("members","deleteMember"),b=await readJson(q),result=await a.deleteMember(s.context.user.id,b.employeeCode,b.currentPassword);sendJson(r,200,result,result?.selfDelete?cleared():cookie(s.id,s.record));},
     accessBundle:(q,r)=>withActive(q,r,"groupRoles","getAccessBundle",(a,s)=>a.getAccessBundle(s.context.user.id)),
     groupSave:(q,r)=>withActive(q,r,"groupRoles","saveGroup",async(a,s)=>a.saveGroup(s.context.user.id,(await readJson(q)).group)),
