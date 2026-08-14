@@ -137,8 +137,26 @@ function createNativeAttendance(database) {
     if (!location) { const d=departments.find((item)=>ipMatches(item.public_ip,ip)); if (d) location={departmentId:d.id,name:d.name||"",address:d.address||"",source:"IP",latitude:null,longitude:null,accuracy:null,distance:null,ip}; }
     if (!location) throw new BackendError(400,"ATTENDANCE_LOCATION_DENIED","目前位置或網路不符合所屬群組的打卡條件，請確認定位權限或洽管理員");
     const kind=String(body.action||""); if (!['clock_in','clock_out'].includes(kind)) throw new BackendError(400,"ATTENDANCE_ACTION_INVALID","不支援的打卡操作");
-    const row=await database.one("select public.save_attendance_clock($1::uuid,$2::date,$3,$4::jsonb) as result",[a.id,taipeiDate(),kind,JSON.stringify(location)]);
-    return row?.result||{};
+    const workDate=taipeiDate();
+    return database.transaction(async(tx)=>{
+      await tx.query(`insert into public.attendance_days(user_id,work_date,group_id,group_name_snapshot,department_name_snapshot)
+        select e.id,$2::date,e.group_id,coalesce(g.name,''),coalesce(d.name,'')
+        from public.set_employee e
+        left join public.schedule_groups g on g.id=e.group_id
+        left join public.set_departments d on d.id=e.home_department_id
+        where e.id=$1::uuid
+        on conflict(user_id,work_date) do nothing`,[a.id,workDate]);
+      const old=await tx.one("select * from public.attendance_days where user_id=$1::uuid and work_date=$2::date for update",[a.id,workDate]);
+      if(!old)throw new BackendError(500,"ATTENDANCE_CLOCK_STATE_INVALID","無法建立今日簽到紀錄");
+      if(old.reviewed_at)throw new BackendError(409,"ATTENDANCE_REVIEWED","此日簽到紀錄已審，無法再打卡");
+      const duplicate=kind==='clock_in'?Boolean(old.clock_in_at):Boolean(old.clock_out_at);
+      if(duplicate)return {ok:true,record:old,duplicate:true,serverDate:workDate};
+      const row=kind==='clock_in'
+        ?await tx.one("update public.attendance_days set clock_in_at=now(),clock_in_location=$2::jsonb,updated_at=now() where id=$1::uuid returning *",[old.id,JSON.stringify(location)])
+        :await tx.one("update public.attendance_days set clock_out_at=now(),clock_out_location=$2::jsonb,updated_at=now() where id=$1::uuid returning *",[old.id,JSON.stringify(location)]);
+      await audit(tx,old.id,kind,a.id,old,row);
+      return {ok:true,record:row,duplicate:false,serverDate:workDate};
+    });
   }
   async function personalList(employeeId, body={}) {
     const a=await actor(employeeId); const todayDate=taipeiDate(); const toDate=validDate(body.toDate,todayDate); const fromDate=validDate(body.fromDate,addDays(todayDate,-49)); const page=Math.max(1,Number(body.page)||1);
