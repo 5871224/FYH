@@ -125,10 +125,16 @@ function createNativeGroupRoleService(groupRoleRepository, accessRepository) {
   }
 
   async function saveRole(employeeId, role) {
-    return groupRoleRepository.saveRole(
-      requireUuid(employeeId, "登入人員識別碼"),
-      normalizeRole(role)
-    );
+    const actorId = requireUuid(employeeId, "登入人員識別碼");
+    const normalized = normalizeRole(role);
+    const bundle = await accessRepository.getAccessBundle(actorId);
+    const activeIds = new Set((Array.isArray(bundle?.groups) ? bundle.groups : []).map((group) => String(group.id)));
+    normalized.groupIds = normalized.groupIds.filter((groupId) => activeIds.has(groupId));
+    const needsGroup = normalized.permissions.some((permission) => GROUP_SCOPED_PERMISSIONS.includes(permission));
+    if (needsGroup && normalized.groupIds.length === 0) {
+      throw new BackendError(400, "ACCESS_ROLE_GROUP_REQUIRED", "請至少選擇一個適用群組");
+    }
+    return groupRoleRepository.saveRole(actorId, normalized);
   }
 
   async function deleteRole(employeeId, roleId) {
