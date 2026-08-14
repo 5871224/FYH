@@ -21,7 +21,13 @@ const ROUTES = Object.freeze({
   memberSave: Object.freeze({ method: "PUT", path: `${API_PREFIX}/members`, auth: true }),
   memberGroupChangeValidate: Object.freeze({ method: "POST", path: `${API_PREFIX}/members/group-change/validate`, auth: true }),
   memberPasswordReset: Object.freeze({ method: "POST", path: `${API_PREFIX}/members/password/reset`, auth: true }),
-  memberDelete: Object.freeze({ method: "POST", path: `${API_PREFIX}/members/delete`, auth: true })
+  memberDelete: Object.freeze({ method: "POST", path: `${API_PREFIX}/members/delete`, auth: true }),
+  accessBundle: Object.freeze({ method: "GET", path: `${API_PREFIX}/access`, auth: true }),
+  groupSave: Object.freeze({ method: "PUT", path: `${API_PREFIX}/settings/group`, auth: true }),
+  groupDelete: Object.freeze({ method: "POST", path: `${API_PREFIX}/settings/group/delete`, auth: true }),
+  groupsReorder: Object.freeze({ method: "PUT", path: `${API_PREFIX}/settings/groups/order`, auth: true }),
+  accessRoleSave: Object.freeze({ method: "PUT", path: `${API_PREFIX}/settings/access-role`, auth: true }),
+  accessRoleDelete: Object.freeze({ method: "POST", path: `${API_PREFIX}/settings/access-role/delete`, auth: true })
 });
 
 function findRoute(method, pathname) {
