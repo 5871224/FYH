@@ -75,6 +75,7 @@ test("正式權限模型由 FYH backend 執行，SQL 不承擔平台授權", () 
   const member = read("src/backend/repositories/native-member-repository.js");
   const settings = read("src/backend/repositories/native-settings-repository.js");
   const sql = read("supabase/002_current_updates.sql");
+  const executableSql = sql.replace(/--.*$/gm, "");
 
   assert.match(groupRole, /permission_settings/);
   assert.match(groupRole, /access_role_groups/);
@@ -82,11 +83,11 @@ test("正式權限模型由 FYH backend 執行，SQL 不承擔平台授權", () 
   assert.match(member, /member_settings/);
   assert.match(settings, /leave_settings/);
 
-  assert.doesNotMatch(sql, /auth\.uid\s*\(/i);
-  assert.doesNotMatch(sql, /create\s+policy/i);
-  assert.doesNotMatch(sql, /\bservice_role\b/i);
-  assert.doesNotMatch(sql, /\bauthenticated\b/i);
-  assert.doesNotMatch(sql, /\banon\b/i);
+  assert.doesNotMatch(executableSql, /auth\.uid\s*\(/i);
+  assert.doesNotMatch(executableSql, /create\s+policy/i);
+  assert.doesNotMatch(executableSql, /\bservice_role\b/i);
+  assert.doesNotMatch(executableSql, /\bauthenticated\b/i);
+  assert.doesNotMatch(executableSql, /\banon\b/i);
 });
 
 test("前端角色只使用 access_role_id 與權限資料，不保留文字角色相容層", () => {
