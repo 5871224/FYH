@@ -38,11 +38,12 @@ test("空白格的 undo 快照必須在建立 slot 之前取得", () => {
   assert.ok(snapshotAt >= 0 && ensureAt > snapshotAt);
 });
 
-test("資料庫只有明確 delete_entry 才能刪除班表", () => {
-  const sql = read("supabase/002_current_updates.sql");
-  assert.match(sql, /班表儲存內容不可空白/);
-  assert.match(sql, /where entry\.member_id=item\.member_id and entry\.work_date=item\.work_date\s+and coalesce\(item\.delete_entry,false\)/);
-  assert.doesNotMatch(sql, /and \(coalesce\(item\.delete_entry,false\) or \(item\.shift_type_id is null and item\.leave_type_id is null and item\.overtime_type_id is null\)\)/);
+test("後端只有明確 delete_entry 才能刪除班表", () => {
+  const repository = read("src/backend/repositories/native-schedule-repository.js");
+  assert.match(repository, /SCHEDULE_ENTRY_BLANK/);
+  assert.match(repository, /班表儲存內容不可空白/);
+  assert.match(repository, /where entry\.member_id = item\.member_id[\s\S]*and entry\.work_date = item\.work_date[\s\S]*and coalesce\(item\.delete_entry, false\)/);
+  assert.doesNotMatch(repository, /coalesce\(item\.delete_entry, false\)\s+or\s+\(item\.shift_type_id is null/);
 });
 
 test("班別儲存 API 使用正式 applicableDepartmentId 欄位", () => {
