@@ -23,7 +23,7 @@ test("簽到審核可維護共用常用備註，個人記錄可選擇或自由�
   assert.match(actions, /split\(\/\\r\?\\n\//);
   assert.match(events, /openAttendanceCommonNotesModal/);
   assert.match(events, /saveAttendanceCommonNotes/);
-  assert.match(api, /action: "common_notes_save"/);
+  assert.match(api, /request\("\/api\/v1\/attendance\/review\/common-notes",\{method:"PUT"/);
   assert.match(review, /attendance_common_notes/);
   assert.match(ledger, /attendance_common_notes/);
   assert.match(schema, /attendance_common_notes text not null default ''/);
