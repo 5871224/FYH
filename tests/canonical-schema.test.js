@@ -10,16 +10,27 @@ test("全新資料庫只保留兩個正式 SQL 檔與每日簽到模型", () => 
   const schema = read("supabase/001_current_schema.sql");
   const updates = read("supabase/002_current_updates.sql");
   const combined = schema + updates;
-  assert.equal(fs.existsSync(path.join(root, "supabase/003_attendance_ledger.sql")), false);
-  assert.equal(fs.existsSync(path.join(root, "supabase/004_remove_legacy_attendance.sql")), false);
+
+  const sqlFiles = fs
+    .readdirSync(path.join(root, "supabase"))
+    .filter((name) => name.endsWith(".sql"))
+    .sort();
+  assert.deepEqual(sqlFiles, ["001_current_schema.sql", "002_current_updates.sql"]);
+
   assert.match(schema, /create table if not exists public\.attendance_days/);
   assert.match(schema, /create table if not exists public\.attendance_audit_logs/);
-  for (const name of ["attendance_records", "attendance_action_logs", "attendance_overtime_requests", "overtime_review_logs", "delete_member_account_v3"]) {
+  for (const name of [
+    "attendance_records",
+    "attendance_action_logs",
+    "attendance_overtime_requests",
+    "overtime_review_logs",
+    "delete_member_account_v3"
+  ]) {
     assert.equal(combined.includes(name), false, `SQL 仍包含淘汰結構：${name}`);
   }
 });
 
-test("正式 SQL 必須包含群組、角色權限與班表封存模型", () => {
+test("正式 SQL 保留群組、角色權限、班表封存與必要資料完整性機制", () => {
   const combined = read("supabase/001_current_schema.sql") + read("supabase/002_current_updates.sql");
   for (const pattern of [
     /create table if not exists public\.schedule_groups/,
@@ -27,27 +38,31 @@ test("正式 SQL 必須包含群組、角色權限與班表封存模型", () => 
     /create table if not exists public\.access_role_groups/,
     /create table if not exists public\.schedule_archives/,
     /create table if not exists public\.schedule_archive_entries/,
-    /create or replace function public\.save_schedule_group_v1/,
-    /create or replace function public\.save_access_role_v1/,
-    /create or replace function public\.archive_schedule_v1/,
-    /create or replace function public\.protect_archived_schedule_v1/,
-    /create policy read_schedule_entries[\s\S]*schedule_view/,
-    /create or replace function public\.save_schedule_entries_v3[\s\S]*schedule_manage/
+    /create or replace function public\.protect_archived_schedule_v1/
   ]) {
     assert.match(combined, pattern);
   }
-  assert.doesNotMatch(combined, /create policy update_schedule_entries/);
-  assert.match(combined, /drop policy if exists update_schedule_entries on public\.schedule_entries/);
 });
 
-test("群組簽到審核 Edge Function 必須列入部署清單與文件", () => {
-  const deploy = read("scripts/deploy-edge-functions.ps1");
+test("Supabase Edge Function runtime 已移除，正式入口為 FYH Backend", () => {
   const readme = read("README.md");
-  const spec = read("規格書.md");
-  assert.match(deploy, /"attendance-review-groups"/);
-  assert.match(readme, /`attendance-review-groups`/);
-  assert.match(spec, /`attendance-review-groups`/);
-  assert.equal(fs.existsSync(path.join(root, "supabase/functions/attendance-review-groups/index.ts")), true);
+  assert.equal(fs.existsSync(path.join(root, "supabase", "functions")), false);
+  assert.equal(fs.existsSync(path.join(root, "scripts", "deploy-edge-functions.ps1")), false);
+  assert.equal(fs.existsSync(path.join(root, "scripts", "check-public-supabase.js")), false);
+  assert.equal(fs.existsSync(path.join(root, "deno.lock")), false);
+
+  for (const file of [
+    "src/backend/api-contract.js",
+    "src/backend/api-router.js",
+    "src/backend/native-attendance.js",
+    "src/backend/native-meal.js",
+    "src/backend/db/postgres.js"
+  ]) {
+    assert.equal(fs.existsSync(path.join(root, file)), true, `缺少 FYH Backend 正式模組：${file}`);
+  }
+
+  assert.match(readme, /瀏覽器前端[\s\S]*\/api\/v1\/\*[\s\S]*FYH Node\.js Backend[\s\S]*PostgreSQL/);
+  assert.match(readme, /Supabase Edge Functions 已退出正式架構/);
 });
 
 test("正式文件不得描述切換期相容或補丁式執行", () => {
