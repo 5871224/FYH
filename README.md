@@ -1,34 +1,42 @@
 # 福圓號排班系統
 
-福圓號排班系統是手機優先的瀏覽器應用程式，涵蓋多群組班表、簽到簿、訂餐、個人記錄、簽到審核、角色權限與班表封存。前端由 GitHub Pages 發布；登入、資料庫、RPC 與伺服器端 API 由 Supabase 提供。
+福圓號排班系統是手機優先的瀏覽器應用程式，涵蓋多群組班表、簽到簿、訂餐、個人記錄、簽到審核、角色權限與班表封存。
 
 詳細功能、資料、安全、介面與驗收規格以 [`規格書.md`](規格書.md) 為唯一正式依據。
 
 ## 現行架構
 
 ```text
-瀏覽器前端（GitHub Pages）
-  ↓ Supabase Auth Token
-Supabase Edge Functions／REST／RPC
-  ↓ 身分、角色、適用群組、伺服器時間、位置與交易驗證
-Supabase PostgreSQL
+瀏覽器前端
+  ↓ /api/v1/*（FYH API）
+FYH Node.js Backend
+  ├─ Session / Native Auth
+  ├─ API Router / API Contract
+  ├─ Domain Services
+  └─ Native Repositories
+  ↓ PostgreSQL transaction / SQL
+PostgreSQL
 ```
 
-- GitHub Pages 只託管 `docs/` 靜態檔案。
-- 前端正式原始碼位於 `src/renderer/`。
-- `src/renderer/app.css`、`src/renderer/app.js` 與 `docs/` 都是自動產生檔，不直接修改。
-- Supabase Auth 負責登入身分。
-- PostgreSQL、RLS、限制與 RPC 負責正式資料、群組權限、班表封存與交易一致性。
-- `supabase/functions/` 只保存目前正式 Edge Function；資料夾清單必須與 `scripts/deploy-edge-functions.ps1` 一致。
+正式責任邊界：
+
+- 瀏覽器只呼叫 `/api/v1/*`，不得直接呼叫 Supabase REST、RPC 或 Edge Functions。
+- 登入由 FYH Backend 的 Native Auth 與 Session 管理。
+- 權限、適用群組、輸入驗證與交易流程由 Backend services / repositories 負責。
+- PostgreSQL 保存正式資料，並可保留必要的 constraint、trigger 與資料庫內部 helper；資料庫 function 不得成為瀏覽器 API。
+- `src/renderer/web-api.js` 是瀏覽器對 FYH API 的唯一正式 transport adapter。
+- `src/backend/api-contract.js` 是 FYH API 路由契約的正式清單。
+- Supabase Edge Functions 已退出正式架構；repository 不再保存 `supabase/functions/`、Deno runtime 或 Edge Function 部署清單。
 
 ## 單一正式版本原則
 
-本系統尚未正式上線，因此程式庫只維護目前正式資料模型與 API 契約：
+本系統尚未正式上線，因此 repository 只維護目前正式資料模型與 API 契約：
 
 - 不保留舊資料表、舊欄位、舊端點、舊 payload 或雙軌讀寫。
 - 不以 `try/catch` 靜默退回舊流程；必要正式服務不可用時直接回報錯誤。
 - 不以後載入模組覆寫既有函式，不新增 `fix`、`patch`、`override` 或相容代理模組。
-- 格式調整直接修改正式匯出器、正式 API 與正式事件處理器。
+- 不在瀏覽器保留 Supabase URL、anon key、service-role key 或資料表直連 helper。
+- 格式調整直接修改正式匯出器、FYH API、Native service/repository 與正式事件處理器。
 
 ## 主要頁面
 
@@ -46,15 +54,15 @@ Supabase PostgreSQL
 FYH/
 ├─ .github/workflows/deploy-pages.yml
 ├─ docs/                              # GitHub Pages 發布成品
-├─ scripts/                           # 建置、檢查、稽核與部署工具
+├─ scripts/                           # 建置、檢查與架構稽核
 ├─ src/
-│  ├─ web-server.js
+│  ├─ web-server.js                   # FYH HTTP server
+│  ├─ backend/                        # FYH API / Auth / Session / Domain / Repository
 │  └─ renderer/                       # 前端唯一正式原始碼
 │     └─ css/                         # CSS 模組原始碼
 ├─ supabase/
 │  ├─ 001_current_schema.sql          # 全新環境完整結構
-│  ├─ 002_current_updates.sql         # 仍有效的冪等更新
-│  └─ functions/                      # 正式 Edge Function 原始碼
+│  └─ 002_current_updates.sql         # 仍有效的冪等更新
 ├─ tests/
 ├─ AGENTS.md
 ├─ README.md
@@ -62,6 +70,22 @@ FYH/
 ├─ 規格書.md
 └─ 啟動網頁版.bat
 ```
+
+## FYH Backend
+
+主要模組：
+
+- `src/backend/api-contract.js`：FYH API method/path 契約。
+- `src/backend/api-router.js`：HTTP request routing、Session 與錯誤回應。
+- `src/backend/session-store.js`：Session 生命週期；手機與桌機使用不同 idle timeout。
+- `src/backend/providers/native-auth-provider.js`：Native 登入、登入狀態與改密碼。
+- `src/backend/services/`：排班、設定、人員、群組／角色等領域規則。
+- `src/backend/repositories/`：PostgreSQL 資料存取與交易。
+- `src/backend/native-attendance.js`：簽到、簽到簿、簽到審核與匯出。
+- `src/backend/native-meal.js`：訂餐、取消、設定與統計。
+- `src/backend/db/database.js`：共用 query / one / transaction 介面。
+
+Production 必須使用持久化 Session store；記憶體 Session 只適合非 production 執行與測試。
 
 ## 資料庫建置順序
 
@@ -72,41 +96,42 @@ FYH/
 2. supabase/002_current_updates.sql
 ```
 
-`001_current_schema.sql` 必須直接建立目前正式資料表、索引、RLS、限制、Trigger 與核心 RPC；不得先建立已淘汰結構再刪除。`002_current_updates.sql` 只保存仍有效且可重複執行的正式更新，包含群組、角色權限及班表封存的資料模型與安全規則。Edge Function 部署不會自動執行 SQL。
+這兩個檔案是唯一正式 SQL 來源。不得重新加入 `003_attendance_ledger.sql`、`004_remove_legacy_attendance.sql` 或其他歷史遷移檔作為正式部署步驟。
 
-## 權限與資料存取架構
+資料層原則：
+
+- 正式資料使用 normalized tables，例如 `schedule_entries`、`attendance_days`、`attendance_audit_logs`、`meal_orders`。
+- Backend 使用 PostgreSQL transaction 實作跨表一致性。
+- 資料庫 constraint / trigger 可以保護資料完整性，但授權判斷的主要責任在 FYH Backend。
+- SQL 中仍存在的 Supabase 專屬 RPC、`auth.uid()`、`anon/authenticated` 權限或 browser-facing `SECURITY DEFINER` function，均視為待清理殘留，不得新增新的依賴。
+
+## 權限與資料存取
 
 瀏覽器不直接 CRUD 核心資料表。正式資料流固定為：
 
-`瀏覽器 → 具名 RPC / Edge Function → 權限與適用群組檢查 → 資料表`
+`瀏覽器 → FYH API → Session → 權限／適用群組驗證 → Native service/repository → PostgreSQL`
 
-- 核心班表、人員、單位、班別、假別與設定的讀寫使用具名 `SECURITY DEFINER` RPC。
-- 人員登入帳號的新增、修改、重設密碼與刪除統一由 `member-auth-admin` 處理。
-- 簽到與訂餐使用各自的 Edge Function；Edge Function 以 `access_role_id`、權限項目與適用群組判斷，不以舊 `admin/manager` 文字角色做授權。
-- `anon` / `authenticated` 不具核心資料表直接權限；RLS 保留為第二層防護。
-- RLS、Trigger 與 RPC 必須使用明確的權限項目，例如 `schedule_manage`、`member_settings`、`meal_admin`；不得以 `is_manager`、`is_admin` 或 `legacy_role` 作為實際授權依據。
-- `has_access_permission`、`can_access_group` 等內部權限 helper 不作為瀏覽器公開 RPC，正式執行權只保留給後端／`service_role`；瀏覽器只能呼叫有明確領域用途且自行驗證權限的公開 RPC。
-- 同一資料完整性規則只保留一個正式 Trigger；不得同時保留舊版與新版「最後管理者保護」或重複 `updated_at` Trigger。
-- 已軟刪除人員即使仍持有舊 Session，也不得使用打卡、個人簽到、訂餐或其他受保護功能。
-- 打卡可用單位必須先限制在人員所屬群組，再執行 GPS／IP 比對；不得跨群組使用其他單位的打卡條件。
-- 不使用通用整包 `saveState`、資料表名稱型 REST helper、runtime monkey patch 或舊版相容橋接。
+- 班表讀取需要 `schedule_view`；班表修改需要 `schedule_manage`。
+- 人員設定以 `member_settings` 等明確權限項目判斷。
+- 簽到審核以 `attendance_review` 與角色適用群組判斷。
+- 訂餐管理以 `meal_admin` 與角色適用群組判斷。
+- 已軟刪除或已超過帳號有效期間的人員，即使舊 Session 仍存在，也不得繼續使用受保護功能。
+- 打卡可用單位必須先限制在人員所屬群組，再執行 GPS／IP 比對。
+- 不使用文字 `admin/manager/employee` 作為實際授權依據；正式授權依 `access_role_id`、permissions 與 `access_role_groups`。
 
-## Edge Functions
+## 前端資料存取限制
 
-- `member-auth-admin`：人員登入帳號新增、修改、密碼重設與刪除；無需保留歷史時實體刪除，有歷史關聯時保留主檔並標記刪除，並驗證權限角色。
-- `attendance-clock`：本人打卡；只允許有效且未刪除帳號，GPS／IP 只比對本人所屬群組的啟用單位。
-- `attendance-ledger`：本人簽到簿資料；已軟刪除帳號不得存取。
-- `attendance-review-groups`：依 `attendance_review` 與適用群組進行簽到審核、編輯與歷程查詢。
-- `attendance-ledger-export`：依 `attendance_review` 與適用群組匯出已審簽到資料。
-- `meal-order`：訂餐與訂餐管理。
-- `meal-report-v2`：訂餐統計報表。
-- `meal-cancel-v2`：本人訂餐取消；已軟刪除帳號不得執行。
+`src/renderer/` 必須遵守：
 
-`supabase/functions/` 是 Edge Function 唯一正式清單。正式上線前，Supabase 遠端已部署函式也必須與此清單一致；不在清單內的歷史端點不得繼續提供舊邏輯，應直接刪除。若部署工具當下無刪除能力，至少先停用舊端點，之後由 Supabase Dashboard 或 CLI 完成實體刪除。
+- 不出現 `/rest/v1/` 核心資料直連。
+- 不出現 `/functions/v1/`。
+- 不出現 `callRpc()`、`requestFunction()`、`restSelect()`、`restInsert()`、`restUpdate()`、`restDelete()`。
+- 不保存 Supabase anon/service key。
+- 所有正式網路操作由 `web-api.js` 使用具名 `/api/v1/*` 路徑完成。
 
-## 本機執行
+## 本機執行與驗證
 
-需要 Node.js 22 或相容版本。在儲存庫根目錄執行：
+需要 Node.js 22 或相容版本。
 
 ```bash
 npm run css:build
@@ -126,11 +151,11 @@ npm run ci:check
 
 常用指令：
 
-- `npm run web`：建立 bundle 後啟動本機預覽。
+- `npm run web`：建立 bundle 後啟動 FYH web server。
 - `npm run web:publish`：依來源完整重建 `docs/`。
 - `npm test`：執行功能與架構守門測試。
 - `npm run renderer:check`：檢查前端 bundle、發布對齊與正式契約。
-- `npm run ci:check`：執行正式 CI 的完整本機檢查。
+- `npm run ci:check`：執行正式 CI 完整檢查。
 
 ## 修改位置
 
@@ -138,8 +163,8 @@ npm run ci:check
 |---|---|
 | HTML、前端功能與互動 | `src/renderer/` |
 | CSS | `src/renderer/css/` |
-| 資料庫、RLS、RPC | `supabase/*.sql` |
-| 後端 API | `supabase/functions/` |
+| FYH HTTP/API | `src/web-server.js`、`src/backend/` |
+| PostgreSQL 結構 | `supabase/001_current_schema.sql`、`supabase/002_current_updates.sql` |
 | 建置與驗證 | `scripts/` |
 | 測試 | `tests/` |
 | 正式規格 | `規格書.md` |
@@ -150,29 +175,38 @@ npm run ci:check
 1. 修改正式來源。
 2. 執行 `npm run web:publish`。
 3. 執行 `npm run ci:check`。
-4. 依順序套用 SQL。
-5. 部署正式 Edge Functions，並確認 Supabase 遠端清單沒有仍可執行舊邏輯的歷史端點。
+4. 依順序套用正式 SQL。
+5. 部署 FYH Backend，設定 PostgreSQL 連線與 Production 持久化 Session store。
 6. 合併至 `main`。
-7. GitHub Pages 由內建 `pages-build-deployment` 發布 `main/docs`。
-8. 以員工、主管與管理員測試登入、簽到簿、群組班表、封存、訂餐與主要管理入口。
+7. GitHub Pages 若仍作為靜態入口，使用 `docs/` 發布成品；正式 API 必須指向 FYH Backend。
+8. 以員工、主管與管理員權限測試登入、簽到簿、群組班表、封存、訂餐與主要管理入口。
 
 `.github/workflows/deploy-pages.yml` 是唯一正式 GitHub Actions 驗證流程；不得新增重複監聽或自動改寫程式碼的 workflow。
 
-## 效能與載入原則
+## 效能與架構守門
 
-- 首頁只載入登入身分與權限摘要；第一次進班表才載班表資料，人員管理完整資料只在人員設定開啟時載入。
-- 個人簽到簿不預載簽到審核；只有切換到「簽到審核」時才第一次讀取。
-- 簽到審核的單筆／批次審核與退回採集合式權限驗證、批次更新及批次稽核寫入；成功後前端局部更新目前清單，不為每次操作重新讀取完整簽到簿。
-- ExcelJS 屬大型非核心相依套件，只在 XLSX 匯入／匯出實際發生時動態載入。
-- 班表高頻 RPC 先一次解析目前使用者的角色與適用群組，再以集合式 JOIN 篩選；禁止在每一列班表上重複呼叫 can_access_group/has_access_permission。
-- 核心資料表維持 anon/authenticated 無直接 GRANT；因此不建立 authenticated 直接 INSERT/UPDATE/DELETE RLS policy。RLS 只作唯讀防線，正式寫入一律走具名 RPC／Edge Function。
-- 資料庫 DDL 或權限調整後，需重新檢查 Supabase Performance Advisor；auth RLS init-plan 與 multiple permissive policy 警告不可無理由新增。
+- 首頁只載入登入身分與權限摘要；第一次進班表才載班表資料。
+- 班表首次載入只抓目前八週，後續可視範圍由 FYH API 分頁讀取。
+- 人員管理完整資料只在人員設定開啟時載入。
+- 個人簽到簿不預載簽到審核；切換到「簽到審核」時才第一次讀取。
+- 簽到審核單筆／批次操作使用 Backend transaction，成功後前端局部更新，不重新讀取完整簽到簿。
+- ExcelJS 只在 XLSX 匯入／匯出實際發生時動態載入。
+- CSS 與 JavaScript architecture audit 必須通過；不得以重複 selector、重複 function 或後載入 override 解決問題。
+- `normalized storage → expansion → settings → renderer → CSS architecture → JS architecture` 都是 CI 正式守門的一部分。
 
-## Canonical 程式簡化原則
+## Supabase 特殊機制清理原則
 
-- 正式狀態只保存目前功能真正需要的欄位；群組／角色／刪除狀態由 canonical API 直接提供，不再透過第二份 entity map 補值。
-- 前端排班人員主鍵一律為 UUID；不得以工號或臨時字串 ID 猜測／二次查詢主鍵。
-- 已刪除的歷史班別、假別、加班由後端明確回傳歷史項目；不存在的 ID 不得自動替換成第一個可用項目。
-- Edge Functions 的台北日期、帳號有效期間、UUID 與權限 helper 統一放在 `supabase/functions/_shared/`。
-- XLSX 建立與格式由 `browser-exporter.js` 負責；`web-api.js` 僅處理 transport、RPC／Edge 呼叫與下載協調。
-- SQL 正式來源不保留文字角色相容欄位、動態文字改寫 policy、重複 policy 定義或瀏覽器直接寫入 policy。
+目前已完成：
+
+- 瀏覽器移除 Supabase REST／RPC／Edge Function transport。
+- Edge Function 原始碼與共用 Deno runtime 移除。
+- Edge Function 部署腳本與公開 anon Supabase 檢查移除。
+
+下一層清理針對 SQL 中歷史 Supabase 機制：
+
+- browser-facing v3 RPC。
+- `auth.uid()` 授權 helper 與 policy。
+- `anon` / `authenticated` / `service_role` 專屬 GRANT/REVOKE。
+- 只為舊 Supabase API 存在的 `SECURITY DEFINER` function。
+
+清理時不可直接移除仍被 Native Backend 使用的資料庫 transaction/helper；必須先改成 Backend transaction 或確認它屬於必要的 PostgreSQL 資料完整性機制，再刪除舊 function。
