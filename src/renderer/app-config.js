@@ -4,9 +4,9 @@ window.SCHEDULER_CONFIG = {
   documentId: "default"
 };
 
-// Temporary compatibility for the currently published Supabase bundle.
-// The source schedule-ordering module now persists order itself; rebuilt bundles
-// expose __fyhPersistsOrder and therefore skip these wrappers automatically.
+// Compatibility for the currently published Supabase bundle.
+// The generated app bundle does not persist schedule-table drag order itself,
+// so these wrappers write the resulting order through reorderSettings().
 (function installPublishedScheduleOrderPersistence() {
   function install() {
     if (!window.schedulerApi?.reorderSettings || typeof window.getSortableSettingsList !== "function") {
