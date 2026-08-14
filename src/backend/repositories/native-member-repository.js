@@ -308,7 +308,7 @@ function createNativeMemberRepository(database) {
           Math.min(6, Math.max(0, Number(member.fixedRestWeekday) || 0)),
           homeDepartmentId,
           member.scheduleShiftIds,
-          Math.max(0, Number(member.monthlyRestDays) || 0)
+          Math.max(0, Math.trunc(Number(member.monthlyRestDays) || 0))
         ];
 
         if (!profile) {
@@ -320,7 +320,7 @@ function createNativeMemberRepository(database) {
             ) values (
               $1::uuid, $2, $3, $4::uuid, $5::uuid,
               $6::date, $7::date, $8::boolean, $9::integer,
-              $10::uuid, $11::uuid[], $12::numeric
+              $10::uuid, $11::uuid[], $12::integer
             )
             returning id, employee_code
           `, [member.id, ...profileParams]);
@@ -345,18 +345,21 @@ function createNativeMemberRepository(database) {
               fixed_rest_weekday = $9::integer,
               home_department_id = $10::uuid,
               schedule_shift_ids = $11::uuid[],
-              monthly_rest_days = $12::numeric,
+              monthly_rest_days = $12::integer,
               updated_at = now()
           where id = $1::uuid and deleted_at is null
           returning id, employee_code
         `, [profile.id, ...profileParams]);
         if (!updated?.id) throw new BackendError(409, "MEMBER_UPDATE_FAILED", "人員資料更新失敗");
-        await transaction.query(`
+        const accountUpdate = await transaction.query(`
           update public.auth_accounts
           set login_account = $2,
               updated_at = now()
           where employee_id = $1::uuid
         `, [profile.id, normalizeCodeKey(member.employeeCode)]);
+        if (accountUpdate.rowCount < 1) {
+          throw new BackendError(409, "MEMBER_AUTH_ACCOUNT_NOT_FOUND", "人員登入帳號尚未建立，請先完成 Native Auth 帳號同步");
+        }
         return { ok: true, created: false, id: String(updated.id), employeeCode: updated.employee_code };
       });
     } catch (error) {
