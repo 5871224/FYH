@@ -19,7 +19,7 @@ test("簽到審核操作圖示與表頭狀態清楚", () => {
 test("簽到審核編輯上下班地點會完整傳到後端並受群組權限驗證", () => {
   const actions = read("src/renderer/renderer-records-actions.js");
   const page = read("src/renderer/renderer-records-page.js");
-  const edge = read("supabase/functions/attendance-review-groups/index.ts");
+  const attendance = read("src/backend/native-attendance.js");
   assert.match(actions, /reviewClockInLocation/);
   assert.match(actions, /reviewClockOutLocation/);
   assert.match(actions, /clockInLocationDepartmentId/);
@@ -28,11 +28,12 @@ test("簽到審核編輯上下班地點會完整傳到後端並受群組權限�
   assert.match(actions, /\.filter\(\(department\) => groupId &&/);
   assert.doesNotMatch(actions, /departments\.unshift/);
   assert.doesNotMatch(actions, /管理員補登/);
-  assert.match(edge, /打卡地點不屬於該人員群組/);
-  assert.doesNotMatch(edge, /\.filter\(\(department: any\) => department\.attendance_enabled === true\)/);
-  assert.doesNotMatch(edge, /此單位目前未開放打卡/);
-  assert.match(edge, /resolveAdminClockLocation\(ctx, target, body\?\.clockInLocationDepartmentId/);
-  assert.match(edge, /resolveAdminClockLocation\(ctx, target, body\?\.clockOutLocationDepartmentId/);
+  assert.match(attendance, /async function reviewSave\(/);
+  assert.match(attendance, /clockInLocationDepartmentId/);
+  assert.match(attendance, /clockOutLocationDepartmentId/);
+  assert.match(attendance, /打卡地點不屬於該人員群組/);
+  assert.match(attendance, /String\(d\.group_id\)!==String\(target\.group_id\)/);
+  assert.doesNotMatch(attendance, /此單位目前未開放打卡/);
 });
 
 test("簽到修改歷程使用中文操作名稱並顯示時間與地點前後值", () => {
