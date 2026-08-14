@@ -80,15 +80,17 @@ assert(renderer.includes('hasPermission("attendance_review")'), "attendance revi
 assert(!renderer.includes("renderTodayOvertimePanel"), "standalone overtime request panel should be removed");
 assert(!renderer.includes("renderAttendanceAdminSection"), "standalone attendance admin tab should be removed");
 
-// Attendance domain now runs inside FYH backend. Atomic DB helpers may remain behind that boundary
-// until the later Supabase-special-mechanism cleanup.
+// Attendance domain is fully owned by FYH backend, including the clock transaction.
 assert(attendance.includes("MAX_GPS_DISTANCE_METERS = 300"), "clocking should enforce GPS distance");
 assert(attendance.includes("MAX_GPS_ACCURACY_METERS = 300"), "clocking should reject low-accuracy GPS fixes");
 assert(webApi.includes('deviceType:/Mobi|Mobile|iPhone|Android/i.test(navigator.userAgent||"")?"phone":"desktop"'), "clocking should distinguish phone GPS from desktop IP");
 assert(renderer.includes("timeout: 15000") && renderer.includes("maximumAge: 0"), "phone GPS clocking should wait for a fresh high-accuracy location");
 assert(attendance.includes("public.attendance_days"), "attendance backend should use daily records");
 assert(attendance.includes("public.attendance_audit_logs"), "attendance backend should retain audit history");
-assert(attendance.includes("public.save_attendance_clock"), "clocking should remain atomic at the database boundary");
+assert(attendance.includes("database.transaction(async(tx)=>"), "clocking should use a native backend transaction");
+assert(attendance.includes("for update"), "clocking should lock the daily attendance row");
+assert(attendance.includes("await audit(tx,old.id,kind,a.id,old,row)"), "clocking should write audit history in the same transaction");
+assert(!attendance.includes("public.save_attendance_clock"), "clocking must not call the legacy database RPC");
 assert(attendance.includes("'clock_in','clock_out'"), "clocking should support clock in and out");
 assert(attendance.includes("工時必須以 0.5 小時為單位"), "regular and overtime hours should use half-hour increments");
 assert(attendance.includes("attendance_review"), "attendance review should validate explicit permission");
@@ -102,12 +104,14 @@ assert(memberService.includes("memberRepository.resetPassword"), "password reset
 assert(memberService.includes("memberRepository.deleteMember"), "member deletion should go through the native repository");
 assert(memberService.includes("verifySelfPassword"), "self deletion should retain password verification");
 
-// Meal domain also runs inside FYH backend.
+// Meal domain is fully owned by FYH backend, including order replacement as one transaction.
 assert(index.includes('id="mealCard"') && renderer.includes("function renderMealPage"), "meal order page should be present");
 assert(renderer.includes('data-meal-tab="stats"') && renderer.includes("renderMealReportSection()"), "meal stats should live on the meal page");
 assert(renderer.includes('<table class="meal-order-table">'), "today meal order should render as a table");
 assert(renderer.includes("data-meal-product-row") && renderer.includes("commitMealProductOrderFromDom"), "meal settings should support drag ordering");
-assert(meal.includes("public.save_meal_order"), "meal ordering should remain atomic at the database boundary");
+assert(meal.includes("database.transaction(async(tx)=>"), "meal ordering should use a native backend transaction");
+assert(meal.includes("delete from public.meal_orders"), "meal save should replace the current daily order atomically");
+assert(!meal.includes("public.save_meal_order"), "meal ordering must not call the legacy database RPC");
 assert(meal.includes("public.attendance_days") && meal.includes("clock_in_location?.departmentId"), "meal ordering should require the clock-in location snapshot");
 assert(meal.includes('actor(employeeId,"meal_admin")'), "meal administration should require explicit permission");
 assert(meal.includes("access_role_groups"), "meal reports should enforce applicable group scope");
