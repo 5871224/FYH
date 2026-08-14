@@ -52,7 +52,7 @@ function createRequestHandler(options = {}) {
   let sessionStore = options.sessionStore || null;
   let services = options.services || {};
 
-  if (options.database && (!provider || !sessionStore || !services.schedule || !services.settings)) {
+  if (options.database && (!provider || !sessionStore || !services.schedule || !services.settings || !services.masterData)) {
     const nativeRuntime = createNativeRuntime(options.database, {
       provider,
       sessionStore,
@@ -60,8 +60,10 @@ function createRequestHandler(options = {}) {
       accessRepository: options.accessRepository,
       scheduleRepository: options.scheduleRepository,
       settingsRepository: options.settingsRepository,
+      masterDataRepository: options.masterDataRepository,
       scheduleService: options.scheduleService,
       settingsService: options.settingsService,
+      masterDataService: options.masterDataService,
       sessionOptions: options.sessionOptions
     });
     provider = provider || nativeRuntime.provider;
