@@ -72,7 +72,8 @@ test("群組型設定排序全部可管理時 COMMIT", async () => {
 
   assert.deepEqual(result, { ok: true, category: "department", count: 2 });
   assert.equal(calls[0].sql, "BEGIN");
-  assert.match(calls[1].sql, /department_settings/);
+  assert.match(calls[1].sql, /select employee\.access_role_id, role\.permissions/);
+  assert.equal(calls[1].params[0], "ACTOR-1");
   assert.match(calls[2].sql, /public\.access_role_groups/);
   assert.equal(calls.at(-2).sql, "COMMIT");
   assert.equal(calls.at(-1).sql, "RELEASE");
