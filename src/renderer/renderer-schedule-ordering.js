@@ -39,10 +39,34 @@ function restoreScheduleViewport(viewport) {
   });
 }
 
-async function finishScheduleTableOrderChange(viewport) {
+async function persistScheduleTableOrder(category) {
+  const items = category === "department"
+    ? state.departments
+    : category === "member"
+      ? state.members
+      : [];
+  const orderedIds = items
+    .filter((item) => !item.deleted)
+    .map((item) => item.id)
+    .filter(Boolean);
+  if (!orderedIds.length) {
+    return true;
+  }
+  try {
+    await window.schedulerApi.reorderSettings(category, orderedIds);
+    return true;
+  } catch (error) {
+    setSaveStatus(`${category === "member" ? "人員" : "單位"}排序儲存失敗：${error.message || error}`);
+    return false;
+  }
+}
+
+async function finishScheduleTableOrderChange(viewport, category = "") {
   renderAll();
   restoreScheduleViewport(viewport);
-  await forceSave();
+  const preferencesSaved = await forceSave();
+  const orderSaved = category ? await persistScheduleTableOrder(category) : true;
+  return preferencesSaved && orderSaved;
 }
 
 async function reorderScheduleTableDepartment(draggedId, targetId, insertAfter = false) {
@@ -53,7 +77,7 @@ async function reorderScheduleTableDepartment(draggedId, targetId, insertAfter =
   }
   const viewport = captureScheduleViewport();
   state.departments = applyVisibleOrderById(state.departments, nextVisibleIds);
-  await finishScheduleTableOrderChange(viewport);
+  await finishScheduleTableOrderChange(viewport, "department");
   return true;
 }
 
@@ -69,6 +93,7 @@ async function reorderScheduleTableMember(draggedMemberId, targetMemberId, inser
     return false;
   }
 
+  const viewport = captureScheduleViewport();
   const remainingMembers = state.members.filter((member) => member.id !== draggedMemberId);
   const targetIndex = remainingMembers.findIndex((member) => member.id === targetMemberId);
   if (targetIndex < 0) {
@@ -83,8 +108,7 @@ async function reorderScheduleTableMember(draggedMemberId, targetMemberId, inser
   state.members = remainingMembers;
   currentMember = resolveCurrentMember();
   clearScheduleRangeSelection();
-  renderAll();
-  await forceSave();
+  await finishScheduleTableOrderChange(viewport, "member");
   return true;
 }
 
@@ -120,6 +144,9 @@ async function moveScheduleTableMemberToDepartment(memberId, departmentId) {
   state.members = remainingMembers;
   currentMember = resolveCurrentMember();
   clearScheduleRangeSelection();
-  await finishScheduleTableOrderChange(viewport);
+  await finishScheduleTableOrderChange(viewport, "member");
   return true;
 }
+
+reorderScheduleTableDepartment.__fyhPersistsOrder = true;
+reorderScheduleTableMember.__fyhPersistsOrder = true;
