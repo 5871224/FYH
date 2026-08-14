@@ -37,8 +37,9 @@ test("正式 API 使用版本化具名路徑，不提供通用動態 CRUD", () =
   assert.match(contract, /auth\/context/);
   assert.match(contract, /auth\/sign-out/);
   assert.match(contract, /auth\/password/);
-  assert.match(contract, /schedule\/bootstrap/);
-  assert.match(contract, /schedule\/entries/);
+  assert.match(contract, /scheduleBootstrap:[\s\S]*method: "GET"[\s\S]*schedule\/bootstrap/);
+  assert.match(contract, /scheduleEntries:[\s\S]*method: "GET"[\s\S]*schedule\/entries/);
+  assert.match(contract, /scheduleEntriesSave:[\s\S]*method: "PUT"[\s\S]*schedule\/entries/);
   assert.doesNotMatch(contract, /restSelect|restInsert|restUpdate|restDelete|tableName|operationName/);
 });
 
@@ -69,6 +70,18 @@ test("Native 身分、權限與班表 Repository 只使用一般 PostgreSQL 身�
   assert.match(read("src/backend/repositories/native-schedule-repository.js"), /employee\.id = \$1::uuid/);
   assert.match(read("src/backend/repositories/native-schedule-repository.js"), /public\.schedule_entries/);
   assert.match(read("src/backend/postgres-session-store.js"), /sha256/);
+});
+
+test("Native 班表寫入必須先驗權限並在單一 Database transaction 內完成", () => {
+  const schedule = read("src/backend/repositories/native-schedule-repository.js");
+  assert.match(schedule, /async function saveEntries\(employeeId, entries\)/);
+  assert.match(schedule, /return database\.transaction\(async \(transaction\) =>/);
+  assert.match(schedule, /'schedule_manage' = any/);
+  assert.match(schedule, /public\.access_role_groups/);
+  assert.match(schedule, /public\.schedule_archives/);
+  assert.match(schedule, /delete from public\.schedule_entries/);
+  assert.match(schedule, /on conflict\(member_id, work_date\) do update/);
+  assert.doesNotMatch(schedule, /auth\.uid\(\)|save_schedule_entries_v3|\/rest\/v1\/rpc/i);
 });
 
 test("Native runtime 必須把權限與班表 Repository 注入服務", () => {

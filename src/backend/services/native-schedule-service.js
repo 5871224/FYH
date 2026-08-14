@@ -1,6 +1,7 @@
 const { BackendError } = require("../errors");
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_BATCH_ENTRIES = 5000;
 
 function normalizeDate(value, label) {
   const text = String(value || "").trim();
@@ -13,7 +14,8 @@ function normalizeDate(value, label) {
 function createNativeScheduleService(scheduleRepository, accessRepository) {
   if (!scheduleRepository
     || typeof scheduleRepository.getBootstrap !== "function"
-    || typeof scheduleRepository.getEntries !== "function") {
+    || typeof scheduleRepository.getEntries !== "function"
+    || typeof scheduleRepository.saveEntries !== "function") {
     throw new BackendError(500, "SCHEDULE_REPOSITORY_REQUIRED", "班表服務尚未設定資料層");
   }
   if (!accessRepository || typeof accessRepository.getAccessBundle !== "function") {
@@ -51,9 +53,21 @@ function createNativeScheduleService(scheduleRepository, accessRepository) {
     );
   }
 
+  async function saveEntries(employeeId, entries) {
+    if (!Array.isArray(entries)) {
+      throw new BackendError(400, "SCHEDULE_ENTRIES_INVALID", "班表資料格式錯誤");
+    }
+    if (entries.length > MAX_BATCH_ENTRIES) {
+      throw new BackendError(413, "SCHEDULE_BATCH_TOO_LARGE", "單次班表儲存筆數過多");
+    }
+    if (!entries.length) return [];
+    return scheduleRepository.saveEntries(employeeId, entries);
+  }
+
   return Object.freeze({
     getBootstrap,
-    getEntries
+    getEntries,
+    saveEntries
   });
 }
 
