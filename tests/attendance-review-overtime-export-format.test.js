@@ -12,12 +12,12 @@ test("簽到審核匯出使用正式 exportRows 十二欄契約並納入休例�
   const edge = read("supabase/functions/attendance-ledger-export/index.ts");
   const spec = read("規格書.md");
 
-  assert.match(webApi, /async function exportAttendanceReview[\s\S]*const exportRows =/);
+  assert.match(webApi, /async function exportAttendanceReview[\s\S]*const exportRows\s*=/);
   assert.match(webApi, /row\.restDayScheduled/);
   assert.match(webApi, /scheduledShiftStartTime/);
   assert.match(webApi, /scheduledShiftEndTime/);
-  assert.match(webApi, /overtime_type_id: "attendance-rest-day"/);
-  assert.match(webApi, /overtime_type_id: "attendance-ledger"/);
+  assert.match(webApi, /overtime_type_id:\s*"attendance-rest-day"/);
+  assert.match(webApi, /overtime_type_id:\s*"attendance-ledger"/);
   assert.match(webApi, /return exportOvertime\(\{/);
   assert.doesNotMatch(webApi + exporter, /approvedOvertimeRows/);
   assert.match(edge, /schedule_entries/);
