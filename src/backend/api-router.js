@@ -124,54 +124,50 @@ function createApiRouter(options = {}) {
   function requireScheduleService(methods = ["getBootstrap", "getEntries"]) {
     const service = services.schedule;
     const ready = service && methods.every((method) => typeof service[method] === "function");
-    if (!ready) {
-      throw new BackendError(503, "SCHEDULE_SERVICE_UNAVAILABLE", "班表 Backend Service 尚未啟用");
-    }
+    if (!ready) throw new BackendError(503, "SCHEDULE_SERVICE_UNAVAILABLE", "班表 Backend Service 尚未啟用");
     return service;
   }
 
   function requireSettingsService(methods = ["saveSchedulerPreferences", "reorderSettings"]) {
     const service = services.settings;
     const ready = service && methods.every((method) => typeof service[method] === "function");
-    if (!ready) {
-      throw new BackendError(503, "SETTINGS_SERVICE_UNAVAILABLE", "設定 Backend Service 尚未啟用");
-    }
+    if (!ready) throw new BackendError(503, "SETTINGS_SERVICE_UNAVAILABLE", "設定 Backend Service 尚未啟用");
     return service;
   }
 
   function requireMasterDataService(methods) {
     const service = services.masterData;
     const ready = service && methods.every((method) => typeof service[method] === "function");
-    if (!ready) {
-      throw new BackendError(503, "MASTER_DATA_SERVICE_UNAVAILABLE", "主檔 Backend Service 尚未啟用");
-    }
+    if (!ready) throw new BackendError(503, "MASTER_DATA_SERVICE_UNAVAILABLE", "主檔 Backend Service 尚未啟用");
     return service;
   }
 
   function requireMemberService(methods) {
     const service = services.members;
     const ready = service && methods.every((method) => typeof service[method] === "function");
-    if (!ready) {
-      throw new BackendError(503, "MEMBER_SERVICE_UNAVAILABLE", "人員 Backend Service 尚未啟用");
-    }
+    if (!ready) throw new BackendError(503, "MEMBER_SERVICE_UNAVAILABLE", "人員 Backend Service 尚未啟用");
     return service;
   }
 
   function requireGroupRoleService(methods) {
     const service = services.groupRoles;
     const ready = service && methods.every((method) => typeof service[method] === "function");
-    if (!ready) {
-      throw new BackendError(503, "GROUP_ROLE_SERVICE_UNAVAILABLE", "群組與角色 Backend Service 尚未啟用");
-    }
+    if (!ready) throw new BackendError(503, "GROUP_ROLE_SERVICE_UNAVAILABLE", "群組與角色 Backend Service 尚未啟用");
     return service;
+  }
+
+  function requireArchiveApi(method) {
+    const api = services.archives;
+    if (!api || typeof api[method] !== "function") {
+      throw new BackendError(503, "ARCHIVE_API_UNAVAILABLE", "班表封存功能尚未啟用");
+    }
+    return api;
   }
 
   async function requireSession(request) {
     const sessionId = getSessionId(request);
     const record = sessionId ? await sessionStore.read(sessionId) : null;
-    if (!sessionId || !record) {
-      throw new BackendError(401, "AUTH_REQUIRED", "請先登入");
-    }
+    if (!sessionId || !record) throw new BackendError(401, "AUTH_REQUIRED", "請先登入");
     return { sessionId, record };
   }
 
@@ -189,19 +185,13 @@ function createApiRouter(options = {}) {
   async function requireActiveContext(request) {
     const { sessionId, record } = await requireSession(request);
     const context = await refreshContext(sessionId, record);
-    if (!context?.user?.id) {
-      throw new BackendError(401, "AUTH_REQUIRED", "請先登入");
-    }
+    if (!context?.user?.id) throw new BackendError(401, "AUTH_REQUIRED", "請先登入");
     return { sessionId, record, context };
   }
 
   async function handleHealth(_request, response) {
     let providerHealth = { ready: false };
-    try {
-      providerHealth = await provider.health();
-    } catch {
-      providerHealth = { ready: false };
-    }
+    try { providerHealth = await provider.health(); } catch { providerHealth = { ready: false }; }
     sendJson(response, 200, {
       ok: true,
       service: "fyh-api",
@@ -212,10 +202,7 @@ function createApiRouter(options = {}) {
 
   async function handleSignIn(request, response) {
     const body = await readJson(request);
-    const context = await provider.signIn({
-      loginAccount: body.loginAccount,
-      password: body.password
-    });
+    const context = await provider.signIn({ loginAccount: body.loginAccount, password: body.password });
     const deviceType = detectDeviceType(request, body);
     const record = await sessionStore.create({
       providerSession: context.providerSession,
@@ -234,11 +221,7 @@ function createApiRouter(options = {}) {
 
   async function handleSignOut(request, response) {
     const { sessionId, record } = await requireSession(request);
-    try {
-      await provider.signOut(record.payload.providerSession);
-    } finally {
-      await sessionStore.remove(sessionId);
-    }
+    try { await provider.signOut(record.payload.providerSession); } finally { await sessionStore.remove(sessionId); }
     sendJson(response, 200, sanitizeAuthContext(null), clearedSessionHeaders());
   }
 
@@ -247,10 +230,7 @@ function createApiRouter(options = {}) {
     const body = await readJson(request);
     const result = await provider.changePassword(record.payload.providerSession, body.newPassword);
     if (result?.providerSession) {
-      await sessionStore.update(sessionId, {
-        ...record.payload,
-        providerSession: result.providerSession
-      });
+      await sessionStore.update(sessionId, { ...record.payload, providerSession: result.providerSession });
     }
     await sessionStore.touch(sessionId);
     sendJson(response, 200, { ok: true }, sessionCookieHeaders(sessionId, record));
@@ -259,10 +239,7 @@ function createApiRouter(options = {}) {
   async function handleScheduleBootstrap(request, response, url) {
     const service = requireScheduleService(["getBootstrap"]);
     const { sessionId, record, context } = await requireActiveContext(request);
-    const payload = await service.getBootstrap(
-      context.user.id,
-      url.searchParams.get("documentId") || "default"
-    );
+    const payload = await service.getBootstrap(context.user.id, url.searchParams.get("documentId") || "default");
     sendJson(response, 200, payload, sessionCookieHeaders(sessionId, record));
   }
 
@@ -273,10 +250,7 @@ function createApiRouter(options = {}) {
       context.user.id,
       url.searchParams.get("startDate"),
       url.searchParams.get("endDate"),
-      {
-        offset: url.searchParams.get("offset"),
-        limit: url.searchParams.get("limit")
-      }
+      { offset: url.searchParams.get("offset"), limit: url.searchParams.get("limit") }
     );
     sendJson(response, 200, rows, sessionCookieHeaders(sessionId, record));
   }
@@ -293,11 +267,37 @@ function createApiRouter(options = {}) {
     const service = requireSettingsService(["saveSchedulerPreferences"]);
     const { sessionId, record, context } = await requireActiveContext(request);
     const body = await readJson(request);
-    const result = await service.saveSchedulerPreferences(
-      context.user.id,
-      body.documentId || "default",
-      body.settings
-    );
+    const result = await service.saveSchedulerPreferences(context.user.id, body.documentId || "default", body.settings);
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleScheduleArchives(request, response, url) {
+    const api = requireArchiveApi("list");
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const rows = await api.list(context.user.id, url.searchParams.get("groupId") || "");
+    sendJson(response, 200, rows, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleScheduleArchiveEntries(request, response, url) {
+    const api = requireArchiveApi("entries");
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const rows = await api.entries(context.user.id, url.searchParams.get("archiveId"));
+    sendJson(response, 200, rows, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleScheduleArchiveCreate(request, response) {
+    const api = requireArchiveApi("archive");
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await api.archive(context.user.id, body.groupId, body.startDate, body.endDate);
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleScheduleArchiveUnarchive(request, response) {
+    const api = requireArchiveApi("unarchive");
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await api.unarchive(context.user.id, body.archiveId);
     sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
   }
 
@@ -360,11 +360,7 @@ function createApiRouter(options = {}) {
     const service = requireMemberService(["saveMember"]);
     const { sessionId, record, context } = await requireActiveContext(request);
     const body = await readJson(request);
-    const result = await service.saveMember(
-      context.user.id,
-      body.member,
-      body.previousEmployeeCode
-    );
+    const result = await service.saveMember(context.user.id, body.member, body.previousEmployeeCode);
     sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
   }
 
@@ -372,11 +368,7 @@ function createApiRouter(options = {}) {
     const service = requireMemberService(["validateGroupChange"]);
     const { sessionId, record, context } = await requireActiveContext(request);
     const body = await readJson(request);
-    const result = await service.validateGroupChange(
-      context.user.id,
-      body.employeeCode,
-      body.newGroupId || body.groupId
-    );
+    const result = await service.validateGroupChange(context.user.id, body.employeeCode, body.newGroupId || body.groupId);
     sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
   }
 
@@ -385,29 +377,15 @@ function createApiRouter(options = {}) {
     const { sessionId, record, context } = await requireActiveContext(request);
     const body = await readJson(request);
     const result = await service.resetPassword(context.user.id, body.employeeCode, body.password);
-    sendJson(
-      response,
-      200,
-      result,
-      result?.selfReset ? clearedSessionHeaders() : sessionCookieHeaders(sessionId, record)
-    );
+    sendJson(response, 200, result, result?.selfReset ? clearedSessionHeaders() : sessionCookieHeaders(sessionId, record));
   }
 
   async function handleMemberDelete(request, response) {
     const service = requireMemberService(["deleteMember"]);
     const { sessionId, record, context } = await requireActiveContext(request);
     const body = await readJson(request);
-    const result = await service.deleteMember(
-      context.user.id,
-      body.employeeCode,
-      body.currentPassword
-    );
-    sendJson(
-      response,
-      200,
-      result,
-      result?.selfDelete ? clearedSessionHeaders() : sessionCookieHeaders(sessionId, record)
-    );
+    const result = await service.deleteMember(context.user.id, body.employeeCode, body.currentPassword);
+    sendJson(response, 200, result, result?.selfDelete ? clearedSessionHeaders() : sessionCookieHeaders(sessionId, record));
   }
 
   async function handleAccessBundle(request, response) {
@@ -467,6 +445,10 @@ function createApiRouter(options = {}) {
     scheduleEntries: handleScheduleEntries,
     scheduleEntriesSave: handleScheduleEntriesSave,
     schedulePreferencesSave: handleSchedulePreferencesSave,
+    scheduleArchives: handleScheduleArchives,
+    scheduleArchiveCreate: handleScheduleArchiveCreate,
+    scheduleArchiveEntries: handleScheduleArchiveEntries,
+    scheduleArchiveUnarchive: handleScheduleArchiveUnarchive,
     settingsReorder: handleSettingsReorder,
     departmentSave: handleDepartmentSave,
     departmentDelete: handleDepartmentDelete,
@@ -490,9 +472,7 @@ function createApiRouter(options = {}) {
     const match = findRoute(request.method, url.pathname);
     if (!match) {
       if (url.pathname.startsWith("/api/")) {
-        sendJson(response, 404, {
-          error: { code: "API_ROUTE_NOT_FOUND", message: "API 路徑不存在" }
-        });
+        sendJson(response, 404, { error: { code: "API_ROUTE_NOT_FOUND", message: "API 路徑不存在" } });
         return true;
       }
       return false;
@@ -504,19 +484,13 @@ function createApiRouter(options = {}) {
     } catch (error) {
       const normalized = normalizeBackendError(error);
       sendJson(response, normalized.statusCode, {
-        error: {
-          code: normalized.code,
-          message: normalized.message
-        }
+        error: { code: normalized.code, message: normalized.message }
       }, normalized.statusCode === 401 ? clearedSessionHeaders() : {});
     }
     return true;
   }
 
-  return Object.freeze({
-    handle,
-    routes: ROUTES
-  });
+  return Object.freeze({ handle, routes: ROUTES });
 }
 
 module.exports = {
