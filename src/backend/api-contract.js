@@ -9,7 +9,9 @@ const ROUTES = Object.freeze({
   authPassword: Object.freeze({ method: "PUT", path: `${API_PREFIX}/auth/password`, auth: true }),
   scheduleBootstrap: Object.freeze({ method: "GET", path: `${API_PREFIX}/schedule/bootstrap`, auth: true }),
   scheduleEntries: Object.freeze({ method: "GET", path: `${API_PREFIX}/schedule/entries`, auth: true }),
-  scheduleEntriesSave: Object.freeze({ method: "PUT", path: `${API_PREFIX}/schedule/entries`, auth: true })
+  scheduleEntriesSave: Object.freeze({ method: "PUT", path: `${API_PREFIX}/schedule/entries`, auth: true }),
+  schedulePreferencesSave: Object.freeze({ method: "PUT", path: `${API_PREFIX}/schedule/preferences`, auth: true }),
+  settingsReorder: Object.freeze({ method: "PUT", path: `${API_PREFIX}/settings/order`, auth: true })
 });
 
 function findRoute(method, pathname) {
