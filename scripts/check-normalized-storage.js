@@ -18,6 +18,8 @@ assert(schema.includes("create table if not exists public.set_leave"), "normaliz
 assert(schema.includes("create table if not exists public.set_overtime"), "normalized overtime table must exist");
 assert(schema.includes("deleted_at"), "soft delete columns must remain canonical");
 
+// These database-side functions remain part of the current canonical Supabase schema until the
+// dedicated Supabase-special-mechanism cleanup phase. The browser must no longer call them directly.
 const requiredApis = [
   "get_scheduler_bootstrap_v3",
   "get_schedule_entries_v3",
@@ -34,9 +36,9 @@ const requiredApis = [
   "get_employee_admin_directory_v3"
 ];
 for (const name of requiredApis) {
-  assert(schema.toLowerCase().includes(`function public.${name}`), `${name} must exist in canonical SQL`);
+  assert(schema.toLowerCase().includes(`function public.${name}`), `${name} must exist in canonical SQL until Supabase cleanup`);
 }
-assert(schema.includes("security definer"), "canonical privileged APIs must use SECURITY DEFINER");
+assert(schema.includes("security definer"), "canonical privileged APIs must use SECURITY DEFINER until Supabase cleanup");
 
 const obsoleteApis = [
   "assign_department_group_v1",
@@ -60,10 +62,15 @@ for (const helper of ["restSelect(", "restInsert(", "restUpdate(", "restDelete("
 for (const table of ["set_employee", "set_departments", "set_shift", "set_leave", "set_overtime", "schedule_entries", "scheduler_settings", "holidays"]) {
   assert(!webApi.includes(`/rest/v1/${table}`), `browser must not access ${table} directly`);
 }
-assert(webApi.includes('callRpc("get_scheduler_bootstrap_v3"'), "browser bootstrap must use named v3 RPC");
-assert(webApi.includes('callRpc("save_schedule_entries_v3"'), "schedule writes must use named v3 RPC");
-assert(webApi.includes('callRpc("save_department_v3"'), "department writes must use named v3 RPC");
-assert(webApi.includes('requestFunction("member-auth-admin"'), "member account mutations must use the canonical member-auth-admin Edge Function");
+
+assert(!webApi.includes("callRpc("), "browser must not call Supabase RPC directly");
+assert(!webApi.includes("requestFunction("), "browser must not call Supabase Edge Functions directly");
+assert(webApi.includes('request(`/api/v1/schedule/bootstrap${qs({documentId})}`)'), "browser bootstrap must use named FYH API");
+assert(webApi.includes('request("/api/v1/schedule/entries",{method:"PUT"'), "schedule writes must use named FYH API");
+assert(webApi.includes('request("/api/v1/settings/department",{method:"PUT"'), "department writes must use named FYH API");
+assert(webApi.includes('request("/api/v1/members",{method:"PUT"'), "member mutations must use named FYH member API");
+assert(webApi.includes('request("/api/v1/members/password/reset",{method:"POST"'), "member password reset must use named FYH member API");
+assert(webApi.includes('request("/api/v1/members/delete",{method:"POST"'), "member deletion must use named FYH member API");
 
 for (const removedEdge of ["catalog-admin", "member-delete-v2", "member-order-v2", "department-attendance-v2"]) {
   assert(!fs.existsSync(path.join(rootDir, "supabase", "functions", removedEdge)), `${removedEdge} obsolete Edge Function must be removed`);
@@ -73,4 +80,4 @@ for (const table of ["set_employee", "set_departments", "set_shift", "set_leave"
   assert(schema.includes(`revoke all privileges on table public.${table} from anon,authenticated;`), `${table} direct browser privileges must be revoked`);
 }
 
-console.log("normalized storage and access architecture checks passed");
+console.log("normalized storage and FYH API access architecture checks passed");
