@@ -30,7 +30,7 @@ PostgreSQL
 - 資料庫 function 不得成為瀏覽器 API。
 - `src/renderer/web-api.js` 是瀏覽器對 FYH API 的唯一正式 transport adapter。
 - `src/backend/api-contract.js` 是 FYH API 路由契約的正式清單。
-- Supabase Edge Functions 已退出正式架構；repository 不再保存 Edge Function 原始碼、Deno runtime 或部署腳本。
+- Supabase Edge Functions 已完全退出正式架構；repository 不保存 Edge Function 原始碼、Deno runtime 或部署腳本，Supabase 專案目前也沒有任何已部署 Edge Function。
 
 ## 單一正式版本原則
 
@@ -138,18 +138,19 @@ Production 必須使用持久化 Session store；記憶體 Session 只適合非 
 
 ## Supabase 專屬機制清理狀態
 
-FYH 應用層的清理已完成：
+FYH 應用層與 Supabase 專案的清理已完成：
 
 - 瀏覽器已移除 Supabase REST／RPC／Edge Function transport。
 - Edge Function 原始碼與 Deno runtime 已從 repository 移除。
 - Edge Function 部署腳本與公開 Supabase 檢查腳本已移除。
+- Supabase 專案原先部署的 8 個舊 Edge Functions 已全部刪除，目前 Edge Functions 數量為 0。
 - 正式 SQL 已移除 `auth.uid()`／`auth.role()` 相依。
 - 正式 SQL 已移除應用層 RLS policy 與自動啟用 RLS 的機制。
 - 正式 SQL 已移除 `anon`／`authenticated`／`service_role` 作為應用授權契約。
 - 舊班表、設定、人員、打卡與訂餐 browser-facing RPC 已移除。
 - 仍保留的資料庫 functions 只屬一般 PostgreSQL 資料完整性 helper，且不作為瀏覽器端 API。
 
-目前資料庫仍可由 Supabase 託管；Supabase 平台自身的管理服務與平台內部物件不屬於 FYH 應用程式契約，未來換 PostgreSQL 主機時不需要搬移它們。
+目前 Supabase 只作為 PostgreSQL 託管服務使用；Supabase 平台自身的管理服務與平台內部物件不屬於 FYH 應用程式契約，未來換 PostgreSQL 主機時不需要搬移它們。
 
 ## 本機執行與驗證
 
