@@ -21,20 +21,21 @@ test("ExcelJS is lazy-loaded", () => {
   assert.match(exporter, /await ensureExcelJS\(\);/);
 });
 
-test("schedule hot RPCs materialize actor access instead of row-by-row permission helpers", () => {
-  const sql = read("supabase/002_current_updates.sql");
-  const getEntries = sql.match(/create or replace function public\.get_schedule_entries_v3[\s\S]*?\n\$\$;/)[0];
-  const saveEntries = sql.match(/create or replace function public\.save_schedule_entries_v3[\s\S]*?\n\$\$;/)[0];
+test("schedule hot paths resolve actor access once and use set-based SQL", () => {
+  const repository = read("src/backend/repositories/native-schedule-repository.js");
+  const getEntries = repository.match(/async function getEntries[\s\S]*?async function saveEntries/)[0];
+  const saveEntries = repository.match(/async function saveEntries[\s\S]*?return Object\.freeze/)[0];
   assert.match(getEntries, /actor as materialized/);
   assert.match(getEntries, /allowed_groups as materialized/);
   assert.doesNotMatch(getEntries, /can_access_group\(/);
-  assert.match(saveEntries, /v_role_id uuid/);
+  assert.match(saveEntries, /const actor = await transaction\.one/);
+  assert.match(saveEntries, /incoming as materialized/);
+  assert.match(saveEntries, /public\.access_role_groups allowed/);
   assert.doesNotMatch(saveEntries, /can_access_group\(/);
 });
 
-test("authenticated direct-write RLS policies are not recreated", () => {
+test("application RLS policies are not recreated", () => {
   const sql = read("supabase/002_current_updates.sql");
-  for (const name of ["write_holidays","write_scheduler_settings","write_meal_products","write_meal_settings","insert_schedule_entries","update_schedule_entries","delete_schedule_entries","insert_set_departments_group","update_set_departments_group","insert_set_employee","update_set_employee","insert_set_leave","update_set_leave","insert_set_overtime","update_set_overtime","insert_set_shift_group","update_set_shift_group"]) {
-    assert.doesNotMatch(sql, new RegExp("create policy " + name + " "));
-  }
+  assert.doesNotMatch(sql.replace(/--.*$/gm, ""), /create\s+policy/i);
+  assert.doesNotMatch(sql.replace(/--.*$/gm, ""), /enable\s+row\s+level\s+security/i);
 });
