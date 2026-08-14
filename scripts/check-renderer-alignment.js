@@ -16,6 +16,7 @@ const attendance = read("src/backend/native-attendance.js");
 const meal = read("src/backend/native-meal.js");
 const memberService = read("src/backend/services/native-member-service.js");
 const schema = `${read("supabase/001_current_schema.sql")}\n${read("supabase/002_current_updates.sql")}`;
+const executableSql = schema.replace(/--.*$/gm, "");
 
 // Renderer page structure and permission-derived UI.
 assert(index.includes('id="homeCard"'), "Home card is missing");
@@ -91,23 +92,23 @@ assert(meal.includes("delete from public.meal_orders"), "Meal save must replace 
 assert(!meal.includes("public.save_meal_order"), "Meal backend must not call the legacy order RPC");
 assert(meal.includes("public.attendance_days"), "Meal backend must use current attendance model");
 
-// Canonical SQL can still contain database-side v3 helpers until the next cleanup phase, but the
-// renderer and FYH backend may not depend on them as application APIs.
-for (const rpc of [
-  "get_scheduler_bootstrap_v3",
-  "get_schedule_entries_v3",
-  "save_schedule_entries_v3",
-  "save_shift_v3",
-  "save_catalog_item_v3",
-  "delete_catalog_item_v3",
-  "save_department_v3",
-  "delete_department_v3",
-  "reorder_settings_v3",
-  "save_scheduler_preferences_v3",
-  "save_holidays_v3"
+// Canonical SQL is portable PostgreSQL and must not restore Supabase application APIs.
+for (const pattern of [
+  /auth\.uid\s*\(/i,
+  /auth\.role\s*\(/i,
+  /create\s+policy/i,
+  /enable\s+row\s+level\s+security/i,
+  /\bservice_role\b/i,
+  /\bauthenticated\b/i,
+  /\banon\b/i,
+  /get_scheduler_bootstrap_v3/i,
+  /save_schedule_entries_v3/i
 ]) {
-  assert(schema.toLowerCase().includes(`function public.${rpc}`), `Canonical SQL residual is missing ${rpc} before Supabase cleanup`);
+  assert(!pattern.test(executableSql), `Canonical SQL must remain portable: ${pattern}`);
 }
+assert(schema.includes("create or replace function public.is_schedule_date_archived"), "Archive integrity helper is missing");
+assert(schema.includes("create or replace function public.protect_archived_schedule_v1"), "Archive protection helper is missing");
+assert(!fs.existsSync(path.join(root, "supabase", "functions")), "Supabase Edge Function source must remain removed");
 
 for (const helper of ["restSelect(", "restInsert(", "restUpdate(", "restDelete(", "saveState(", "syncCatalogs("]) {
   assert(!webApi.includes(helper), `Web API must not contain generic helper: ${helper}`);
