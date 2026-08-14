@@ -64,17 +64,19 @@ jobs:
           if extra.exists():
               extra.unlink()
 
+      - name: 先移除暫時工作流程
+        run: git rm .github/workflows/fix-print-a4-28days.yml
+
       - name: 建置與檢查
         run: |
           node --check src/renderer/app-config.js
           npm run web:publish
           npm run ci:check
 
-      - name: 提交正式修正並移除暫時工作流程
+      - name: 提交正式修正
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/fix-print-a4-28days.yml
-          git add src/renderer/app-config.js docs/app-config.js 規格書.md src/renderer/schedule-print-layout-v2.js || true
+          git add -A
           git commit -m "fix: use true A4 pages with 28-day landscape print"
           git push origin HEAD:main
