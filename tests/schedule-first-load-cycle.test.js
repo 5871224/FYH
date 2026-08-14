@@ -44,5 +44,5 @@ test("單位打卡設定仍延後到單位設定頁載入", () => {
 test("規格書明定首次班表不相容舊瀏覽位置", () => {
   const spec = read("規格書.md");
   assert.match(spec, /首次畫面不得使用或相容舊的 `schedule_start_date` 瀏覽位置/);
-  assert.match(spec, /同一首次載入不得再對同一可視區間補查第二次 `schedule_entries`/);
+  assert.match(spec, /同一首次載入不得對同一可視區間重複查詢 `schedule_entries`/);
 });
