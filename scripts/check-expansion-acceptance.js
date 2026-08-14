@@ -6,6 +6,7 @@ const rootDir = path.resolve(__dirname, "..");
 const read = (...parts) => fs.readFileSync(path.join(rootDir, ...parts), "utf8");
 
 const schema = read("supabase", "001_current_schema.sql") + "\n" + read("supabase", "002_current_updates.sql");
+const executableSql = schema.replace(/--.*$/gm, "");
 const index = read("src", "renderer", "index.html");
 const { readRendererCore } = require("./renderer-core-source.js");
 const renderer = readRendererCore(rootDir);
@@ -18,14 +19,26 @@ const attendance = read("src", "backend", "native-attendance.js");
 const meal = read("src", "backend", "native-meal.js");
 const memberService = read("src", "backend", "services", "native-member-service.js");
 
-// Canonical storage remains normalized. Database-side helper functions are allowed only as
-// backend implementation details until the dedicated Supabase residual-cleanup phase.
+// Canonical storage is normalized and portable PostgreSQL. Application authorization belongs to FYH Backend.
 assert(schema.includes("create table if not exists public.meal_orders"), "database should include meal orders");
-assert(schema.includes("create policy read_schedule_entries"), "database should retain RLS as defense in depth");
+assert(schema.includes("create table if not exists public.schedule_entries"), "database should include schedule entries");
 assert(schema.includes("access_role_id") && schema.includes("access_roles") && schema.includes("access_role_groups"), "database should use role ids, permissions, and applicable groups");
-assert(schema.toLowerCase().includes("function public.get_scheduler_bootstrap_v3"), "schedule bootstrap residual may remain until Supabase cleanup");
-assert(schema.toLowerCase().includes("function public.save_schedule_entries_v3"), "schedule write residual may remain until Supabase cleanup");
-assert(schema.includes("revoke all privileges on table public.set_employee from anon,authenticated;"), "browser roles should not receive direct employee table privileges");
+assert(schema.includes("create or replace function public.is_schedule_date_archived"), "database should retain archive integrity helper");
+assert(schema.includes("create or replace function public.protect_archived_schedule_v1"), "database should retain archive protection trigger helper");
+for (const pattern of [
+  /auth\.uid\s*\(/i,
+  /auth\.role\s*\(/i,
+  /create\s+policy/i,
+  /enable\s+row\s+level\s+security/i,
+  /\bservice_role\b/i,
+  /\bauthenticated\b/i,
+  /\banon\b/i,
+  /get_scheduler_bootstrap_v3/i,
+  /save_schedule_entries_v3/i
+]) {
+  assert(!pattern.test(executableSql), `canonical SQL must not depend on Supabase-specific application mechanism: ${pattern}`);
+}
+assert(!fs.existsSync(path.join(rootDir, "supabase", "functions")), "Supabase Edge Function source must remain removed");
 
 // FYH API is the only browser/server contract.
 for (const route of [
