@@ -15,6 +15,8 @@ const ROUTES = Object.freeze({
   scheduleArchiveCreate: Object.freeze({ method: "POST", path: `${API_PREFIX}/schedule/archives`, auth: true }),
   scheduleArchiveEntries: Object.freeze({ method: "GET", path: `${API_PREFIX}/schedule/archives/entries`, auth: true }),
   scheduleArchiveUnarchive: Object.freeze({ method: "POST", path: `${API_PREFIX}/schedule/archives/unarchive`, auth: true }),
+  scheduleHolidaysSave: Object.freeze({ method: "PUT", path: `${API_PREFIX}/schedule/holidays`, auth: true }),
+  scheduleExportRows: Object.freeze({ method: "GET", path: `${API_PREFIX}/schedule/export`, auth: true }),
   settingsReorder: Object.freeze({ method: "PUT", path: `${API_PREFIX}/settings/order`, auth: true }),
   departmentSave: Object.freeze({ method: "PUT", path: `${API_PREFIX}/settings/department`, auth: true }),
   departmentDelete: Object.freeze({ method: "POST", path: `${API_PREFIX}/settings/department/delete`, auth: true }),

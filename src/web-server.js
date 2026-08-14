@@ -54,7 +54,7 @@ function createRequestHandler(options = {}) {
 
   if (options.database && (
     !provider || !sessionStore || !services.schedule || !services.settings || !services.masterData
-    || !services.members || !services.groupRoles || !services.archives
+    || !services.members || !services.groupRoles || !services.archives || !services.scheduleExtra
   )) {
     const nativeRuntime = createNativeRuntime(options.database, {
       provider,
@@ -73,6 +73,7 @@ function createRequestHandler(options = {}) {
       memberServiceOptions: options.memberServiceOptions,
       groupRoleService: options.groupRoleService,
       archiveApi: options.archiveApi,
+      scheduleExtraApi: options.scheduleExtraApi,
       sessionOptions: options.sessionOptions
     });
     provider = provider || nativeRuntime.provider;
