@@ -6,7 +6,9 @@ const ROUTES = Object.freeze({
   authSignIn: Object.freeze({ method: "POST", path: `${API_PREFIX}/auth/sign-in`, auth: false }),
   authContext: Object.freeze({ method: "GET", path: `${API_PREFIX}/auth/context`, auth: true }),
   authSignOut: Object.freeze({ method: "POST", path: `${API_PREFIX}/auth/sign-out`, auth: true }),
-  authPassword: Object.freeze({ method: "PUT", path: `${API_PREFIX}/auth/password`, auth: true })
+  authPassword: Object.freeze({ method: "PUT", path: `${API_PREFIX}/auth/password`, auth: true }),
+  scheduleBootstrap: Object.freeze({ method: "GET", path: `${API_PREFIX}/schedule/bootstrap`, auth: true }),
+  scheduleEntries: Object.freeze({ method: "GET", path: `${API_PREFIX}/schedule/entries`, auth: true })
 });
 
 function findRoute(method, pathname) {
