@@ -34,11 +34,22 @@ test("權限資料層不得用 runtime monkey patch", () => {
 
 test("正式寫入 API 都是具名領域操作", () => {
   const api = read("src/renderer/web-api.js");
-  for (const rpc of [
-    "save_schedule_entries_v3", "save_shift_v3", "save_catalog_item_v3", "delete_catalog_item_v3",
-    "save_department_v3", "delete_department_v3", "reorder_settings_v3", "save_scheduler_preferences_v3", "save_holidays_v3"
-  ]) assert.match(api, new RegExp(`callRpc\\(\\"${rpc}\\"`));
-  assert.match(api, /requestFunction\("member-auth-admin"/);
+  for (const endpoint of [
+    "/api/v1/schedule/entries",
+    "/api/v1/settings/shift",
+    "/api/v1/settings/catalog",
+    "/api/v1/settings/catalog/delete",
+    "/api/v1/settings/department",
+    "/api/v1/settings/department/delete",
+    "/api/v1/settings/order",
+    "/api/v1/schedule/preferences",
+    "/api/v1/schedule/holidays",
+    "/api/v1/members"
+  ]) assert.ok(api.includes(`request("${endpoint}"`), endpoint);
+  assert.doesNotMatch(api, /\bcallRpc\s*\(/);
+  assert.doesNotMatch(api, /\brequestFunction\s*\(/);
+  assert.doesNotMatch(api, /\/rest\/v1\/rpc\//);
+  assert.doesNotMatch(api, /\/functions\/v1\//);
 });
 
 test("舊通用 API 與重複 Edge Function 不得存在", () => {
@@ -97,5 +108,5 @@ test("前端角色只使用 access_role_id 與權限資料，不保留文字角�
   assert.doesNotMatch(members, /<option value=\"(?:admin|manager|employee)\"/);
   assert.doesNotMatch(exporter, /parseRoleLabel/);
   assert.match(members, /member\.roleId/);
-  assert.match(webApi, /accessRoleId: member\?\.roleId/);
+  assert.match(webApi, /accessRoleId:\s*member\?\.roleId/);
 });
