@@ -91,7 +91,7 @@ window.SCHEDULER_CONFIG = {
       .schedule-print-preview-toolbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px;padding:10px 16px;border-bottom:1px solid var(--line);background:#fffdf8;box-sizing:border-box}
       .schedule-print-preview-toolbar>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.schedule-print-preview-toolbar select{min-height:38px;padding:6px 10px;border:1px solid var(--line);border-radius:12px;background:#fff}
       .schedule-print-pages{padding:16px}.schedule-print-page{margin:0 auto 16px;padding:8mm;background:#fff;box-shadow:0 8px 26px #0002;box-sizing:border-box;overflow:hidden}
-      .schedule-print-page[data-orientation="portrait"]{width:210mm;min-height:297mm}.schedule-print-page[data-orientation="landscape"]{width:297mm;min-height:210mm}
+      .schedule-print-page[data-orientation="portrait"]{width:210mm;height:297mm;min-height:0;max-height:297mm}.schedule-print-page[data-orientation="landscape"]{width:297mm;height:210mm;min-height:0;max-height:210mm}
       .schedule-print-page-header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:5mm}.schedule-print-page-header h2{margin:0;font-size:17px}.schedule-print-page-header p{margin:0;color:#665c51;font-size:10px}
       .schedule-print-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9px}.schedule-print-table col:first-child{width:16mm}.schedule-print-table col:nth-child(2){width:19mm}
       .schedule-print-table th,.schedule-print-table td{border:1px solid var(--schedule-grid-line,#ebe3d8);vertical-align:middle}.schedule-print-table th{height:9mm;padding:1mm;background:var(--schedule-header-bg,#fbf8f1);text-align:center;font-weight:900}.schedule-print-table th span{display:block;font-size:8px;color:#76695b}
@@ -184,7 +184,7 @@ window.SCHEDULER_CONFIG = {
 
   function orientation() {
     if (preview.orientationMode !== "auto") return preview.orientationMode;
-    return preview.dates.length <= 7 ? "portrait" : "landscape";
+    return preview.dates.length <= 14 ? "portrait" : "landscape";
   }
 
   function dateHeader(dateString) {
@@ -224,7 +224,7 @@ window.SCHEDULER_CONFIG = {
     const root = document.querySelector(`#${PREVIEW_ID} .schedule-print-pages`);
     if (!root || !preview) return;
     const mode = orientation();
-    const datePages = chunks(preview.dates, mode === "portrait" ? 7 : 14);
+    const datePages = chunks(preview.dates, mode === "portrait" ? 14 : 28);
     const rowPages = splitRows(preview.groups, mode === "portrait" ? 23 : 15);
     const total = datePages.length * rowPages.length;
     let pageNo = 0;
@@ -251,7 +251,7 @@ window.SCHEDULER_CONFIG = {
     document.getElementById(PREVIEW_ID)?.remove();
     const root = document.createElement("section");
     root.id = PREVIEW_ID;
-    root.innerHTML = `<div class="schedule-print-preview-toolbar"><div><strong>班表列印預覽</strong><span>${startDate} ～ ${endDate}</span></div><div><label>方向 <select id="schedulePrintOrientation"><option value="auto">自動</option><option value="portrait">直式</option><option value="landscape">橫式</option></select></label><button class="ghost-btn" type="button" data-print-close>返回</button><button class="primary-btn" type="button" data-print-now>列印</button></div></div><div class="schedule-print-pages"></div>`;
+    root.innerHTML = `<div class="schedule-print-preview-toolbar"><div><strong>班表列印預覽</strong><span>${startDate} ～ ${endDate}</span></div><div><span style="font-weight:800">A4</span><label>方向 <select id="schedulePrintOrientation"><option value="auto">自動</option><option value="portrait">直式</option><option value="landscape">橫式</option></select></label><button class="ghost-btn" type="button" data-print-close>返回</button><button class="primary-btn" type="button" data-print-now>列印</button></div></div><div class="schedule-print-pages"></div>`;
     document.body.appendChild(root);
     renderPages();
   }
