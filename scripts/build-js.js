@@ -8,11 +8,10 @@ const outputPath = path.join(rendererDir, "app.js");
 const indexPath = path.join(rendererDir, "index.html");
 const checkOnly = process.argv.includes("--check");
 
-// 正式 bundle 依宣告順序載入全域與獨立模組，並驗證來源清單完整性。
 const modules = [
   "browser-exporter.js",
   "rest-compliance.js",
-  "web-api.js",
+  "web-api-native.js",
   "renderer-foundation.js",
   "renderer-settings-navigation.js",
   "renderer-schedule-layout.js",
@@ -67,10 +66,7 @@ const modules = [
   "renderer.js",
 ];
 
-function normalizeText(text) {
-  return text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
-}
-
+function normalizeText(text) { return text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n"); }
 function validateManifest() {
   const sourceModules = fs.readdirSync(rendererDir, { withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith(".js"))
@@ -83,64 +79,37 @@ function validateManifest() {
   if (unlisted.length) throw new Error(`Unlisted JavaScript source modules: ${unlisted.join(", ")}`);
   if (missing.length) throw new Error(`Missing JavaScript source modules: ${missing.join(", ")}`);
 }
-
 function readModule(fileName) {
   const filePath = path.join(rendererDir, fileName);
   if (!fs.existsSync(filePath)) throw new Error(`Missing JavaScript module: ${fileName}`);
   const content = normalizeText(fs.readFileSync(filePath, "utf8")).trimEnd();
-  // Local renderer modules must stay in the canonical build manifest. Runtime loading is
-  // allowed only for external dependencies (for example ExcelJS on an export action).
-  const hasDynamicLocalLoader = /\.src\s*=\s*["'`]\.\/[^"'`]+\.js/.test(content);
-  if (hasDynamicLocalLoader) {
-    throw new Error(`JavaScript module must not dynamically load another local module: ${fileName}`);
-  }
+  if (/\.src\s*=\s*["'`]\.\/[^"'`]+\.js/.test(content)) throw new Error(`JavaScript module must not dynamically load another local module: ${fileName}`);
   return content;
 }
-
 function buildBundle() {
   validateManifest();
-  const sections = [
-    "/* GENERATED FILE - DO NOT EDIT DIRECTLY.",
-    " * Source order: scripts/build-js.js",
-    " * Build: npm run js:build",
-    " * This generated bundle preserves the declared module execution order.",
-    " */",
-    ""
-  ];
-
-  for (const fileName of modules) {
-    sections.push(`/* ===== ${fileName} ===== */`, readModule(fileName), ";", "");
-  }
-
+  const sections = ["/* GENERATED FILE - DO NOT EDIT DIRECTLY.", " * Source order: scripts/build-js.js", " * Build: npm run js:build", " * This generated bundle preserves the declared module execution order.", " */", ""];
+  for (const fileName of modules) sections.push(`/* ===== ${fileName} ===== */`, readModule(fileName), ";", "");
   return sections.join("\n").replace(/\n{4,}/g, "\n\n\n").trimEnd() + "\n";
 }
-
 function expectedIndex(bundle) {
   const hash = crypto.createHash("sha256").update(bundle).digest("hex").slice(0, 12);
   const html = normalizeText(fs.readFileSync(indexPath, "utf8"));
   const next = html.replace(/(\.\/app\.js)(?:\?v=[^"'\s>]+)?/g, `$1?v=${hash}`);
   if (!next.includes("./app.js?v=")) throw new Error("index.html does not load app.js");
-
-  const localScripts = [...next.matchAll(/<script\s+[^>]*src=["'](\.\/[^"']+\.js)(?:\?[^"']*)?["'][^>]*><\/script>/g)]
-    .map((match) => match[1]);
+  const localScripts = [...next.matchAll(/<script\s+[^>]*src=["'](\.\/[^"']+\.js)(?:\?[^"']*)?["'][^>]*><\/script>/g)].map((match) => match[1]);
   const unexpected = localScripts.filter((src) => src !== "./app-config.js" && src !== "./app.js");
-  if (unexpected.length) {
-    throw new Error(`index.html must load only app-config.js and app.js: ${unexpected.join(", ")}`);
-  }
+  if (unexpected.length) throw new Error(`index.html must load only app-config.js and app.js: ${unexpected.join(", ")}`);
   if (!localScripts.includes("./app-config.js")) throw new Error("index.html does not load app-config.js");
-
   return { next, hash };
 }
 
 const bundle = buildBundle();
 const { next: expectedHtml, hash } = expectedIndex(bundle);
-
 if (checkOnly) {
   if (!fs.existsSync(outputPath)) throw new Error("src/renderer/app.js is missing");
-  const currentBundle = fs.readFileSync(outputPath, "utf8");
-  if (currentBundle !== bundle) throw new Error("app.js is not synchronized with JavaScript modules; run npm run js:build");
-  const currentHtml = fs.readFileSync(indexPath, "utf8");
-  if (currentHtml !== expectedHtml) throw new Error("index.html JavaScript cache version is not synchronized; run npm run js:build");
+  if (fs.readFileSync(outputPath, "utf8") !== bundle) throw new Error("app.js is not synchronized with JavaScript modules; run npm run js:build");
+  if (fs.readFileSync(indexPath, "utf8") !== expectedHtml) throw new Error("index.html JavaScript cache version is not synchronized; run npm run js:build");
   console.log(`JavaScript bundle check passed (${modules.length} modules, ${hash})`);
 } else {
   fs.writeFileSync(outputPath, bundle, "utf8");
