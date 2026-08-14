@@ -70,15 +70,23 @@ test("本人打卡與訂餐由 FYH backend 驗證有效帳號與群組", () => {
   assert.match(meal, /MEAL_CLOCK_REQUIRED/);
 });
 
-test("正式 SQL 只保留 canonical 權限模型", () => {
+test("正式權限模型由 FYH backend 執行，SQL 不承擔平台授權", () => {
+  const groupRole = read("src/backend/repositories/native-group-role-repository.js");
+  const member = read("src/backend/repositories/native-member-repository.js");
+  const settings = read("src/backend/repositories/native-settings-repository.js");
   const sql = read("supabase/002_current_updates.sql");
-  assert.match(sql, /has_access_permission/);
-  assert.match(sql, /'permission_settings'/);
-  assert.match(sql, /'meal_admin'/);
-  assert.match(sql, /'leave_settings'/);
-  assert.match(sql, /系統必須保留至少一個有效的權限管理帳號/);
-  assert.doesNotMatch(sql, /role\.legacy_role\s+in\s*\('admin','manager'\)/);
-  assert.doesNotMatch(sql, /employee\.role\s*=\s*'admin'/);
+
+  assert.match(groupRole, /permission_settings/);
+  assert.match(groupRole, /access_role_groups/);
+  assert.match(groupRole, /系統必須保留至少一個有效的權限管理帳號/);
+  assert.match(member, /member_settings/);
+  assert.match(settings, /leave_settings/);
+
+  assert.doesNotMatch(sql, /auth\.uid\s*\(/i);
+  assert.doesNotMatch(sql, /create\s+policy/i);
+  assert.doesNotMatch(sql, /\bservice_role\b/i);
+  assert.doesNotMatch(sql, /\bauthenticated\b/i);
+  assert.doesNotMatch(sql, /\banon\b/i);
 });
 
 test("前端角色只使用 access_role_id 與權限資料，不保留文字角色相容層", () => {
