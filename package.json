@@ -16,5 +16,8 @@
     "ci:check": "npm test && npm run web:check && node scripts/check-normalized-storage.js && node scripts/check-expansion-acceptance.js && node scripts/check-settings-lists.js && npm run renderer:check && npm run css:architecture && npm run js:architecture",
     "css:architecture": "node scripts/audit-css-duplicates.js --check",
     "js:architecture": "node scripts/audit-js-duplicates.js --check"
+  },
+  "dependencies": {
+    "pg": "^8.22.0"
   }
 }
