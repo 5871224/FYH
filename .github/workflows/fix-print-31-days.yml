@@ -1,0 +1,99 @@
+name: 修正班表列印 31天緊湊版
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-print-31-days.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 修正列印版面與規格
+        shell: python
+        run: |
+          from pathlib import Path
+
+          app_path = Path('src/renderer/app-config.js')
+          text = app_path.read_text(encoding='utf-8')
+          replacements = [
+              (
+                  '.schedule-print-pages{padding:16px}.schedule-print-page{margin:0 auto 16px;padding:8mm;background:#fff;box-shadow:0 8px 26px #0002;box-sizing:border-box;overflow:hidden}',
+                  '.schedule-print-pages{padding:16px}.schedule-print-page{margin:0 auto 16px;padding:4mm;background:#fff;box-shadow:0 8px 26px #0002;box-sizing:border-box;overflow:hidden}'
+              ),
+              (
+                  '.schedule-print-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9px}.schedule-print-table col:first-child{width:16mm}.schedule-print-table col:nth-child(2){width:19mm}',
+                  '.schedule-print-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:8px}.schedule-print-table col:first-child{width:14mm}.schedule-print-table col:nth-child(2){width:17mm}'
+              ),
+              (
+                  '.schedule-print-table th,.schedule-print-table td{border:1px solid var(--schedule-grid-line,#ebe3d8);vertical-align:middle}.schedule-print-table th{height:9mm;padding:1mm;background:var(--schedule-header-bg,#fbf8f1);text-align:center;font-weight:900}.schedule-print-table th span{display:block;font-size:8px;color:#76695b}',
+                  '.schedule-print-table th,.schedule-print-table td{border:1px solid var(--schedule-grid-line,#ebe3d8);vertical-align:middle}.schedule-print-table th{height:7.5mm;padding:.6mm;background:var(--schedule-header-bg,#fbf8f1);text-align:center;font-weight:900}.schedule-print-table th span{display:block;font-size:7px;color:#76695b}'
+              ),
+              (
+                  '.schedule-print-table .dept-col,.schedule-print-table .person-col{position:static!important;min-width:0!important;width:auto!important;max-width:none!important;padding:1.5mm 1mm;background:#fffdf8;text-align:center;font-size:9px;line-height:1.25}.schedule-print-table .dept-col{font-weight:900}.schedule-print-table .person-col{font-weight:800}',
+                  '.schedule-print-table .dept-col,.schedule-print-table .person-col{position:static!important;min-width:0!important;width:auto!important;max-width:none!important;padding:1mm .7mm;background:#fffdf8;text-align:center;font-size:8px;line-height:1.2}.schedule-print-table .dept-col{font-weight:900}.schedule-print-table .person-col{font-weight:800}'
+              ),
+              (
+                  '.schedule-print-table .cell{min-width:0!important;width:auto!important;max-width:none!important;height:10mm;padding:.45mm;cursor:default;background:#fff}.schedule-print-table .cell-inner{min-height:8.7mm;height:8.7mm;border-radius:1.5mm}.schedule-print-table .seg{min-height:0}.schedule-print-table .seg-label{font-size:8px;line-height:1.1}',
+                  '.schedule-print-table .cell{min-width:0!important;width:auto!important;max-width:none!important;height:8.5mm;padding:.3mm;cursor:default;background:#fff}.schedule-print-table .cell-inner{min-height:7.6mm;height:7.6mm;border-radius:1.2mm}.schedule-print-table .seg{min-height:0}.schedule-print-table .seg-label{font-size:7px;line-height:1.05}'
+              ),
+              (
+                  'const datePages = chunks(preview.dates, mode === "portrait" ? 14 : 28);',
+                  'const datePages = chunks(preview.dates, mode === "portrait" ? 14 : 31);'
+              ),
+              (
+                  'const rowPages = splitRows(preview.groups, mode === "portrait" ? 23 : 15);',
+                  'const rowPages = splitRows(preview.groups, mode === "portrait" ? 32 : 22);'
+              ),
+              (
+                  '    const total = datePages.length * rowPages.length;\n    let pageNo = 0;\n    root.innerHTML = datePages.flatMap((datePage) => rowPages.map((rowPage) => {\n      pageNo += 1;\n      return `<section class="schedule-print-page" data-orientation="${mode}"><header class="schedule-print-page-header"><h2>${escapeHtml(preview.groupName)} 班表</h2><p>${datePage[0]} ～ ${datePage.at(-1)}　${pageNo}/${total}</p></header>${renderTable(datePage, rowPage)}</section>`;\n    })).join("");',
+                  '    root.innerHTML = datePages.flatMap((datePage) => rowPages.map((rowPage) => `<section class="schedule-print-page" data-orientation="${mode}">${renderTable(datePage, rowPage)}</section>`)).join("");'
+              ),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f'Expected exactly one app-config match: {old}')
+              text = text.replace(old, new, 1)
+          app_path.write_text(text, encoding='utf-8')
+
+          spec_path = Path('規格書.md')
+          spec = spec_path.read_text(encoding='utf-8')
+          old5 = '5. 預覽與實際列印紙張尺寸固定為 A4（直式 210×297mm、橫式 297×210mm），提供「自動、直式、橫式」；自動模式 14 日以內採直式，超過 14 日採橫式。直式每頁最多 14 個日期欄，橫式每頁最多 28 個日期欄；日期或人員超出可列印範圍時由程式拆頁，不以縮到難以閱讀的方式強塞單頁。'
+          new5 = '5. 預覽與實際列印紙張尺寸固定為 A4（直式 210×297mm、橫式 297×210mm），提供「自動、直式、橫式」；自動模式 14 日以內採直式，超過 14 日採橫式。直式每頁最多 14 個日期欄，橫式每頁最多 31 個日期欄；列印版面採緊湊邊界與列高，在維持班表格內容可辨識的前提下提高每頁可列印人數；日期或人員超出可列印範圍時由程式拆頁。'
+          old7 = '7. 列印預覽不顯示班表的新增、編輯、拖曳、復原、篩選或其他操作元件；實際列印保留班別等背景顏色，且每頁顯示該頁日期區間與頁碼。'
+          new7 = '7. 列印預覽不顯示班表的新增、編輯、拖曳、復原、篩選或其他操作元件；實際列印保留班別等背景顏色。列印紙張本體不額外顯示系統頁首、頁尾、群組標題、日期區間或頁碼，以保留最大班表空間。'
+          if spec.count(old5) != 1:
+              raise SystemExit('Expected exactly one print spec rule 5 match')
+          if spec.count(old7) != 1:
+              raise SystemExit('Expected exactly one print spec rule 7 match')
+          spec = spec.replace(old5, new5, 1).replace(old7, new7, 1)
+          spec_path.write_text(spec, encoding='utf-8')
+
+      - name: 先移除暫時工作流程
+        run: git rm .github/workflows/fix-print-31-days.yml
+
+      - name: 建置與檢查
+        run: |
+          node --check src/renderer/app-config.js
+          npm run web:publish
+          npm run ci:check
+
+      - name: 提交正式修正
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/renderer/app-config.js docs/app-config.js 規格書.md
+          git commit -m "fix: fit 31 days and more rows on A4 print"
+          git push origin HEAD:main
