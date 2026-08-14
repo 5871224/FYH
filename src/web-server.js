@@ -50,16 +50,24 @@ function createRequestHandler(options = {}) {
   const env = options.env || process.env;
   let provider = options.provider || null;
   let sessionStore = options.sessionStore || null;
+  let services = options.services || {};
 
-  if (options.database && (!provider || !sessionStore)) {
+  if (options.database && (!provider || !sessionStore || !services.schedule)) {
     const nativeRuntime = createNativeRuntime(options.database, {
       provider,
       sessionStore,
       identityRepository: options.identityRepository,
+      accessRepository: options.accessRepository,
+      scheduleRepository: options.scheduleRepository,
+      scheduleService: options.scheduleService,
       sessionOptions: options.sessionOptions
     });
     provider = provider || nativeRuntime.provider;
     sessionStore = sessionStore || nativeRuntime.sessionStore;
+    services = {
+      ...nativeRuntime.services,
+      ...services
+    };
   }
 
   provider = provider || createBackendProviderFromEnv(env, {
@@ -74,7 +82,7 @@ function createRequestHandler(options = {}) {
   const secureCookies = options.secureCookies !== undefined
     ? Boolean(options.secureCookies)
     : String(env.NODE_ENV || "").toLowerCase() === "production";
-  const apiRouter = createApiRouter({ provider, sessionStore, secureCookies });
+  const apiRouter = createApiRouter({ provider, sessionStore, services, secureCookies });
 
   return async function handleRequest(request, response) {
     try {
