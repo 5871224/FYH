@@ -11,6 +11,7 @@ const { createNativeSettingsService } = require("./services/native-settings-serv
 const { createNativeMasterDataService } = require("./services/native-master-data-service");
 const { createNativeMemberService } = require("./services/native-member-service");
 const { createNativeGroupRoleService } = require("./services/native-group-role-service");
+const { createNativeArchive } = require("./native-archive");
 const { createPostgresSessionStore } = require("./postgres-session-store");
 
 function createNativeRuntime(database, options = {}) {
@@ -42,6 +43,7 @@ function createNativeRuntime(database, options = {}) {
     || createNativeMemberService(memberRepository, options.memberServiceOptions);
   const groupRoleService = options.groupRoleService
     || createNativeGroupRoleService(groupRoleRepository, accessRepository);
+  const archiveApi = options.archiveApi || createNativeArchive(database);
 
   return Object.freeze({
     provider,
@@ -58,12 +60,14 @@ function createNativeRuntime(database, options = {}) {
     masterDataService,
     memberService,
     groupRoleService,
+    archiveApi,
     services: Object.freeze({
       schedule: scheduleService,
       settings: settingsService,
       masterData: masterDataService,
       members: memberService,
-      groupRoles: groupRoleService
+      groupRoles: groupRoleService,
+      archives: archiveApi
     })
   });
 }
