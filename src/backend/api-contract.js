@@ -8,7 +8,8 @@ const ROUTES = Object.freeze({
   authSignOut: Object.freeze({ method: "POST", path: `${API_PREFIX}/auth/sign-out`, auth: true }),
   authPassword: Object.freeze({ method: "PUT", path: `${API_PREFIX}/auth/password`, auth: true }),
   scheduleBootstrap: Object.freeze({ method: "GET", path: `${API_PREFIX}/schedule/bootstrap`, auth: true }),
-  scheduleEntries: Object.freeze({ method: "GET", path: `${API_PREFIX}/schedule/entries`, auth: true })
+  scheduleEntries: Object.freeze({ method: "GET", path: `${API_PREFIX}/schedule/entries`, auth: true }),
+  scheduleEntriesSave: Object.freeze({ method: "PUT", path: `${API_PREFIX}/schedule/entries`, auth: true })
 });
 
 function findRoute(method, pathname) {
