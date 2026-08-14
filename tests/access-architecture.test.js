@@ -18,9 +18,7 @@ const coreTables = [
 ];
 
 test("瀏覽器不得直接 CRUD 核心資料表", () => {
-  for (const table of coreTables) {
-    assert.equal(rendererSource.includes("/rest/v1/" + table), false, table);
-  }
+  for (const table of coreTables) assert.equal(rendererSource.includes("/rest/v1/" + table), false, table);
   for (const helper of ["restSelect(", "restInsert(", "restUpdate(", "restDelete(", "saveState(", "syncCatalogs("]) {
     assert.equal(rendererSource.includes(helper), false, helper);
   }
@@ -52,33 +50,24 @@ test("正式寫入 API 都是具名領域操作", () => {
   assert.doesNotMatch(api, /\/functions\/v1\//);
 });
 
-test("舊通用 API 與重複 Edge Function 不得存在", () => {
-  const deploy = read("scripts/deploy-edge-functions.ps1");
-  for (const name of ["catalog-admin", "member-delete-v2", "member-order-v2", "department-attendance-v2"]) {
-    assert.equal(fs.existsSync(path.join(root, "supabase", "functions", name)), false, name);
-    assert.equal(deploy.includes(`\"${name}\"`), false, name);
-  }
+test("Supabase Edge Function 與公開 anon 檢查工具不得存在", () => {
+  assert.equal(fs.existsSync(path.join(root, "supabase", "functions")), false);
+  assert.equal(fs.existsSync(path.join(root, "scripts", "deploy-edge-functions.ps1")), false);
+  assert.equal(fs.existsSync(path.join(root, "scripts", "check-public-supabase.js")), false);
+  assert.equal(fs.existsSync(path.join(root, "deno.lock")), false);
 });
 
-test("本人 Edge Function 必須拒絕已軟刪除帳號", () => {
-  for (const file of [
-    "supabase/functions/attendance-clock/index.ts",
-    "supabase/functions/attendance-ledger/index.ts",
-    "supabase/functions/meal-order/index.ts",
-    "supabase/functions/meal-cancel-v2/index.ts"
-  ]) {
-    const source = read(file);
-    assert.match(source, /deleted_at/, `${file} 缺少 deleted_at 驗證`);
-    assert.match(source, /\.is\(\"deleted_at\", null\)/, `${file} 未限制有效人員資料列`);
+test("本人打卡與訂餐由 FYH backend 驗證有效帳號與群組", () => {
+  const attendance = read("src/backend/native-attendance.js");
+  const meal = read("src/backend/native-meal.js");
+  for (const source of [attendance, meal]) {
+    assert.match(source, /employee\.deleted_at is null/);
+    assert.match(source, /public\.is_employee_account_effective/);
   }
-});
-
-test("打卡地點只能使用本人所屬群組的有效單位", () => {
-  const source = read("supabase/functions/attendance-clock/index.ts");
-  assert.match(source, /\.eq\(\"group_id\", groupId\)/);
-  assert.match(source, /\.eq\(\"attendance_enabled\", true\)/);
-  assert.match(source, /\.is\(\"deleted_at\", null\)/);
-  assert.match(source, /resolveClockLocation\(ctx, req, body, profile\.group_id\)/);
+  assert.match(attendance, /where group_id=\$1::uuid and attendance_enabled=true and deleted_at is null/);
+  assert.match(attendance, /ATTENDANCE_GROUP_REQUIRED/);
+  assert.match(meal, /profile\.group_id/);
+  assert.match(meal, /MEAL_CLOCK_REQUIRED/);
 });
 
 test("正式 SQL 只保留 canonical 權限模型", () => {
