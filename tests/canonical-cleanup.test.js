@@ -1,8 +1,10 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const path = require("node:path");
 
-const read = (path) => fs.readFileSync(path, "utf8");
+const root = path.resolve(__dirname, "..");
+const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 test("canonical renderer has no legacy role state or guessed schedule ids", () => {
   const foundation = read("src/renderer/renderer-foundation.js");
@@ -23,21 +25,20 @@ test("group state keeps canonical metadata directly and archive ranges separatel
   assert.match(groups, /getDefaultAccessRoleId/);
 });
 
-test("Edge Functions share Taipei/effective-account and permission primitives", () => {
-  const shared = read("supabase/functions/_shared/runtime.ts");
-  for (const token of ["taipeiDateString", "isProfileEffective", "actorIdOf", "hasPermission", "canAccessGroup"]) {
-    assert.match(shared, new RegExp(`function ${token}|export function ${token}`));
-  }
-  for (const path of [
-    "supabase/functions/attendance-clock/index.ts",
-    "supabase/functions/attendance-ledger/index.ts",
-    "supabase/functions/attendance-review-groups/index.ts",
-    "supabase/functions/attendance-ledger-export/index.ts",
-    "supabase/functions/meal-order/index.ts",
-    "supabase/functions/meal-report-v2/index.ts",
-    "supabase/functions/meal-cancel-v2/index.ts",
-    "supabase/functions/member-auth-admin/index.ts"
-  ]) assert.match(read(path), /\.\.\/_shared\/runtime\.ts/);
+test("Supabase Edge Function runtime is removed and domain logic lives in FYH backend", () => {
+  assert.equal(fs.existsSync(path.join(root, "supabase", "functions")), false);
+  assert.equal(fs.existsSync(path.join(root, "scripts", "deploy-edge-functions.ps1")), false);
+  assert.equal(fs.existsSync(path.join(root, "scripts", "check-public-supabase.js")), false);
+  assert.equal(fs.existsSync(path.join(root, "deno.lock")), false);
+
+  const attendance = read("src/backend/native-attendance.js");
+  const meal = read("src/backend/native-meal.js");
+  const member = read("src/backend/services/native-member-service.js");
+  for (const token of ["taipeiDate", "actor", "reviewSet", "exportRows"]) assert.match(attendance, new RegExp(`function ${token}`));
+  assert.match(meal, /function createNativeMeal/);
+  assert.match(member, /memberRepository\.saveMember/);
+  assert.match(member, /memberRepository\.resetPassword/);
+  assert.match(member, /memberRepository\.deleteMember/);
 });
 
 test("XLSX meal formatting belongs to exporter, not transport API", () => {
