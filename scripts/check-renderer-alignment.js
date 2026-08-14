@@ -10,8 +10,14 @@ const index = read("src/renderer/index.html");
 const renderer = readRendererCore(root);
 const styles = read("src/renderer/app.css");
 const webApi = read("src/renderer/web-api.js");
+const apiContract = read("src/backend/api-contract.js");
+const sessionStore = read("src/backend/session-store.js");
+const attendance = read("src/backend/native-attendance.js");
+const meal = read("src/backend/native-meal.js");
+const memberService = read("src/backend/services/native-member-service.js");
 const schema = `${read("supabase/001_current_schema.sql")}\n${read("supabase/002_current_updates.sql")}`;
 
+// Renderer page structure and permission-derived UI.
 assert(index.includes('id="homeCard"'), "Home card is missing");
 assert(index.includes('id="scheduleCard" hidden'), "Schedule card should start hidden");
 assert(index.includes('id="mealCard"'), "Meal card is missing");
@@ -42,19 +48,48 @@ assert(styles.includes(".calendar-nav"), "Calendar navigation styles are missing
 assert(styles.includes(".nav-actions"), "Navigation action styles are missing");
 assert(styles.includes("[hidden]"), "Hidden-state style is missing");
 
-assert(webApi.includes("mobileSessionMaxIdleMs") && webApi.includes("desktopSessionMaxIdleMs"), "Device-specific session windows are missing");
-assert(webApi.includes("function assertSessionActive"), "Session idle guard is missing");
-assert(webApi.includes('callRpc("get_scheduler_bootstrap_v3"'), "Web API must use canonical scheduler bootstrap RPC");
-assert(webApi.includes('callRpcAllRows("get_schedule_entries_v3"'), "Web API must use exhaustive canonical schedule read RPC");
-assert(webApi.includes('callRpc("save_schedule_entries_v3"'), "Web API must use canonical schedule write RPC");
-assert(webApi.includes('callRpc("save_shift_v3"'), "Web API must use canonical shift save RPC");
-assert(webApi.includes('callRpc("save_department_v3"'), "Web API must use canonical department save RPC");
-assert(webApi.includes('callRpc("get_department_attendance_settings_v3"'), "Web API must use canonical attendance settings RPC");
-assert(webApi.includes('requestFunction("member-auth-admin"'), "Web API must use canonical member admin Edge function");
-assert(webApi.includes('requestFunction("attendance-ledger"'), "Web API must use canonical personal ledger Edge function");
-assert(webApi.includes('requestFunction("attendance-review-groups"'), "Web API must use canonical review Edge function");
-assert(webApi.includes('requestFunction("attendance-ledger-export"'), "Web API must use canonical attendance export Edge function");
+// Browser transport is FYH API only. Session lifetime is a backend concern.
+assert(!webApi.includes("callRpc("), "Renderer transport must not call Supabase RPC directly");
+assert(!webApi.includes("requestFunction("), "Renderer transport must not call Supabase Edge Functions directly");
+assert(!webApi.includes("/rest/v1/"), "Renderer transport must not call Supabase REST directly");
+assert(webApi.includes('request(`/api/v1/schedule/bootstrap${qs({documentId})}`)'), "Schedule bootstrap must use FYH API");
+assert(webApi.includes('request(`/api/v1/schedule/entries${qs({startDate,endDate,offset,limit:1000})}`)'), "Schedule reads must use paged FYH API");
+assert(webApi.includes('request("/api/v1/schedule/entries",{method:"PUT"'), "Schedule writes must use FYH API");
+assert(webApi.includes('request("/api/v1/settings/shift",{method:"PUT"'), "Shift save must use FYH API");
+assert(webApi.includes('request("/api/v1/settings/department",{method:"PUT"'), "Department save must use FYH API");
+assert(webApi.includes('request("/api/v1/attendance/department-settings")'), "Attendance settings must use FYH API");
+assert(webApi.includes('request("/api/v1/members",{method:"PUT"'), "Member admin must use FYH API");
+assert(webApi.includes('request("/api/v1/attendance/personal/list",{method:"POST"'), "Personal ledger must use FYH API");
+assert(webApi.includes('request("/api/v1/attendance/review/list",{method:"POST"'), "Attendance review must use FYH API");
+assert(webApi.includes('request("/api/v1/attendance/review/export",{method:"POST"'), "Attendance export must use FYH API");
 
+assert(sessionStore.includes("PHONE_SESSION_IDLE_MS = 48 * 60 * 60 * 1000"), "Phone session idle window is missing from backend");
+assert(sessionStore.includes("DESKTOP_SESSION_IDLE_MS = 30 * 60 * 1000"), "Desktop/tablet session idle window is missing from backend");
+assert(sessionStore.includes("function getSessionIdleMs(deviceType)"), "Backend device-specific session policy is missing");
+
+for (const route of [
+  "scheduleBootstrap", "scheduleEntries", "scheduleEntriesSave",
+  "departmentSave", "shiftSave", "attendanceDepartmentSettings",
+  "attendancePersonalList", "attendanceReviewList", "attendanceExport",
+  "memberSave", "mealToday"
+]) {
+  assert(apiContract.includes(`${route}: Object.freeze(`), `FYH API contract is missing ${route}`);
+}
+
+// Native backend owns domain behavior. Database helpers may remain behind this boundary until the
+// dedicated Supabase residual-cleanup stage.
+assert(attendance.includes("public.attendance_days"), "Attendance backend must use attendance_days");
+assert(attendance.includes("public.attendance_audit_logs"), "Attendance backend must use audit logs");
+assert(attendance.includes("public.save_attendance_clock"), "Clock mutation must remain atomic at the DB boundary");
+assert(attendance.includes("attendance_review"), "Attendance backend must validate review permission");
+assert(memberService.includes("memberRepository.saveMember"), "Member service must use native repository");
+assert(memberService.includes("memberRepository.resetPassword"), "Member password reset must use native repository");
+assert(memberService.includes("memberRepository.deleteMember"), "Member delete must use native repository");
+assert(meal.includes("public.save_meal_order"), "Meal mutation must remain atomic at the DB boundary");
+assert(meal.includes("public.attendance_days"), "Meal backend must use current attendance model");
+
+// Canonical SQL can still contain database-side v3 helpers until the next cleanup phase, but the
+// renderer may not depend on them.
 for (const rpc of [
   "get_scheduler_bootstrap_v3",
   "get_schedule_entries_v3",
@@ -68,35 +103,11 @@ for (const rpc of [
   "save_scheduler_preferences_v3",
   "save_holidays_v3"
 ]) {
-  assert(schema.toLowerCase().includes(`function public.${rpc}`), `Canonical SQL is missing ${rpc}`);
+  assert(schema.toLowerCase().includes(`function public.${rpc}`), `Canonical SQL residual is missing ${rpc} before Supabase cleanup`);
 }
-
-const attendanceClock = read("supabase/functions/attendance-clock/index.ts");
-const attendanceLedger = read("supabase/functions/attendance-ledger/index.ts");
-const attendanceReview = read("supabase/functions/attendance-review-groups/index.ts");
-const attendanceExport = read("supabase/functions/attendance-ledger-export/index.ts");
-const memberAdmin = read("supabase/functions/member-auth-admin/index.ts");
-const mealOrder = read("supabase/functions/meal-order/index.ts");
-
-assert(attendanceClock.includes('rpc("save_attendance_clock"'), "Clock endpoint must use the atomic clock RPC");
-assert(attendanceClock.includes("attendance_days"), "Clock endpoint must use attendance_days");
-assert(attendanceLedger.includes('body?.action === "personal_list"'), "Personal ledger must provide personal_list");
-assert(attendanceLedger.includes('body?.action === "personal_save"'), "Personal ledger must provide personal_save");
-for (const action of ["review_list", "review_save", "review_set", "history"]) {
-  assert(!attendanceLedger.includes(`body?.action === "${action}"`), `Personal ledger must not duplicate review action: ${action}`);
-  assert(attendanceReview.includes(`body?.action === "${action}"`), `Attendance review endpoint is missing action: ${action}`);
-}
-assert(attendanceReview.includes("attendance_review"), "Attendance review endpoint must validate attendance_review permission");
-assert(attendanceExport.includes('hasPermission(ctx, actorId, "attendance_review")') && attendanceExport.includes('canAccessGroup(ctx, actorId, groupId, "attendance_review")'), "Attendance export must validate permission and group scope through shared runtime helpers");
-assert(memberAdmin.includes("member_settings") && memberAdmin.includes("permission_settings"), "Member admin must validate member and privileged permissions");
-assert(!memberAdmin.includes('["manager", "admin"]') && !memberAdmin.includes('["admin", "manager"]'), "Member admin must not authorize from legacy role strings");
-assert(mealOrder.includes("clock_in_location") && mealOrder.includes('rpc("save_meal_order"'), "Meal order must remain tied to clock-in snapshot and transaction RPC");
 
 for (const helper of ["restSelect(", "restInsert(", "restUpdate(", "restDelete(", "saveState(", "syncCatalogs("]) {
   assert(!webApi.includes(helper), `Web API must not contain generic helper: ${helper}`);
 }
-for (const table of ["set_employee", "set_departments", "set_shift", "set_leave", "set_overtime", "schedule_entries", "scheduler_settings", "holidays"]) {
-  assert(!webApi.includes(`/rest/v1/${table}`), `Web API must not access ${table} directly`);
-}
 
-console.log("Renderer alignment checks passed.");
+console.log("Renderer alignment checks passed for FYH backend architecture.");
