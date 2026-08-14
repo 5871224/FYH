@@ -5,6 +5,7 @@ const { URL } = require("url");
 const { createApiRouter } = require("./backend/api-router");
 const { createMemorySessionStore } = require("./backend/session-store");
 const { createBackendProviderFromEnv } = require("./backend/providers");
+const { createNativeRuntime } = require("./backend/native-runtime");
 
 const PORT = Number(process.env.PORT || 3010);
 const rendererDir = path.join(__dirname, "renderer");
@@ -46,14 +47,30 @@ async function serveStaticFile(requestPath, response) {
 }
 
 function createRequestHandler(options = {}) {
-  const provider = options.provider || createBackendProviderFromEnv(options.env || process.env, {
+  const env = options.env || process.env;
+  let provider = options.provider || null;
+  let sessionStore = options.sessionStore || null;
+
+  if (options.database && (!provider || !sessionStore)) {
+    const nativeRuntime = createNativeRuntime(options.database, {
+      provider,
+      sessionStore,
+      identityRepository: options.identityRepository,
+      sessionOptions: options.sessionOptions
+    });
+    provider = provider || nativeRuntime.provider;
+    sessionStore = sessionStore || nativeRuntime.sessionStore;
+  }
+
+  provider = provider || createBackendProviderFromEnv(env, {
     fetchImpl: options.fetchImpl
   });
-  const env = options.env || process.env;
-  if (!options.sessionStore && String(env.NODE_ENV || "").toLowerCase() === "production") {
+
+  if (!sessionStore && String(env.NODE_ENV || "").toLowerCase() === "production") {
     throw new Error("Production backend requires a persistent sessionStore");
   }
-  const sessionStore = options.sessionStore || createMemorySessionStore();
+  sessionStore = sessionStore || createMemorySessionStore();
+
   const secureCookies = options.secureCookies !== undefined
     ? Boolean(options.secureCookies)
     : String(env.NODE_ENV || "").toLowerCase() === "production";
