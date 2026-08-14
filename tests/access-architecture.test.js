@@ -61,7 +61,7 @@ test("本人打卡與訂餐由 FYH backend 驗證有效帳號與群組", () => {
   const attendance = read("src/backend/native-attendance.js");
   const meal = read("src/backend/native-meal.js");
   for (const source of [attendance, meal]) {
-    assert.match(source, /employee\.deleted_at is null/);
+    assert.match(source, /e\.deleted_at is null/);
     assert.match(source, /public\.is_employee_account_effective/);
   }
   assert.match(attendance, /where group_id=\$1::uuid and attendance_enabled=true and deleted_at is null/);
