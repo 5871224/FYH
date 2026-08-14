@@ -8,7 +8,7 @@
     "js:build": "node scripts/build-js.js",
     "js:check": "node scripts/build-js.js --check && node --check src/renderer/app.js",
     "web": "node scripts/build-css.js && node scripts/build-js.js && node src/web-server.js",
-    "web:check": "node scripts/check-public-supabase.js",
+    "web:check": "node scripts/check-browser-backend-boundary.js",
     "web:publish": "node scripts/build-css.js && node scripts/build-js.js && node scripts/publish-static-web.js",
     "scope:check": "node scripts/check-change-scope.js",
     "test": "node --test \"tests/**/*.test.js\"",
