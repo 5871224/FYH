@@ -143,7 +143,11 @@ function getSchedulerApiExports() {
   const block = webApi.match(/window\.schedulerApi\s*=\s*\{([\s\S]*?)\n\s*\};/);
   assert.ok(block, "找不到 window.schedulerApi 公開 API 區塊");
   const names = new Set();
-  for (const match of block[1].matchAll(/^\s*([A-Za-z_$][\w$]*)\s*(?::|,)/gm)) names.add(match[1]);
+  for (const name of declaredCallables) {
+    const escaped = escapeRegex(name);
+    if (new RegExp(`(?:^|,)\\s*${escaped}\\s*(?=,|$)`, "m").test(block[1])) names.add(name);
+  }
+  for (const match of block[1].matchAll(/(?:^|,)\s*([A-Za-z_$][\w$]*)\s*:/g)) names.add(match[1]);
   return names;
 }
 
