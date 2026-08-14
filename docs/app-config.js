@@ -90,13 +90,13 @@ window.SCHEDULER_CONFIG = {
       #${PREVIEW_ID}{position:fixed;inset:0;z-index:1200;overflow:auto;background:#e9e5dd;color:var(--text)}
       .schedule-print-preview-toolbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px;padding:10px 16px;border-bottom:1px solid var(--line);background:#fffdf8;box-sizing:border-box}
       .schedule-print-preview-toolbar>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.schedule-print-preview-toolbar select{min-height:38px;padding:6px 10px;border:1px solid var(--line);border-radius:12px;background:#fff}
-      .schedule-print-pages{padding:16px}.schedule-print-page{margin:0 auto 16px;padding:8mm;background:#fff;box-shadow:0 8px 26px #0002;box-sizing:border-box;overflow:hidden}
+      .schedule-print-pages{padding:16px}.schedule-print-page{margin:0 auto 16px;padding:4mm;background:#fff;box-shadow:0 8px 26px #0002;box-sizing:border-box;overflow:hidden}
       .schedule-print-page[data-orientation="portrait"]{width:210mm;height:297mm;min-height:0;max-height:297mm}.schedule-print-page[data-orientation="landscape"]{width:297mm;height:210mm;min-height:0;max-height:210mm}
       .schedule-print-page-header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:5mm}.schedule-print-page-header h2{margin:0;font-size:17px}.schedule-print-page-header p{margin:0;color:#665c51;font-size:10px}
-      .schedule-print-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9px}.schedule-print-table col:first-child{width:16mm}.schedule-print-table col:nth-child(2){width:19mm}
-      .schedule-print-table th,.schedule-print-table td{border:1px solid var(--schedule-grid-line,#ebe3d8);vertical-align:middle}.schedule-print-table th{height:9mm;padding:1mm;background:var(--schedule-header-bg,#fbf8f1);text-align:center;font-weight:900}.schedule-print-table th span{display:block;font-size:8px;color:#76695b}
-      .schedule-print-table .dept-col,.schedule-print-table .person-col{position:static!important;min-width:0!important;width:auto!important;max-width:none!important;padding:1.5mm 1mm;background:#fffdf8;text-align:center;font-size:9px;line-height:1.25}.schedule-print-table .dept-col{font-weight:900}.schedule-print-table .person-col{font-weight:800}
-      .schedule-print-table .cell{min-width:0!important;width:auto!important;max-width:none!important;height:10mm;padding:.45mm;cursor:default;background:#fff}.schedule-print-table .cell-inner{min-height:8.7mm;height:8.7mm;border-radius:1.5mm}.schedule-print-table .seg{min-height:0}.schedule-print-table .seg-label{font-size:8px;line-height:1.1}
+      .schedule-print-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:8px}.schedule-print-table col:first-child{width:14mm}.schedule-print-table col:nth-child(2){width:17mm}
+      .schedule-print-table th,.schedule-print-table td{border:1px solid var(--schedule-grid-line,#ebe3d8);vertical-align:middle}.schedule-print-table th{height:7.5mm;padding:.6mm;background:var(--schedule-header-bg,#fbf8f1);text-align:center;font-weight:900}.schedule-print-table th span{display:block;font-size:7px;color:#76695b}
+      .schedule-print-table .dept-col,.schedule-print-table .person-col{position:static!important;min-width:0!important;width:auto!important;max-width:none!important;padding:1mm .7mm;background:#fffdf8;text-align:center;font-size:8px;line-height:1.2}.schedule-print-table .dept-col{font-weight:900}.schedule-print-table .person-col{font-weight:800}
+      .schedule-print-table .cell{min-width:0!important;width:auto!important;max-width:none!important;height:8.5mm;padding:.3mm;cursor:default;background:#fff}.schedule-print-table .cell-inner{min-height:7.6mm;height:7.6mm;border-radius:1.2mm}.schedule-print-table .seg{min-height:0}.schedule-print-table .seg-label{font-size:7px;line-height:1.05}
       .schedule-print-table .inactive-cell,.schedule-print-table .inactive-cell .cell-inner{background:#9b9b9b!important}.schedule-print-weekend,.schedule-print-holiday{background:#f5e9e3!important}
       @media(max-width:760px){.schedule-print-preview-toolbar{align-items:flex-start;flex-direction:column}.schedule-print-pages{padding:10px}.schedule-print-page{margin-left:0;margin-right:0}}
       @media print{html,body{background:#fff!important}body.schedule-printing>*:not(#${PREVIEW_ID}){display:none!important}body.schedule-printing #${PREVIEW_ID}{position:static;overflow:visible;background:#fff}body.schedule-printing .schedule-print-preview-toolbar{display:none!important}body.schedule-printing .schedule-print-pages{padding:0}body.schedule-printing .schedule-print-page{margin:0;box-shadow:none;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}body.schedule-printing .schedule-print-page:last-child{break-after:auto;page-break-after:auto}}
@@ -224,14 +224,9 @@ window.SCHEDULER_CONFIG = {
     const root = document.querySelector(`#${PREVIEW_ID} .schedule-print-pages`);
     if (!root || !preview) return;
     const mode = orientation();
-    const datePages = chunks(preview.dates, mode === "portrait" ? 14 : 28);
-    const rowPages = splitRows(preview.groups, mode === "portrait" ? 23 : 15);
-    const total = datePages.length * rowPages.length;
-    let pageNo = 0;
-    root.innerHTML = datePages.flatMap((datePage) => rowPages.map((rowPage) => {
-      pageNo += 1;
-      return `<section class="schedule-print-page" data-orientation="${mode}"><header class="schedule-print-page-header"><h2>${escapeHtml(preview.groupName)} 班表</h2><p>${datePage[0]} ～ ${datePage.at(-1)}　${pageNo}/${total}</p></header>${renderTable(datePage, rowPage)}</section>`;
-    })).join("");
+    const datePages = chunks(preview.dates, mode === "portrait" ? 14 : 31);
+    const rowPages = splitRows(preview.groups, mode === "portrait" ? 32 : 22);
+    root.innerHTML = datePages.flatMap((datePage) => rowPages.map((rowPage) => `<section class="schedule-print-page" data-orientation="${mode}">${renderTable(datePage, rowPage)}</section>`)).join("");
   }
 
   async function loadRange(startDate, endDate) {
