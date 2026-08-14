@@ -21,13 +21,15 @@ test("通用 Backend API 核心不得依賴 Supabase transport 名稱", () => {
   assert.doesNotMatch(source, /supabase|\/auth\/v1\/|\/rest\/v1\/|access_token|refresh_token|apikey/i);
 });
 
-test("Provider 專用登入細節只存在 backend/providers", () => {
-  const provider = read("src/backend/providers/supabase-auth-provider.js");
-  assert.match(provider, /@local\.invalid/);
-  assert.match(provider, /\/auth\/v1\/token\?grant_type=password/);
-  assert.match(provider, /\/rest\/v1\/rpc\/get_my_profile_v3/);
-  assert.match(provider, /access_token/);
-  assert.match(provider, /refresh_token/);
+test("Native Provider 只依賴身份 Repository，不保留 Supabase 登入 transport", () => {
+  const oldProvider = path.join(root, "src", "backend", "providers", "supabase-auth-provider.js");
+  const provider = read("src/backend/providers/native-auth-provider.js");
+  assert.equal(fs.existsSync(oldProvider), false);
+  assert.match(provider, /identityRepository\.authenticate\(login, secret\)/);
+  assert.match(provider, /identityRepository\.findEffectiveByEmployeeId\(employeeId\)/);
+  assert.match(provider, /identityRepository\.changeCredential\(employeeId, newPassword\)/);
+  assert.match(provider, /providerSession: \{ employeeId \}/);
+  assert.doesNotMatch(provider, /@local\.invalid|\/auth\/v1\/|\/rest\/v1\/|access_token|refresh_token|apikey|supabase/i);
 });
 
 test("正式 API 使用版本化具名路徑，不提供通用動態 CRUD", () => {
