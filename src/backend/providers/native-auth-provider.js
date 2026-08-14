@@ -1,6 +1,6 @@
 const { BackendError } = require("../errors");
 
-function createNativeAuthProvider(identityRepository) {
+function createNativeAuthProvider(identityRepository, options = {}) {
   if (!identityRepository
     || typeof identityRepository.authenticate !== "function"
     || typeof identityRepository.findEffectiveByEmployeeId !== "function"
@@ -8,8 +8,14 @@ function createNativeAuthProvider(identityRepository) {
     throw new BackendError(500, "IDENTITY_REPOSITORY_REQUIRED", "登入服務尚未設定身份資料層");
   }
 
-  function toContext(profile) {
+  const accessRepository = options.accessRepository || null;
+
+  async function toContext(profile) {
     const employeeId = String(profile.id);
+    const access = accessRepository && typeof accessRepository.getAccessBundle === "function"
+      ? await accessRepository.getAccessBundle(employeeId)
+      : null;
+
     return {
       providerSession: { employeeId },
       user: { id: employeeId, email: "" },
@@ -31,7 +37,8 @@ function createNativeAuthProvider(identityRepository) {
         sort_order: profile.sort_order,
         group_id: profile.group_id,
         access_role_id: profile.access_role_id,
-        deleted_at: profile.deleted_at
+        deleted_at: profile.deleted_at,
+        access
       }
     };
   }
