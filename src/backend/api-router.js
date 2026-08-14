@@ -133,6 +133,15 @@ function createApiRouter(options = {}) {
     return service;
   }
 
+  function requireMasterDataService(methods) {
+    const service = services.masterData;
+    const ready = service && methods.every((method) => typeof service[method] === "function");
+    if (!ready) {
+      throw new BackendError(503, "MASTER_DATA_SERVICE_UNAVAILABLE", "主檔 Backend Service 尚未啟用");
+    }
+    return service;
+  }
+
   async function requireSession(request) {
     const sessionId = getSessionId(request);
     const record = sessionId ? await sessionStore.read(sessionId) : null;
@@ -278,6 +287,46 @@ function createApiRouter(options = {}) {
     sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
   }
 
+  async function handleDepartmentSave(request, response) {
+    const service = requireMasterDataService(["saveDepartment"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.saveDepartment(context.user.id, body.department);
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleDepartmentDelete(request, response) {
+    const service = requireMasterDataService(["deleteDepartment"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.deleteDepartment(context.user.id, body.departmentId);
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleShiftSave(request, response) {
+    const service = requireMasterDataService(["saveShift"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.saveShift(context.user.id, body.shift);
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleCatalogSave(request, response) {
+    const service = requireMasterDataService(["saveCatalogItem"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.saveCatalogItem(context.user.id, body.category, body.item);
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
+  async function handleCatalogDelete(request, response) {
+    const service = requireMasterDataService(["deleteCatalogItem"]);
+    const { sessionId, record, context } = await requireActiveContext(request);
+    const body = await readJson(request);
+    const result = await service.deleteCatalogItem(context.user.id, body.category, body.itemId);
+    sendJson(response, 200, result, sessionCookieHeaders(sessionId, record));
+  }
+
   const handlers = {
     health: handleHealth,
     authSignIn: handleSignIn,
@@ -288,7 +337,12 @@ function createApiRouter(options = {}) {
     scheduleEntries: handleScheduleEntries,
     scheduleEntriesSave: handleScheduleEntriesSave,
     schedulePreferencesSave: handleSchedulePreferencesSave,
-    settingsReorder: handleSettingsReorder
+    settingsReorder: handleSettingsReorder,
+    departmentSave: handleDepartmentSave,
+    departmentDelete: handleDepartmentDelete,
+    shiftSave: handleShiftSave,
+    catalogSave: handleCatalogSave,
+    catalogDelete: handleCatalogDelete
   };
 
   async function handle(request, response, url) {
