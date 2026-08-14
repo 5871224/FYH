@@ -23,9 +23,9 @@ for (const name of files) {
   }
 }
 
-const provider = fs.readFileSync(path.join(renderer, "web-api-native.js"), "utf8");
-if (!provider.includes("/api/v1/")) throw new Error("web-api-native.js 必須使用 FYH /api/v1");
-if (!provider.includes('credentials: "include"')) throw new Error("web-api-native.js 必須使用 HttpOnly session cookie");
+const provider = fs.readFileSync(path.join(renderer, "web-api.js"), "utf8");
+if (!provider.includes("/api/v1/")) throw new Error("web-api.js 必須使用 FYH /api/v1");
+if (!provider.includes('credentials: "include"')) throw new Error("web-api.js 必須使用 HttpOnly session cookie");
 
 const config = fs.readFileSync(path.join(renderer, "app-config.js"), "utf8");
 if (!config.includes("apiBaseUrl")) throw new Error("app-config.js 缺少 apiBaseUrl");
