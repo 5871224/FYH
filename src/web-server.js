@@ -6,6 +6,7 @@ const { createApiRouter } = require("./backend/api-router");
 const { createMemorySessionStore } = require("./backend/session-store");
 const { createBackendProviderFromEnv } = require("./backend/providers");
 const { createNativeRuntime } = require("./backend/native-runtime");
+const { createPostgresDatabase } = require("./backend/db/postgres");
 
 const PORT = Number(process.env.PORT || 3010);
 const rendererDir = path.join(__dirname, "renderer");
@@ -28,5 +29,13 @@ function createRequestHandler(options={}){
   return async function handleRequest(request,response){try{const url=new URL(request.url,`http://${request.headers.host||`127.0.0.1:${PORT}`}`);if(await apiRouter.handle(request,response,url))return;await serveStaticFile(url.pathname,response);}catch(error){console.error(error);send(response,500,JSON.stringify({error:error.message||"Server error"}),"application/json; charset=utf-8");}};
 }
 function startServer(port=PORT,options={}){const handler=createRequestHandler(options);const server=http.createServer((request,response)=>{handler(request,response);});server.listen(port,()=>{if(options.log===false)return;const address=server.address();const actualPort=address&&typeof address==="object"?address.port:port;console.log(`web server running at http://127.0.0.1:${actualPort}`);});return server;}
-if(require.main===module)startServer();
+
+if(require.main===module){
+  const hasDatabaseUrl=Boolean(String(process.env.DATABASE_URL||process.env.POSTGRES_URL||"").trim());
+  const database=hasDatabaseUrl?createPostgresDatabase({env:process.env}):null;
+  const server=startServer(PORT,database?{database}:{});
+  const close=()=>server.close(async()=>{if(database)await database.close();process.exit(0);});
+  process.once("SIGTERM",close);
+  process.once("SIGINT",close);
+}
 module.exports={createRequestHandler,startServer};
