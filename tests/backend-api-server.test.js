@@ -139,7 +139,7 @@ test("登入後只把 HttpOnly 不透明 Session ID 放到瀏覽器，不回傳 
   });
 });
 
-test("班表讀取 API 只採用登入 Session 身分，不接受查詢字串冒用 userId", async () => {
+test("班表 API 只採用登入 Session 身分，不接受查詢或 Body 冒用 userId", async () => {
   const { provider } = createMockProvider();
   const scheduleCalls = [];
   const schedule = {
@@ -159,6 +159,10 @@ test("班表讀取 API 只採用登入 Session 身分，不接受查詢字串冒
     getEntries: async (employeeId, startDate, endDate, options) => {
       scheduleCalls.push(["entries", employeeId, startDate, endDate, options]);
       return [{ id: "ENTRY-1", work_date: startDate }];
+    },
+    saveEntries: async (employeeId, entries) => {
+      scheduleCalls.push(["save", employeeId, entries]);
+      return entries.map((entry, index) => ({ id: `SAVED-${index + 1}`, ...entry }));
     }
   };
 
@@ -179,9 +183,28 @@ test("班表讀取 API 只採用登入 Session 身分，不接受查詢字串冒
     assert.equal(entriesResponse.status, 200);
     assert.deepEqual(await entriesResponse.json(), [{ id: "ENTRY-1", work_date: "2026-08-01" }]);
 
+    const inputEntries = [{
+      member_id: "MEMBER-1",
+      work_date: "2026-08-14",
+      shift_type_id: "SHIFT-1"
+    }];
+    const saveResponse = await fetch(`${baseUrl}/api/v1/schedule/entries`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Cookie: cookie },
+      body: JSON.stringify({ userId: "FORGED", employeeId: "FORGED", entries: inputEntries })
+    });
+    assert.equal(saveResponse.status, 200);
+    assert.deepEqual(await saveResponse.json(), [{
+      id: "SAVED-1",
+      member_id: "MEMBER-1",
+      work_date: "2026-08-14",
+      shift_type_id: "SHIFT-1"
+    }]);
+
     assert.deepEqual(scheduleCalls, [
       ["bootstrap", "U1", "roster"],
-      ["entries", "U1", "2026-08-01", "2026-08-31", { offset: "10", limit: "20" }]
+      ["entries", "U1", "2026-08-01", "2026-08-31", { offset: "10", limit: "20" }],
+      ["save", "U1", inputEntries]
     ]);
   });
 });
