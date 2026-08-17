@@ -414,7 +414,7 @@ function ensureAttendanceReviewPrintStyles() {
     .attendance-review-print-table col.ar-print-clock{width:38mm}.attendance-review-print-table col.ar-print-hours{width:11mm}.attendance-review-print-table col.ar-print-note{width:27mm}.attendance-review-print-table col.ar-print-issue{width:28mm}.attendance-review-print-table col.ar-print-status{width:10mm}
     .attendance-review-print-table th,.attendance-review-print-table td{box-sizing:border-box;border:1px solid #d8d0c5;vertical-align:middle;overflow:hidden}
     .attendance-review-print-table th{height:6mm;padding:.2mm .35mm;background:#f7f3ed;text-align:center;font-size:7.2px;font-weight:900;white-space:nowrap}
-    .attendance-review-print-table tbody tr,.attendance-review-print-table tbody td{height:6.6mm;max-height:6.6mm}
+    .attendance-review-print-table tbody tr,.attendance-review-print-table tbody td{height:7mm;max-height:7mm}
     .attendance-review-print-table td{padding:.12mm .3mm}
     .attendance-review-print-cell{display:-webkit-box;max-height:4.05mm;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}
     .attendance-review-print-cell small{display:block;font-size:5.8px;line-height:1.05;color:#5e554d}
@@ -426,11 +426,11 @@ function ensureAttendanceReviewPrintStyles() {
     /* 列印版沿用簽到審核頁的表格、色彩與狀態視覺，只壓縮尺寸以維持每頁 40 筆。 */
     .attendance-review-print-page{background:var(--panel);color:var(--text);font-family:"Microsoft JhengHei UI","PingFang TC",sans-serif}
     .attendance-review-print-table{width:100%;min-width:0!important;border-collapse:collapse;table-layout:fixed;color:var(--text);font-size:8.3px;line-height:1.12;background:transparent}
-    .attendance-review-print-table th,.attendance-review-print-table td{height:6.6mm;max-height:6.6mm;padding:.25mm .5mm;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:center;vertical-align:middle;font-size:8.3px}
+    .attendance-review-print-table th,.attendance-review-print-table td{height:7mm;max-height:7mm;padding:.25mm .5mm;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:center;vertical-align:middle;font-size:8.3px}
     .attendance-review-print-table th{height:6mm;max-height:6mm;color:var(--muted);font-weight:800;background:rgba(248,243,231,.72);white-space:nowrap}
-    .attendance-review-print-table .attendance-review-print-cell{max-height:5.8mm;line-height:1.12}
+    .attendance-review-print-table .attendance-review-print-cell{max-height:6.2mm;line-height:1.12}
     .attendance-review-print-table .attendance-review-print-cell small{color:var(--muted);font-size:6.5px}
-    .attendance-review-print-table .attendance-review-print-clock{display:flex;flex-direction:column;justify-content:center;gap:0;max-height:5.8mm;overflow:hidden;line-height:1.08}
+    .attendance-review-print-table .attendance-review-print-clock{display:flex;flex-direction:column;justify-content:center;gap:0;max-height:6.2mm;overflow:hidden;line-height:1.08}
     .attendance-review-print-table .attendance-punch-line{display:flex;align-items:center;justify-content:center;gap:1mm;min-width:0;white-space:nowrap;font-size:7px;line-height:1.02}
     .attendance-review-print-table .attendance-punch-line small{display:block;max-width:23mm;overflow:hidden;color:var(--muted);font-size:6px;line-height:1.02;text-overflow:ellipsis;white-space:nowrap}
     .attendance-review-print-table .attendance-review-status{min-width:10mm;padding:.15mm 1mm;border-radius:999px;font-size:6.5px;line-height:1.15;font-weight:700}
