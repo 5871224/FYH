@@ -1,0 +1,116 @@
+name: 同步簽到審核列印版面
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/sync-attendance-review-print-layout.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 調整列印版面
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          actions_path = Path('src/renderer/renderer-records-actions.js')
+          s = actions_path.read_text(encoding='utf-8')
+
+          s = s.replace(
+              '<table class="attendance-review-print-table">',
+              '<table class="records-table attendance-review-table attendance-review-print-table">',
+              1
+          )
+
+          old_clock = re.compile(
+              r'function renderAttendanceReviewPrintClock\(row\) \{.*?\n\}\n\nfunction renderAttendanceReviewPrintTable',
+              re.S
+          )
+          new_clock = '''function renderAttendanceReviewPrintClock(row) {
+  const clockIn = row.clock_in_at ? formatClockTime(row.clock_in_at) : "-";
+  const clockOut = row.clock_out_at ? formatClockTime(row.clock_out_at) : "-";
+  const inLocation = attendanceReviewPrintLocation(row.clock_in_location);
+  const outLocation = attendanceReviewPrintLocation(row.clock_out_location);
+  return `<div class="attendance-review-print-clock">
+    <div class="attendance-punch-line"><span>上班 ${escapeHtml(clockIn)}</span>${inLocation ? `<small>${escapeHtml(inLocation)}</small>` : ""}</div>
+    <div class="attendance-punch-line"><span>下班 ${escapeHtml(clockOut)}</span>${outLocation ? `<small>${escapeHtml(outLocation)}</small>` : ""}</div>
+  </div>`;
+}
+
+function renderAttendanceReviewPrintTable'''
+          s, count = old_clock.subn(new_clock, s, count=1)
+          assert count == 1, '找不到列印打卡時間 renderer'
+
+          old_status = '<td><div class="attendance-review-print-cell attendance-review-print-center">${row.reviewed ? "已審" : "未審"}</div></td>'
+          new_status = '<td class="attendance-review-status-col">${renderReviewStatus(row.reviewed)}</td>'
+          assert old_status in s, '找不到列印狀態欄'
+          s = s.replace(old_status, new_status, 1)
+
+          marker = '    /* 列印版沿用簽到審核頁的表格、色彩與狀態視覺，只壓縮尺寸以維持每頁 40 筆。 */'
+          if marker not in s:
+              needle = '    @media(max-width:760px){.attendance-review-print-toolbar{align-items:flex-start;flex-direction:column}'
+              assert needle in s, '找不到列印 CSS 插入點'
+              override = '''    /* 列印版沿用簽到審核頁的表格、色彩與狀態視覺，只壓縮尺寸以維持每頁 40 筆。 */
+    .attendance-review-print-page{background:var(--panel);color:var(--text);font-family:"Microsoft JhengHei UI","PingFang TC",sans-serif}
+    .attendance-review-print-table{width:100%;min-width:0!important;border-collapse:collapse;table-layout:fixed;color:var(--text);font-size:8px;line-height:1.08;background:transparent}
+    .attendance-review-print-table th,.attendance-review-print-table td{height:4.7mm;max-height:4.7mm;padding:.15mm .55mm;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:center;vertical-align:middle;font-size:8px}
+    .attendance-review-print-table th{height:6mm;max-height:6mm;color:var(--muted);font-weight:800;background:rgba(248,243,231,.72);white-space:nowrap}
+    .attendance-review-print-table .attendance-review-print-cell{max-height:4.05mm;line-height:1.08}
+    .attendance-review-print-table .attendance-review-print-cell small{color:var(--muted);font-size:6.5px}
+    .attendance-review-print-table .attendance-review-print-clock{display:flex;flex-direction:column;justify-content:center;gap:0;max-height:4.15mm;overflow:hidden;line-height:1.02}
+    .attendance-review-print-table .attendance-punch-line{display:flex;align-items:center;justify-content:center;gap:1mm;min-width:0;white-space:nowrap;font-size:7px;line-height:1.02}
+    .attendance-review-print-table .attendance-punch-line small{display:block;max-width:23mm;overflow:hidden;color:var(--muted);font-size:6px;line-height:1.02;text-overflow:ellipsis;white-space:nowrap}
+    .attendance-review-print-table .attendance-review-status{min-width:10mm;padding:.15mm 1mm;border-radius:999px;font-size:6.5px;line-height:1.15;font-weight:700}
+    .attendance-review-print-table .attendance-review-status.is-unreviewed{background:#fff4d6;color:#8a5a00;border:1px solid #efc66a}
+    .attendance-review-print-table .attendance-review-status.is-reviewed{background:#e8f7ef;color:#176b45;border:1px solid #8bc9aa}
+    .attendance-review-print-table .attendance-review-status-col{text-align:center}
+'''
+              s = s.replace(needle, override + needle, 1)
+
+          actions_path.write_text(s, encoding='utf-8')
+
+          spec_path = Path('規格書.md')
+          spec = spec_path.read_text(encoding='utf-8')
+          old_rule = '每頁重複表頭，每個完整列印頁固定 40 筆，最後一頁依剩餘筆數顯示。'
+          new_rule = '每頁重複表頭，每個完整列印頁固定 40 筆，最後一頁依剩餘筆數顯示；版面應盡量沿用簽到審核頁的表格比例、文字對齊、班表圖示、表格線條與審核狀態樣式，只為滿足每頁至少 40 筆而縮小列高、間距與字級。'
+          assert old_rule in spec, '找不到規格書列印規則'
+          spec_path.write_text(spec.replace(old_rule, new_rule, 1), encoding='utf-8')
+
+          test_path = Path('tests/attendance-review-print.test.js')
+          test = test_path.read_text(encoding='utf-8')
+          anchor = '  assert.match(actions, /@page\\{size:A4 landscape;margin:0\\}/);\n'
+          extra = '''  assert.match(actions, /records-table attendance-review-table attendance-review-print-table/);
+  assert.match(actions, /renderReviewStatus\\(row\\.reviewed\\)/);
+  assert.match(actions, /列印版沿用簽到審核頁的表格、色彩與狀態視覺/);
+  assert.match(actions, /border-bottom:1px solid var\\(--line\\)/);
+'''
+          if 'records-table attendance-review-table attendance-review-print-table' not in test:
+              assert anchor in test, '找不到列印測試插入點'
+              test = test.replace(anchor, anchor + extra, 1)
+              test_path.write_text(test, encoding='utf-8')
+      - name: 移除暫時工作流程
+        run: git rm .github/workflows/sync-attendance-review-print-layout.yml
+      - name: 建置與測試
+        run: |
+          node --check src/renderer/renderer-records-actions.js
+          node --test tests/attendance-review-print.test.js
+          npm run web:publish
+          npm run ci:check
+      - name: 提交正式修改
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/renderer/renderer-records-actions.js tests/attendance-review-print.test.js 規格書.md src/renderer/app.js src/renderer/index.html src/renderer/app.css docs
+          git commit -m "feat: align attendance review print layout"
+          git push origin HEAD:main
