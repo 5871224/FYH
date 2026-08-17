@@ -5,7 +5,7 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("簽到審核列印 A4 橫式且每頁 40 筆", () => {
+test("簽到審核列印 A4 直式且每頁 40 筆", () => {
   const views = read("src/renderer/renderer-records-views.js");
   const events = read("src/renderer/renderer-records-events.js");
   const actions = read("src/renderer/renderer-records-actions.js");
@@ -15,7 +15,7 @@ test("簽到審核列印 A4 橫式且每頁 40 筆", () => {
   assert.match(actions, /ATTENDANCE_REVIEW_PRINT_PAGE_SIZE = 40/);
   assert.match(actions, /getAttendanceReviewList\(\{ \.\.\.filters, page: 1 \}\)/);
   assert.match(actions, /for \(let page = 2; page <= pageCount; page \+= 1\)/);
-  assert.match(actions, /@page\{size:A4 landscape;margin:0\}/);
+  assert.match(actions, /@page\{size:A4 portrait;margin:0\}/);
   assert.match(actions, /records-table attendance-review-table attendance-review-print-table/);
   assert.match(actions, /renderReviewStatus\(row\.reviewed\)/);
   assert.match(actions, /列印版沿用簽到審核頁的表格、色彩與狀態視覺/);

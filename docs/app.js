@@ -10346,7 +10346,7 @@ async function saveMealSettingsFromPage() {
     }
   }
 
-/* 簽到審核列印：依目前篩選條件載入全部結果，A4 橫式每頁 40 筆。 */
+/* 簽到審核列印：依目前篩選條件載入全部結果，A4 直式每頁 40 筆。 */
 const ATTENDANCE_REVIEW_PRINT_PAGE_SIZE = 40;
 const ATTENDANCE_REVIEW_PRINT_PREVIEW_ID = "attendanceReviewPrintPreview";
 const ATTENDANCE_REVIEW_PRINT_STYLE_ID = "attendanceReviewPrintStyles";
@@ -10405,13 +10405,13 @@ function ensureAttendanceReviewPrintStyles() {
     .attendance-review-print-toolbar{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:58px;padding:10px 16px;border-bottom:1px solid #ddd4c7;background:#fffdf8;box-sizing:border-box}
     .attendance-review-print-toolbar>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .attendance-review-print-pages{padding:16px}
-    .attendance-review-print-page{width:297mm;height:210mm;margin:0 auto 16px;padding:4mm;background:#fff;box-sizing:border-box;overflow:hidden;box-shadow:0 8px 26px #0002}
+    .attendance-review-print-page{width:210mm;height:297mm;margin:0 auto 16px;padding:4mm;background:#fff;box-sizing:border-box;overflow:hidden;box-shadow:0 8px 26px #0002}
     .attendance-review-print-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:7px;line-height:1.05}
-    .attendance-review-print-table col.ar-print-date{width:18mm}.attendance-review-print-table col.ar-print-employee{width:18mm}.attendance-review-print-table col.ar-print-icon{width:14mm}.attendance-review-print-table col.ar-print-shift{width:21mm}
-    .attendance-review-print-table col.ar-print-clock{width:50mm}.attendance-review-print-table col.ar-print-hours{width:13mm}.attendance-review-print-table col.ar-print-note{width:62mm}.attendance-review-print-table col.ar-print-issue{width:45mm}.attendance-review-print-table col.ar-print-status{width:13mm}
+    .attendance-review-print-table col.ar-print-date{width:17mm}.attendance-review-print-table col.ar-print-employee{width:16mm}.attendance-review-print-table col.ar-print-icon{width:11mm}.attendance-review-print-table col.ar-print-shift{width:18mm}
+    .attendance-review-print-table col.ar-print-clock{width:38mm}.attendance-review-print-table col.ar-print-hours{width:11mm}.attendance-review-print-table col.ar-print-note{width:27mm}.attendance-review-print-table col.ar-print-issue{width:28mm}.attendance-review-print-table col.ar-print-status{width:10mm}
     .attendance-review-print-table th,.attendance-review-print-table td{box-sizing:border-box;border:1px solid #d8d0c5;vertical-align:middle;overflow:hidden}
     .attendance-review-print-table th{height:6mm;padding:.2mm .35mm;background:#f7f3ed;text-align:center;font-size:7.2px;font-weight:900;white-space:nowrap}
-    .attendance-review-print-table tbody tr,.attendance-review-print-table tbody td{height:4.7mm;max-height:4.7mm}
+    .attendance-review-print-table tbody tr,.attendance-review-print-table tbody td{height:6.6mm;max-height:6.6mm}
     .attendance-review-print-table td{padding:.12mm .3mm}
     .attendance-review-print-cell{display:-webkit-box;max-height:4.05mm;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}
     .attendance-review-print-cell small{display:block;font-size:5.8px;line-height:1.05;color:#5e554d}
@@ -10422,12 +10422,12 @@ function ensureAttendanceReviewPrintStyles() {
     .attendance-review-print-icon .seg{min-height:0!important}.attendance-review-print-icon .seg-label{font-size:5.5px!important;line-height:1!important}
     /* 列印版沿用簽到審核頁的表格、色彩與狀態視覺，只壓縮尺寸以維持每頁 40 筆。 */
     .attendance-review-print-page{background:var(--panel);color:var(--text);font-family:"Microsoft JhengHei UI","PingFang TC",sans-serif}
-    .attendance-review-print-table{width:100%;min-width:0!important;border-collapse:collapse;table-layout:fixed;color:var(--text);font-size:8px;line-height:1.08;background:transparent}
-    .attendance-review-print-table th,.attendance-review-print-table td{height:4.7mm;max-height:4.7mm;padding:.15mm .55mm;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:center;vertical-align:middle;font-size:8px}
+    .attendance-review-print-table{width:100%;min-width:0!important;border-collapse:collapse;table-layout:fixed;color:var(--text);font-size:8.3px;line-height:1.12;background:transparent}
+    .attendance-review-print-table th,.attendance-review-print-table td{height:6.6mm;max-height:6.6mm;padding:.25mm .5mm;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:center;vertical-align:middle;font-size:8.3px}
     .attendance-review-print-table th{height:6mm;max-height:6mm;color:var(--muted);font-weight:800;background:rgba(248,243,231,.72);white-space:nowrap}
-    .attendance-review-print-table .attendance-review-print-cell{max-height:4.05mm;line-height:1.08}
+    .attendance-review-print-table .attendance-review-print-cell{max-height:5.8mm;line-height:1.12}
     .attendance-review-print-table .attendance-review-print-cell small{color:var(--muted);font-size:6.5px}
-    .attendance-review-print-table .attendance-review-print-clock{display:flex;flex-direction:column;justify-content:center;gap:0;max-height:4.15mm;overflow:hidden;line-height:1.02}
+    .attendance-review-print-table .attendance-review-print-clock{display:flex;flex-direction:column;justify-content:center;gap:0;max-height:5.8mm;overflow:hidden;line-height:1.08}
     .attendance-review-print-table .attendance-punch-line{display:flex;align-items:center;justify-content:center;gap:1mm;min-width:0;white-space:nowrap;font-size:7px;line-height:1.02}
     .attendance-review-print-table .attendance-punch-line small{display:block;max-width:23mm;overflow:hidden;color:var(--muted);font-size:6px;line-height:1.02;text-overflow:ellipsis;white-space:nowrap}
     .attendance-review-print-table .attendance-review-status{min-width:10mm;padding:.15mm 1mm;border-radius:999px;font-size:6.5px;line-height:1.15;font-weight:700}
@@ -10474,7 +10474,7 @@ function openAttendanceReviewPrintPreview(rows, filters) {
   const pages = attendanceReviewPrintChunks(rows);
   root.innerHTML = `<div class="attendance-review-print-toolbar">
     <div><strong>簽到審核列印預覽</strong><span>${escapeHtml(filters.fromDate || "")} ～ ${escapeHtml(filters.toDate || "")}</span><span>共 ${rows.length} 筆</span></div>
-    <div><span style="font-weight:800">A4 橫式</span><button class="ghost-btn" type="button" data-attendance-review-print-close>返回</button><button class="primary-btn" type="button" data-attendance-review-print-now>列印</button></div>
+    <div><span style="font-weight:800">A4 直式</span><button class="ghost-btn" type="button" data-attendance-review-print-close>返回</button><button class="primary-btn" type="button" data-attendance-review-print-now>列印</button></div>
   </div><div class="attendance-review-print-pages">${pages.map((pageRows) => `<section class="attendance-review-print-page">${renderAttendanceReviewPrintTable(pageRows)}</section>`).join("")}</div>`;
   document.body.appendChild(root);
   root.querySelector("[data-attendance-review-print-close]")?.addEventListener("click", closeAttendanceReviewPrintPreview);
@@ -10485,7 +10485,7 @@ function openAttendanceReviewPrintPreview(rows, filters) {
       pageStyle.id = ATTENDANCE_REVIEW_PRINT_PAGE_STYLE_ID;
       document.head.appendChild(pageStyle);
     }
-    pageStyle.textContent = "@page{size:A4 landscape;margin:0}";
+    pageStyle.textContent = "@page{size:A4 portrait;margin:0}";
     document.body.classList.add("attendance-review-printing");
     window.addEventListener("afterprint", () => document.body.classList.remove("attendance-review-printing"), { once: true });
     requestAnimationFrame(() => window.print());
