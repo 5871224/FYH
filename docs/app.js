@@ -10367,12 +10367,14 @@ function renderAttendanceReviewPrintClock(row) {
   const clockOut = row.clock_out_at ? formatClockTime(row.clock_out_at) : "-";
   const inLocation = attendanceReviewPrintLocation(row.clock_in_location);
   const outLocation = attendanceReviewPrintLocation(row.clock_out_location);
-  const locations = [inLocation ? `上 ${inLocation}` : "", outLocation ? `下 ${outLocation}` : ""].filter(Boolean).join("／");
-  return `<div class="attendance-review-print-cell attendance-review-print-clock"><span>上 ${escapeHtml(clockIn)}　下 ${escapeHtml(clockOut)}</span>${locations ? `<small>${escapeHtml(locations)}</small>` : ""}</div>`;
+  return `<div class="attendance-review-print-clock">
+    <div class="attendance-punch-line"><span>上班 ${escapeHtml(clockIn)}</span>${inLocation ? `<small>${escapeHtml(inLocation)}</small>` : ""}</div>
+    <div class="attendance-punch-line"><span>下班 ${escapeHtml(clockOut)}</span>${outLocation ? `<small>${escapeHtml(outLocation)}</small>` : ""}</div>
+  </div>`;
 }
 
 function renderAttendanceReviewPrintTable(rows) {
-  return `<table class="attendance-review-print-table">
+  return `<table class="records-table attendance-review-table attendance-review-print-table">
     <colgroup>
       <col class="ar-print-date"><col class="ar-print-employee"><col class="ar-print-icon"><col class="ar-print-shift">
       <col class="ar-print-clock"><col class="ar-print-hours"><col class="ar-print-hours"><col class="ar-print-note">
@@ -10389,7 +10391,7 @@ function renderAttendanceReviewPrintTable(rows) {
       <td><div class="attendance-review-print-cell attendance-review-print-center">${row.overtimeHours === null || row.overtimeHours === undefined ? "" : escapeHtml(String(row.overtimeHours))}</div></td>
       <td><div class="attendance-review-print-cell">${escapeHtml(row.note || "")}</div></td>
       <td><div class="attendance-review-print-cell">${escapeHtml((row.issues || []).join("、") || "正常")}</div></td>
-      <td><div class="attendance-review-print-cell attendance-review-print-center">${row.reviewed ? "已審" : "未審"}</div></td>
+      <td class="attendance-review-status-col">${renderReviewStatus(row.reviewed)}</td>
     </tr>`).join("")}</tbody>
   </table>`;
 }
@@ -10418,6 +10420,20 @@ function ensureAttendanceReviewPrintStyles() {
     .attendance-review-print-icon{padding:.15mm!important}
     .attendance-review-print-icon .personal-record-schedule-cell{height:4mm!important;min-height:0!important;border-radius:.7mm!important;overflow:hidden}
     .attendance-review-print-icon .seg{min-height:0!important}.attendance-review-print-icon .seg-label{font-size:5.5px!important;line-height:1!important}
+    /* 列印版沿用簽到審核頁的表格、色彩與狀態視覺，只壓縮尺寸以維持每頁 40 筆。 */
+    .attendance-review-print-page{background:var(--panel);color:var(--text);font-family:"Microsoft JhengHei UI","PingFang TC",sans-serif}
+    .attendance-review-print-table{width:100%;min-width:0!important;border-collapse:collapse;table-layout:fixed;color:var(--text);font-size:8px;line-height:1.08;background:transparent}
+    .attendance-review-print-table th,.attendance-review-print-table td{height:4.7mm;max-height:4.7mm;padding:.15mm .55mm;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:center;vertical-align:middle;font-size:8px}
+    .attendance-review-print-table th{height:6mm;max-height:6mm;color:var(--muted);font-weight:800;background:rgba(248,243,231,.72);white-space:nowrap}
+    .attendance-review-print-table .attendance-review-print-cell{max-height:4.05mm;line-height:1.08}
+    .attendance-review-print-table .attendance-review-print-cell small{color:var(--muted);font-size:6.5px}
+    .attendance-review-print-table .attendance-review-print-clock{display:flex;flex-direction:column;justify-content:center;gap:0;max-height:4.15mm;overflow:hidden;line-height:1.02}
+    .attendance-review-print-table .attendance-punch-line{display:flex;align-items:center;justify-content:center;gap:1mm;min-width:0;white-space:nowrap;font-size:7px;line-height:1.02}
+    .attendance-review-print-table .attendance-punch-line small{display:block;max-width:23mm;overflow:hidden;color:var(--muted);font-size:6px;line-height:1.02;text-overflow:ellipsis;white-space:nowrap}
+    .attendance-review-print-table .attendance-review-status{min-width:10mm;padding:.15mm 1mm;border-radius:999px;font-size:6.5px;line-height:1.15;font-weight:700}
+    .attendance-review-print-table .attendance-review-status.is-unreviewed{background:#fff4d6;color:#8a5a00;border:1px solid #efc66a}
+    .attendance-review-print-table .attendance-review-status.is-reviewed{background:#e8f7ef;color:#176b45;border:1px solid #8bc9aa}
+    .attendance-review-print-table .attendance-review-status-col{text-align:center}
     @media(max-width:760px){.attendance-review-print-toolbar{align-items:flex-start;flex-direction:column}.attendance-review-print-pages{padding:8px}.attendance-review-print-page{margin-left:0;margin-right:0}}
     @media print{
       html,body{background:#fff!important}

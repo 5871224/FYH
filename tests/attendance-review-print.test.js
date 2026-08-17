@@ -16,5 +16,9 @@ test("簽到審核列印 A4 橫式且每頁 40 筆", () => {
   assert.match(actions, /getAttendanceReviewList\(\{ \.\.\.filters, page: 1 \}\)/);
   assert.match(actions, /for \(let page = 2; page <= pageCount; page \+= 1\)/);
   assert.match(actions, /@page\{size:A4 landscape;margin:0\}/);
+  assert.match(actions, /records-table attendance-review-table attendance-review-print-table/);
+  assert.match(actions, /renderReviewStatus\(row\.reviewed\)/);
+  assert.match(actions, /列印版沿用簽到審核頁的表格、色彩與狀態視覺/);
+  assert.match(actions, /border-bottom:1px solid var\(--line\)/);
   assert.match(spec, /每個完整列印頁固定 40 筆/);
 });
