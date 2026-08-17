@@ -348,3 +348,166 @@ async function saveMealSettingsFromPage() {
       setSaveStatus(`訂餐設定儲存失敗：${error.message}`);
     }
   }
+
+/* 簽到審核列印：依目前篩選條件載入全部結果，A4 橫式每頁 40 筆。 */
+const ATTENDANCE_REVIEW_PRINT_PAGE_SIZE = 40;
+const ATTENDANCE_REVIEW_PRINT_PREVIEW_ID = "attendanceReviewPrintPreview";
+const ATTENDANCE_REVIEW_PRINT_STYLE_ID = "attendanceReviewPrintStyles";
+const ATTENDANCE_REVIEW_PRINT_PAGE_STYLE_ID = "attendanceReviewPrintPageStyle";
+
+function attendanceReviewPrintChunks(rows, size = ATTENDANCE_REVIEW_PRINT_PAGE_SIZE) {
+  const pages = [];
+  for (let index = 0; index < rows.length; index += size) pages.push(rows.slice(index, index + size));
+  return pages;
+}
+
+function attendanceReviewPrintLocation(location) {
+  return attendanceLocationName(location);
+}
+
+function renderAttendanceReviewPrintClock(row) {
+  const clockIn = row.clock_in_at ? formatClockTime(row.clock_in_at) : "-";
+  const clockOut = row.clock_out_at ? formatClockTime(row.clock_out_at) : "-";
+  const inLocation = attendanceReviewPrintLocation(row.clock_in_location);
+  const outLocation = attendanceReviewPrintLocation(row.clock_out_location);
+  const locations = [inLocation ? `上 ${inLocation}` : "", outLocation ? `下 ${outLocation}` : ""].filter(Boolean).join("／");
+  return `<div class="attendance-review-print-cell attendance-review-print-clock"><span>上 ${escapeHtml(clockIn)}　下 ${escapeHtml(clockOut)}</span>${locations ? `<small>${escapeHtml(locations)}</small>` : ""}</div>`;
+}
+
+function renderAttendanceReviewPrintTable(rows) {
+  return `<table class="attendance-review-print-table">
+    <colgroup>
+      <col class="ar-print-date"><col class="ar-print-employee"><col class="ar-print-icon"><col class="ar-print-shift">
+      <col class="ar-print-clock"><col class="ar-print-hours"><col class="ar-print-hours"><col class="ar-print-note">
+      <col class="ar-print-issue"><col class="ar-print-status">
+    </colgroup>
+    <thead><tr><th>日期</th><th>員工</th><th>圖示</th><th>班別</th><th>打卡時間</th><th>上班<br>時數</th><th>加班<br>時數</th><th>備註</th><th>異常</th><th>狀態</th></tr></thead>
+    <tbody>${rows.map((row) => `<tr>
+      <td><div class="attendance-review-print-cell">${escapeHtml(row.work_date || "")}</div></td>
+      <td><div class="attendance-review-print-cell">${escapeHtml(row.employee_name || "")}</div></td>
+      <td class="attendance-review-print-icon">${renderScheduleIcon(row)}</td>
+      <td><div class="attendance-review-print-cell">${escapeHtml(row.shiftName || "-")}${row.shiftTime ? `<small>${escapeHtml(row.shiftTime)}</small>` : ""}</div></td>
+      <td>${renderAttendanceReviewPrintClock(row)}</td>
+      <td><div class="attendance-review-print-cell attendance-review-print-center">${row.regularHours === null || row.regularHours === undefined ? "" : escapeHtml(String(row.regularHours))}</div></td>
+      <td><div class="attendance-review-print-cell attendance-review-print-center">${row.overtimeHours === null || row.overtimeHours === undefined ? "" : escapeHtml(String(row.overtimeHours))}</div></td>
+      <td><div class="attendance-review-print-cell">${escapeHtml(row.note || "")}</div></td>
+      <td><div class="attendance-review-print-cell">${escapeHtml((row.issues || []).join("、") || "正常")}</div></td>
+      <td><div class="attendance-review-print-cell attendance-review-print-center">${row.reviewed ? "已審" : "未審"}</div></td>
+    </tr>`).join("")}</tbody>
+  </table>`;
+}
+
+function ensureAttendanceReviewPrintStyles() {
+  if (document.getElementById(ATTENDANCE_REVIEW_PRINT_STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = ATTENDANCE_REVIEW_PRINT_STYLE_ID;
+  style.textContent = `
+    #${ATTENDANCE_REVIEW_PRINT_PREVIEW_ID}{position:fixed;inset:0;z-index:1300;overflow:auto;background:#e9e5dd;color:#2f2923}
+    .attendance-review-print-toolbar{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:58px;padding:10px 16px;border-bottom:1px solid #ddd4c7;background:#fffdf8;box-sizing:border-box}
+    .attendance-review-print-toolbar>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .attendance-review-print-pages{padding:16px}
+    .attendance-review-print-page{width:297mm;height:210mm;margin:0 auto 16px;padding:4mm;background:#fff;box-sizing:border-box;overflow:hidden;box-shadow:0 8px 26px #0002}
+    .attendance-review-print-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:7px;line-height:1.05}
+    .attendance-review-print-table col.ar-print-date{width:18mm}.attendance-review-print-table col.ar-print-employee{width:18mm}.attendance-review-print-table col.ar-print-icon{width:14mm}.attendance-review-print-table col.ar-print-shift{width:21mm}
+    .attendance-review-print-table col.ar-print-clock{width:50mm}.attendance-review-print-table col.ar-print-hours{width:13mm}.attendance-review-print-table col.ar-print-note{width:62mm}.attendance-review-print-table col.ar-print-issue{width:45mm}.attendance-review-print-table col.ar-print-status{width:13mm}
+    .attendance-review-print-table th,.attendance-review-print-table td{box-sizing:border-box;border:1px solid #d8d0c5;vertical-align:middle;overflow:hidden}
+    .attendance-review-print-table th{height:6mm;padding:.2mm .35mm;background:#f7f3ed;text-align:center;font-size:7.2px;font-weight:900;white-space:nowrap}
+    .attendance-review-print-table tbody tr,.attendance-review-print-table tbody td{height:4.7mm;max-height:4.7mm}
+    .attendance-review-print-table td{padding:.12mm .3mm}
+    .attendance-review-print-cell{display:-webkit-box;max-height:4.05mm;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}
+    .attendance-review-print-cell small{display:block;font-size:5.8px;line-height:1.05;color:#5e554d}
+    .attendance-review-print-center{text-align:center;-webkit-line-clamp:1;white-space:nowrap}
+    .attendance-review-print-clock span{display:block;white-space:nowrap}.attendance-review-print-clock small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .attendance-review-print-icon{padding:.15mm!important}
+    .attendance-review-print-icon .personal-record-schedule-cell{height:4mm!important;min-height:0!important;border-radius:.7mm!important;overflow:hidden}
+    .attendance-review-print-icon .seg{min-height:0!important}.attendance-review-print-icon .seg-label{font-size:5.5px!important;line-height:1!important}
+    @media(max-width:760px){.attendance-review-print-toolbar{align-items:flex-start;flex-direction:column}.attendance-review-print-pages{padding:8px}.attendance-review-print-page{margin-left:0;margin-right:0}}
+    @media print{
+      html,body{background:#fff!important}
+      body.attendance-review-printing>*:not(#${ATTENDANCE_REVIEW_PRINT_PREVIEW_ID}){display:none!important}
+      body.attendance-review-printing #${ATTENDANCE_REVIEW_PRINT_PREVIEW_ID}{position:static;overflow:visible;background:#fff}
+      body.attendance-review-printing .attendance-review-print-toolbar{display:none!important}
+      body.attendance-review-printing .attendance-review-print-pages{padding:0}
+      body.attendance-review-printing .attendance-review-print-page{margin:0;box-shadow:none;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      body.attendance-review-printing .attendance-review-print-page:last-child{break-after:auto;page-break-after:auto}
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+async function loadAllAttendanceReviewPrintRows(filters) {
+  const first = await window.schedulerApi.getAttendanceReviewList({ ...filters, page: 1 });
+  const total = Math.max(0, Number(first.total || 0));
+  const pageSize = Math.max(1, Number(first.pageSize || 50));
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const rows = Array.isArray(first.rows) ? [...first.rows] : [];
+  for (let page = 2; page <= pageCount; page += 1) {
+    const result = await window.schedulerApi.getAttendanceReviewList({ ...filters, page });
+    if (Array.isArray(result.rows)) rows.push(...result.rows);
+  }
+  return rows.slice(0, total);
+}
+
+function closeAttendanceReviewPrintPreview() {
+  document.getElementById(ATTENDANCE_REVIEW_PRINT_PREVIEW_ID)?.remove();
+  document.body.classList.remove("attendance-review-printing");
+}
+
+function openAttendanceReviewPrintPreview(rows, filters) {
+  ensureAttendanceReviewPrintStyles();
+  closeAttendanceReviewPrintPreview();
+  const root = document.createElement("section");
+  root.id = ATTENDANCE_REVIEW_PRINT_PREVIEW_ID;
+  const pages = attendanceReviewPrintChunks(rows);
+  root.innerHTML = `<div class="attendance-review-print-toolbar">
+    <div><strong>簽到審核列印預覽</strong><span>${escapeHtml(filters.fromDate || "")} ～ ${escapeHtml(filters.toDate || "")}</span><span>共 ${rows.length} 筆</span></div>
+    <div><span style="font-weight:800">A4 橫式</span><button class="ghost-btn" type="button" data-attendance-review-print-close>返回</button><button class="primary-btn" type="button" data-attendance-review-print-now>列印</button></div>
+  </div><div class="attendance-review-print-pages">${pages.map((pageRows) => `<section class="attendance-review-print-page">${renderAttendanceReviewPrintTable(pageRows)}</section>`).join("")}</div>`;
+  document.body.appendChild(root);
+  root.querySelector("[data-attendance-review-print-close]")?.addEventListener("click", closeAttendanceReviewPrintPreview);
+  root.querySelector("[data-attendance-review-print-now]")?.addEventListener("click", () => {
+    let pageStyle = document.getElementById(ATTENDANCE_REVIEW_PRINT_PAGE_STYLE_ID);
+    if (!pageStyle) {
+      pageStyle = document.createElement("style");
+      pageStyle.id = ATTENDANCE_REVIEW_PRINT_PAGE_STYLE_ID;
+      document.head.appendChild(pageStyle);
+    }
+    pageStyle.textContent = "@page{size:A4 landscape;margin:0}";
+    document.body.classList.add("attendance-review-printing");
+    window.addEventListener("afterprint", () => document.body.classList.remove("attendance-review-printing"), { once: true });
+    requestAnimationFrame(() => window.print());
+  });
+}
+
+async function printAttendanceReview(button) {
+  if (!hasPermission("attendance_review")) {
+    showInfoMessage("沒有簽到審核權限");
+    return;
+  }
+  const review = ensureAttendanceReviewState();
+  if (review.loading) {
+    showInfoMessage("簽到審核資料仍在載入中");
+    return;
+  }
+  const filters = { ...review.filters };
+  const originalText = button?.textContent || "列印";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "準備列印…";
+  }
+  try {
+    const rows = await loadAllAttendanceReviewPrintRows(filters);
+    if (!rows.length) {
+      showInfoMessage("目前篩選條件沒有可列印資料");
+      return;
+    }
+    openAttendanceReviewPrintPreview(rows, filters);
+  } catch (error) {
+    showInfoMessage(`準備簽到審核列印失敗：${error?.message || error}`);
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+}
