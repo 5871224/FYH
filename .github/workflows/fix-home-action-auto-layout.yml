@@ -1,0 +1,48 @@
+name: fix home action auto layout
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/fix-home-action-auto-layout.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply responsive home action layout
+        shell: python
+        run: |
+          from pathlib import Path
+
+          css_path = Path('src/renderer/css/pages.css')
+          css = css_path.read_text(encoding='utf-8')
+          old = '.home-action-grid-three {\n  grid-template-columns: repeat(3, minmax(0, 1fr));\n}'
+          new = '.home-action-grid-three {\n  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));\n}'
+          assert css.count(old) == 1, f'unexpected home grid rule count: {css.count(old)}'
+          css_path.write_text(css.replace(old, new, 1), encoding='utf-8')
+
+          test_path = Path('tests/home-dashboard-auto-layout.test.js')
+          test_path.write_text('''const test = require("node:test");\nconst assert = require("node:assert/strict");\nconst fs = require("node:fs");\nconst path = require("node:path");\n\ntest("首頁功能按鈕依實際顯示數量自動填滿可用寬度", () => {\n  const css = fs.readFileSync(path.join(__dirname, "../src/renderer/css/pages.css"), "utf8");\n  assert.match(css, /\\.home-action-grid-three\\s*\\{\\s*grid-template-columns:\\s*repeat\\(auto-fit,\\s*minmax\\(220px,\\s*1fr\\)\\);/);\n  assert.doesNotMatch(css, /\\.home-action-grid-three\\s*\\{\\s*grid-template-columns:\\s*repeat\\(3,/);\n});\n''', encoding='utf-8')
+      - name: Remove temporary workflow
+        run: git rm .github/workflows/fix-home-action-auto-layout.yml
+      - name: Build and test
+        run: |
+          node --test tests/home-dashboard-auto-layout.test.js
+          npm run web:publish
+          npm run ci:check
+      - name: Commit change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: auto layout visible home actions"
+          git push origin HEAD:main
