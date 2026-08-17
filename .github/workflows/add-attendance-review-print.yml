@@ -1,0 +1,69 @@
+name: 新增簽到審核列印
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/add-attendance-review-print.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 修改正式來源與規格
+        shell: python
+        run: |
+          from pathlib import Path
+          import base64, gzip
+          p = Path("src/renderer/renderer-records-views.js")
+          s = p.read_text(encoding="utf-8")
+          old = '        <button class="ghost-btn compact-btn" type="button" data-export-attendance-review="true">匯出加班</button>'
+          if 'data-print-attendance-review="true"' not in s:
+              assert s.count(old) == 1
+              s = s.replace(old, old + '\n        <button class="ghost-btn compact-btn" type="button" data-print-attendance-review="true">列印</button>', 1)
+              p.write_text(s, encoding="utf-8")
+          p = Path("src/renderer/renderer-records-events.js")
+          s = p.read_text(encoding="utf-8")
+          old = '    if (target.dataset.exportAttendanceReview !== undefined) { void exportAttendanceReview(); return; }'
+          if 'dataset.printAttendanceReview' not in s:
+              assert s.count(old) == 1
+              s = s.replace(old, old + '\n    if (target.dataset.printAttendanceReview !== undefined) { void printAttendanceReview(target); return; }', 1)
+              p.write_text(s, encoding="utf-8")
+          p = Path("src/renderer/renderer-records-actions.js")
+          s = p.read_text(encoding="utf-8").rstrip()
+          if 'const ATTENDANCE_REVIEW_PRINT_PAGE_SIZE = 40;' not in s:
+              block = gzip.decompress(base64.b64decode("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")).decode("utf-8").rstrip()
+              p.write_text(s + "\n\n" + block + "\n", encoding="utf-8")
+          p = Path("規格書.md")
+          s = p.read_text(encoding="utf-8")
+          rule = '14. 簽到審核功能列提供「列印」。列印沿用目前篩選條件並載入全部符合資料，不受畫面分頁限制；固定使用 A4 橫式且不增加額外頁首頁尾。列印欄位依序為日期、員工、圖示、班別、打卡時間、上班時數、加班時數、備註、異常、狀態，不列印勾選框與操作欄；每頁重複表頭，每個完整列印頁固定 40 筆，最後一頁依剩餘筆數顯示。'
+          anchor = '\n\n## 4.5 出勤資料模型'
+          if rule not in s:
+              assert s.count(anchor) == 1
+              p.write_text(s.replace(anchor, '\n' + rule + anchor, 1), encoding="utf-8")
+          Path("tests/attendance-review-print.test.js").write_bytes(gzip.decompress(base64.b64decode("H4sICMVxgmoCA2F0dGVuZGFuY2VfcmV2aWV3X3ByaW50X3Rlc3QuanMAjZNBaxNBFMfv+RTDniaabFLJQZImGOoqAQklCQo6soyzL+2WZDbOTFI0BOylFFRyUQR7yUkoYpuDhyD127hb/RbO7Ma0JMGWZXdn3/zf7z9v5i0LuFRIgX6UkYCXfV8AtnjgQdEErXQpxWIJlRLEqigJ56QSPruibssVZVteTveo2l0RmOClRASBcTNBW4AMOgPAruv5gtMuZJBl21e0QD2txW2/A2lUrmh728Qe6O/mK85wTNkLfI4NNoNioYb0VfuuwaRMrdi6mP4Mj6bh2Uk0mYVHn8L3U1QtoOjka3g+/jX7EJ2N/0wOUCGPLr4dWhmEY69hCqFkGQMf9pO6qYctKVhOAPdAgFgMsgJYIDyZjbX2Xrwn//JhAFzdFJCIlwiUKV8PboiYq5cYsgdsAfj9ZRxNzqPjmd31ElFy4HaXKraL4yoyKOdRRbM94XOVpUppH8oZaB8zX7aU6INVSTZ0k+Re9JUKeCW3iktqmvMkKGLHzOoC2YiJz4gkzee31s4RrKjY0anpNfx5wdqg2mo59fvV+pbjNpzHNeeJu92o1VvudvWh4zZrTx29A4X8fxHaZNn8kS8VwWSIiG0u3WUKhNb26A4U0QYio2uW1Q4EIrgDKk7Ra7hTSkab5fi9FfS5mofI7TLauIZ3zyjJUPqvoag7uUO5JxntQamrN8nnxTwZrck3HaCTdbuHb96Gp++ij9+Tw9PdHx7/CE8/z/8BkzvS91+F0/+RRQQAAA==")))
+      - name: 先移除暫時工作流程
+        run: git rm .github/workflows/add-attendance-review-print.yml
+      - name: 建置與檢查
+        run: |
+          node --check src/renderer/renderer-records-actions.js
+          node --check src/renderer/renderer-records-events.js
+          node --check src/renderer/renderer-records-views.js
+          node --test tests/attendance-review-print.test.js
+          npm run web:publish
+          npm run ci:check
+      - name: 提交正式修正
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/renderer/renderer-records-views.js src/renderer/renderer-records-events.js src/renderer/renderer-records-actions.js tests/attendance-review-print.test.js 規格書.md src/renderer/app.js src/renderer/index.html src/renderer/app.css docs
+          git commit -m "feat: add attendance review print"
+          git push origin HEAD:main
