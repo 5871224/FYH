@@ -6908,6 +6908,35 @@ function syncScheduleShiftSummary() {
   summary.textContent = names.length ? names.join("、") : "未指定";
 }
 
+function moveChangedScheduleShiftOptionToSelectionOrder(input) {
+  if (!(input instanceof HTMLInputElement)) {
+    return;
+  }
+  const row = input.closest("[data-schedule-shift-option]");
+  const list = row?.parentElement;
+  if (!(row instanceof HTMLElement) || !(list instanceof HTMLElement) || list.id !== "memberScheduleShiftList") {
+    return;
+  }
+  const rows = Array.from(list.querySelectorAll("[data-schedule-shift-option]"))
+    .filter((item) => item instanceof HTMLElement);
+  if (input.checked) {
+    const checkedRows = rows.filter((item) => item !== row && item.querySelector("input")?.checked);
+    const lastChecked = checkedRows[checkedRows.length - 1] || null;
+    if (lastChecked) {
+      lastChecked.after(row);
+    } else {
+      list.prepend(row);
+    }
+    return;
+  }
+  const firstUnchecked = rows.find((item) => item !== row && !item.querySelector("input")?.checked) || null;
+  if (firstUnchecked) {
+    firstUnchecked.before(row);
+  } else {
+    list.append(row);
+  }
+}
+
 function syncScheduleShiftSelectorRanks() {
   let rank = 1;
   document.querySelectorAll("#memberScheduleShiftList [data-schedule-shift-option]").forEach((row) => {
@@ -7843,9 +7872,25 @@ function getDepartmentsForGroup(groupId) { return groupFeatureState.catalog.depa
 function getShiftsForGroup(groupId) { return groupFeatureState.catalog.shifts.filter((shift) => shift.groupId === groupId && !shift.deleted); }
 function renderMemberGroupOptions(selectedGroupId) { return getSelectableGroups().map((group) => `<option value="${escapeHtml(group.id)}" ${group.id === selectedGroupId ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join(""); }
 function renderMemberUnitOptions(groupId, selectedDeptId = "") { return getDepartmentsForGroup(groupId).map((department) => `<option value="${escapeHtml(department.id)}" ${department.id === selectedDeptId ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join(""); }
-function renderMemberGroupShiftSelector(groupId, selectedIds = []) {
+function getOrderedMemberGroupShifts(groupId, selectedIds = []) {
   const shifts = getShiftsForGroup(groupId).filter((shift) => !shift.hiddenFromToolbar);
-  return `<div class="schedule-dept-list" id="memberScheduleShiftList" hidden>${shifts.map((shift, index) => { const checked = selectedIds.includes(shift.id); return `<label class="schedule-dept-option" draggable="true" data-schedule-shift-option="${escapeHtml(shift.id)}"><input type="checkbox" value="${escapeHtml(shift.id)}" ${checked ? "checked" : ""}><span class="schedule-dept-rank">${checked ? index + 1 : "-"}</span><span>${escapeHtml(shift.name)}</span></label>`; }).join("")}</div>`;
+  const shiftById = new Map(shifts.map((shift) => [shift.id, shift]));
+  const orderedSelectedIds = (Array.isArray(selectedIds) ? selectedIds : [])
+    .filter((shiftId, index, list) => shiftById.has(shiftId) && list.indexOf(shiftId) === index);
+  const selectedIdSet = new Set(orderedSelectedIds);
+  return {
+    orderedSelectedIds,
+    shifts: [
+      ...orderedSelectedIds.map((shiftId) => shiftById.get(shiftId)).filter(Boolean),
+      ...shifts.filter((shift) => !selectedIdSet.has(shift.id))
+    ]
+  };
+}
+
+function renderMemberGroupShiftSelector(groupId, selectedIds = []) {
+  const ordered = getOrderedMemberGroupShifts(groupId, selectedIds);
+  const selectedRankById = new Map(ordered.orderedSelectedIds.map((shiftId, index) => [shiftId, index + 1]));
+  return `<div class="schedule-dept-list" id="memberScheduleShiftList" hidden>${ordered.shifts.map((shift) => { const rank = selectedRankById.get(shift.id) || 0; const checked = rank > 0; return `<label class="schedule-dept-option" draggable="true" data-schedule-shift-option="${escapeHtml(shift.id)}"><input type="checkbox" value="${escapeHtml(shift.id)}" ${checked ? "checked" : ""}><span class="schedule-dept-rank">${checked ? rank : "-"}</span><span>${escapeHtml(shift.name)}</span></label>`; }).join("")}</div>`;
 }
 function memberShiftNamesForGroup(groupId, selectedIds) {
   const map = new Map(getShiftsForGroup(groupId).map((shift) => [shift.id, shift.name]));
@@ -12686,6 +12731,7 @@ function bindDelegatedFormEvents() {
       return;
     }
     if (target.closest("#memberScheduleShiftList")) {
+      moveChangedScheduleShiftOptionToSelectionOrder(target);
       syncScheduleShiftSelectorRanks();
       syncScheduleShiftSummary();
       return;

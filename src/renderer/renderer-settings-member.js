@@ -49,6 +49,35 @@ function syncScheduleShiftSummary() {
   summary.textContent = names.length ? names.join("、") : "未指定";
 }
 
+function moveChangedScheduleShiftOptionToSelectionOrder(input) {
+  if (!(input instanceof HTMLInputElement)) {
+    return;
+  }
+  const row = input.closest("[data-schedule-shift-option]");
+  const list = row?.parentElement;
+  if (!(row instanceof HTMLElement) || !(list instanceof HTMLElement) || list.id !== "memberScheduleShiftList") {
+    return;
+  }
+  const rows = Array.from(list.querySelectorAll("[data-schedule-shift-option]"))
+    .filter((item) => item instanceof HTMLElement);
+  if (input.checked) {
+    const checkedRows = rows.filter((item) => item !== row && item.querySelector("input")?.checked);
+    const lastChecked = checkedRows[checkedRows.length - 1] || null;
+    if (lastChecked) {
+      lastChecked.after(row);
+    } else {
+      list.prepend(row);
+    }
+    return;
+  }
+  const firstUnchecked = rows.find((item) => item !== row && !item.querySelector("input")?.checked) || null;
+  if (firstUnchecked) {
+    firstUnchecked.before(row);
+  } else {
+    list.append(row);
+  }
+}
+
 function syncScheduleShiftSelectorRanks() {
   let rank = 1;
   document.querySelectorAll("#memberScheduleShiftList [data-schedule-shift-option]").forEach((row) => {

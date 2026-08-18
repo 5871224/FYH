@@ -91,6 +91,7 @@ function bindDelegatedFormEvents() {
       return;
     }
     if (target.closest("#memberScheduleShiftList")) {
+      moveChangedScheduleShiftOptionToSelectionOrder(target);
       syncScheduleShiftSelectorRanks();
       syncScheduleShiftSummary();
       return;
