@@ -1,5 +1,5 @@
-/* 班表單位與人員拖曳排序、捲動位置保存。
- * 由 renderer.js 拆分；不變更排序或儲存規則。
+/* 班表單位與人員拖曳排序、捲動位置保存及排序持久化。
+ * 由 renderer.js 拆分；維持既有全域 bundle 與功能行為。
  */
 
 function getReorderedVisibleIds(visibleIds, draggedId, targetId, insertAfter) {
@@ -39,10 +39,38 @@ function restoreScheduleViewport(viewport) {
   });
 }
 
-async function finishScheduleTableOrderChange(viewport) {
+function getScheduleTableOrderIds(category) {
+  const items = category === "department" ? state.departments : state.members;
+  return items.filter((item) => !item.deleted).map((item) => item.id);
+}
+
+async function persistScheduleTableOrder(category) {
+  try {
+    await window.schedulerApi.reorderSettings(category, getScheduleTableOrderIds(category));
+    return true;
+  } catch (error) {
+    setSaveStatus(`排序儲存失敗：${error.message}`);
+    return false;
+  }
+}
+
+async function persistScheduleTableMemberDepartment(member, previousEmployeeCode = "") {
+  if (!member) {
+    return false;
+  }
+  try {
+    await window.schedulerApi.syncMemberProfile(member, previousEmployeeCode || member.code || "");
+    return true;
+  } catch (error) {
+    setSaveStatus(`人員單位儲存失敗：${error.message}`);
+    return false;
+  }
+}
+
+async function finishScheduleTableOrderChange(viewport, category) {
   renderAll();
   restoreScheduleViewport(viewport);
-  await forceSave();
+  return persistScheduleTableOrder(category);
 }
 
 async function reorderScheduleTableDepartment(draggedId, targetId, insertAfter = false) {
@@ -53,7 +81,7 @@ async function reorderScheduleTableDepartment(draggedId, targetId, insertAfter =
   }
   const viewport = captureScheduleViewport();
   state.departments = applyVisibleOrderById(state.departments, nextVisibleIds);
-  await finishScheduleTableOrderChange(viewport);
+  await finishScheduleTableOrderChange(viewport, "department");
   return true;
 }
 
@@ -75,6 +103,7 @@ async function reorderScheduleTableMember(draggedMemberId, targetMemberId, inser
     return false;
   }
 
+  const previousDepartmentId = getMemberHomeDeptId(draggedMember);
   const movedMember = {
     ...draggedMember,
     deptId: targetDepartmentId
@@ -84,7 +113,10 @@ async function reorderScheduleTableMember(draggedMemberId, targetMemberId, inser
   currentMember = resolveCurrentMember();
   clearScheduleRangeSelection();
   renderAll();
-  await forceSave();
+  if (previousDepartmentId !== targetDepartmentId) {
+    await persistScheduleTableMemberDepartment(movedMember, draggedMember.code);
+  }
+  await persistScheduleTableOrder("member");
   return true;
 }
 
@@ -116,10 +148,14 @@ async function moveScheduleTableMemberToDepartment(memberId, departmentId) {
     if (insertionIndex < 0) insertionIndex = remainingMembers.length;
   }
 
-  remainingMembers.splice(insertionIndex, 0, { ...draggedMember, deptId: departmentId });
+  const movedMember = { ...draggedMember, deptId: departmentId };
+  remainingMembers.splice(insertionIndex, 0, movedMember);
   state.members = remainingMembers;
   currentMember = resolveCurrentMember();
   clearScheduleRangeSelection();
-  await finishScheduleTableOrderChange(viewport);
+  renderAll();
+  restoreScheduleViewport(viewport);
+  await persistScheduleTableMemberDepartment(movedMember, draggedMember.code);
+  await persistScheduleTableOrder("member");
   return true;
 }
