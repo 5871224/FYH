@@ -1,0 +1,151 @@
+name: fix member shift ordering
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/fix-member-shift-order.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Apply member shift ordering fix
+        shell: python
+        run: |
+          from pathlib import Path
+
+          group_path = Path('src/renderer/renderer-groups-permissions-archive.js')
+          group_source = group_path.read_text(encoding='utf-8')
+          old_group = '''function renderMemberGroupShiftSelector(groupId, selectedIds = []) {
+            const shifts = getShiftsForGroup(groupId).filter((shift) => !shift.hiddenFromToolbar);
+            return `<div class="schedule-dept-list" id="memberScheduleShiftList" hidden>${shifts.map((shift, index) => { const checked = selectedIds.includes(shift.id); return `<label class="schedule-dept-option" draggable="true" data-schedule-shift-option="${escapeHtml(shift.id)}"><input type="checkbox" value="${escapeHtml(shift.id)}" ${checked ? "checked" : ""}><span class="schedule-dept-rank">${checked ? index + 1 : "-"}</span><span>${escapeHtml(shift.name)}</span></label>`; }).join("")}</div>`;
+          }'''.replace('          ', '')
+          new_group = '''function getOrderedMemberGroupShifts(groupId, selectedIds = []) {
+            const shifts = getShiftsForGroup(groupId).filter((shift) => !shift.hiddenFromToolbar);
+            const shiftById = new Map(shifts.map((shift) => [shift.id, shift]));
+            const orderedSelectedIds = (Array.isArray(selectedIds) ? selectedIds : [])
+              .filter((shiftId, index, list) => shiftById.has(shiftId) && list.indexOf(shiftId) === index);
+            const selectedIdSet = new Set(orderedSelectedIds);
+            return {
+              orderedSelectedIds,
+              shifts: [
+                ...orderedSelectedIds.map((shiftId) => shiftById.get(shiftId)).filter(Boolean),
+                ...shifts.filter((shift) => !selectedIdSet.has(shift.id))
+              ]
+            };
+          }
+
+          function renderMemberGroupShiftSelector(groupId, selectedIds = []) {
+            const ordered = getOrderedMemberGroupShifts(groupId, selectedIds);
+            const selectedRankById = new Map(ordered.orderedSelectedIds.map((shiftId, index) => [shiftId, index + 1]));
+            return `<div class="schedule-dept-list" id="memberScheduleShiftList" hidden>${ordered.shifts.map((shift) => { const rank = selectedRankById.get(shift.id) || 0; const checked = rank > 0; return `<label class="schedule-dept-option" draggable="true" data-schedule-shift-option="${escapeHtml(shift.id)}"><input type="checkbox" value="${escapeHtml(shift.id)}" ${checked ? "checked" : ""}><span class="schedule-dept-rank">${checked ? rank : "-"}</span><span>${escapeHtml(shift.name)}</span></label>`; }).join("")}</div>`;
+          }'''.replace('          ', '')
+          assert group_source.count(old_group) == 1, f'unexpected member group selector block count: {group_source.count(old_group)}'
+          group_path.write_text(group_source.replace(old_group, new_group, 1), encoding='utf-8')
+
+          member_path = Path('src/renderer/renderer-settings-member.js')
+          member_source = member_path.read_text(encoding='utf-8')
+          marker = '''function syncScheduleShiftSelectorRanks() {
+            let rank = 1;'''.replace('          ', '')
+          helper = '''function moveChangedScheduleShiftOptionToSelectionOrder(input) {
+            if (!(input instanceof HTMLInputElement)) {
+              return;
+            }
+            const row = input.closest("[data-schedule-shift-option]");
+            const list = row?.parentElement;
+            if (!(row instanceof HTMLElement) || !(list instanceof HTMLElement) || list.id !== "memberScheduleShiftList") {
+              return;
+            }
+            const rows = Array.from(list.querySelectorAll("[data-schedule-shift-option]"))
+              .filter((item) => item instanceof HTMLElement);
+            if (input.checked) {
+              const checkedRows = rows.filter((item) => item !== row && item.querySelector("input")?.checked);
+              const lastChecked = checkedRows[checkedRows.length - 1] || null;
+              if (lastChecked) {
+                lastChecked.after(row);
+              } else {
+                list.prepend(row);
+              }
+              return;
+            }
+            const firstUnchecked = rows.find((item) => item !== row && !item.querySelector("input")?.checked) || null;
+            if (firstUnchecked) {
+              firstUnchecked.before(row);
+            } else {
+              list.append(row);
+            }
+          }
+
+          function syncScheduleShiftSelectorRanks() {
+            let rank = 1;'''.replace('          ', '')
+          assert member_source.count(marker) == 1, f'unexpected rank marker count: {member_source.count(marker)}'
+          member_path.write_text(member_source.replace(marker, helper, 1), encoding='utf-8')
+
+          events_path = Path('src/renderer/renderer-events-form.js')
+          events_source = events_path.read_text(encoding='utf-8')
+          old_events = '''    if (target.closest("#memberScheduleShiftList")) {
+              syncScheduleShiftSelectorRanks();
+              syncScheduleShiftSummary();
+              return;
+            }'''.replace('          ', '')
+          new_events = '''    if (target.closest("#memberScheduleShiftList")) {
+              moveChangedScheduleShiftOptionToSelectionOrder(target);
+              syncScheduleShiftSelectorRanks();
+              syncScheduleShiftSummary();
+              return;
+            }'''.replace('          ', '')
+          assert events_source.count(old_events) == 1, f'unexpected member shift change block count: {events_source.count(old_events)}'
+          events_path.write_text(events_source.replace(old_events, new_events, 1), encoding='utf-8')
+
+          test_path = Path('tests/member-shift-selection-order.test.js')
+          test_path.write_text('''const test = require("node:test");
+          const assert = require("node:assert/strict");
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          const groupSource = fs.readFileSync(path.join(__dirname, "../src/renderer/renderer-groups-permissions-archive.js"), "utf8");
+          const memberSource = fs.readFileSync(path.join(__dirname, "../src/renderer/renderer-settings-member.js"), "utf8");
+          const formEventsSource = fs.readFileSync(path.join(__dirname, "../src/renderer/renderer-events-form.js"), "utf8");
+
+          test("修改人員頁的已勾選班別依 scheduleShiftIds 順序排最前並從 1 編號", () => {
+            assert.match(groupSource, /orderedSelectedIds[\\s\\S]*orderedSelectedIds\\.map\\(\\(shiftId\\) => shiftById\\.get\\(shiftId\\)\\)[\\s\\S]*shifts\\.filter\\(\\(shift\\) => !selectedIdSet\\.has\\(shift\\.id\\)\\)/);
+            assert.match(groupSource, /selectedRankById = new Map\\(ordered\\.orderedSelectedIds\\.map\\(\\(shiftId, index\\) => \\[shiftId, index \\+ 1\\]\\)\\)/);
+            assert.match(groupSource, /schedule-dept-rank">\\$\\{checked \\? rank : "-"\\}/);
+          });
+
+          test("新勾選班別接在目前已勾選班別最後並重新連號", () => {
+            assert.match(memberSource, /function moveChangedScheduleShiftOptionToSelectionOrder\\(input\\)/);
+            assert.match(memberSource, /lastChecked\\.after\\(row\\)/);
+            assert.match(memberSource, /let rank = 1;/);
+            assert.match(formEventsSource, /moveChangedScheduleShiftOptionToSelectionOrder\\(target\\);[\\s\\S]*syncScheduleShiftSelectorRanks\\(\\);[\\s\\S]*syncScheduleShiftSummary\\(\\);/);
+          });
+          '''.replace(/^          /gm, ''), encoding='utf-8')
+
+      - name: Remove temporary workflow
+        run: git rm .github/workflows/fix-member-shift-order.yml
+
+      - name: Build and verify
+        run: |
+          node --test tests/member-shift-selection-order.test.js
+          npm run web:publish
+          npm run web:check
+          npm run renderer:check
+
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: preserve member shift selection order"
+          git push origin HEAD:main
