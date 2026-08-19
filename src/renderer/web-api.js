@@ -1252,7 +1252,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       [exporter.buildSapLeaveCsvContent(payload)],
       { type: "text/csv;charset=utf-8" }
     );
-    const fileName = makeRangeExportFileName("sap請假", payload, "csv");
+    const fileName = makeRangeExportFileName("sap例休假", payload, "csv");
     downloadBlob(blob, fileName);
     return { canceled: false, empty: false, filePath: fileName };
   }
@@ -1292,7 +1292,8 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     const result = await requestFunction("attendance-ledger-export", {
       fromDate: filters.fromDate,
       toDate: filters.toDate,
-      memberId: filters.memberId || ""
+      memberId: filters.memberId || "",
+      groupId: filters.groupId || ""
     });
     const exportRows = (Array.isArray(result.rows) ? result.rows : []).flatMap((row) => {
       const scheduledStart = row.restDayScheduled ? String(row.scheduledShiftStartTime || "") : "";

@@ -49,8 +49,11 @@ function bindRecordsEvents() {
       return;
     }
     if (target.dataset.attendanceReviewFilter !== undefined) {
-      ensureAttendanceReviewState().filters[target.dataset.attendanceReviewFilter] = target.value || "";
-      recordsState.attendanceReview.page = 1;
+      const review = ensureAttendanceReviewState();
+      const field = target.dataset.attendanceReviewFilter;
+      review.filters[field] = target.value || "";
+      if (field === "groupId") review.filters.memberId = "";
+      review.page = 1;
       scheduleRecordsReload("attendance-review", loadAttendanceReview);
       return;
     }
@@ -62,6 +65,20 @@ function bindRecordsEvents() {
   document.addEventListener("click", (event) => {
     const target = event.target.closest("button");
     if (!target) return;
+    if (target.dataset.recordDateSort === "personal") {
+      ensureRecordsState();
+      recordsState.personalFilters.sortDirection = recordsState.personalFilters.sortDirection === "asc" ? "desc" : "asc";
+      recordsState.personalPage = 1;
+      void loadRecordsPage();
+      return;
+    }
+    if (target.dataset.recordDateSort === "review") {
+      const review = ensureAttendanceReviewState();
+      review.filters.sortDirection = review.filters.sortDirection === "asc" ? "desc" : "asc";
+      review.page = 1;
+      void loadAttendanceReview();
+      return;
+    }
     if (target.dataset.personalRecordPage) {
       const page = Number(target.dataset.personalRecordPage || 1);
       if (page > 0) { recordsState.personalPage = page; void loadRecordsPage(); }

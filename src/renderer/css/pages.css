@@ -1067,3 +1067,17 @@
 .permission-settings-table tr.permission-role-dragging {
   opacity: 0.45;
 }
+
+.records-date-sort-btn {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+}
+.records-date-sort-btn:hover { text-decoration: underline; }
+.records-date-sort-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 2px; }

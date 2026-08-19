@@ -63,8 +63,8 @@ function attendanceIssues(record: any, shift: any, workDate: string, today = tai
   const now = nowMinutes();
   if (!hasIn && (past || (sameDay && now >= start + 1))) output.push("未打上班");
   if (!hasOut && (past || (sameDay && now >= end + 1))) output.push("未打下班");
-  if (inMinutes !== null && inMinutes >= start + 1) output.push("遲到");
-  if (outMinutes !== null && outMinutes < end) output.push("早退");
+  if (inMinutes !== null && inMinutes >= start + 6) output.push("遲到");
+  if (outMinutes !== null && outMinutes < end - 30) output.push("早退");
   if (hasIn && hasOut && new Date(record.clock_in_at).getTime() > new Date(record.clock_out_at).getTime()) output.push("上班晚於下班");
   const inDepartment = locationValue(record?.clock_in_location, "departmentId");
   const outDepartment = locationValue(record?.clock_out_location, "departmentId");
@@ -245,6 +245,7 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
   const memberId = String(body?.memberId || "");
   const status = exportOnly ? "reviewed" : String(body?.status || "unreviewed");
   const issueType = String(body?.issueType || "");
+  const sortDirection = body?.sortDirection === "asc" ? "asc" : "desc";
   const page = pageNumber(body?.page);
   const commonNotes = await getCommonNotes(ctx);
   if (!groupIds.length) return { ok: true, members: [], departments: [], issueTypes: ISSUE_TYPES, commonNotes, rows: [], total: 0, page, pageSize: PAGE_SIZE };
@@ -296,7 +297,12 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
       });
     }
   }
-  rows.sort((a, b) => String(b.work_date).localeCompare(String(a.work_date)) || String(a.employee_code).localeCompare(String(b.employee_code)));
+  rows.sort((a, b) => {
+    const dateCompare = sortDirection === "asc"
+      ? String(a.work_date).localeCompare(String(b.work_date))
+      : String(b.work_date).localeCompare(String(a.work_date));
+    return dateCompare || String(a.employee_code).localeCompare(String(b.employee_code));
+  });
   const offset = exportOnly ? 0 : (page - 1) * PAGE_SIZE;
   return {
     ok: true,

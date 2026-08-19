@@ -65,8 +65,8 @@ function attendanceIssues(record: any, shift: any, workDate: string, today = tai
   const now = nowMinutes();
   if (!hasIn && (past || (sameDay && now >= start + 1))) output.push("未打上班");
   if (!hasOut && (past || (sameDay && now >= end + 1))) output.push("未打下班");
-  if (inMinutes !== null && inMinutes >= start + 1) output.push("遲到");
-  if (outMinutes !== null && outMinutes < end) output.push("早退");
+  if (inMinutes !== null && inMinutes >= start + 6) output.push("遲到");
+  if (outMinutes !== null && outMinutes < end - 30) output.push("早退");
   if (hasIn && hasOut && new Date(record.clock_in_at).getTime() > new Date(record.clock_out_at).getTime()) output.push("上班晚於下班");
   const inDepartment = locationValue(record?.clock_in_location, "departmentId");
   const outDepartment = locationValue(record?.clock_out_location, "departmentId");
@@ -180,6 +180,7 @@ async function personalList(ctx: any, body: any, actor: any) {
   const toDate = validDate(body?.toDate, today);
   const fromDate = validDate(body?.fromDate, addDays(today, -49));
   const page = pageNumber(body?.page);
+  const sortDirection = body?.sortDirection === "asc" ? "asc" : "desc";
   const commonNotes = await getCommonNotes(ctx);
   const [attendanceResult, mealResult, scheduleContext, mealSettingResult] = await Promise.all([
     ctx.supabaseAdmin.from("attendance_days").select("*").eq("user_id", actor.id).gte("work_date", fromDate).lte("work_date", toDate),
@@ -199,7 +200,7 @@ async function personalList(ctx: any, body: any, actor: any) {
   const nowTime = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
   const records = datesBetween(fromDate, toDate)
     .filter((date) => employedOn(actor, date))
-    .sort((a, b) => b.localeCompare(a))
+    .sort((a, b) => sortDirection === "asc" ? a.localeCompare(b) : b.localeCompare(a))
     .map((date) => {
       const row: any = attendance.get(date) || null;
       const schedule = scheduleDisplay(scheduleContext, actor.id, date);

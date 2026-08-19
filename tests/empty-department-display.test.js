@@ -22,8 +22,9 @@ test("人員可拖入空單位並保存新的所屬單位", () => {
   const ordering = read("src/renderer/renderer-schedule-ordering.js");
   const drag = read("src/renderer/renderer-events-drag.js");
   assert.match(ordering, /moveScheduleTableMemberToDepartment\(memberId, departmentId\)/);
-  assert.match(ordering, /remainingMembers\.splice\(insertionIndex, 0, \{ \.\.\.draggedMember, deptId: departmentId \}\)/);
-  assert.match(ordering, /finishScheduleTableOrderChange\(viewport\)/);
+  assert.match(ordering, /remainingMembers\.splice\(insertionIndex, 0, movedMember\)/);
+  assert.match(ordering, /persistScheduleTableMemberDepartment\(movedMember, draggedMember\.code\)/);
+  assert.match(ordering, /persistScheduleTableOrder\("member"\)/);
   assert.match(drag, /dragScheduleTableMemberId/);
   assert.match(drag, /closest\("\[data-table-empty-department-id\]"\)/);
   assert.match(drag, /moveScheduleTableMemberToDepartment\(memberId, departmentId\)/);

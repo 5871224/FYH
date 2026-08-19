@@ -28,7 +28,8 @@ function evaluateReorder(members) {
     resolveCurrentMember: () => ({ id: "CURRENT" }),
     clearScheduleRangeSelection: () => {},
     renderAll: () => {},
-    forceSave: async () => {}
+    persistScheduleTableMemberDepartment: async () => true,
+    persistScheduleTableOrder: async () => true
   };
   const api = vm.runInNewContext(source + "\n;({ reorderScheduleTableMember })", context);
   return { api, context };

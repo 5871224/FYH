@@ -267,7 +267,8 @@ async function exportAttendanceReview() {
     const result = await window.schedulerApi.exportAttendanceReview({
       fromDate: filters.fromDate,
       toDate: filters.toDate,
-      memberId: filters.memberId
+      memberId: filters.memberId,
+      groupId: filters.groupId
     });
     if (result.empty) showInfoMessage("所選期間沒有已審資料");
     setSaveStatus("");
@@ -393,7 +394,7 @@ function renderAttendanceReviewPrintTable(rows) {
       <td><div class="attendance-review-print-cell attendance-review-print-center">${row.regularHours === null || row.regularHours === undefined ? "" : escapeHtml(String(row.regularHours))}</div></td>
       <td><div class="attendance-review-print-cell attendance-review-print-center">${row.overtimeHours === null || row.overtimeHours === undefined ? "" : escapeHtml(String(row.overtimeHours))}</div></td>
       <td><div class="attendance-review-print-cell">${escapeHtml(row.note || "")}</div></td>
-      <td><div class="attendance-review-print-cell">${escapeHtml((row.issues || []).join("、") || "正常")}</div></td>
+      <td><div class="attendance-review-print-cell">${escapeHtml((row.issues || []).join("、"))}</div></td>
       <td class="attendance-review-status-col">${renderReviewStatus(row.reviewed)}</td>
     </tr>`).join("")}</tbody>
   </table>`;

@@ -11,7 +11,7 @@ function isRestDayLeave(leave: any) {
   return code === "0036" || code === "0047" || name === "例假" || name === "休息日";
 }
 
-async function getVisibleMembers(ctx: any, actorId: string) {
+async function getVisibleMembers(ctx: any, actorId: string, requestedGroupId = "") {
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
     .select("id,employee_code,full_name,group_id")
@@ -25,7 +25,11 @@ async function getVisibleMembers(ctx: any, actorId: string) {
     await canAccessGroup(ctx, actorId, groupId, "attendance_review")
   ] as const));
   const allowedGroups = new Set(accessPairs.filter(([, allowed]) => allowed).map(([groupId]) => groupId));
-  return (data || []).filter((row: any) => allowedGroups.has(String(row.group_id || "")));
+  if (requestedGroupId && !allowedGroups.has(requestedGroupId)) throw new Error("沒有查看此群組簽到資料的權限");
+  return (data || []).filter((row: any) => {
+    const groupId = String(row.group_id || "");
+    return allowedGroups.has(groupId) && (!requestedGroupId || groupId === requestedGroupId);
+  });
 }
 
 async function getScheduleContext(ctx: any, memberIds: string[], fromDate: string, toDate: string) {
@@ -72,7 +76,8 @@ export default {
       if (fromDate > toDate) throw new Error("日期範圍不正確");
 
       const requestedMemberId = String(body?.memberId || "").trim();
-      const members = await getVisibleMembers(ctx, actorId);
+      const requestedGroupId = String(body?.groupId || "").trim();
+      const members = await getVisibleMembers(ctx, actorId, requestedGroupId);
       const memberMap = new Map<string, any>((members || []).map((row: any) => [String(row.id || ""), row]));
       if (requestedMemberId && !memberMap.has(requestedMemberId)) {
         throw new Error("沒有查看此人員簽到資料的權限");

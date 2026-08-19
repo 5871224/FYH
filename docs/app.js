@@ -2457,7 +2457,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       [exporter.buildSapLeaveCsvContent(payload)],
       { type: "text/csv;charset=utf-8" }
     );
-    const fileName = makeRangeExportFileName("sap請假", payload, "csv");
+    const fileName = makeRangeExportFileName("sap例休假", payload, "csv");
     downloadBlob(blob, fileName);
     return { canceled: false, empty: false, filePath: fileName };
   }
@@ -2497,7 +2497,8 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     const result = await requestFunction("attendance-ledger-export", {
       fromDate: filters.fromDate,
       toDate: filters.toDate,
-      memberId: filters.memberId || ""
+      memberId: filters.memberId || "",
+      groupId: filters.groupId || ""
     });
     const exportRows = (Array.isArray(result.rows) ? result.rows : []).flatMap((row) => {
       const scheduledStart = row.restDayScheduled ? String(row.scheduledShiftStartTime || "") : "";
@@ -8660,6 +8661,19 @@ function departmentOptions(selectedValue) {
   return `<option value="">全部單位</option>${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${selectedValue === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}`;
 }
 
+function renderRecordsDateSortButton(direction, scope) {
+  const normalized = direction === "asc" ? "asc" : "desc";
+  const arrow = normalized === "asc" ? "↑" : "↓";
+  const label = normalized === "asc" ? "升冪" : "降冪";
+  return `<button class="records-date-sort-btn" type="button" data-record-date-sort="${scope}" aria-label="日期${label}，點擊切換排序" title="日期${label}，點擊切換排序">日期 <span aria-hidden="true">${arrow}</span></button>`;
+}
+
+function attendanceReviewGroupOptions(selectedValue) {
+  const groups = typeof getSelectableGroups === "function" ? getSelectableGroups() : [];
+  return `<option value="">全部群組</option>${groups.map((group) => `<option value="${escapeHtml(group.id)}" ${selectedValue === group.id ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("")}`;
+}
+
+
 function findSegmentItem(segment) {
     const itemId = String(segment?.itemId || "");
     if (!itemId) return null;
@@ -8764,7 +8778,7 @@ function renderPersonalRecordsSection() {
     ${attendanceState.error ? `<div class="auth-error">${escapeHtml(attendanceState.error)}</div>` : ""}
     <datalist id="personalAttendanceCommonNotes">${(recordsState.commonAttendanceNotes || []).map((note) => `<option value="${escapeHtml(note)}"></option>`).join("")}</datalist>
     <div class="records-table-wrap"><table class="records-table personal-record-table attendance-ledger-table">
-      <thead><tr><th class="personal-record-date-col">日期</th><th class="personal-schedule-icon-col">圖示</th><th class="personal-record-shift-col">班別</th><th class="personal-record-clock-col">打卡時間</th><th class="personal-record-hours-col">上班時數</th><th class="personal-record-hours-col">加班時數</th><th class="personal-record-note-col">備註</th><th class="personal-record-review-col">審核</th></tr></thead>
+      <thead><tr><th class="personal-record-date-col">${renderRecordsDateSortButton(filters.sortDirection, "personal")}</th><th class="personal-schedule-icon-col">圖示</th><th class="personal-record-shift-col">班別</th><th class="personal-record-clock-col">打卡時間</th><th class="personal-record-hours-col">上班時數</th><th class="personal-record-hours-col">加班時數</th><th class="personal-record-note-col">備註</th><th class="personal-record-review-col">審核</th></tr></thead>
       <tbody>${(recordsState.personal || []).map((record) => `<tr class="${record.date === getTodayDateString() ? "is-today-row" : ""}">
         <td class="personal-record-date-col">${escapeHtml(record.date || "")}</td>
         <td class="personal-schedule-icon-col">${renderScheduleIcon(record)}</td>
@@ -8885,6 +8899,7 @@ function renderAttendanceReviewSection() {
       <div class="records-admin-filters overtime-review-filters attendance-review-filters">
         <label class="records-admin-field"><span>開始日期</span><input type="date" value="${escapeHtml(filters.fromDate || "")}" data-attendance-review-filter="fromDate"></label>
         <label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-attendance-review-filter="toDate"></label>
+        <label class="records-admin-field"><span>群組</span><select data-attendance-review-filter="groupId">${attendanceReviewGroupOptions(filters.groupId)}</select></label>
         <label class="records-admin-field"><span>人員</span><select data-attendance-review-filter="memberId">${memberOptions(filters.memberId, review.members)}</select></label>
         <label class="records-admin-field"><span>異常</span><select data-attendance-review-filter="issueType"><option value="" ${!filters.issueType ? "selected" : ""}>全部顯示</option>${(review.issueTypes || []).map((type) => `<option value="${escapeHtml(type)}" ${filters.issueType === type ? "selected" : ""}>${escapeHtml(type)}</option>`).join("")}</select></label>
         <label class="records-admin-field"><span>狀態</span><select data-attendance-review-filter="status">
@@ -8904,7 +8919,7 @@ function renderAttendanceReviewSection() {
     ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
     <div class="records-table-wrap">
       <table class="records-table attendance-review-table">
-        <thead><tr><th class="attendance-review-check-col"><input type="checkbox" data-attendance-review-check-all></th><th class="attendance-review-date-col">日期</th><th class="attendance-review-employee-col">員工</th><th class="attendance-schedule-icon-col">圖示</th><th class="attendance-review-shift-col">班別</th><th class="attendance-review-clock-col">打卡時間</th><th class="attendance-review-hours-col">上班時數</th><th class="attendance-review-hours-col">加班時數</th><th class="attendance-review-note-col">備註</th><th class="attendance-review-issue-col">異常</th><th class="attendance-review-status-col">狀態</th><th class="attendance-review-operation-col">操作</th></tr></thead>
+        <thead><tr><th class="attendance-review-check-col"><input type="checkbox" data-attendance-review-check-all></th><th class="attendance-review-date-col">${renderRecordsDateSortButton(filters.sortDirection, "review")}</th><th class="attendance-review-employee-col">員工</th><th class="attendance-schedule-icon-col">圖示</th><th class="attendance-review-shift-col">班別</th><th class="attendance-review-clock-col">打卡時間</th><th class="attendance-review-hours-col">上班時數</th><th class="attendance-review-hours-col">加班時數</th><th class="attendance-review-note-col">備註</th><th class="attendance-review-issue-col">異常</th><th class="attendance-review-status-col">狀態</th><th class="attendance-review-operation-col">操作</th></tr></thead>
         <tbody>${rows.map((row) => {
           const token = `${row.user_id}:${row.work_date}`;
           return `<tr>
@@ -8917,7 +8932,7 @@ function renderAttendanceReviewSection() {
             <td class="attendance-review-hours-col">${row.regularHours === null || row.regularHours === undefined ? "" : escapeHtml(String(row.regularHours))}</td>
             <td class="attendance-review-hours-col">${row.overtimeHours === null || row.overtimeHours === undefined ? "" : escapeHtml(String(row.overtimeHours))}</td>
             <td class="attendance-review-note-col">${escapeHtml(row.note || "")}</td>
-            <td class="attendance-review-issue-col">${escapeHtml((row.issues || []).join("、") || "正常")}</td>
+            <td class="attendance-review-issue-col">${escapeHtml((row.issues || []).join("、"))}</td>
             <td class="attendance-review-status-col">${renderReviewStatus(row.reviewed)}</td>
             <td class="attendance-review-operation-col"><div class="attendance-review-row-actions">
               <button class="settings-icon-btn attendance-review-action-btn" type="button" data-edit-attendance-review="${escapeHtml(token)}" aria-label="編輯" title="編輯"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10a2 2 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg></button>
@@ -9572,8 +9587,10 @@ function ensureRecordsState() {
   const today = getTodayDateString();
   recordsState.personalFilters = recordsState.personalFilters || {
     fromDate: addDaysToDateString(today, -49),
-    toDate: today
+    toDate: today,
+    sortDirection: "desc"
   };
+  recordsState.personalFilters.sortDirection = recordsState.personalFilters.sortDirection === "asc" ? "asc" : "desc";
   recordsState.personalPage = Number(recordsState.personalPage || 1);
   recordsState.personalTotal = Number(recordsState.personalTotal || 0);
   recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
@@ -9661,7 +9678,8 @@ function ensureAttendanceReviewState() {
       toDate: filters.toDate || getTodayDateString(),
       memberId: filters.memberId || "",
       issueType: filters.issueType || "",
-      groupId: filters.groupId || ""
+      groupId: filters.groupId || "",
+      sortDirection: filters.sortDirection === "asc" ? "asc" : "desc"
     },
     error: current.error || ""
   };
@@ -9837,8 +9855,11 @@ function bindRecordsEvents() {
       return;
     }
     if (target.dataset.attendanceReviewFilter !== undefined) {
-      ensureAttendanceReviewState().filters[target.dataset.attendanceReviewFilter] = target.value || "";
-      recordsState.attendanceReview.page = 1;
+      const review = ensureAttendanceReviewState();
+      const field = target.dataset.attendanceReviewFilter;
+      review.filters[field] = target.value || "";
+      if (field === "groupId") review.filters.memberId = "";
+      review.page = 1;
       scheduleRecordsReload("attendance-review", loadAttendanceReview);
       return;
     }
@@ -9850,6 +9871,20 @@ function bindRecordsEvents() {
   document.addEventListener("click", (event) => {
     const target = event.target.closest("button");
     if (!target) return;
+    if (target.dataset.recordDateSort === "personal") {
+      ensureRecordsState();
+      recordsState.personalFilters.sortDirection = recordsState.personalFilters.sortDirection === "asc" ? "desc" : "asc";
+      recordsState.personalPage = 1;
+      void loadRecordsPage();
+      return;
+    }
+    if (target.dataset.recordDateSort === "review") {
+      const review = ensureAttendanceReviewState();
+      review.filters.sortDirection = review.filters.sortDirection === "asc" ? "desc" : "asc";
+      review.page = 1;
+      void loadAttendanceReview();
+      return;
+    }
     if (target.dataset.personalRecordPage) {
       const page = Number(target.dataset.personalRecordPage || 1);
       if (page > 0) { recordsState.personalPage = page; void loadRecordsPage(); }
@@ -10345,7 +10380,8 @@ async function exportAttendanceReview() {
     const result = await window.schedulerApi.exportAttendanceReview({
       fromDate: filters.fromDate,
       toDate: filters.toDate,
-      memberId: filters.memberId
+      memberId: filters.memberId,
+      groupId: filters.groupId
     });
     if (result.empty) showInfoMessage("所選期間沒有已審資料");
     setSaveStatus("");
@@ -10471,7 +10507,7 @@ function renderAttendanceReviewPrintTable(rows) {
       <td><div class="attendance-review-print-cell attendance-review-print-center">${row.regularHours === null || row.regularHours === undefined ? "" : escapeHtml(String(row.regularHours))}</div></td>
       <td><div class="attendance-review-print-cell attendance-review-print-center">${row.overtimeHours === null || row.overtimeHours === undefined ? "" : escapeHtml(String(row.overtimeHours))}</div></td>
       <td><div class="attendance-review-print-cell">${escapeHtml(row.note || "")}</div></td>
-      <td><div class="attendance-review-print-cell">${escapeHtml((row.issues || []).join("、") || "正常")}</div></td>
+      <td><div class="attendance-review-print-cell">${escapeHtml((row.issues || []).join("、"))}</div></td>
       <td class="attendance-review-status-col">${renderReviewStatus(row.reviewed)}</td>
     </tr>`).join("")}</tbody>
   </table>`;

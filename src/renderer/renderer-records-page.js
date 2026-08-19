@@ -4,8 +4,10 @@ function ensureRecordsState() {
   const today = getTodayDateString();
   recordsState.personalFilters = recordsState.personalFilters || {
     fromDate: addDaysToDateString(today, -49),
-    toDate: today
+    toDate: today,
+    sortDirection: "desc"
   };
+  recordsState.personalFilters.sortDirection = recordsState.personalFilters.sortDirection === "asc" ? "asc" : "desc";
   recordsState.personalPage = Number(recordsState.personalPage || 1);
   recordsState.personalTotal = Number(recordsState.personalTotal || 0);
   recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
@@ -93,7 +95,8 @@ function ensureAttendanceReviewState() {
       toDate: filters.toDate || getTodayDateString(),
       memberId: filters.memberId || "",
       issueType: filters.issueType || "",
-      groupId: filters.groupId || ""
+      groupId: filters.groupId || "",
+      sortDirection: filters.sortDirection === "asc" ? "asc" : "desc"
     },
     error: current.error || ""
   };
