@@ -30,6 +30,10 @@ jobs:
         id: patch
         shell: bash
         run: |
+          if [[ -f scripts/agent-ci-failure.txt ]]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [[ ! -f scripts/agent-schedule-conditions.js ]]; then
             echo "needed=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -61,11 +65,35 @@ jobs:
         run: npm run web:publish
 
       - name: Validate implementation
+        id: validate
         if: steps.patch.outputs.needed == 'true'
-        run: npm run ci:check
+        shell: bash
+        run: |
+          set +e
+          npm run ci:check 2>&1 | tee /tmp/schedule-conditions-ci.log
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if (( status != 0 )); then
+            tail -n 240 /tmp/schedule-conditions-ci.log > /tmp/schedule-conditions-ci-tail.txt
+          fi
+          exit 0
+
+      - name: Capture validation failure
+        if: steps.patch.outputs.needed == 'true' && steps.validate.outputs.status != '0'
+        shell: bash
+        run: |
+          mkdir -p scripts
+          cp /tmp/schedule-conditions-ci-tail.txt scripts/agent-ci-failure.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/agent-ci-failure.txt
+          git commit -m "chore: capture schedule conditions CI failure"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          exit 1
 
       - name: Commit implementation to PR branch
-        if: steps.patch.outputs.needed == 'true'
+        if: steps.patch.outputs.needed == 'true' && steps.validate.outputs.status == '0'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
