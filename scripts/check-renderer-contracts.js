@@ -12,6 +12,7 @@ const required = [
   "src/renderer/app.js",
   "src/renderer/web-api.js",
   "src/renderer/renderer-foundation.js",
+  "src/renderer/renderer-schedule-conditions.js",
   "src/renderer/renderer-app-shell.js",
   "src/renderer/renderer-main-pages.js",
   "src/renderer/renderer-attendance-page.js",
@@ -99,6 +100,10 @@ assert(!attendancePage.includes("maybePromptOvertimeAfterClockOut"), "下班後�
 
 assert(databaseSql.includes("create table if not exists public.attendance_days"), "SQL 缺少 attendance_days");
 assert(databaseSql.includes("create table if not exists public.attendance_audit_logs"), "SQL 缺少 attendance_audit_logs");
+assert(databaseSql.includes("create table if not exists public.schedule_conditions"), "SQL 缺少 schedule_conditions");
+for (const rpcName of ["get_schedule_conditions_v1", "save_schedule_condition_v1", "delete_schedule_condition_v1"]) {
+  assert(databaseSql.includes(rpcName), `SQL 缺少排班條件 RPC：${rpcName}`);
+}
 for (const oldTable of ["attendance_records", "attendance_action_logs", "attendance_overtime_requests", "overtime_review_logs"]) {
   assert(!databaseSql.includes(oldTable), `正式 SQL 仍包含淘汰結構：${oldTable}`);
 }

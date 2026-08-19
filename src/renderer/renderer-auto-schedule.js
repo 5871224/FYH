@@ -26,8 +26,8 @@ function buildAutoSchedulePreview(dates = getVisibleDates()) {
       }
       if (toDateObject(dateString)?.getDay() === normalizeRestWeekday(member.fixedRestWeekday)) {
         const hadShift = hasAnyShiftOnDate(scheduleMap, member.id, dateString);
-        markAutoLeave(scheduleMap, member, dateString, regularLeave, preview, hadShift ? "例假加班" : "固定例假");
-        if (hadShift) {
+        const placed = markAutoLeave(scheduleMap, member, dateString, regularLeave, preview, hadShift ? "例假加班" : "固定例假");
+        if (placed && hadShift) {
           preview.warnings.push(`${member.name} ${dateString} 已有班別，預排為例假加班`);
         }
       }
@@ -58,12 +58,17 @@ function buildAutoSchedulePreview(dates = getVisibleDates()) {
         getWeekBucketIndex(dateString, startDate) === targetWeek
         && isMemberActiveOnDateString(member, dateString)
         && !hasAnyLeaveOnDate(scheduleMap, member.id, dateString)
+        && canAutoPlaceLeaveByScheduleConditions(scheduleMap, member.id, dateString)
       ));
       if (!candidateDate) {
         preview.warnings.push(`${member.name} 休息日不足 ${target - restCount} 天`);
         break;
       }
-      markAutoLeave(scheduleMap, member, candidateDate, restLeave, preview, hasAnyShiftOnDate(scheduleMap, member.id, candidateDate) ? "休息日加班" : "補足休息日");
+      const placed = markAutoLeave(scheduleMap, member, candidateDate, restLeave, preview, hasAnyShiftOnDate(scheduleMap, member.id, candidateDate) ? "休息日加班" : "補足休息日");
+      if (!placed) {
+        preview.warnings.push(`${member.name} 休息日不足 ${target - restCount} 天`);
+        break;
+      }
       if (hasAnyShiftOnDate(scheduleMap, member.id, candidateDate)) {
         preview.warnings.push(`${member.name} ${candidateDate} 預排為休息日加班`);
       }
@@ -129,6 +134,12 @@ async function generateAutoSchedulePreviewFromModal() {
   const missingLeaveLabels = getMissingAutoScheduleLeaveLabels();
   if (missingLeaveLabels.length) {
     reportValidationError(`自動排班需要先在假別設定新增：${missingLeaveLabels.join("、")}`);
+    return;
+  }
+  try {
+    await loadScheduleConditions(groupFeatureState.currentGroupId, true);
+  } catch (error) {
+    reportValidationError(`讀取排班條件失敗：${error.message || error}`);
     return;
   }
   closeModal();

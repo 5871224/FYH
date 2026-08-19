@@ -1232,6 +1232,9 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   }
 
   async function getGroupAccessBundle() { return callRpc("get_group_access_bundle_v1", {}) || {}; }
+  async function getScheduleConditions(groupId) { return callRpc("get_schedule_conditions_v1", { p_group_id: groupId }) || []; }
+  async function saveScheduleCondition(item) { return callRpc("save_schedule_condition_v1", { p_item: item }); }
+  async function deleteScheduleCondition(conditionId) { return callRpc("delete_schedule_condition_v1", { p_condition_id: conditionId }); }
   async function getScheduleArchiveRanges() { return callRpc("get_schedule_archive_ranges_v1", {}) || []; }
   async function saveScheduleGroup(group) { return callRpc("save_schedule_group_v1", { p_group: group }); }
   async function deleteScheduleGroup(groupId, confirmName) { return callRpc("delete_schedule_group_v1", { p_group_id: groupId, p_confirm_name: confirmName }); }
@@ -1468,6 +1471,9 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     saveSchedulerPreferences,
     saveHolidays,
     getGroupAccessBundle,
+    getScheduleConditions,
+    saveScheduleCondition,
+    deleteScheduleCondition,
     getScheduleArchiveRanges,
     saveScheduleGroup,
     deleteScheduleGroup,

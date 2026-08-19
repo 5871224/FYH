@@ -48,7 +48,9 @@ test("自動補班只處理月薪人員的完全空白格", () => {
     getMemberHomeDeptId: (member) => member.deptId,
     isMemberActiveOnDateString: () => true,
     isDepartmentOperatingOnDate: () => true,
-    getScheduleKeyForDateString: (memberId, date) => memberId + "_" + date
+    getScheduleKeyForDateString: (memberId, date) => memberId + "_" + date,
+    getBlockingSameShiftConditions: () => [],
+    noteScheduleConditionBlocks: () => {}
   };
   const api = evaluateAutoFill(context, "({ buildAutoFillSchedulePreview })");
   const preview = api.buildAutoFillSchedulePreview(["2026-07-01", "2026-07-02"]);

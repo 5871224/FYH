@@ -54,6 +54,8 @@ function buildAutoFillSchedulePreview(dates) {
     warnings: []
   };
   const missingShiftMembers = [];
+  const workingSchedule = JSON.parse(JSON.stringify(state.schedule || {}));
+  let conditionBlockedCount = 0;
 
   state.members.forEach((member) => {
     if (member.payByDay) {
@@ -70,7 +72,13 @@ function buildAutoFillSchedulePreview(dates) {
     }
     eligibleDates.forEach((dateString) => {
       const key = getScheduleKeyForDateString(member.id, dateString);
-      if (!key || !isBlankScheduleSlot(state.schedule[key] || null)) {
+      if (!key || !isBlankScheduleSlot(workingSchedule[key] || null)) {
+        return;
+      }
+      const blockingConditions = getBlockingSameShiftConditions(workingSchedule, member.id, firstShiftId, dateString);
+      if (blockingConditions.length) {
+        conditionBlockedCount += 1;
+        noteScheduleConditionBlocks(preview, dateString, blockingConditions, "已達同班限額，未自動補班");
         return;
       }
       preview.slots[key] = {
@@ -78,11 +86,15 @@ function buildAutoFillSchedulePreview(dates) {
         leave: null,
         overtime: null
       };
+      workingSchedule[key] = { ...preview.slots[key] };
     });
   });
 
   if (missingShiftMembers.length) {
     preview.warnings.push(`以下月薪人員未設定排班班別，未自動補班：${missingShiftMembers.join("、")}`);
+  }
+  if (conditionBlockedCount) {
+    preview.warnings.push(`共有 ${conditionBlockedCount} 格因排班條件未自動補班`);
   }
   return preview;
 }
@@ -131,7 +143,10 @@ async function generateAutoFillSchedulePreviewFromModal(button) {
     button.disabled = true;
   }
   try {
-    await ensureAutoFillScheduleRangeLoaded(startDate, endDate);
+    await Promise.all([
+      ensureAutoFillScheduleRangeLoaded(startDate, endDate),
+      loadScheduleConditions(groupFeatureState.currentGroupId, true)
+    ]);
     closeModal();
     autoSchedulePreview = buildAutoFillSchedulePreview(dates);
     renderAll();

@@ -51,6 +51,11 @@ function markAutoLeave(scheduleMap, member, dateString, leave, preview, reason) 
   if (!slot || !leave) {
     return false;
   }
+  const blockingConditions = getBlockingSameLeaveConditions(scheduleMap, member.id, dateString);
+  if (blockingConditions.length) {
+    noteScheduleConditionBlocks(preview, dateString, blockingConditions, `${reason || "排假"}：已達同休限額，未自動排假`);
+    return false;
+  }
   slot.leave = leave.id;
   slot.leaveMeta = {
     leaveCode: leave.code || "",
