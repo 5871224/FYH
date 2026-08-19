@@ -1,0 +1,18 @@
+const fs = require("node:fs");
+const path = require("node:path");
+const root = process.cwd();
+const sourcePath = path.join(root,"scripts","agent-schedule-conditions.js");
+const fixedPath = path.join(root,"scripts","agent-schedule-conditions-fixed.js");
+let source = fs.readFileSync(sourcePath,"utf8");
+const protectedExpressions=[["${file}","__PATCH_FILE__"],["${count}","__PATCH_COUNT__"],["${search.slice(0, 100)}","__PATCH_SEARCH__"],["${assignmentSnippet}","__PATCH_ASSIGNMENT__"],["${specBlock}","__PATCH_SPEC__"]];
+for(const [expression,marker] of protectedExpressions) source=source.split(expression).join(marker);
+source=source.split("${").join("\\${");
+for(const [expression,marker] of protectedExpressions) source=source.split(marker).join(expression);
+source=source.split("const workingSchedule = deepClone(state.schedule || {});").join("const workingSchedule = JSON.parse(JSON.stringify(state.schedule || {}));").split("workingSchedule[key] = deepClone(preview.slots[key]);").join("workingSchedule[key] = { ...preview.slots[key] };");
+const functionAnchor='  async function getGroupAccessBundle() { return callRpc("get_group_access_bundle_v1", {}) || {}; }';
+const functionReplacement=`${functionAnchor}\n  async function getScheduleConditions(groupId) { return callRpc("get_schedule_conditions_v1", { p_group_id: groupId }) || []; }\n  async function saveScheduleCondition(item) { return callRpc("save_schedule_condition_v1", { p_item: item }); }\n  async function deleteScheduleCondition(conditionId) { return callRpc("delete_schedule_condition_v1", { p_condition_id: conditionId }); }`;
+source += `\nreplaceOnce("src/renderer/web-api.js", ${JSON.stringify(functionAnchor)}, ${JSON.stringify(functionReplacement)});\n`;
+source += `replaceOnce("src/renderer/web-api.js", ${JSON.stringify('    getGroupAccessBundle,')}, ${JSON.stringify('    getGroupAccessBundle,\n    getScheduleConditions,\n    saveScheduleCondition,\n    deleteScheduleCondition,')});\n`;
+source += `\nconst attendanceBootstrapFile="supabase/003_department_attendance_bootstrap.sql";\nif(fs.existsSync(path.join(root,attendanceBootstrapFile))){appendOnce("supabase/002_current_updates.sql","管理員重新載入頁面時保留單位打卡設定",read(attendanceBootstrapFile));fs.unlinkSync(path.join(root,attendanceBootstrapFile));}\n`;
+fs.writeFileSync(fixedPath,source,"utf8");
+require(fixedPath);
