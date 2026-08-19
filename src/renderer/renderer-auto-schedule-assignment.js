@@ -110,6 +110,77 @@ function findMinimumCostFlowAssignments(scheduleMap, options, dateString, dates)
     .map(({ shift, member }) => ({ shift, member }));
 }
 
+function findConstraintAwareDailyShiftAssignments(scheduleMap, options, dateString, dates) {
+  const FIRST_COVERAGE_COST = 0;
+  const EXTRA_COVERAGE_COST = 1000000;
+  const shiftSlots = [];
+  options.forEach((option) => {
+    for (let index = 0; index < option.remaining; index += 1) {
+      shiftSlots.push({
+        ...option,
+        slotCost: option.assignedCount === 0 && index === 0 ? FIRST_COVERAGE_COST : EXTRA_COVERAGE_COST
+      });
+    }
+  });
+
+  let bestAssignments = [];
+  let bestCost = Infinity;
+  const currentAssignments = [];
+  const usedMembers = new Set();
+  const blockedById = new Map();
+
+  const search = (slotIndex, cost) => {
+    if (currentAssignments.length + (shiftSlots.length - slotIndex) < bestAssignments.length) {
+      return;
+    }
+    if (slotIndex >= shiftSlots.length) {
+      if (
+        currentAssignments.length > bestAssignments.length
+        || (currentAssignments.length === bestAssignments.length && cost < bestCost)
+      ) {
+        bestAssignments = currentAssignments.map((item) => ({ shift: item.shift, member: item.member }));
+        bestCost = cost;
+      }
+      return;
+    }
+
+    const option = shiftSlots[slotIndex];
+    const candidates = option.candidates
+      .filter((member) => !usedMembers.has(member.id))
+      .map((member) => ({
+        member,
+        cost: option.slotCost + getDailyAssignmentCost(scheduleMap, option, member, dateString, dates)
+      }))
+      .sort((a, b) => a.cost - b.cost || a.member.name.localeCompare(b.member.name));
+
+    candidates.forEach(({ member, cost: assignmentCost }) => {
+      const blocking = getBlockingSameShiftConditions(scheduleMap, member.id, option.shift.id, dateString);
+      if (blocking.length) {
+        blocking.forEach((condition) => blockedById.set(condition.id, condition));
+        return;
+      }
+      const slot = ensureWorkScheduleSlot(scheduleMap, member.id, dateString);
+      if (!slot) return;
+      const previousShift = slot.shift || null;
+      slot.shift = option.shift.id;
+      usedMembers.add(member.id);
+      currentAssignments.push({ shift: option.shift, member });
+      search(slotIndex + 1, cost + assignmentCost);
+      currentAssignments.pop();
+      usedMembers.delete(member.id);
+      slot.shift = previousShift;
+    });
+
+    search(slotIndex + 1, cost);
+  };
+
+  search(0, 0);
+  return {
+    assignments: bestAssignments,
+    blockedConditions: Array.from(blockedById.values())
+  };
+}
+
 function findBestDailyShiftAssignments(scheduleMap, dateString, preview) {
   const options = getDailyShiftNeedOptions(scheduleMap, dateString)
     .sort((a, b) => (
@@ -117,7 +188,14 @@ function findBestDailyShiftAssignments(scheduleMap, dateString, preview) {
       || b.remaining - a.remaining
       || a.shift.name.localeCompare(b.shift.name)
     ));
-  const assignments = findMinimumCostFlowAssignments(scheduleMap, options, dateString, preview.dates || [dateString]);
+  const sameShiftConditions = getEffectiveScheduleConditions(SCHEDULE_CONDITION_SAME_SHIFT);
+  const conditionResult = sameShiftConditions.length
+    ? findConstraintAwareDailyShiftAssignments(scheduleMap, options, dateString, preview.dates || [dateString])
+    : {
+      assignments: findMinimumCostFlowAssignments(scheduleMap, options, dateString, preview.dates || [dateString]),
+      blockedConditions: []
+    };
+  const assignments = conditionResult.assignments;
   assignments.forEach(({ shift, member }) => {
     const slot = ensureWorkScheduleSlot(scheduleMap, member.id, dateString);
     if (slot) {
@@ -126,6 +204,9 @@ function findBestDailyShiftAssignments(scheduleMap, dateString, preview) {
   });
   const missingDetails = getRemainingDailyShiftDemandDetails(scheduleMap, dateString);
   if (missingDetails.length) {
+    if (conditionResult.blockedConditions.length) {
+      noteScheduleConditionBlocks(preview, dateString, conditionResult.blockedConditions, "已達同班限額，無法再安排");
+    }
     const missing = missingDetails.reduce((sum, item) => sum + item.missing, 0);
     const detailText = missingDetails
       .map(({ shift, missing: missingCount }) => `${shift.name}缺${missingCount}`)

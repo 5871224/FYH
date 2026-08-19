@@ -7,7 +7,7 @@ const vm = require("node:vm");
 // 這些測試固定拆分前的休假目標、需求缺額與班別順位行為。
 const root = path.resolve(__dirname, "..");
 const { RENDERER_CORE_FILES, readRendererCore } = require("../scripts/renderer-core-source.js");
-const moduleNames = ["renderer-auto-schedule-compliance.js", "renderer-auto-schedule-demand.js", "renderer-auto-schedule-assignment.js", "renderer-auto-schedule.js"];
+const moduleNames = ["renderer-schedule-conditions.js", "renderer-auto-schedule-compliance.js", "renderer-auto-schedule-demand.js", "renderer-auto-schedule-assignment.js", "renderer-auto-schedule.js"];
 
 function evaluateAutoSchedule(exportExpression, context) {
   const source = moduleNames.map((file) => fs.readFileSync(path.join(root, "src", "renderer", file), "utf8")).join("\n");
@@ -18,6 +18,7 @@ function makeContext() {
   const leaveMap = new Map([["regular", { id: "regular", code: "0036", name: "例假" }], ["rest", { id: "rest", code: "0047", name: "休息日" }]]);
   return {
     state: { members: [], shifts: [], departments: [], leaves: Array.from(leaveMap.values()), schedule: {} },
+    groupFeatureState: { currentGroupId: "G" },
     getItem: (_category, id) => leaveMap.get(id) || null,
     getScheduleKeyForDateString: (memberId, dateString) => memberId + "_" + dateString,
     isMemberActiveOnDateString: (member, dateString) => (!member.hireDate || dateString >= member.hireDate) && (!member.leaveDate || dateString <= member.leaveDate),
@@ -78,6 +79,52 @@ test("最小成本分配應優先符合人員班別順位", () => {
   ], "2026-07-12", ["2026-07-12"]);
   const pairs = assignments.map(({ shift, member }) => shift.id + ":" + member.id).sort();
   assert.deepEqual(Array.from(pairs), ["A:M1", "B:M2"]);
+});
+
+test("同休限制應把任何假別都算入限額", () => {
+  const context = makeContext();
+  context.state.members = [
+    { id: "A", name: "甲", groupId: "G" },
+    { id: "B", name: "乙", groupId: "G" },
+    { id: "C", name: "丙", groupId: "G" }
+  ];
+  const api = evaluateAutoSchedule("({ scheduleConditionState, getBlockingSameLeaveConditions })", context);
+  api.scheduleConditionState.byGroup.set("G", [{
+    id: "C1", groupId: "G", type: "same_leave", limitCount: 1, memberIds: ["A", "B", "C"]
+  }]);
+  const schedule = { "A_2026-07-12": { leave: "any-leave" } };
+  assert.equal(api.getBlockingSameLeaveConditions(schedule, "B", "2026-07-12").length, 1);
+  assert.equal(api.getBlockingSameLeaveConditions(schedule, "A", "2026-07-12").length, 0);
+});
+
+test("同班限制應計入既有班別且可改排其他班別", () => {
+  const context = makeContext();
+  context.state.members = [
+    { id: "A", name: "甲", groupId: "G" },
+    { id: "B", name: "乙", groupId: "G" },
+    { id: "C", name: "丙", groupId: "G" }
+  ];
+  const api = evaluateAutoSchedule("({ scheduleConditionState, getBlockingSameShiftConditions })", context);
+  api.scheduleConditionState.byGroup.set("G", [{
+    id: "C1", groupId: "G", type: "same_shift", limitCount: 1, memberIds: ["A", "B", "C"]
+  }]);
+  const schedule = { "A_2026-07-12": { shift: "S" } };
+  assert.equal(api.getBlockingSameShiftConditions(schedule, "B", "S", "2026-07-12").length, 1);
+  assert.equal(api.getBlockingSameShiftConditions(schedule, "B", "T", "2026-07-12").length, 0);
+});
+
+test("失效人員應在讀取條件時忽略且不套用無效條件", () => {
+  const context = makeContext();
+  context.state.members = [
+    { id: "A", name: "甲", groupId: "G", deleted: false },
+    { id: "B", name: "乙", groupId: "OTHER", deleted: false },
+    { id: "C", name: "丙", groupId: "G", deleted: true }
+  ];
+  const api = evaluateAutoSchedule("({ scheduleConditionState, getEffectiveScheduleConditions })", context);
+  api.scheduleConditionState.byGroup.set("G", [{
+    id: "C1", groupId: "G", type: "same_shift", limitCount: 1, memberIds: ["A", "B", "C", "MISSING"]
+  }]);
+  assert.equal(api.getEffectiveScheduleConditions("same_shift").length, 0);
 });
 
 test("自動排班應維持明確建置順序", () => {

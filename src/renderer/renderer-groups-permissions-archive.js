@@ -264,6 +264,7 @@ function ensureFunctionMenuButtons() {
   const definitions = [
     ["groupSettingsMenuButton", "群組設定", "group_settings", "group-settings"],
     ["permissionSettingsMenuButton", "權限設定", "permission_settings", "permission-settings"],
+    ["scheduleConditionsMenuButton", "排班條件", "schedule_manage", "schedule-conditions"],
     ["scheduleArchiveMenuButton", "班表封存", "schedule_view", "schedule-archive"]
   ];
   definitions.forEach(([id, label, permission, action]) => {
@@ -277,7 +278,11 @@ function ensureFunctionMenuButtons() {
       button.textContent = label;
       menu.prepend(button);
     }
-    const visible = action === "schedule-archive" ? hasPermission("schedule_view") : hasPermission(permission);
+    const visible = action === "schedule-conditions"
+      ? canEditSchedule()
+      : action === "schedule-archive"
+        ? hasPermission("schedule_view")
+        : hasPermission(permission);
     button.style.display = visible ? "" : "none";
     button.disabled = !visible;
   });
@@ -683,7 +688,12 @@ function bindGroupFeatureEvents() {
     const action = button.dataset.groupFeatureAction;
     if (action === "group-settings") { event.preventDefault(); closeCoreActionsMenu(); openGroupSettings(); return; }
     if (action === "permission-settings") { event.preventDefault(); closeCoreActionsMenu(); openPermissionSettings(); return; }
+    if (action === "schedule-conditions") { event.preventDefault(); closeCoreActionsMenu(); void openScheduleConditions(); return; }
     if (action === "schedule-archive") { event.preventDefault(); closeCoreActionsMenu(); void openScheduleArchive(); return; }
+    if (button.dataset.addScheduleCondition !== undefined) { event.preventDefault(); openScheduleConditionForm(); return; }
+    if (button.dataset.editScheduleCondition) { event.preventDefault(); openScheduleConditionForm(button.dataset.editScheduleCondition); return; }
+    if (button.dataset.saveScheduleCondition !== undefined) { event.preventDefault(); void saveScheduleConditionFromModal(); return; }
+    if (button.dataset.deleteScheduleCondition) { event.preventDefault(); void deleteScheduleCondition(button.dataset.deleteScheduleCondition); return; }
     if (button.dataset.addScheduleGroup !== undefined) { openGroupForm(); return; }
     if (button.dataset.editScheduleGroup) { openGroupForm(button.dataset.editScheduleGroup); return; }
     if (button.dataset.saveScheduleGroup !== undefined) { void saveScheduleGroupFromForm().catch((error) => reportValidationError(error.message)); return; }

@@ -2437,6 +2437,9 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   }
 
   async function getGroupAccessBundle() { return callRpc("get_group_access_bundle_v1", {}) || {}; }
+  async function getScheduleConditions(groupId) { return callRpc("get_schedule_conditions_v1", { p_group_id: groupId }) || []; }
+  async function saveScheduleCondition(item) { return callRpc("save_schedule_condition_v1", { p_item: item }); }
+  async function deleteScheduleCondition(conditionId) { return callRpc("delete_schedule_condition_v1", { p_condition_id: conditionId }); }
   async function getScheduleArchiveRanges() { return callRpc("get_schedule_archive_ranges_v1", {}) || []; }
   async function saveScheduleGroup(group) { return callRpc("save_schedule_group_v1", { p_group: group }); }
   async function deleteScheduleGroup(groupId, confirmName) { return callRpc("delete_schedule_group_v1", { p_group_id: groupId, p_confirm_name: confirmName }); }
@@ -2673,6 +2676,9 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     saveSchedulerPreferences,
     saveHolidays,
     getGroupAccessBundle,
+    getScheduleConditions,
+    saveScheduleCondition,
+    deleteScheduleCondition,
     getScheduleArchiveRanges,
     saveScheduleGroup,
     deleteScheduleGroup,
@@ -4522,6 +4528,143 @@ function isTypingTarget(target) {
 }
 ;
 
+/* ===== renderer-schedule-conditions.js ===== */
+const SCHEDULE_CONDITION_SAME_SHIFT = "same_shift";
+const SCHEDULE_CONDITION_SAME_LEAVE = "same_leave";
+
+const scheduleConditionState = { byGroup: new Map() };
+
+function normalizeScheduleCondition(row) {
+  const memberIds = Array.isArray(row?.member_ids) ? row.member_ids : Array.isArray(row?.memberIds) ? row.memberIds : [];
+  return {
+    id: String(row?.id || ""),
+    groupId: String(row?.group_id || row?.groupId || ""),
+    type: String(row?.condition_type || row?.type || ""),
+    limitCount: Math.max(0, Number(row?.limit_count ?? row?.limitCount) || 0),
+    memberIds: [...new Set(memberIds.map((id) => String(id || "")).filter(Boolean))]
+  };
+}
+
+async function loadScheduleConditions(groupId = groupFeatureState.currentGroupId, force = false) {
+  if (!groupId) return [];
+  if (!force && scheduleConditionState.byGroup.has(groupId)) return scheduleConditionState.byGroup.get(groupId);
+  const rows = await window.schedulerApi.getScheduleConditions(groupId) || [];
+  const conditions = (Array.isArray(rows) ? rows : []).map(normalizeScheduleCondition).filter((condition) => condition.id && condition.groupId === groupId);
+  scheduleConditionState.byGroup.set(groupId, conditions);
+  return conditions;
+}
+
+async function ensureScheduleConditionsLoaded(groupId = groupFeatureState.currentGroupId) { return loadScheduleConditions(groupId, false); }
+function getScheduleConditionsForGroup(groupId = groupFeatureState.currentGroupId) { return scheduleConditionState.byGroup.get(groupId) || []; }
+
+function getConditionEffectiveMemberIds(condition, groupId = groupFeatureState.currentGroupId) {
+  if (!condition || condition.groupId !== groupId) return [];
+  const currentMemberIds = new Set((state.members || []).filter((member) => !member.deleted && (member.groupId || groupId) === groupId).map((member) => member.id));
+  return condition.memberIds.filter((id, index, list) => currentMemberIds.has(id) && list.indexOf(id) === index);
+}
+
+function getEffectiveScheduleConditions(type = "", groupId = groupFeatureState.currentGroupId) {
+  return getScheduleConditionsForGroup(groupId)
+    .filter((condition) => !type || condition.type === type)
+    .map((condition) => ({ ...condition, effectiveMemberIds: getConditionEffectiveMemberIds(condition, groupId) }))
+    .filter((condition) => condition.effectiveMemberIds.length >= 2 && condition.limitCount >= 1 && condition.limitCount < condition.effectiveMemberIds.length);
+}
+
+function getScheduleConditionMemberNames(condition) {
+  const memberById = new Map((state.members || []).map((member) => [member.id, member.name || member.code || member.id]));
+  const ids = condition?.effectiveMemberIds || getConditionEffectiveMemberIds(condition);
+  return ids.map((id) => memberById.get(id)).filter(Boolean);
+}
+
+function getScheduleConditionTypeLabel(type) { return type === SCHEDULE_CONDITION_SAME_LEAVE ? "同休限制" : "同班限制"; }
+function formatScheduleConditionLabel(condition) { return `${getScheduleConditionTypeLabel(condition.type)}（${getScheduleConditionMemberNames(condition).join("、")}；限額 ${condition.limitCount}）`; }
+
+function getBlockingSameLeaveConditions(scheduleMap, memberId, dateString) {
+  return getEffectiveScheduleConditions(SCHEDULE_CONDITION_SAME_LEAVE)
+    .filter((condition) => condition.effectiveMemberIds.includes(memberId))
+    .filter((condition) => {
+      if (getWorkScheduleSlot(scheduleMap, memberId, dateString)?.leave) return false;
+      const count = condition.effectiveMemberIds.reduce((sum, id) => sum + (getWorkScheduleSlot(scheduleMap, id, dateString)?.leave ? 1 : 0), 0);
+      return count >= condition.limitCount;
+    });
+}
+function canAutoPlaceLeaveByScheduleConditions(scheduleMap, memberId, dateString) { return getBlockingSameLeaveConditions(scheduleMap, memberId, dateString).length === 0; }
+
+function getBlockingSameShiftConditions(scheduleMap, memberId, shiftId, dateString) {
+  return getEffectiveScheduleConditions(SCHEDULE_CONDITION_SAME_SHIFT)
+    .filter((condition) => condition.effectiveMemberIds.includes(memberId))
+    .filter((condition) => {
+      if (getWorkScheduleSlot(scheduleMap, memberId, dateString)?.shift === shiftId) return false;
+      const count = condition.effectiveMemberIds.reduce((sum, id) => sum + (getWorkScheduleSlot(scheduleMap, id, dateString)?.shift === shiftId ? 1 : 0), 0);
+      return count >= condition.limitCount;
+    });
+}
+function canAutoAssignShiftByScheduleConditions(scheduleMap, memberId, shiftId, dateString) { return getBlockingSameShiftConditions(scheduleMap, memberId, shiftId, dateString).length === 0; }
+
+function noteScheduleConditionBlocks(preview, dateString, conditions, suffix) {
+  if (!preview || !Array.isArray(preview.warnings) || !conditions?.length) return;
+  if (!preview.scheduleConditionWarningKeys) Object.defineProperty(preview, "scheduleConditionWarningKeys", { value: new Set(), enumerable: false });
+  conditions.forEach((condition) => {
+    const key = `${dateString}|${condition.id}|${suffix}`;
+    if (preview.scheduleConditionWarningKeys.has(key)) return;
+    preview.scheduleConditionWarningKeys.add(key);
+    preview.warnings.push(`${dateString} ${formatScheduleConditionLabel(condition)}：${suffix}`);
+  });
+}
+
+function renderScheduleConditionStatus(condition) {
+  const ids = getConditionEffectiveMemberIds(condition);
+  return ids.length >= 2 && condition.limitCount >= 1 && condition.limitCount < ids.length ? "" : '<span class="settings-member-chip">目前未生效</span>';
+}
+
+async function openScheduleConditions(force = true) {
+  if (!canEditSchedule()) { showInfoMessage("沒有管理目前群組班表的權限"); return; }
+  try {
+    const conditions = await loadScheduleConditions(groupFeatureState.currentGroupId, force);
+    const body = conditions.length ? `<div class="settings-table-wrap"><div class="settings-table-scroll"><div class="settings-table"><div class="settings-table-row" style="grid-template-columns:120px minmax(260px,1fr) 90px 100px;"><div>條件類型</div><div>人員</div><div>限額</div><div class="settings-table-actions-head">操作</div></div>${conditions.map((condition) => {
+      const effective = { ...condition, effectiveMemberIds: getConditionEffectiveMemberIds(condition) };
+      const names = getScheduleConditionMemberNames(effective);
+      return `<div class="settings-table-row" style="grid-template-columns:120px minmax(260px,1fr) 90px 100px;"><div>${escapeHtml(getScheduleConditionTypeLabel(condition.type))}</div><div class="settings-table-meta settings-member-list">${names.length ? names.map((name) => `<span class="settings-member-chip">${escapeHtml(name)}</span>`).join("") : "-"}${renderScheduleConditionStatus(condition)}</div><div>${escapeHtml(String(condition.limitCount))}</div><div class="settings-table-actions">${renderActionIconButton("edit", `data-edit-schedule-condition="${escapeHtml(condition.id)}"`)}${renderActionIconButton("delete", `data-delete-schedule-condition="${escapeHtml(condition.id)}"`)}</div></div>`;
+    }).join("")}</div></div></div>` : '<div class="empty-state">目前還沒有排班條件</div>';
+    openEntityListModal({ title: `排班條件${getCurrentGroup()?.name ? `－${escapeHtml(getCurrentGroup().name)}` : ""}`, modalClass: "modal modal-wide settings-list-modal", body, headerButtons: '<button class="btn-primary" type="button" data-add-schedule-condition="true">新增</button>', hideFooterClose: true });
+  } catch (error) { reportValidationError(`讀取排班條件失敗：${error.message || error}`); }
+}
+
+function openScheduleConditionForm(conditionId = "") {
+  const condition = conditionId ? getScheduleConditionsForGroup().find((item) => item.id === conditionId) : null;
+  const selectedIds = new Set(condition?.memberIds || []);
+  modalContext = { category: "schedule-condition-form", targetId: condition?.id || "" };
+  openEntityListModal({
+    title: condition ? "修改排班條件" : "新增排班條件",
+    modalClass: "modal modal-wide modal-form-compact",
+    body: `<div class="form-grid"><div class="form-row"><label for="scheduleConditionType">條件類型</label><select id="scheduleConditionType"><option value="${SCHEDULE_CONDITION_SAME_SHIFT}" ${condition?.type === SCHEDULE_CONDITION_SAME_SHIFT ? "selected" : ""}>同班限制</option><option value="${SCHEDULE_CONDITION_SAME_LEAVE}" ${condition?.type === SCHEDULE_CONDITION_SAME_LEAVE ? "selected" : ""}>同休限制</option></select></div><div class="form-row"><label for="scheduleConditionLimit">限額</label><input id="scheduleConditionLimit" type="number" min="1" step="1" value="${escapeHtml(String(condition?.limitCount || 1))}"></div></div><div class="form-row"><label>人員</label><div class="permission-check-grid">${(state.members || []).filter((member) => !member.deleted).map((member) => `<label class="permission-check-item"><input type="checkbox" data-schedule-condition-member="${escapeHtml(member.id)}" ${selectedIds.has(member.id) ? "checked" : ""}><span>${escapeHtml(member.name)}</span></label>`).join("")}</div></div>`,
+    headerButtons: '<button class="btn-primary" type="button" data-save-schedule-condition="true">儲存</button>', hideFooterClose: true
+  });
+}
+
+async function saveScheduleConditionFromModal() {
+  const memberIds = Array.from(document.querySelectorAll("[data-schedule-condition-member]:checked")).map((input) => input.dataset.scheduleConditionMember || "").filter(Boolean);
+  const limitCount = Number(document.getElementById("scheduleConditionLimit")?.value || 0);
+  const type = document.getElementById("scheduleConditionType")?.value || SCHEDULE_CONDITION_SAME_SHIFT;
+  if (memberIds.length < 2) { reportValidationError("至少選擇 2 位人員"); return; }
+  if (!Number.isInteger(limitCount) || limitCount < 1 || limitCount >= memberIds.length) { reportValidationError("限額必須大於等於 1，且小於選取人數"); return; }
+  try {
+    await window.schedulerApi.saveScheduleCondition({ id: modalContext.targetId || null, groupId: groupFeatureState.currentGroupId, type, limitCount, memberIds });
+    await loadScheduleConditions(groupFeatureState.currentGroupId, true);
+    await openScheduleConditions(false);
+  } catch (error) { reportValidationError(`儲存排班條件失敗：${error.message || error}`); }
+}
+
+async function deleteScheduleCondition(conditionId) {
+  if (!conditionId || !await confirmAction("確定要刪除這筆排班條件嗎？")) return;
+  try {
+    await window.schedulerApi.deleteScheduleCondition(conditionId);
+    await loadScheduleConditions(groupFeatureState.currentGroupId, true);
+    await openScheduleConditions(false);
+  } catch (error) { reportValidationError(`刪除排班條件失敗：${error.message || error}`); }
+}
+;
+
 /* ===== renderer-auto-schedule-compliance.js ===== */
 function getLeaveByCode(code) {
   return state.leaves.find((leave) => leave.code === code) || null;
@@ -4661,6 +4804,11 @@ function getActiveMembersForDate(dateString) {
 function markAutoLeave(scheduleMap, member, dateString, leave, preview, reason) {
   const slot = ensureWorkScheduleSlot(scheduleMap, member.id, dateString);
   if (!slot || !leave) {
+    return false;
+  }
+  const blockingConditions = getBlockingSameLeaveConditions(scheduleMap, member.id, dateString);
+  if (blockingConditions.length) {
+    noteScheduleConditionBlocks(preview, dateString, blockingConditions, `${reason || "排假"}：已達同休限額，未自動排假`);
     return false;
   }
   slot.leave = leave.id;
@@ -4856,6 +5004,77 @@ function findMinimumCostFlowAssignments(scheduleMap, options, dateString, dates)
     .map(({ shift, member }) => ({ shift, member }));
 }
 
+function findConstraintAwareDailyShiftAssignments(scheduleMap, options, dateString, dates) {
+  const FIRST_COVERAGE_COST = 0;
+  const EXTRA_COVERAGE_COST = 1000000;
+  const shiftSlots = [];
+  options.forEach((option) => {
+    for (let index = 0; index < option.remaining; index += 1) {
+      shiftSlots.push({
+        ...option,
+        slotCost: option.assignedCount === 0 && index === 0 ? FIRST_COVERAGE_COST : EXTRA_COVERAGE_COST
+      });
+    }
+  });
+
+  let bestAssignments = [];
+  let bestCost = Infinity;
+  const currentAssignments = [];
+  const usedMembers = new Set();
+  const blockedById = new Map();
+
+  const search = (slotIndex, cost) => {
+    if (currentAssignments.length + (shiftSlots.length - slotIndex) < bestAssignments.length) {
+      return;
+    }
+    if (slotIndex >= shiftSlots.length) {
+      if (
+        currentAssignments.length > bestAssignments.length
+        || (currentAssignments.length === bestAssignments.length && cost < bestCost)
+      ) {
+        bestAssignments = currentAssignments.map((item) => ({ shift: item.shift, member: item.member }));
+        bestCost = cost;
+      }
+      return;
+    }
+
+    const option = shiftSlots[slotIndex];
+    const candidates = option.candidates
+      .filter((member) => !usedMembers.has(member.id))
+      .map((member) => ({
+        member,
+        cost: option.slotCost + getDailyAssignmentCost(scheduleMap, option, member, dateString, dates)
+      }))
+      .sort((a, b) => a.cost - b.cost || a.member.name.localeCompare(b.member.name));
+
+    candidates.forEach(({ member, cost: assignmentCost }) => {
+      const blocking = getBlockingSameShiftConditions(scheduleMap, member.id, option.shift.id, dateString);
+      if (blocking.length) {
+        blocking.forEach((condition) => blockedById.set(condition.id, condition));
+        return;
+      }
+      const slot = ensureWorkScheduleSlot(scheduleMap, member.id, dateString);
+      if (!slot) return;
+      const previousShift = slot.shift || null;
+      slot.shift = option.shift.id;
+      usedMembers.add(member.id);
+      currentAssignments.push({ shift: option.shift, member });
+      search(slotIndex + 1, cost + assignmentCost);
+      currentAssignments.pop();
+      usedMembers.delete(member.id);
+      slot.shift = previousShift;
+    });
+
+    search(slotIndex + 1, cost);
+  };
+
+  search(0, 0);
+  return {
+    assignments: bestAssignments,
+    blockedConditions: Array.from(blockedById.values())
+  };
+}
+
 function findBestDailyShiftAssignments(scheduleMap, dateString, preview) {
   const options = getDailyShiftNeedOptions(scheduleMap, dateString)
     .sort((a, b) => (
@@ -4863,7 +5082,14 @@ function findBestDailyShiftAssignments(scheduleMap, dateString, preview) {
       || b.remaining - a.remaining
       || a.shift.name.localeCompare(b.shift.name)
     ));
-  const assignments = findMinimumCostFlowAssignments(scheduleMap, options, dateString, preview.dates || [dateString]);
+  const sameShiftConditions = getEffectiveScheduleConditions(SCHEDULE_CONDITION_SAME_SHIFT);
+  const conditionResult = sameShiftConditions.length
+    ? findConstraintAwareDailyShiftAssignments(scheduleMap, options, dateString, preview.dates || [dateString])
+    : {
+      assignments: findMinimumCostFlowAssignments(scheduleMap, options, dateString, preview.dates || [dateString]),
+      blockedConditions: []
+    };
+  const assignments = conditionResult.assignments;
   assignments.forEach(({ shift, member }) => {
     const slot = ensureWorkScheduleSlot(scheduleMap, member.id, dateString);
     if (slot) {
@@ -4872,6 +5098,9 @@ function findBestDailyShiftAssignments(scheduleMap, dateString, preview) {
   });
   const missingDetails = getRemainingDailyShiftDemandDetails(scheduleMap, dateString);
   if (missingDetails.length) {
+    if (conditionResult.blockedConditions.length) {
+      noteScheduleConditionBlocks(preview, dateString, conditionResult.blockedConditions, "已達同班限額，無法再安排");
+    }
     const missing = missingDetails.reduce((sum, item) => sum + item.missing, 0);
     const detailText = missingDetails
       .map(({ shift, missing: missingCount }) => `${shift.name}缺${missingCount}`)
@@ -4939,6 +5168,8 @@ function buildAutoFillSchedulePreview(dates) {
     warnings: []
   };
   const missingShiftMembers = [];
+  const workingSchedule = JSON.parse(JSON.stringify(state.schedule || {}));
+  let conditionBlockedCount = 0;
 
   state.members.forEach((member) => {
     if (member.payByDay) {
@@ -4955,7 +5186,13 @@ function buildAutoFillSchedulePreview(dates) {
     }
     eligibleDates.forEach((dateString) => {
       const key = getScheduleKeyForDateString(member.id, dateString);
-      if (!key || !isBlankScheduleSlot(state.schedule[key] || null)) {
+      if (!key || !isBlankScheduleSlot(workingSchedule[key] || null)) {
+        return;
+      }
+      const blockingConditions = getBlockingSameShiftConditions(workingSchedule, member.id, firstShiftId, dateString);
+      if (blockingConditions.length) {
+        conditionBlockedCount += 1;
+        noteScheduleConditionBlocks(preview, dateString, blockingConditions, "已達同班限額，未自動補班");
         return;
       }
       preview.slots[key] = {
@@ -4963,11 +5200,15 @@ function buildAutoFillSchedulePreview(dates) {
         leave: null,
         overtime: null
       };
+      workingSchedule[key] = { ...preview.slots[key] };
     });
   });
 
   if (missingShiftMembers.length) {
     preview.warnings.push(`以下月薪人員未設定排班班別，未自動補班：${missingShiftMembers.join("、")}`);
+  }
+  if (conditionBlockedCount) {
+    preview.warnings.push(`共有 ${conditionBlockedCount} 格因排班條件未自動補班`);
   }
   return preview;
 }
@@ -5016,7 +5257,10 @@ async function generateAutoFillSchedulePreviewFromModal(button) {
     button.disabled = true;
   }
   try {
-    await ensureAutoFillScheduleRangeLoaded(startDate, endDate);
+    await Promise.all([
+      ensureAutoFillScheduleRangeLoaded(startDate, endDate),
+      loadScheduleConditions(groupFeatureState.currentGroupId, true)
+    ]);
     closeModal();
     autoSchedulePreview = buildAutoFillSchedulePreview(dates);
     renderAll();
@@ -5106,8 +5350,8 @@ function buildAutoSchedulePreview(dates = getVisibleDates()) {
       }
       if (toDateObject(dateString)?.getDay() === normalizeRestWeekday(member.fixedRestWeekday)) {
         const hadShift = hasAnyShiftOnDate(scheduleMap, member.id, dateString);
-        markAutoLeave(scheduleMap, member, dateString, regularLeave, preview, hadShift ? "例假加班" : "固定例假");
-        if (hadShift) {
+        const placed = markAutoLeave(scheduleMap, member, dateString, regularLeave, preview, hadShift ? "例假加班" : "固定例假");
+        if (placed && hadShift) {
           preview.warnings.push(`${member.name} ${dateString} 已有班別，預排為例假加班`);
         }
       }
@@ -5138,12 +5382,17 @@ function buildAutoSchedulePreview(dates = getVisibleDates()) {
         getWeekBucketIndex(dateString, startDate) === targetWeek
         && isMemberActiveOnDateString(member, dateString)
         && !hasAnyLeaveOnDate(scheduleMap, member.id, dateString)
+        && canAutoPlaceLeaveByScheduleConditions(scheduleMap, member.id, dateString)
       ));
       if (!candidateDate) {
         preview.warnings.push(`${member.name} 休息日不足 ${target - restCount} 天`);
         break;
       }
-      markAutoLeave(scheduleMap, member, candidateDate, restLeave, preview, hasAnyShiftOnDate(scheduleMap, member.id, candidateDate) ? "休息日加班" : "補足休息日");
+      const placed = markAutoLeave(scheduleMap, member, candidateDate, restLeave, preview, hasAnyShiftOnDate(scheduleMap, member.id, candidateDate) ? "休息日加班" : "補足休息日");
+      if (!placed) {
+        preview.warnings.push(`${member.name} 休息日不足 ${target - restCount} 天`);
+        break;
+      }
       if (hasAnyShiftOnDate(scheduleMap, member.id, candidateDate)) {
         preview.warnings.push(`${member.name} ${candidateDate} 預排為休息日加班`);
       }
@@ -5209,6 +5458,12 @@ async function generateAutoSchedulePreviewFromModal() {
   const missingLeaveLabels = getMissingAutoScheduleLeaveLabels();
   if (missingLeaveLabels.length) {
     reportValidationError(`自動排班需要先在假別設定新增：${missingLeaveLabels.join("、")}`);
+    return;
+  }
+  try {
+    await loadScheduleConditions(groupFeatureState.currentGroupId, true);
+  } catch (error) {
+    reportValidationError(`讀取排班條件失敗：${error.message || error}`);
     return;
   }
   closeModal();
@@ -7586,6 +7841,7 @@ function ensureFunctionMenuButtons() {
   const definitions = [
     ["groupSettingsMenuButton", "群組設定", "group_settings", "group-settings"],
     ["permissionSettingsMenuButton", "權限設定", "permission_settings", "permission-settings"],
+    ["scheduleConditionsMenuButton", "排班條件", "schedule_manage", "schedule-conditions"],
     ["scheduleArchiveMenuButton", "班表封存", "schedule_view", "schedule-archive"]
   ];
   definitions.forEach(([id, label, permission, action]) => {
@@ -7599,7 +7855,11 @@ function ensureFunctionMenuButtons() {
       button.textContent = label;
       menu.prepend(button);
     }
-    const visible = action === "schedule-archive" ? hasPermission("schedule_view") : hasPermission(permission);
+    const visible = action === "schedule-conditions"
+      ? canEditSchedule()
+      : action === "schedule-archive"
+        ? hasPermission("schedule_view")
+        : hasPermission(permission);
     button.style.display = visible ? "" : "none";
     button.disabled = !visible;
   });
@@ -8005,7 +8265,12 @@ function bindGroupFeatureEvents() {
     const action = button.dataset.groupFeatureAction;
     if (action === "group-settings") { event.preventDefault(); closeCoreActionsMenu(); openGroupSettings(); return; }
     if (action === "permission-settings") { event.preventDefault(); closeCoreActionsMenu(); openPermissionSettings(); return; }
+    if (action === "schedule-conditions") { event.preventDefault(); closeCoreActionsMenu(); void openScheduleConditions(); return; }
     if (action === "schedule-archive") { event.preventDefault(); closeCoreActionsMenu(); void openScheduleArchive(); return; }
+    if (button.dataset.addScheduleCondition !== undefined) { event.preventDefault(); openScheduleConditionForm(); return; }
+    if (button.dataset.editScheduleCondition) { event.preventDefault(); openScheduleConditionForm(button.dataset.editScheduleCondition); return; }
+    if (button.dataset.saveScheduleCondition !== undefined) { event.preventDefault(); void saveScheduleConditionFromModal(); return; }
+    if (button.dataset.deleteScheduleCondition) { event.preventDefault(); void deleteScheduleCondition(button.dataset.deleteScheduleCondition); return; }
     if (button.dataset.addScheduleGroup !== undefined) { openGroupForm(); return; }
     if (button.dataset.editScheduleGroup) { openGroupForm(button.dataset.editScheduleGroup); return; }
     if (button.dataset.saveScheduleGroup !== undefined) { void saveScheduleGroupFromForm().catch((error) => reportValidationError(error.message)); return; }

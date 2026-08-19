@@ -10,6 +10,7 @@ const RENDERER_CORE_FILES = [
   "renderer-visibility.js",
   "renderer-state-normalization.js",
   "renderer-schedule-interaction.js",
+  "renderer-schedule-conditions.js",
   "renderer-auto-schedule-compliance.js",
   "renderer-auto-schedule-demand.js",
   "renderer-auto-schedule-assignment.js",
