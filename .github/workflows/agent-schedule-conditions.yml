@@ -1,25 +1,24 @@
 name: Apply Schedule Conditions
 
 on:
-  push:
+  pull_request:
     branches:
       - main
-    paths:
-      - .github/workflows/agent-schedule-conditions.yml
   workflow_dispatch:
 
 permissions:
   contents: write
 
-# Trigger after the workflow exists on main.
 jobs:
   apply:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'agent/schedule-conditions'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout
+      - name: Checkout PR branch
         uses: actions/checkout@v5
         with:
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -28,9 +27,18 @@ jobs:
           node-version: "22"
 
       - name: Apply implementation patch
-        run: node scripts/agent-schedule-conditions.js
+        id: patch
+        shell: bash
+        run: |
+          if [[ ! -f scripts/agent-schedule-conditions.js ]]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          node scripts/agent-schedule-conditions.js
+          echo "needed=true" >> "$GITHUB_OUTPUT"
 
       - name: Remove temporary agent files
+        if: steps.patch.outputs.needed == 'true'
         run: |
           rm scripts/agent-schedule-conditions.js
           rm scripts/agent-schedule-conditions.sql
@@ -39,15 +47,18 @@ jobs:
           rm .github/workflows/agent-schedule-conditions.yml
 
       - name: Build published web
+        if: steps.patch.outputs.needed == 'true'
         run: npm run web:publish
 
       - name: Validate implementation
+        if: steps.patch.outputs.needed == 'true'
         run: npm run ci:check
 
-      - name: Commit implementation
+      - name: Commit implementation to PR branch
+        if: steps.patch.outputs.needed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "feat: add schedule conditions"
-          git push origin HEAD:main
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
