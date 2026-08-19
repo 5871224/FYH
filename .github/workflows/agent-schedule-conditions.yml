@@ -11,6 +11,7 @@ on:
 permissions:
   contents: write
 
+# Trigger after the workflow exists on main.
 jobs:
   apply:
     runs-on: ubuntu-latest
