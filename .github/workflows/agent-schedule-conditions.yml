@@ -1,0 +1,52 @@
+name: Apply Schedule Conditions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/agent-schedule-conditions.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Apply implementation patch
+        run: node scripts/agent-schedule-conditions.js
+
+      - name: Remove temporary agent files
+        run: |
+          rm scripts/agent-schedule-conditions.js
+          rm scripts/agent-schedule-conditions.sql
+          rm scripts/agent-schedule-condition-assignment.txt
+          rm scripts/agent-schedule-condition-spec.txt
+          rm .github/workflows/agent-schedule-conditions.yml
+
+      - name: Build published web
+        run: npm run web:publish
+
+      - name: Validate implementation
+        run: npm run ci:check
+
+      - name: Commit implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: add schedule conditions"
+          git push origin HEAD:main
