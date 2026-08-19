@@ -34,7 +34,9 @@ jobs:
             echo "needed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if [[ -f scripts/agent-schedule-conditions-v2.js ]]; then
+          if [[ -f scripts/agent-schedule-conditions-v3.js ]]; then
+            node scripts/agent-schedule-conditions-v3.js
+          elif [[ -f scripts/agent-schedule-conditions-v2.js ]]; then
             node scripts/agent-schedule-conditions-v2.js
           else
             node scripts/agent-schedule-conditions.js
@@ -46,6 +48,7 @@ jobs:
         run: |
           rm -f scripts/agent-schedule-conditions.js
           rm -f scripts/agent-schedule-conditions-v2.js
+          rm -f scripts/agent-schedule-conditions-v3.js
           rm -f scripts/agent-schedule-conditions-fixed.js
           rm -f scripts/agent-schedule-conditions.sql
           rm -f scripts/agent-schedule-condition-assignment.txt
