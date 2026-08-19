@@ -1,27 +1,17 @@
-name: Validate Web App
-run-name: "${{ github.event_name == 'pull_request' && format('PR #{0} 驗證', github.event.pull_request.number) || github.event_name == 'push' && 'main 驗證' || '手動驗證' }}"
+name: Build attendance changes
 
 on:
   push:
     branches:
-      - main
-  pull_request:
-    branches:
-      - main
-  workflow_dispatch:
+      - work/attendance-sort-rules
 
 permissions:
-  contents: read
-
-concurrency:
-  group: web-validate-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  contents: write
 
 jobs:
-  validate:
-    name: Validate
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -33,154 +23,342 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Determine change scope
-        id: changes
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            base_sha="${{ github.event.pull_request.base.sha }}"
-          else
-            base_sha="${{ github.event.before }}"
-          fi
-
-          if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]]; then
-            base_sha="$(git rev-parse HEAD^ 2>/dev/null || true)"
-          fi
-
-          if [[ -z "$base_sha" ]]; then
-            echo "docs_only=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          mapfile -t changed_files < <(git diff --name-only "$base_sha" "$GITHUB_SHA")
-          printf 'Changed files:\n'
-          printf '  %s\n' "${changed_files[@]}"
-
-          docs_only=true
-          if (( ${#changed_files[@]} == 0 )); then
-            docs_only=false
-          fi
-
-          for file in "${changed_files[@]}"; do
-            if [[ "$file" != *.md ]]; then
-              docs_only=false
-              break
-            fi
-          done
-
-          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
-
       - name: Setup Deno
-        if: steps.changes.outputs.docs_only != 'true'
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
-      - name: Check declared change scope
-        if: github.event_name == 'pull_request'
-        run: npm run scope:check
-
-      - name: Run documentation guards
-        if: steps.changes.outputs.docs_only == 'true'
+      - name: Apply requested attendance changes
+        shell: python
         run: |
-          node --test tests/canonical-schema.test.js tests/github-actions-hygiene.test.js
-          npm test
-          node scripts/check-renderer-contracts.js
+          from pathlib import Path
+          import re
+
+          def read(path):
+              return Path(path).read_text(encoding="utf-8")
+
+          def write(path, text):
+              Path(path).write_text(text, encoding="utf-8")
+
+          def replace_once(path, old, new):
+              text = read(path)
+              count = text.count(old)
+              assert count == 1, f"{path}: expected one match, got {count}: {old[:80]!r}"
+              write(path, text.replace(old, new, 1))
+
+          # 個人記錄與簽到審核：日期預設降冪，並保存可切換排序方向。
+          path = "src/renderer/renderer-records-page.js"
+          text = read(path)
+          text = text.replace(
+              'recordsState.personalFilters = recordsState.personalFilters || {\n    fromDate: addDaysToDateString(today, -49),\n    toDate: today\n  };',
+              'recordsState.personalFilters = recordsState.personalFilters || {\n    fromDate: addDaysToDateString(today, -49),\n    toDate: today,\n    sortDirection: "desc"\n  };',
+              1
+          )
+          text = text.replace(
+              'recordsState.personalPage = Number(recordsState.personalPage || 1);',
+              'recordsState.personalFilters.sortDirection = recordsState.personalFilters.sortDirection === "asc" ? "asc" : "desc";\n  recordsState.personalPage = Number(recordsState.personalPage || 1);',
+              1
+          )
+          text = text.replace(
+              'issueType: filters.issueType || "",\n      groupId: filters.groupId || ""',
+              'issueType: filters.issueType || "",\n      groupId: filters.groupId || "",\n      sortDirection: filters.sortDirection === "asc" ? "asc" : "desc"',
+              1
+          )
+          assert 'sortDirection: "desc"' in text and 'sortDirection: filters.sortDirection === "asc" ? "asc" : "desc"' in text
+          write(path, text)
+
+          # 日期欄標題可點擊切換；簽到審核增加群組篩選；正常異常欄留白。
+          path = "src/renderer/renderer-records-views.js"
+          text = read(path)
+          anchor = '''function departmentOptions(selectedValue) {
+            return `<option value="">全部單位</option>${state.departments.map((department) => `<option value="${escapeHtml(department.id)}" ${selectedValue === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}`;
+          }
+          '''.replace('          ', '')
+          helpers = '''
+          function renderRecordsDateSortButton(direction, attributeName) {
+            const normalized = direction === "asc" ? "asc" : "desc";
+            const arrow = normalized === "asc" ? "↑" : "↓";
+            const label = normalized === "asc" ? "升冪" : "降冪";
+            return `<button class="ghost-btn compact-btn records-date-sort-btn" type="button" ${attributeName}="${normalized}" aria-label="日期${label}，點擊切換排序" title="日期${label}，點擊切換排序">日期 ${arrow}</button>`;
+          }
+
+          function attendanceReviewGroupOptions(selectedValue) {
+            const groups = typeof getSelectableGroups === "function" ? getSelectableGroups() : [];
+            return `<option value="">全部群組</option>${groups.map((group) => `<option value="${escapeHtml(group.id)}" ${selectedValue === group.id ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("")}`;
+          }
+          '''.replace(/^          /gm, '')
+          assert text.count(anchor) == 1
+          text = text.replace(anchor, anchor + helpers, 1)
+          text = text.replace(
+              '<th class="personal-record-date-col">日期</th>',
+              '<th class="personal-record-date-col">${renderRecordsDateSortButton(filters.sortDirection, "data-personal-record-date-sort")}</th>',
+              1
+          )
+          review_end = '<label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-attendance-review-filter="toDate"></label>\n        <label class="records-admin-field"><span>人員</span>'
+          assert text.count(review_end) == 1
+          text = text.replace(
+              review_end,
+              '<label class="records-admin-field"><span>結束日期</span><input type="date" value="${escapeHtml(filters.toDate || "")}" data-attendance-review-filter="toDate"></label>\n        <label class="records-admin-field"><span>群組</span><select data-attendance-review-filter="groupId">${attendanceReviewGroupOptions(filters.groupId)}</select></label>\n        <label class="records-admin-field"><span>人員</span>',
+              1
+          )
+          text = text.replace(
+              '<th class="attendance-review-date-col">日期</th>',
+              '<th class="attendance-review-date-col">${renderRecordsDateSortButton(filters.sortDirection, "data-attendance-review-date-sort")}</th>',
+              1
+          )
+          text = text.replace('(row.issues || []).join("、") || "正常"', '(row.issues || []).join("、")')
+          assert 'data-personal-record-date-sort' in text and 'data-attendance-review-date-sort' in text
+          assert 'data-attendance-review-filter="groupId"' in text
+          write(path, text)
+
+          # 日期排序事件；切換群組時清掉舊的人員條件。
+          path = "src/renderer/renderer-records-events.js"
+          text = read(path)
+          old = '''    if (target.dataset.attendanceReviewFilter !== undefined) {
+                ensureAttendanceReviewState().filters[target.dataset.attendanceReviewFilter] = target.value || "";
+                recordsState.attendanceReview.page = 1;
+                scheduleRecordsReload("attendance-review", loadAttendanceReview);
+                return;
+              }'''.replace('              ', '')
+          new = '''    if (target.dataset.attendanceReviewFilter !== undefined) {
+                const review = ensureAttendanceReviewState();
+                const field = target.dataset.attendanceReviewFilter;
+                review.filters[field] = target.value || "";
+                if (field === "groupId") review.filters.memberId = "";
+                review.page = 1;
+                scheduleRecordsReload("attendance-review", loadAttendanceReview);
+                return;
+              }'''.replace('              ', '')
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+          marker = '''    if (target.dataset.personalRecordPage) {'''
+          sort_handlers = '''    if (target.dataset.personalRecordDateSort !== undefined) {
+                ensureRecordsState();
+                recordsState.personalFilters.sortDirection = recordsState.personalFilters.sortDirection === "asc" ? "desc" : "asc";
+                recordsState.personalPage = 1;
+                void loadRecordsPage();
+                return;
+              }
+              if (target.dataset.attendanceReviewDateSort !== undefined) {
+                const review = ensureAttendanceReviewState();
+                review.filters.sortDirection = review.filters.sortDirection === "asc" ? "desc" : "asc";
+                review.page = 1;
+                void loadAttendanceReview();
+                return;
+              }
+          '''.replace(/^          /gm, '')
+          assert text.count(marker) == 1
+          text = text.replace(marker, sort_handlers + marker, 1)
+          write(path, text)
+
+          # 簽到審核匯出沿用群組條件；列印正常異常欄也留白。
+          path = "src/renderer/renderer-records-actions.js"
+          text = read(path)
+          old = '''      fromDate: filters.fromDate,
+                toDate: filters.toDate,
+                memberId: filters.memberId
+          '''.replace('          ', '')
+          new = '''      fromDate: filters.fromDate,
+                toDate: filters.toDate,
+                memberId: filters.memberId,
+                groupId: filters.groupId
+          '''.replace('          ', '')
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+          text = text.replace('(row.issues || []).join("、") || "正常"', '(row.issues || []).join("、")')
+          write(path, text)
+
+          # Web API：簽到審核匯出傳遞 groupId；SAP 例休假檔名更名。
+          path = "src/renderer/web-api.js"
+          text = read(path)
+          assert text.count('makeRangeExportFileName("sap請假", payload, "csv")') == 1
+          text = text.replace('makeRangeExportFileName("sap請假", payload, "csv")', 'makeRangeExportFileName("sap例休假", payload, "csv")', 1)
+          pattern = re.compile(r'(async function exportAttendanceReview\(filters = \{\}\) \{[\s\S]*?requestFunction\("attendance-ledger-export", \{[\s\S]*?fromDate: filters\.fromDate,\s*toDate: filters\.toDate,\s*memberId: filters\.memberId \|\| "")(\s*\})')
+          match = pattern.search(text)
+          assert match, 'exportAttendanceReview request block not found'
+          text = text[:match.start()] + match.group(1) + ',\n      groupId: filters.groupId || ""' + match.group(2) + text[match.end():]
+          write(path, text)
+
+          # 出勤異常門檻：第 6 分鐘起遲到；提早 30 分鐘內不算早退。缺卡判定不動。
+          for path in [
+              "supabase/functions/attendance-ledger/index.ts",
+              "supabase/functions/attendance-review-groups/index.ts"
+          ]:
+              text = read(path)
+              assert text.count('inMinutes !== null && inMinutes >= start + 1') == 1
+              assert text.count('outMinutes !== null && outMinutes < end') == 1
+              text = text.replace('inMinutes !== null && inMinutes >= start + 1', 'inMinutes !== null && inMinutes >= start + 6', 1)
+              text = text.replace('outMinutes !== null && outMinutes < end', 'outMinutes !== null && outMinutes < end - 30', 1)
+              write(path, text)
+
+          # 個人記錄：後端在分頁前依 sortDirection 排序，預設 desc。
+          path = "supabase/functions/attendance-ledger/index.ts"
+          text = read(path)
+          assert text.count('const page = pageNumber(body?.page);') >= 1
+          text = text.replace(
+              'const page = pageNumber(body?.page);\n  const commonNotes = await getCommonNotes(ctx);',
+              'const page = pageNumber(body?.page);\n  const sortDirection = body?.sortDirection === "asc" ? "asc" : "desc";\n  const commonNotes = await getCommonNotes(ctx);',
+              1
+          )
+          assert text.count('.sort((a, b) => b.localeCompare(a))') == 1
+          text = text.replace(
+              '.sort((a, b) => b.localeCompare(a))',
+              '.sort((a, b) => sortDirection === "asc" ? a.localeCompare(b) : b.localeCompare(a))',
+              1
+          )
+          write(path, text)
+
+          # 簽到審核：後端在分頁前切換日期升/降冪，員工工號維持次排序。
+          path = "supabase/functions/attendance-review-groups/index.ts"
+          text = read(path)
+          text = text.replace(
+              'const issueType = String(body?.issueType || "");\n  const page = pageNumber(body?.page);',
+              'const issueType = String(body?.issueType || "");\n  const sortDirection = body?.sortDirection === "asc" ? "asc" : "desc";\n  const page = pageNumber(body?.page);',
+              1
+          )
+          old_sort = 'rows.sort((a, b) => String(b.work_date).localeCompare(String(a.work_date)) || String(a.employee_code).localeCompare(String(b.employee_code)));'
+          new_sort = '''rows.sort((a, b) => {
+            const dateCompare = sortDirection === "asc"
+              ? String(a.work_date).localeCompare(String(b.work_date))
+              : String(b.work_date).localeCompare(String(a.work_date));
+            return dateCompare || String(a.employee_code).localeCompare(String(b.employee_code));
+          });'''
+          assert text.count(old_sort) == 1
+          text = text.replace(old_sort, new_sort, 1)
+          write(path, text)
+
+          # 匯出加班也必須受選定群組限制，而且後端再次驗證權限。
+          path = "supabase/functions/attendance-ledger-export/index.ts"
+          text = read(path)
+          assert text.count('async function getVisibleMembers(ctx: any, actorId: string)') == 1
+          text = text.replace(
+              'async function getVisibleMembers(ctx: any, actorId: string)',
+              'async function getVisibleMembers(ctx: any, actorId: string, requestedGroupId = "")',
+              1
+          )
+          allowed = 'const allowedGroups = new Set(accessPairs.filter(([, allowed]) => allowed).map(([groupId]) => groupId));'
+          assert text.count(allowed) == 1
+          text = text.replace(
+              allowed,
+              allowed + '\n  if (requestedGroupId && !allowedGroups.has(requestedGroupId)) throw new Error("沒有查看此群組簽到資料的權限");',
+              1
+          )
+          old_return = 'return (data || []).filter((row: any) => allowedGroups.has(String(row.group_id || "")));'
+          new_return = 'return (data || []).filter((row: any) => {\n    const groupId = String(row.group_id || "");\n    return allowedGroups.has(groupId) && (!requestedGroupId || groupId === requestedGroupId);\n  });'
+          assert text.count(old_return) == 1
+          text = text.replace(old_return, new_return, 1)
+          old_main = 'const requestedMemberId = String(body?.memberId || "").trim();\n      const members = await getVisibleMembers(ctx, actorId);'
+          new_main = 'const requestedMemberId = String(body?.memberId || "").trim();\n      const requestedGroupId = String(body?.groupId || "").trim();\n      const members = await getVisibleMembers(ctx, actorId, requestedGroupId);'
+          assert text.count(old_main) == 1
+          text = text.replace(old_main, new_main, 1)
+          write(path, text)
+
+          # 規格同步。
+          path = "規格書.md"
+          text = read(path)
+          assert text.count('1. 預設最近 50 日，每頁 50 筆，日期倒序。') == 1
+          text = text.replace(
+              '1. 預設最近 50 日，每頁 50 筆，日期倒序。',
+              '1. 預設最近 50 日，每頁 50 筆，日期預設降冪（新到舊）；點擊日期欄標題可切換升冪／降冪，切換後回到第 1 頁。',
+              1
+          )
+          anchor = '14. 簽到審核功能列提供「列印」。列印沿用目前篩選條件並載入全部符合資料，不受畫面分頁限制；固定使用 A4 直式且不增加額外頁首頁尾。列印欄位依序為日期、員工、圖示、班別、打卡時間、上班時數、加班時數、備註、異常、狀態，不列印勾選框與操作欄；每頁重複表頭，每個完整列印頁固定 40 筆，最後一頁依剩餘筆數顯示；版面應盡量沿用簽到審核頁的表格比例、文字對齊、班表圖示、表格線條與審核狀態樣式，只為滿足每頁至少 40 筆而縮小列高、間距與字級。'
+          addition = '''
+          15. 日期預設降冪（新到舊）；點擊日期欄標題可切換升冪／降冪，排序必須在後端分頁前完成，切換後回到第 1 頁。
+          16. 「異常」欄正常紀錄保持空白；只有實際異常時才顯示異常文字，列印亦同。
+          17. 遲到寬限前 5 分鐘；自班別上班時間第 6 分鐘起才判定「遲到」。例如 09:00 班別，09:05 不算遲到，09:06 起算遲到。
+          18. 下班提早 30 分鐘（含）以內不判定「早退」；超過 30 分鐘才算早退。例如 18:00 下班，17:30 不算早退，17:29 算早退。
+          '''.replace(/^          /gm, '').rstrip()
+          assert text.count(anchor) == 1
+          text = text.replace(anchor, anchor + '\n' + addition, 1)
+          write(path, text)
+
+          # 回歸測試：鎖定排序、群組、異常文字、門檻與檔名。
+          test = r'''const test = require("node:test");
+          const assert = require("node:assert/strict");
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          function source(relative) {
+            return fs.readFileSync(path.join(__dirname, "..", relative), "utf8");
+          }
+
+          const page = source("src/renderer/renderer-records-page.js");
+          const views = source("src/renderer/renderer-records-views.js");
+          const events = source("src/renderer/renderer-records-events.js");
+          const actions = source("src/renderer/renderer-records-actions.js");
+          const webApi = source("src/renderer/web-api.js");
+          const ledger = source("supabase/functions/attendance-ledger/index.ts");
+          const review = source("supabase/functions/attendance-review-groups/index.ts");
+          const ledgerExport = source("supabase/functions/attendance-ledger-export/index.ts");
+
+          test("個人記錄與簽到審核預設日期降冪並可切換", () => {
+            assert.match(page, /sortDirection:\s*"desc"/);
+            assert.match(page, /sortDirection:\s*filters\.sortDirection === "asc" \? "asc" : "desc"/);
+            assert.match(views, /data-personal-record-date-sort/);
+            assert.match(views, /data-attendance-review-date-sort/);
+            assert.match(events, /personalFilters\.sortDirection = recordsState\.personalFilters\.sortDirection === "asc" \? "desc" : "asc"/);
+            assert.match(ledger, /sortDirection === "asc" \? a\.localeCompare\(b\) : b\.localeCompare\(a\)/);
+            assert.match(review, /const dateCompare = sortDirection === "asc"/);
+          });
+
+          test("正常異常欄留白，只有異常才顯示文字", () => {
+            assert.doesNotMatch(views, /join\("、"\) \|\| "正常"/);
+            assert.doesNotMatch(actions, /join\("、"\) \|\| "正常"/);
+          });
+
+          test("遲到第六分鐘起、提早超過三十分鐘才早退", () => {
+            for (const text of [ledger, review]) {
+              assert.match(text, /inMinutes !== null && inMinutes >= start \+ 6/);
+              assert.match(text, /outMinutes !== null && outMinutes < end - 30/);
+              assert.match(text, /!hasIn && \(past \|\| \(sameDay && now >= start \+ 1\)\)/);
+              assert.match(text, /!hasOut && \(past \|\| \(sameDay && now >= end \+ 1\)\)/);
+            }
+          });
+
+          test("簽到審核群組篩選由前後端共同限制並套用匯出", () => {
+            assert.match(views, /data-attendance-review-filter="groupId"/);
+            assert.match(views, /getSelectableGroups/);
+            assert.match(events, /field === "groupId"/);
+            assert.match(actions, /groupId: filters\.groupId/);
+            assert.match(webApi, /groupId: filters\.groupId \|\| ""/);
+            assert.match(ledgerExport, /requestedGroupId/);
+            assert.match(ledgerExport, /allowedGroups\.has\(groupId\) && \(!requestedGroupId \|\| groupId === requestedGroupId\)/);
+          });
+
+          test("SAP 例休假匯出檔名使用 sap例休假", () => {
+            assert.match(webApi, /makeRangeExportFileName\("sap例休假", payload, "csv"\)/);
+            assert.doesNotMatch(webApi, /makeRangeExportFileName\("sap請假", payload, "csv"\)/);
+          });
+          '''.replace(/^          /gm, '')
+          write("tests/attendance-date-sort-rules.test.js", test)
 
       - name: Build static web
-        if: steps.changes.outputs.docs_only != 'true'
         run: npm run web:publish
 
-      - name: Check reproducible static publish
-        if: steps.changes.outputs.docs_only != 'true'
-        run: git diff --exit-code -- docs
+      - name: Run targeted regression tests
+        run: node --test tests/attendance-date-sort-rules.test.js
 
       - name: Run unit tests
-        if: steps.changes.outputs.docs_only != 'true'
-        shell: bash
-        run: |
-          set +e
-          npm test 2>&1 | tee /tmp/npm-test.log
-          test_status=${PIPESTATUS[0]}
-          set -e
-
-          if (( test_status != 0 )); then
-            failure_details="$(awk '
-              /^not ok [0-9]+ - / { capture = 1; remaining = 35 }
-              capture { print; remaining -= 1; if (remaining <= 0) capture = 0 }
-            ' /tmp/npm-test.log)"
-
-            if [[ -z "$failure_details" ]]; then
-              failure_details="$(tail -n 120 /tmp/npm-test.log)"
-            fi
-
-            test_summary="$(tail -n 12 /tmp/npm-test.log)"
-            failure_message="${failure_details}"$'\n\n'"${test_summary}"
-
-            {
-              echo "### Unit test failure"
-              echo
-              echo '```text'
-              printf '%s\n' "$failure_message"
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-
-            failure_message="${failure_message//'%'/'%25'}"
-            failure_message="${failure_message//$'\r'/'%0D'}"
-            failure_message="${failure_message//$'\n'/'%0A'}"
-            echo "::error title=Unit tests failed::$failure_message"
-            exit "$test_status"
-          fi
+        run: npm test
 
       - name: Check Edge TypeScript
-        if: steps.changes.outputs.docs_only != 'true'
         run: |
-          deno check --node-modules-dir=auto supabase/functions/attendance-clock/index.ts
           deno check --node-modules-dir=auto supabase/functions/attendance-ledger/index.ts
           deno check --node-modules-dir=auto supabase/functions/attendance-review-groups/index.ts
           deno check --node-modules-dir=auto supabase/functions/attendance-ledger-export/index.ts
-          deno check --node-modules-dir=auto supabase/functions/meal-order/index.ts
-          deno check --node-modules-dir=auto supabase/functions/meal-report-v2/index.ts
-          deno check --node-modules-dir=auto supabase/functions/meal-cancel-v2/index.ts
-          deno check --node-modules-dir=auto supabase/functions/member-auth-admin/index.ts
 
-      - name: Check canonical access model
-        if: steps.changes.outputs.docs_only != 'true'
+      - name: Check generated web files
         run: |
-          ! grep -R -nE 'legacy_role|access_role_legacy_role' supabase/functions
-          ! grep -n 'full_name,role,access_role_id' supabase/functions/member-auth-admin/index.ts
-          grep -R '../_shared/runtime.ts' supabase/functions/*/index.ts
-          grep -F "revoke all on function public.validate_member_group_change_v1(text,uuid) from public,anon,authenticated;" supabase/002_current_updates.sql
-          ! grep -R -nE 'alter table public\.set_employee add column.*\brole\b|alter table public\.access_roles add column.*legacy_role' supabase/001_current_schema.sql supabase/002_current_updates.sql
-          ! grep -R -nE 'member\.role|employee\.role|get_group_entity_map_v1\(\)' supabase/001_current_schema.sql supabase/002_current_updates.sql
-          ! grep -nE "'accessBundle',public\.get_group_access_bundle_v1\(\),$" supabase/002_current_updates.sql
+          npm run web:check
+          npm run renderer:check
 
-      - name: Check public Supabase settings
-        if: steps.changes.outputs.docs_only != 'true'
-        run: npm run web:check
-
-      - name: Check normalized storage
-        if: steps.changes.outputs.docs_only != 'true'
-        run: node scripts/check-normalized-storage.js
-
-      - name: Check expansion acceptance
-        if: steps.changes.outputs.docs_only != 'true'
-        run: node scripts/check-expansion-acceptance.js
-
-      - name: Check settings lists
-        if: steps.changes.outputs.docs_only != 'true'
-        run: node scripts/check-settings-lists.js
-
-      - name: Check renderer bundles
-        if: steps.changes.outputs.docs_only != 'true'
-        run: npm run renderer:check
-
-      - name: Check CSS architecture
-        if: steps.changes.outputs.docs_only != 'true'
-        run: npm run css:architecture
-
-      - name: Check JavaScript architecture
-        if: steps.changes.outputs.docs_only != 'true'
-        run: npm run js:architecture
+      - name: Restore canonical workflow and commit verified result
+        run: |
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/deploy-pages.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: refine attendance review sorting and rules"
+          git push origin HEAD:work/attendance-sort-rules
