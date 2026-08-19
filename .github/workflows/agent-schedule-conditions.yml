@@ -75,7 +75,12 @@ jobs:
           set -e
           echo "status=$status" >> "$GITHUB_OUTPUT"
           if (( status != 0 )); then
-            tail -n 240 /tmp/schedule-conditions-ci.log > /tmp/schedule-conditions-ci-tail.txt
+            awk '
+              /^not ok [0-9]+ - / { capture=1; remaining=90 }
+              capture { print; remaining -= 1; if (remaining <= 0) capture=0 }
+            ' /tmp/schedule-conditions-ci.log > /tmp/schedule-conditions-ci-failure.txt
+            printf '\n--- final summary ---\n' >> /tmp/schedule-conditions-ci-failure.txt
+            tail -n 20 /tmp/schedule-conditions-ci.log >> /tmp/schedule-conditions-ci-failure.txt
           fi
           exit 0
 
@@ -84,7 +89,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p scripts
-          cp /tmp/schedule-conditions-ci-tail.txt scripts/agent-ci-failure.txt
+          cp /tmp/schedule-conditions-ci-failure.txt scripts/agent-ci-failure.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add scripts/agent-ci-failure.txt
