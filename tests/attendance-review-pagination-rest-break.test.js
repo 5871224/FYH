@@ -25,6 +25,15 @@ test("簽到審核換頁會重試網路層失敗並防止過期請求覆蓋", ()
   assert.match(views, /page >= pages \|\| review\.loading/);
 });
 
+test("簽到審核後端會分批讀取完整班表與打卡資料", () => {
+  const edgeFunction = read("supabase/functions/attendance-review-groups/index.ts");
+
+  assert.match(edgeFunction, /const DATA_FETCH_PAGE_SIZE = 1000/);
+  assert.match(edgeFunction, /async function fetchAllRows[\s\S]*?offset \+= DATA_FETCH_PAGE_SIZE[\s\S]*?pageRows\.length < DATA_FETCH_PAGE_SIZE/);
+  assert.match(edgeFunction, /from\("schedule_entries"\)[\s\S]*?order\("work_date"[\s\S]*?order\("member_id"[\s\S]*?range\(from, to\)/);
+  assert.match(edgeFunction, /from\("attendance_days"\)\.select\("\*"\)[\s\S]*?order\("work_date"[\s\S]*?order\("user_id"[\s\S]*?range\(from, to\)/);
+});
+
 test("休息日或例假簽到審核匯出在加班開始四小時後帶一小時休息", () => {
   const webApi = read("src/renderer/web-api.js");
 
