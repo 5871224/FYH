@@ -1,0 +1,179 @@
+name: Temporary Build Schedule Condition Member Selects
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Apply schedule condition member selector change
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          schedule_path = Path('src/renderer/renderer-schedule-conditions.js')
+          schedule = schedule_path.read_text(encoding='utf-8')
+          marker = 'function getScheduleConditionMemberChoices()'
+          if marker not in schedule:
+              anchor = 'function openScheduleConditionForm(conditionId = "") {'
+              helpers = r'''function getScheduleConditionMemberChoices() {
+            return (state.members || [])
+              .filter((member) => !member.deleted)
+              .map((member) => ({
+                id: String(member.id || ""),
+                name: String(member.name || member.code || member.id || "")
+              }))
+              .filter((member) => member.id && member.name);
+          }
+
+          function getSelectedScheduleConditionMemberIds() {
+            return [...new Set(Array.from(document.querySelectorAll("[data-schedule-condition-member-select]"))
+              .map((select) => String(select.value || ""))
+              .filter(Boolean))];
+          }
+
+          function renderScheduleConditionMemberSelects(selectedIds = []) {
+            const members = getScheduleConditionMemberChoices();
+            if (!members.length) return '<div class="empty-state">目前沒有可選人員</div>';
+            const validIds = new Set(members.map((member) => member.id));
+            const selected = [...new Set((Array.isArray(selectedIds) ? selectedIds : [])
+              .map((id) => String(id || ""))
+              .filter((id) => validIds.has(id)))];
+            const selectedSet = new Set(selected);
+            const values = selected.slice();
+            if (!values.length || values.length < members.length) values.push("");
+            return values.map((value, index) => {
+              const options = members.filter((member) => member.id === value || !selectedSet.has(member.id));
+              return `<select data-schedule-condition-member-select aria-label="人員 ${index + 1}" style="width:100%;min-width:0;"><option value="">請選擇人員</option>${options.map((member) => `<option value="${escapeHtml(member.id)}" ${member.id === value ? "selected" : ""}>${escapeHtml(member.name)}</option>`).join("")}</select>`;
+            }).join("");
+          }
+
+          function refreshScheduleConditionMemberSelects() {
+            const container = document.querySelector("[data-schedule-condition-member-selects]");
+            if (!container) return;
+            container.innerHTML = renderScheduleConditionMemberSelects(getSelectedScheduleConditionMemberIds());
+          }
+
+          '''
+              if anchor not in schedule:
+                  raise SystemExit('schedule condition form anchor not found')
+              schedule = schedule.replace(anchor, helpers + anchor, 1)
+
+          old_form_start = '''function openScheduleConditionForm(conditionId = "") {
+            const condition = conditionId ? getScheduleConditionsForGroup().find((item) => item.id === conditionId) : null;
+            const selectedIds = new Set(condition?.memberIds || []);
+            modalContext = { category: "schedule-condition-form", targetId: condition?.id || "" };'''
+          new_form_start = '''function openScheduleConditionForm(conditionId = "") {
+            const condition = conditionId ? getScheduleConditionsForGroup().find((item) => item.id === conditionId) : null;
+            const selectedIds = condition?.memberIds || [];
+            modalContext = { category: "schedule-condition-form", targetId: condition?.id || "" };'''
+          if old_form_start in schedule:
+              schedule = schedule.replace(old_form_start, new_form_start, 1)
+
+          old_people = '''</div></div><div class="form-row"><label>人員</label><div class="permission-check-grid">${(state.members || []).filter((member) => !member.deleted).map((member) => `<label class="permission-check-item"><input type="checkbox" data-schedule-condition-member="${escapeHtml(member.id)}" ${selectedIds.has(member.id) ? "checked" : ""}><span>${escapeHtml(member.name)}</span></label>`).join("")}</div></div>`,'''
+          new_people = '''</div></div><div class="form-row"><label>人員</label><div data-schedule-condition-member-selects style="display:grid;gap:8px;">${renderScheduleConditionMemberSelects(selectedIds)}</div></div>`,'''
+          if old_people in schedule:
+              schedule = schedule.replace(old_people, new_people, 1)
+          elif 'data-schedule-condition-member-selects' not in schedule:
+              raise SystemExit('old people checkbox markup not found')
+
+          old_save = '''async function saveScheduleConditionFromModal() {
+            const memberIds = Array.from(document.querySelectorAll("[data-schedule-condition-member]:checked")).map((input) => input.dataset.scheduleConditionMember || "").filter(Boolean);'''
+          new_save = '''async function saveScheduleConditionFromModal() {
+            const memberIds = getSelectedScheduleConditionMemberIds();'''
+          if old_save in schedule:
+              schedule = schedule.replace(old_save, new_save, 1)
+          elif 'const memberIds = getSelectedScheduleConditionMemberIds();' not in schedule:
+              raise SystemExit('old save member collection not found')
+          schedule_path.write_text(schedule, encoding='utf-8')
+
+          events_path = Path('src/renderer/renderer-events-form.js')
+          events = events_path.read_text(encoding='utf-8')
+          event_marker = 'target.matches("[data-schedule-condition-member-select]")'
+          if event_marker not in events:
+              anchor = '''    if (target instanceof HTMLSelectElement && target.dataset.memberSettingsFilterField) {'''
+              insertion = '''    if (target instanceof HTMLSelectElement && target.matches("[data-schedule-condition-member-select]")) {
+                refreshScheduleConditionMemberSelects();
+                return;
+              }
+          '''
+              if anchor not in events:
+                  raise SystemExit('form change event anchor not found')
+              events = events.replace(anchor, insertion + anchor, 1)
+              events_path.write_text(events, encoding='utf-8')
+
+          spec_path = Path('規格書.md')
+          spec = spec_path.read_text(encoding='utf-8')
+          spec_line = '   - 人員欄改用逐一追加的下拉選單：初始只顯示第一個選單；每選定一位人員後才顯示下一個空白選單；後續選單不得再列出已選人員。修改既有條件時依原 `member_ids` 順序還原，尚有可選人員時最後保留一個空白選單。\n'
+          if spec_line not in spec:
+              anchor = '5. 新增／修改時至少選 2 人；限額必須為整數，且 `1 <= 限額 < 選取人數`。\n'
+              if anchor not in spec:
+                  raise SystemExit('spec schedule condition validation line not found')
+              spec = spec.replace(anchor, anchor + spec_line, 1)
+              spec_path.write_text(spec, encoding='utf-8')
+
+          test_path = Path('tests/schedule-condition-member-selects.test.js')
+          test_path.write_text(r'''const test = require("node:test");
+          const assert = require("node:assert/strict");
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          const root = path.resolve(__dirname, "..");
+          const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+
+          test("排班條件人員改為逐一追加且不可重複的下拉選單", () => {
+            const source = read("src/renderer/renderer-schedule-conditions.js");
+            const events = read("src/renderer/renderer-events-form.js");
+            const spec = read("規格書.md");
+
+            assert.doesNotMatch(source, /data-schedule-condition-member="/);
+            assert.match(source, /function renderScheduleConditionMemberSelects\(selectedIds = \[\]\)/);
+            assert.match(source, /if \(!values\.length \|\| values\.length < members\.length\) values\.push\(""\)/);
+            assert.match(source, /member\.id === value \|\| !selectedSet\.has\(member\.id\)/);
+            assert.match(source, /data-schedule-condition-member-selects/);
+            assert.match(source, /const memberIds = getSelectedScheduleConditionMemberIds\(\)/);
+            assert.match(events, /target\.matches\("\[data-schedule-condition-member-select\]"\)[\s\S]*?refreshScheduleConditionMemberSelects\(\)/);
+            assert.match(spec, /人員欄改用逐一追加的下拉選單/);
+          });
+          ''', encoding='utf-8')
+          PY
+
+      - name: Build static web
+        run: npm run web:publish
+
+      - name: Run targeted test
+        run: node --test tests/schedule-condition-member-selects.test.js
+
+      - name: Check generated renderer
+        run: npm run renderer:check
+
+      - name: Commit generated change
+        shell: bash
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/renderer/renderer-schedule-conditions.js src/renderer/renderer-events-form.js src/renderer/app.js src/renderer/index.html docs/app.js docs/index.html 規格書.md tests/schedule-condition-member-selects.test.js
+          git diff --cached --check
+          git commit -m "fix: simplify schedule condition member selection"
+          git push
