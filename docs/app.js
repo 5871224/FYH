@@ -11965,11 +11965,23 @@ function getSignInErrorMessage(error) {
   return message || "登入失敗，請稍後再試";
 }
 
+function getSignInInputError(loginAccount, password) {
+  const employeeCode = String(loginAccount ?? "");
+  if (!employeeCode || !password) {
+    return "請輸入工號與密碼";
+  }
+  if (employeeCode !== employeeCode.trim() || !/^[A-Za-z0-9._-]+$/.test(employeeCode)) {
+    return "工號格式錯誤";
+  }
+  return "";
+}
+
 async function handleSignIn() {
-  const loginAccount = document.getElementById("loginAccount")?.value.trim() || "";
+  const loginAccount = document.getElementById("loginAccount")?.value || "";
   const password = document.getElementById("loginPassword")?.value || "";
-  if (!loginAccount || !password) {
-    authErrorMessage = "請輸入工號與密碼";
+  const inputError = getSignInInputError(loginAccount, password);
+  if (inputError) {
+    authErrorMessage = inputError;
     renderAuthGate();
     return;
   }
