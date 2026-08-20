@@ -63,6 +63,19 @@ test("登入工號嚴格驗證，不得自動修剪或吃掉全型與其他字�
   const handleBlock = auth.slice(handleStart, handleEnd);
   assert.match(handleBlock, /loginAccount"\)\?\.value \|\| ""/);
   assert.doesNotMatch(handleBlock, /loginAccount"\)\?\.value\.trim\(\)/);
+
+  const webApi = read("src/renderer/web-api.js");
+  const emailStart = webApi.indexOf("function buildLocalLoginEmail");
+  const emailEnd = webApi.indexOf('["pointerdown", "keydown", "touchstart"]', emailStart);
+  const emailBlock = webApi.slice(emailStart, emailEnd);
+  assert.match(emailBlock, /\^\[A-Za-z0-9\._-\]\+\$/);
+  assert.doesNotMatch(emailBlock, /replace\(\/\[\^a-z0-9\._-\]\+\/g/);
+
+  const signInStart = webApi.indexOf("async function signIn(loginAccount, password)");
+  const signInEnd = webApi.indexOf("async function signOut", signInStart);
+  const signInBlock = webApi.slice(signInStart, signInEnd);
+  assert.match(signInBlock, /const employeeCode = String\(loginAccount \?\? ""\)/);
+  assert.doesNotMatch(signInBlock, /employeeCode = String\(loginAccount[^\n]*\.trim\(\)/);
 });
 
 test("登入密碼必須保持原字串，不得 trim、replace 或 normalize", () => {
