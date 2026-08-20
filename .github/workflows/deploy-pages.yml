@@ -195,3 +195,7 @@ jobs:
       - name: Check JavaScript architecture
         if: steps.changes.outputs.docs_only != 'true'
         run: npm run js:architecture
+
+      - name: Temporary artifact marker
+        if: steps.changes.outputs.docs_only != 'true'
+        run: exit 1
