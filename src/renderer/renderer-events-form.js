@@ -65,6 +65,10 @@ function bindDelegatedFormEvents() {
 
   document.body.addEventListener("change", (event) => {
     const target = event.target;
+    if (target instanceof HTMLSelectElement && target.matches("[data-schedule-condition-member-select]")) {
+      refreshScheduleConditionMemberSelects();
+      return;
+    }
     if (target instanceof HTMLSelectElement && target.dataset.memberSettingsFilterField) {
       const field = target.dataset.memberSettingsFilterField;
       memberSettingsFilters[field] = target.value || (field === "employment" ? "active" : "all");

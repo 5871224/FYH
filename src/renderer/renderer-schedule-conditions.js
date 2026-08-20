@@ -99,20 +99,58 @@ async function openScheduleConditions(force = true) {
   } catch (error) { reportValidationError(`讀取排班條件失敗：${error.message || error}`); }
 }
 
+function getScheduleConditionMemberChoices() {
+  return (state.members || [])
+    .filter((member) => !member.deleted)
+    .map((member) => ({
+      id: String(member.id || ""),
+      name: String(member.name || member.code || member.id || "")
+    }))
+    .filter((member) => member.id && member.name);
+}
+
+function getSelectedScheduleConditionMemberIds() {
+  return [...new Set(Array.from(document.querySelectorAll("[data-schedule-condition-member-select]"))
+    .map((select) => String(select.value || ""))
+    .filter(Boolean))];
+}
+
+function renderScheduleConditionMemberSelects(selectedIds = []) {
+  const members = getScheduleConditionMemberChoices();
+  if (!members.length) return '<div class="empty-state">目前沒有可選人員</div>';
+  const validIds = new Set(members.map((member) => member.id));
+  const selected = [...new Set((Array.isArray(selectedIds) ? selectedIds : [])
+    .map((id) => String(id || ""))
+    .filter((id) => validIds.has(id)))];
+  const selectedSet = new Set(selected);
+  const values = selected.slice();
+  if (!values.length || values.length < members.length) values.push("");
+  return values.map((value, index) => {
+    const options = members.filter((member) => member.id === value || !selectedSet.has(member.id));
+    return `<select data-schedule-condition-member-select aria-label="人員 ${index + 1}" style="width:100%;min-width:0;"><option value="">請選擇人員</option>${options.map((member) => `<option value="${escapeHtml(member.id)}" ${member.id === value ? "selected" : ""}>${escapeHtml(member.name)}</option>`).join("")}</select>`;
+  }).join("");
+}
+
+function refreshScheduleConditionMemberSelects() {
+  const container = document.querySelector("[data-schedule-condition-member-selects]");
+  if (!container) return;
+  container.innerHTML = renderScheduleConditionMemberSelects(getSelectedScheduleConditionMemberIds());
+}
+
 function openScheduleConditionForm(conditionId = "") {
   const condition = conditionId ? getScheduleConditionsForGroup().find((item) => item.id === conditionId) : null;
-  const selectedIds = new Set(condition?.memberIds || []);
+  const selectedIds = condition?.memberIds || [];
   modalContext = { category: "schedule-condition-form", targetId: condition?.id || "" };
   openEntityListModal({
     title: condition ? "修改排班條件" : "新增排班條件",
     modalClass: "modal modal-wide modal-form-compact",
-    body: `<div class="form-grid"><div class="form-row"><label for="scheduleConditionType">條件類型</label><select id="scheduleConditionType"><option value="${SCHEDULE_CONDITION_SAME_SHIFT}" ${condition?.type === SCHEDULE_CONDITION_SAME_SHIFT ? "selected" : ""}>同班限制</option><option value="${SCHEDULE_CONDITION_SAME_LEAVE}" ${condition?.type === SCHEDULE_CONDITION_SAME_LEAVE ? "selected" : ""}>同休限制</option></select></div><div class="form-row"><label for="scheduleConditionLimit">限額</label><input id="scheduleConditionLimit" type="number" min="1" step="1" value="${escapeHtml(String(condition?.limitCount || 1))}"></div></div><div class="form-row"><label>人員</label><div class="permission-check-grid">${(state.members || []).filter((member) => !member.deleted).map((member) => `<label class="permission-check-item"><input type="checkbox" data-schedule-condition-member="${escapeHtml(member.id)}" ${selectedIds.has(member.id) ? "checked" : ""}><span>${escapeHtml(member.name)}</span></label>`).join("")}</div></div>`,
+    body: `<div class="form-grid"><div class="form-row"><label for="scheduleConditionType">條件類型</label><select id="scheduleConditionType"><option value="${SCHEDULE_CONDITION_SAME_SHIFT}" ${condition?.type === SCHEDULE_CONDITION_SAME_SHIFT ? "selected" : ""}>同班限制</option><option value="${SCHEDULE_CONDITION_SAME_LEAVE}" ${condition?.type === SCHEDULE_CONDITION_SAME_LEAVE ? "selected" : ""}>同休限制</option></select></div><div class="form-row"><label for="scheduleConditionLimit">限額</label><input id="scheduleConditionLimit" type="number" min="1" step="1" value="${escapeHtml(String(condition?.limitCount || 1))}"></div></div><div class="form-row"><label>人員</label><div data-schedule-condition-member-selects style="display:grid;gap:8px;">${renderScheduleConditionMemberSelects(selectedIds)}</div></div>`,
     headerButtons: '<button class="btn-primary" type="button" data-save-schedule-condition="true">儲存</button>', hideFooterClose: true
   });
 }
 
 async function saveScheduleConditionFromModal() {
-  const memberIds = Array.from(document.querySelectorAll("[data-schedule-condition-member]:checked")).map((input) => input.dataset.scheduleConditionMember || "").filter(Boolean);
+  const memberIds = getSelectedScheduleConditionMemberIds();
   const limitCount = Number(document.getElementById("scheduleConditionLimit")?.value || 0);
   const type = document.getElementById("scheduleConditionType")?.value || SCHEDULE_CONDITION_SAME_SHIFT;
   if (memberIds.length < 2) { reportValidationError("至少選擇 2 位人員"); return; }
