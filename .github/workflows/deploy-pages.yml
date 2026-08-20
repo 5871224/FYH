@@ -1,22 +1,27 @@
-name: Sync Static Web
+name: Validate Web App
+run-name: "${{ github.event_name == 'pull_request' && format('PR #{0} 驗證', github.event.pull_request.number) || github.event_name == 'push' && 'main 驗證' || '手動驗證' }}"
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: web-static-sync-main
-  cancel-in-progress: false
+  group: web-validate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  sync:
+  validate:
+    name: Validate
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -28,19 +33,154 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Build static web
-        run: npm run web:publish
-
-      - name: Commit generated static web
+      - name: Determine change scope
+        id: changes
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- docs; then
-            echo "Static web is already synchronized."
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base_sha="${{ github.event.pull_request.base.sha }}"
+          else
+            base_sha="${{ github.event.before }}"
+          fi
+
+          if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]]; then
+            base_sha="$(git rev-parse HEAD^ 2>/dev/null || true)"
+          fi
+
+          if [[ -z "$base_sha" ]]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs
-          git commit -m "build: sync static web"
-          git push origin HEAD:main
+
+          mapfile -t changed_files < <(git diff --name-only "$base_sha" "$GITHUB_SHA")
+          printf 'Changed files:\n'
+          printf '  %s\n' "${changed_files[@]}"
+
+          docs_only=true
+          if (( ${#changed_files[@]} == 0 )); then
+            docs_only=false
+          fi
+
+          for file in "${changed_files[@]}"; do
+            if [[ "$file" != *.md ]]; then
+              docs_only=false
+              break
+            fi
+          done
+
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Deno
+        if: steps.changes.outputs.docs_only != 'true'
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Check declared change scope
+        if: github.event_name == 'pull_request'
+        run: npm run scope:check
+
+      - name: Run documentation guards
+        if: steps.changes.outputs.docs_only == 'true'
+        run: |
+          node --test tests/canonical-schema.test.js tests/github-actions-hygiene.test.js
+          npm test
+          node scripts/check-renderer-contracts.js
+
+      - name: Build static web
+        if: steps.changes.outputs.docs_only != 'true'
+        run: npm run web:publish
+
+      - name: Check reproducible static publish
+        if: steps.changes.outputs.docs_only != 'true'
+        run: git diff --exit-code -- docs
+
+      - name: Run unit tests
+        if: steps.changes.outputs.docs_only != 'true'
+        shell: bash
+        run: |
+          set +e
+          npm test 2>&1 | tee /tmp/npm-test.log
+          test_status=${PIPESTATUS[0]}
+          set -e
+
+          if (( test_status != 0 )); then
+            failure_details="$(awk '
+              /^not ok [0-9]+ - / { capture = 1; remaining = 35 }
+              capture { print; remaining -= 1; if (remaining <= 0) capture = 0 }
+            ' /tmp/npm-test.log)"
+
+            if [[ -z "$failure_details" ]]; then
+              failure_details="$(tail -n 120 /tmp/npm-test.log)"
+            fi
+
+            test_summary="$(tail -n 12 /tmp/npm-test.log)"
+            failure_message="${failure_details}"$'\n\n'"${test_summary}"
+
+            {
+              echo "### Unit test failure"
+              echo
+              echo '```text'
+              printf '%s\n' "$failure_message"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+
+            failure_message="${failure_message//'%'/'%25'}"
+            failure_message="${failure_message//$'\r'/'%0D'}"
+            failure_message="${failure_message//$'\n'/'%0A'}"
+            echo "::error title=Unit tests failed::$failure_message"
+            exit "$test_status"
+          fi
+
+      - name: Check Edge TypeScript
+        if: steps.changes.outputs.docs_only != 'true'
+        run: |
+          deno check --node-modules-dir=auto supabase/functions/attendance-clock/index.ts
+          deno check --node-modules-dir=auto supabase/functions/attendance-ledger/index.ts
+          deno check --node-modules-dir=auto supabase/functions/attendance-review-groups/index.ts
+          deno check --node-modules-dir=auto supabase/functions/attendance-ledger-export/index.ts
+          deno check --node-modules-dir=auto supabase/functions/meal-order/index.ts
+          deno check --node-modules-dir=auto supabase/functions/meal-report-v2/index.ts
+          deno check --node-modules-dir=auto supabase/functions/meal-cancel-v2/index.ts
+          deno check --node-modules-dir=auto supabase/functions/member-auth-admin/index.ts
+
+      - name: Check canonical access model
+        if: steps.changes.outputs.docs_only != 'true'
+        run: |
+          ! grep -R -nE 'legacy_role|access_role_legacy_role' supabase/functions
+          ! grep -n 'full_name,role,access_role_id' supabase/functions/member-auth-admin/index.ts
+          grep -R '../_shared/runtime.ts' supabase/functions/*/index.ts
+          grep -F "revoke all on function public.validate_member_group_change_v1(text,uuid) from public,anon,authenticated;" supabase/002_current_updates.sql
+          ! grep -R -nE 'alter table public\.set_employee add column.*\brole\b|alter table public\.access_roles add column.*legacy_role' supabase/001_current_schema.sql supabase/002_current_updates.sql
+          ! grep -R -nE 'member\.role|employee\.role|get_group_entity_map_v1\(\)' supabase/001_current_schema.sql supabase/002_current_updates.sql
+          ! grep -nE "'accessBundle',public\.get_group_access_bundle_v1\(\),$" supabase/002_current_updates.sql
+
+      - name: Check public Supabase settings
+        if: steps.changes.outputs.docs_only != 'true'
+        run: npm run web:check
+
+      - name: Check normalized storage
+        if: steps.changes.outputs.docs_only != 'true'
+        run: node scripts/check-normalized-storage.js
+
+      - name: Check expansion acceptance
+        if: steps.changes.outputs.docs_only != 'true'
+        run: node scripts/check-expansion-acceptance.js
+
+      - name: Check settings lists
+        if: steps.changes.outputs.docs_only != 'true'
+        run: node scripts/check-settings-lists.js
+
+      - name: Check renderer bundles
+        if: steps.changes.outputs.docs_only != 'true'
+        run: npm run renderer:check
+
+      - name: Check CSS architecture
+        if: steps.changes.outputs.docs_only != 'true'
+        run: npm run css:architecture
+
+      - name: Check JavaScript architecture
+        if: steps.changes.outputs.docs_only != 'true'
+        run: npm run js:architecture
