@@ -426,12 +426,11 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   }
 
   function buildLocalLoginEmail(employeeCode) {
-    const normalized = String(employeeCode || "")
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9._-]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    return normalized ? `${normalized}@local.invalid` : "";
+    const exactCode = String(employeeCode ?? "");
+    if (!exactCode || exactCode !== exactCode.trim() || !/^[A-Za-z0-9._-]+$/.test(exactCode)) {
+      return "";
+    }
+    return `${exactCode.toLowerCase()}@local.invalid`;
   }
 
   ["pointerdown", "keydown", "touchstart"].forEach((eventName) => {
@@ -449,10 +448,10 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   }, 60 * 1000);
 
   async function signIn(loginAccount, password) {
-    const employeeCode = String(loginAccount || "").trim();
+    const employeeCode = String(loginAccount ?? "");
     const email = buildLocalLoginEmail(employeeCode);
     if (!email) {
-      throw new Error("找不到這個工號，或尚未設定登入帳號");
+      throw new Error("工號格式錯誤");
     }
     const payload = await requestJson("/auth/v1/token?grant_type=password", {
       method: "POST",
