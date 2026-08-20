@@ -35,44 +35,38 @@ jobs:
           const fs = require('node:fs');
           const path = 'src/renderer/web-api.js';
           let source = fs.readFileSync(path, 'utf8');
-          const oldEmail = `  function buildLocalLoginEmail(employeeCode) {
-            const normalized = String(employeeCode || "")
-              .trim()
-              .toLowerCase()
-              .replace(/[^a-z0-9._-]+/g, "-")
-              .replace(/^-+|-+$/g, "");
-            return normalized ? \`\${normalized}@local.invalid\` : "";
-          }`;
-          const newEmail = `  function buildLocalLoginEmail(employeeCode) {
+
+          const strictEmailBlock = `  function buildLocalLoginEmail(employeeCode) {
             const exactCode = String(employeeCode ?? "");
             if (!exactCode || exactCode !== exactCode.trim() || !/^[A-Za-z0-9._-]+$/.test(exactCode)) {
               return "";
             }
             return \`\${exactCode.toLowerCase()}@local.invalid\`;
           }`;
-          const oldSignIn = `  async function signIn(loginAccount, password) {
-            const employeeCode = String(loginAccount || "").trim();
-            const email = buildLocalLoginEmail(employeeCode);
-            if (!email) {
-              throw new Error("找不到這個工號，或尚未設定登入帳號");
-            }`;
-          const newSignIn = `  async function signIn(loginAccount, password) {
+
+          if (!source.includes('const exactCode = String(employeeCode ?? "")')) {
+            const start = source.indexOf('  function buildLocalLoginEmail(employeeCode) {');
+            const end = source.indexOf('  ["pointerdown", "keydown", "touchstart"]', start);
+            if (start < 0 || end < 0) throw new Error('buildLocalLoginEmail section not found');
+            source = source.slice(0, start) + strictEmailBlock + '\n\n' + source.slice(end);
+          }
+
+          const strictSignInPrefix = `  async function signIn(loginAccount, password) {
             const employeeCode = String(loginAccount ?? "");
             const email = buildLocalLoginEmail(employeeCode);
             if (!email) {
               throw new Error("工號格式錯誤");
-            }`;
+            }
+`;
 
-          if (source.includes(oldEmail)) {
-            source = source.replace(oldEmail, newEmail);
-          } else if (!source.includes(newEmail)) {
-            throw new Error('buildLocalLoginEmail target block not found');
+          if (!source.includes('const employeeCode = String(loginAccount ?? "")')) {
+            const start = source.indexOf('  async function signIn(loginAccount, password) {');
+            const marker = '    const payload = await requestJson("/auth/v1/token?grant_type=password", {';
+            const markerIndex = source.indexOf(marker, start);
+            if (start < 0 || markerIndex < 0) throw new Error('signIn section not found');
+            source = source.slice(0, start) + strictSignInPrefix + source.slice(markerIndex);
           }
-          if (source.includes(oldSignIn)) {
-            source = source.replace(oldSignIn, newSignIn);
-          } else if (!source.includes(newSignIn)) {
-            throw new Error('signIn target block not found');
-          }
+
           fs.writeFileSync(path, source);
           NODE
 
