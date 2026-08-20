@@ -11938,6 +11938,33 @@ function openRestComplianceModal() {
  * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
  */
 
+function getSignInErrorMessage(error) {
+  const rawMessage = String(error?.message || "").trim();
+  let errorCode = "";
+  let message = rawMessage;
+
+  if (rawMessage.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(rawMessage);
+      errorCode = String(parsed?.error_code || parsed?.code || "").trim().toLowerCase();
+      message = String(
+        parsed?.message
+        || parsed?.msg
+        || parsed?.error_description
+        || parsed?.error
+        || rawMessage
+      ).trim();
+    } catch {
+      // 非 JSON 訊息直接沿用原文。
+    }
+  }
+
+  if (errorCode === "invalid_credentials" || /invalid login credentials|invalid_credentials/i.test(message)) {
+    return "工號或密碼有誤";
+  }
+  return message || "登入失敗，請稍後再試";
+}
+
 async function handleSignIn() {
   const loginAccount = document.getElementById("loginAccount")?.value.trim() || "";
   const password = document.getElementById("loginPassword")?.value || "";
@@ -11954,7 +11981,7 @@ async function handleSignIn() {
     renderAll();
     syncCoreActionsMenu();
   } catch (error) {
-    authErrorMessage = error.message || "登入失敗";
+    authErrorMessage = getSignInErrorMessage(error);
     renderAuthGate();
   }
 }
