@@ -1,3 +1,6 @@
+const AUTO_SCHEDULE_CONSTRAINT_MAX_REPAIR_ATTEMPTS = 24;
+const AUTO_SCHEDULE_CONSTRAINT_MAX_REPAIR_CANDIDATES = 6;
+
 function getDailyAssignmentCost(scheduleMap, option, member, dateString, dates) {
   const weekIndex = getWeekBucketIndex(dateString, dates[0] || dateString);
   const restTarget = getMemberAutoRestTarget(member, scheduleMap, dates).restTarget;
@@ -14,13 +17,32 @@ function getDailyAssignmentCost(scheduleMap, option, member, dateString, dates) 
   return 2000 + shiftPriority;
 }
 
-function findMinimumCostFlowAssignments(scheduleMap, options, dateString, dates) {
+function getAutoScheduleAssignmentKey(shiftId, memberId) {
+  return `${shiftId}|${memberId}`;
+}
+
+function getCachedDailyAssignmentCost(scheduleMap, option, member, dateString, dates, cache) {
+  if (!cache) return getDailyAssignmentCost(scheduleMap, option, member, dateString, dates);
+  const key = getAutoScheduleAssignmentKey(option.shift.id, member.id);
+  if (!cache.has(key)) cache.set(key, getDailyAssignmentCost(scheduleMap, option, member, dateString, dates));
+  return cache.get(key);
+}
+
+function findMinimumCostFlowAssignments(
+  scheduleMap,
+  options,
+  dateString,
+  dates,
+  forbiddenAssignmentKeys = null,
+  assignmentCostCache = null
+) {
   const FIRST_COVERAGE_COST = 0;
   const EXTRA_COVERAGE_COST = 1000000;
   const members = [];
   const memberIndexById = new Map();
   options.forEach((option) => {
     option.candidates.forEach((member) => {
+      if (forbiddenAssignmentKeys?.has(getAutoScheduleAssignmentKey(option.shift.id, member.id))) return;
       if (!memberIndexById.has(member.id)) {
         memberIndexById.set(member.id, members.length);
         members.push(member);
@@ -53,12 +75,16 @@ function findMinimumCostFlowAssignments(scheduleMap, options, dateString, dates)
     const shiftNode = shiftStart + optionIndex;
     addEdge(source, shiftNode, 1, option.slotCost);
     option.candidates.forEach((member) => {
-      const memberNode = memberStart + memberIndexById.get(member.id);
+      const assignmentKey = getAutoScheduleAssignmentKey(option.shift.id, member.id);
+      if (forbiddenAssignmentKeys?.has(assignmentKey)) return;
+      const memberIndex = memberIndexById.get(member.id);
+      if (memberIndex === undefined) return;
+      const memberNode = memberStart + memberIndex;
       const edge = addEdge(
         shiftNode,
         memberNode,
         1,
-        getDailyAssignmentCost(scheduleMap, option, member, dateString, dates)
+        getCachedDailyAssignmentCost(scheduleMap, option, member, dateString, dates, assignmentCostCache)
       );
       assignmentEdges.push({ edge, shift: option.shift, member });
     });
@@ -110,73 +136,155 @@ function findMinimumCostFlowAssignments(scheduleMap, options, dateString, dates)
     .map(({ shift, member }) => ({ shift, member }));
 }
 
-function findConstraintAwareDailyShiftAssignments(scheduleMap, options, dateString, dates) {
-  const FIRST_COVERAGE_COST = 0;
-  const EXTRA_COVERAGE_COST = 1000000;
-  const shiftSlots = [];
-  options.forEach((option) => {
-    for (let index = 0; index < option.remaining; index += 1) {
-      shiftSlots.push({
-        ...option,
-        slotCost: option.assignedCount === 0 && index === 0 ? FIRST_COVERAGE_COST : EXTRA_COVERAGE_COST
-      });
-    }
-  });
-
-  let bestAssignments = [];
-  let bestCost = Infinity;
-  const currentAssignments = [];
-  const usedMembers = new Set();
+function inspectSameShiftConstraintViolations(scheduleMap, assignments, dateString, conditions) {
+  const assignmentByMemberId = new Map(assignments.map((assignment) => [assignment.member.id, assignment]));
+  const violations = [];
   const blockedById = new Map();
+  let excess = 0;
 
-  const search = (slotIndex, cost) => {
-    if (currentAssignments.length + (shiftSlots.length - slotIndex) < bestAssignments.length) {
-      return;
-    }
-    if (slotIndex >= shiftSlots.length) {
-      if (
-        currentAssignments.length > bestAssignments.length
-        || (currentAssignments.length === bestAssignments.length && cost < bestCost)
-      ) {
-        bestAssignments = currentAssignments.map((item) => ({ shift: item.shift, member: item.member }));
-        bestCost = cost;
+  conditions.forEach((condition) => {
+    const baselineCountByShift = new Map();
+    const finalMemberIdsByShift = new Map();
+
+    condition.effectiveMemberIds.forEach((memberId) => {
+      const baselineShiftId = getWorkScheduleSlot(scheduleMap, memberId, dateString)?.shift || "";
+      if (baselineShiftId) {
+        baselineCountByShift.set(baselineShiftId, (baselineCountByShift.get(baselineShiftId) || 0) + 1);
       }
-      return;
-    }
-
-    const option = shiftSlots[slotIndex];
-    const candidates = option.candidates
-      .filter((member) => !usedMembers.has(member.id))
-      .map((member) => ({
-        member,
-        cost: option.slotCost + getDailyAssignmentCost(scheduleMap, option, member, dateString, dates)
-      }))
-      .sort((a, b) => a.cost - b.cost || a.member.name.localeCompare(b.member.name));
-
-    candidates.forEach(({ member, cost: assignmentCost }) => {
-      const blocking = getBlockingSameShiftConditions(scheduleMap, member.id, option.shift.id, dateString);
-      if (blocking.length) {
-        blocking.forEach((condition) => blockedById.set(condition.id, condition));
-        return;
-      }
-      const slot = ensureWorkScheduleSlot(scheduleMap, member.id, dateString);
-      if (!slot) return;
-      const previousShift = slot.shift || null;
-      slot.shift = option.shift.id;
-      usedMembers.add(member.id);
-      currentAssignments.push({ shift: option.shift, member });
-      search(slotIndex + 1, cost + assignmentCost);
-      currentAssignments.pop();
-      usedMembers.delete(member.id);
-      slot.shift = previousShift;
+      const finalShiftId = assignmentByMemberId.get(memberId)?.shift?.id || baselineShiftId;
+      if (!finalShiftId) return;
+      if (!finalMemberIdsByShift.has(finalShiftId)) finalMemberIdsByShift.set(finalShiftId, []);
+      finalMemberIdsByShift.get(finalShiftId).push(memberId);
     });
 
-    search(slotIndex + 1, cost);
-  };
+    finalMemberIdsByShift.forEach((memberIds, shiftId) => {
+      const baselineCount = baselineCountByShift.get(shiftId) || 0;
+      // 人工修改可以違反條件；自動排班只保證不讓既有違反程度繼續增加。
+      const allowedCount = Math.max(condition.limitCount, baselineCount);
+      if (memberIds.length <= allowedCount) return;
+      const violationExcess = memberIds.length - allowedCount;
+      const autoAssignments = memberIds.map((memberId) => assignmentByMemberId.get(memberId)).filter(Boolean);
+      if (!autoAssignments.length) return;
+      violations.push({ condition, shiftId, excess: violationExcess, assignments: autoAssignments });
+      excess += violationExcess;
+      blockedById.set(condition.id, condition);
+    });
+  });
 
-  search(0, 0);
+  return { violations, excess, blockedConditions: Array.from(blockedById.values()) };
+}
+
+function getConstraintRepairCandidates(inspection) {
+  const candidates = new Map();
+  inspection.violations.forEach((violation) => {
+    violation.assignments.forEach((assignment) => {
+      const key = getAutoScheduleAssignmentKey(assignment.shift.id, assignment.member.id);
+      if (!candidates.has(key)) candidates.set(key, assignment);
+    });
+  });
+  return Array.from(candidates.entries())
+    .sort(([, a], [, b]) => a.member.name.localeCompare(b.member.name) || a.shift.name.localeCompare(b.shift.name))
+    .slice(0, AUTO_SCHEDULE_CONSTRAINT_MAX_REPAIR_CANDIDATES);
+}
+
+function getAssignmentSetCost(scheduleMap, options, assignments, dateString, dates, assignmentCostCache) {
+  const optionByShiftId = new Map(options.map((option) => [option.shift.id, option]));
+  return assignments.reduce((sum, assignment) => {
+    const option = optionByShiftId.get(assignment.shift.id);
+    if (!option) return sum;
+    return sum + getCachedDailyAssignmentCost(
+      scheduleMap,
+      option,
+      assignment.member,
+      dateString,
+      dates,
+      assignmentCostCache
+    );
+  }, 0);
+}
+
+function compareConstraintRepairScores(a, b) {
+  if (a.excess !== b.excess) return a.excess - b.excess;
+  if (a.coverage !== b.coverage) return b.coverage - a.coverage;
+  return a.cost - b.cost;
+}
+
+function findConstraintAwareDailyShiftAssignments(scheduleMap, options, dateString, dates) {
+  const sameShiftConditions = getEffectiveScheduleConditions(SCHEDULE_CONDITION_SAME_SHIFT);
+  const forbiddenAssignmentKeys = new Set();
+  const assignmentCostCache = new Map();
+  const blockedById = new Map();
+  let assignments = findMinimumCostFlowAssignments(
+    scheduleMap,
+    options,
+    dateString,
+    dates,
+    forbiddenAssignmentKeys,
+    assignmentCostCache
+  );
+  let inspection = inspectSameShiftConstraintViolations(scheduleMap, assignments, dateString, sameShiftConditions);
+
+  const scoreCurrent = () => ({
+    excess: inspection.excess,
+    coverage: assignments.length,
+    cost: getAssignmentSetCost(scheduleMap, options, assignments, dateString, dates, assignmentCostCache)
+  });
+
+  for (let attempt = 0; attempt < AUTO_SCHEDULE_CONSTRAINT_MAX_REPAIR_ATTEMPTS && inspection.excess > 0; attempt += 1) {
+    inspection.blockedConditions.forEach((condition) => blockedById.set(condition.id, condition));
+    const currentScore = scoreCurrent();
+    let bestTrial = null;
+
+    getConstraintRepairCandidates(inspection).forEach(([assignmentKey]) => {
+      if (forbiddenAssignmentKeys.has(assignmentKey)) return;
+      const trialForbiddenKeys = new Set(forbiddenAssignmentKeys);
+      trialForbiddenKeys.add(assignmentKey);
+      const trialAssignments = findMinimumCostFlowAssignments(
+        scheduleMap,
+        options,
+        dateString,
+        dates,
+        trialForbiddenKeys,
+        assignmentCostCache
+      );
+      const trialInspection = inspectSameShiftConstraintViolations(
+        scheduleMap,
+        trialAssignments,
+        dateString,
+        sameShiftConditions
+      );
+      const trialScore = {
+        excess: trialInspection.excess,
+        coverage: trialAssignments.length,
+        cost: getAssignmentSetCost(scheduleMap, options, trialAssignments, dateString, dates, assignmentCostCache)
+      };
+      if (!bestTrial || compareConstraintRepairScores(trialScore, bestTrial.score) < 0) {
+        bestTrial = { assignmentKey, assignments: trialAssignments, inspection: trialInspection, score: trialScore };
+      }
+    });
+
+    if (!bestTrial || compareConstraintRepairScores(bestTrial.score, currentScore) >= 0) break;
+    forbiddenAssignmentKeys.add(bestTrial.assignmentKey);
+    assignments = bestTrial.assignments;
+    inspection = bestTrial.inspection;
+  }
+
+  // 有上限的局部修正仍無法找到合法解時，僅移除衝突的自動班別並保留缺額；硬性條件不可被突破。
+  let fallbackGuard = options.reduce((sum, option) => sum + option.remaining, 0) + 1;
+  while (inspection.excess > 0 && fallbackGuard > 0) {
+    inspection.blockedConditions.forEach((condition) => blockedById.set(condition.id, condition));
+    const fallbackCandidates = getConstraintRepairCandidates(inspection);
+    if (!fallbackCandidates.length) break;
+    const [, assignmentToRemove] = fallbackCandidates[fallbackCandidates.length - 1];
+    const removeKey = getAutoScheduleAssignmentKey(assignmentToRemove.shift.id, assignmentToRemove.member.id);
+    assignments = assignments.filter((assignment) => getAutoScheduleAssignmentKey(assignment.shift.id, assignment.member.id) !== removeKey);
+    inspection = inspectSameShiftConstraintViolations(scheduleMap, assignments, dateString, sameShiftConditions);
+    fallbackGuard -= 1;
+  }
+
+  inspection.blockedConditions.forEach((condition) => blockedById.set(condition.id, condition));
   return {
-    assignments: bestAssignments,
+    assignments,
     blockedConditions: Array.from(blockedById.values())
   };
 }
