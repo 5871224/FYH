@@ -288,11 +288,15 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
       const currentIssues = attendanceIssues(current || { work_date: date }, schedule.shift, date, today);
       if (issueType && issueType !== "__all__" && !currentIssues.includes(issueType)) continue;
       const departmentId = schedule.schedule?.support_department_id || member.home_department_id || "";
+      const groupName = current?.group_name_snapshot || groupNames.get(member.group_id) || "";
       rows.push({
         id: current?.id || "", user_id: member.id, work_date: date,
-        employee_code: member.employee_code || "", employee_name: member.full_name || "",
+        employee_code: member.employee_code || "",
+        employee_name: exportOnly
+          ? (member.full_name || "")
+          : [groupName, member.full_name || ""].filter(Boolean).join("-"),
         groupId: member.group_id || current?.group_id || "",
-        groupName: current?.group_name_snapshot || groupNames.get(member.group_id) || "",
+        groupName,
         departmentId,
         departmentName: current?.department_name_snapshot || departmentNames.get(departmentId) || "",
         ...schedule,
