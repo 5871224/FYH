@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 
 const root = path.resolve(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -28,6 +29,19 @@ test("登入成功後直接沿用 signIn 回傳身分，不重做 initializeAuth
   assert.match(block, /await initializeAuthenticatedHome\(authContext\)/);
   assert.doesNotMatch(block, /schedulerApi\.initializeAuth\s*\(/);
   assert.doesNotMatch(block, /await loadApp\(\)/);
+});
+
+test("登入帳密錯誤只顯示中文提示，不顯示 Supabase JSON", () => {
+  const auth = read("src/renderer/renderer-auth-actions.js");
+  const start = auth.indexOf("function getSignInErrorMessage");
+  const end = auth.indexOf("async function handleSignIn", start);
+  const api = vm.runInNewContext(auth.slice(start, end) + "\n;({ getSignInErrorMessage })");
+  const message = api.getSignInErrorMessage({
+    message: '{"code":400,"error_code":"invalid_credentials","msg":"Invalid login credentials"}'
+  });
+  assert.equal(message, "工號或密碼有誤");
+  assert.equal(message.includes("{"), false);
+  assert.match(auth, /authErrorMessage = getSignInErrorMessage\(error\)/);
 });
 
 test("首頁初始化只取得 appInfo 與權限，不讀完整班表", () => {
