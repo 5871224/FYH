@@ -113,6 +113,53 @@ test("同班限制應計入既有班別且可改排其他班別", () => {
   assert.equal(api.getBlockingSameShiftConditions(schedule, "B", "T", "2026-07-12").length, 0);
 });
 
+test("同班限制應以有限局部重排維持完整班別覆蓋", () => {
+  const context = makeContext();
+  const shiftS = { id: "S", name: "早班" };
+  const shiftT = { id: "T", name: "晚班" };
+  const memberA = { id: "A", name: "甲", groupId: "G", payByDay: false, scheduleShiftIds: ["S", "T"] };
+  const memberB = { id: "B", name: "乙", groupId: "G", payByDay: false, scheduleShiftIds: ["S", "T"] };
+  const memberC = { id: "C", name: "丙", groupId: "G", payByDay: false, scheduleShiftIds: ["T", "S"] };
+  context.state.members = [memberA, memberB, memberC];
+  const api = evaluateAutoSchedule("({ scheduleConditionState, findConstraintAwareDailyShiftAssignments, inspectSameShiftConstraintViolations, getEffectiveScheduleConditions })", context);
+  api.scheduleConditionState.byGroup.set("G", [{
+    id: "C1", groupId: "G", type: "same_shift", limitCount: 1, memberIds: ["A", "B"]
+  }]);
+  const options = [
+    { shift: shiftS, assignedCount: 0, remaining: 2, candidates: [memberA, memberB, memberC] },
+    { shift: shiftT, assignedCount: 0, remaining: 1, candidates: [memberA, memberB, memberC] }
+  ];
+  const result = api.findConstraintAwareDailyShiftAssignments({}, options, "2026-07-12", ["2026-07-12"]);
+  assert.equal(result.assignments.length, 3);
+  const inspection = api.inspectSameShiftConstraintViolations({}, result.assignments, "2026-07-12", api.getEffectiveScheduleConditions("same_shift"));
+  assert.equal(inspection.excess, 0);
+});
+
+test("既有人工班別已占用同班限額時自動排班應留缺額而非違規", () => {
+  const context = makeContext();
+  const shiftS = { id: "S", name: "早班" };
+  const memberA = { id: "A", name: "甲", groupId: "G", payByDay: false, scheduleShiftIds: ["S"] };
+  const memberB = { id: "B", name: "乙", groupId: "G", payByDay: false, scheduleShiftIds: ["S"] };
+  context.state.members = [memberA, memberB];
+  const api = evaluateAutoSchedule("({ scheduleConditionState, findConstraintAwareDailyShiftAssignments })", context);
+  api.scheduleConditionState.byGroup.set("G", [{
+    id: "C1", groupId: "G", type: "same_shift", limitCount: 1, memberIds: ["A", "B"]
+  }]);
+  const schedule = { "A_2026-07-12": { shift: "S" } };
+  const result = api.findConstraintAwareDailyShiftAssignments(schedule, [
+    { shift: shiftS, assignedCount: 1, remaining: 1, candidates: [memberB] }
+  ], "2026-07-12", ["2026-07-12"]);
+  assert.equal(result.assignments.length, 0);
+  assert.equal(result.blockedConditions.length, 1);
+});
+
+test("同班限制演算法不得恢復無上限遞迴搜尋", () => {
+  const source = fs.readFileSync(path.join(root, "src", "renderer", "renderer-auto-schedule-assignment.js"), "utf8");
+  assert.match(source, /AUTO_SCHEDULE_CONSTRAINT_MAX_REPAIR_ATTEMPTS = 24/);
+  assert.match(source, /AUTO_SCHEDULE_CONSTRAINT_MAX_REPAIR_CANDIDATES = 6/);
+  assert.equal(source.includes("const search = (slotIndex, cost) =>"), false);
+});
+
 test("失效人員應在讀取條件時忽略且不套用無效條件", () => {
   const context = makeContext();
   context.state.members = [
