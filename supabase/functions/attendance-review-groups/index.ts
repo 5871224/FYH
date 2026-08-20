@@ -2,17 +2,23 @@ import { withSupabase } from "npm:@supabase/server@^1";
 import { actorIdOf, addDaysToDateString as addDays, datesBetween, hasPermission, isProfileEffective as effective, isProfileEmployedOn as employedOn, pageNumber, taipeiDateString as taipeiDate, validDate } from "../_shared/runtime.ts";
 
 const PAGE_SIZE = 50;
+const DATA_FETCH_PAGE_SIZE = 1000;
 const ISSUE_TYPES = [
   "未打上班", "未打下班", "無排班但有打卡", "遲到", "早退",
   "上班晚於下班", "上班地點不符", "下班地點不符"
 ];
 
-
-
-
-
-
-
+async function fetchAllRows(buildQuery: (from: number, to: number) => any) {
+  const rows: any[] = [];
+  for (let offset = 0; ; offset += DATA_FETCH_PAGE_SIZE) {
+    const result = await buildQuery(offset, offset + DATA_FETCH_PAGE_SIZE - 1);
+    if (result.error) throw result.error;
+    const pageRows = result.data || [];
+    rows.push(...pageRows);
+    if (pageRows.length < DATA_FETCH_PAGE_SIZE) break;
+  }
+  return rows;
+}
 
 function shiftMinutes(value: string) {
   const match = String(value || "").match(/^(\d{1,2}):(\d{2})/);
@@ -157,11 +163,10 @@ async function resolveGroupScope(ctx: any, actor: any, requestedGroupId: string)
 
 async function fetchScheduleContext(ctx: any, fromDate: string, toDate: string, memberIds: string[]) {
   if (!memberIds.length) return { schedules: new Map(), shifts: new Map(), leaves: new Map(), overtimeTypes: new Map() };
-  const scheduleResult = await ctx.supabaseAdmin.from("schedule_entries")
+  const rows = await fetchAllRows((from, to) => ctx.supabaseAdmin.from("schedule_entries")
     .select("member_id,work_date,shift_type_id,leave_type_id,overtime_type_id,support_department_id,group_id")
-    .in("member_id", memberIds).gte("work_date", fromDate).lte("work_date", toDate);
-  if (scheduleResult.error) throw scheduleResult.error;
-  const rows = scheduleResult.data || [];
+    .in("member_id", memberIds).gte("work_date", fromDate).lte("work_date", toDate)
+    .order("work_date", { ascending: true }).order("member_id", { ascending: true }).range(from, to));
   const shiftIds = [...new Set(rows.map((row: any) => row.shift_type_id).filter(Boolean))];
   const leaveIds = [...new Set(rows.map((row: any) => row.leave_type_id).filter(Boolean))];
   const overtimeIds = [...new Set(rows.map((row: any) => row.overtime_type_id).filter(Boolean))];
@@ -260,12 +265,13 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
   for (const result of [memberResult, groupResult, departmentResult]) if (result.error) throw result.error;
   const members = memberResult.data || [];
   const memberIds = members.map((member: any) => member.id);
-  const [attendanceResult, scheduleContext] = await Promise.all([
-    memberIds.length ? ctx.supabaseAdmin.from("attendance_days").select("*").in("user_id", memberIds).gte("work_date", fromDate).lte("work_date", toDate) : Promise.resolve({ data: [], error: null }),
+  const [attendanceRows, scheduleContext] = await Promise.all([
+    memberIds.length ? fetchAllRows((from, to) => ctx.supabaseAdmin.from("attendance_days").select("*")
+      .in("user_id", memberIds).gte("work_date", fromDate).lte("work_date", toDate)
+      .order("work_date", { ascending: true }).order("user_id", { ascending: true }).range(from, to)) : Promise.resolve([]),
     fetchScheduleContext(ctx, fromDate, toDate, memberIds)
   ]);
-  if (attendanceResult.error) throw attendanceResult.error;
-  const attendance = new Map((attendanceResult.data || []).map((row: any) => [rowKey(row.user_id, row.work_date), row]));
+  const attendance = new Map(attendanceRows.map((row: any) => [rowKey(row.user_id, row.work_date), row]));
   const groupNames = new Map((groupResult.data || []).map((row: any) => [row.id, row.name]));
   const departmentNames = new Map((departmentResult.data || []).map((row: any) => [row.id, row.name]));
   const rows: any[] = [];
