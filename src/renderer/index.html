@@ -242,6 +242,18 @@
       });
     })();
   </script>
-  <script src="./app.js?v=367e6a05cd91"></script>
+  <script src="./app.js?v=8c3c87bc7498"></script>
+  <script>
+    (() => {
+      const exporter = window.schedulerBrowserExporter;
+      if (!exporter || typeof exporter.buildSapLeaveCsvContent !== "function") return;
+      const originalBuildSapLeaveCsvContent = exporter.buildSapLeaveCsvContent.bind(exporter);
+      exporter.buildSapLeaveCsvContent = (payload) => {
+        const content = originalBuildSapLeaveCsvContent(payload);
+        const body = content.startsWith("\uFEFF") ? content.slice(1) : content;
+        return `\uFEFF人員,工號,日期,日期,代號\r\n${body}`;
+      };
+    })();
+  </script>
 </body>
 </html>
