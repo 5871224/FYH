@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/sap-leave-export-headers-20260821
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -18,6 +21,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -34,31 +38,39 @@ jobs:
           path = Path("src/renderer/browser-exporter.js")
           text = path.read_text(encoding="utf-8")
 
-          old = r'''  function buildSapLeaveCsvContent(payload) {
-            const rows = getSapLeaveExportRows(payload);
-            const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\r\n");
-            return rows.length ? `\uFEFF${csv}\r\n` : "\uFEFF";
-          }'''
-          new = r'''  function buildSapLeaveCsvContent(payload) {
-            const rows = [
-              ["人員", "工號", "日期", "日期", "代號"],
-              ...getSapLeaveExportRows(payload)
-            ];
-            const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\r\n");
-            return `\uFEFF${csv}\r\n`;
-          }'''
+          old = "\n".join([
+              "  function buildSapLeaveCsvContent(payload) {",
+              "    const rows = getSapLeaveExportRows(payload);",
+              "    const csv = rows.map((row) => row.map(csvEscape).join(\",\")).join(\"\\r\\n\");",
+              "    return rows.length ? `\\uFEFF${csv}\\r\\n` : \"\\uFEFF\";",
+              "  }",
+          ])
+          new = "\n".join([
+              "  function buildSapLeaveCsvContent(payload) {",
+              "    const rows = [",
+              "      [\"人員\", \"工號\", \"日期\", \"日期\", \"代號\"],",
+              "      ...getSapLeaveExportRows(payload)",
+              "    ];",
+              "    const csv = rows.map((row) => row.map(csvEscape).join(\",\")).join(\"\\r\\n\");",
+              "    return `\\uFEFF${csv}\\r\\n`;",
+              "  }",
+          ])
 
           if old not in text:
               raise SystemExit("Target buildSapLeaveCsvContent block not found")
           text = text.replace(old, new, 1)
 
-          old_check = r'''    const csv = buildSapLeaveCsvContent(payload);
-            if (!csv.includes("REST") || !csv.includes("OFF")) {'''
-          new_check = r'''    const csv = buildSapLeaveCsvContent(payload);
-            if (!csv.startsWith("\uFEFF人員,工號,日期,日期,代號\r\n")) {
-              throw new Error("browser exporter SAP leave header self-check failed");
-            }
-            if (!csv.includes("REST") || !csv.includes("OFF")) {'''
+          old_check = "\n".join([
+              "    const csv = buildSapLeaveCsvContent(payload);",
+              "    if (!csv.includes(\"REST\") || !csv.includes(\"OFF\")) {",
+          ])
+          new_check = "\n".join([
+              "    const csv = buildSapLeaveCsvContent(payload);",
+              "    if (!csv.startsWith(\"\\uFEFF人員,工號,日期,日期,代號\\r\\n\")) {",
+              "      throw new Error(\"browser exporter SAP leave header self-check failed\");",
+              "    }",
+              "    if (!csv.includes(\"REST\") || !csv.includes(\"OFF\")) {",
+          ])
           if old_check not in text:
               raise SystemExit("Target exporter self-check block not found")
           text = text.replace(old_check, new_check, 1)
@@ -97,4 +109,5 @@ jobs:
             exit 0
           fi
           git commit -m "Add headers to leave export CSV"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          git push origin "HEAD:${target_branch}"
