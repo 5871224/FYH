@@ -97,6 +97,7 @@
               <button class="ghost-btn ops-btn manager-action" id="autoFillSchedulePreviewButton" type="button">自動補班預覽</button>
               <button class="primary-btn ops-btn manager-action" id="autoScheduleApplyButton" type="button">套用預覽</button>
               <button class="ghost-btn ops-btn manager-action" id="autoScheduleCancelButton" type="button">取消預覽</button>
+              <button class="primary-btn ops-btn manager-action" id="exportScheduleButton" type="button">匯出排班</button>
               <button class="primary-btn ops-btn manager-action" id="exportSapButton" type="button">匯出休例假</button>
               <button class="primary-btn ops-btn manager-action" id="exportLeaveButton" type="button">匯出請假</button>
               <button class="primary-btn ops-btn manager-action" id="exportOvertimeButton" type="button">匯出加班</button>
@@ -246,13 +247,182 @@
   <script>
     (() => {
       const exporter = window.schedulerBrowserExporter;
-      if (!exporter || typeof exporter.buildSapLeaveCsvContent !== "function") return;
-      const originalBuildSapLeaveCsvContent = exporter.buildSapLeaveCsvContent.bind(exporter);
-      exporter.buildSapLeaveCsvContent = (payload) => {
-        const content = originalBuildSapLeaveCsvContent(payload);
-        const body = content.startsWith("\uFEFF") ? content.slice(1) : content;
-        return `\uFEFF人員,工號,日期,日期,代號\r\n${body}`;
+      if (!exporter) return;
+
+      if (typeof exporter.buildSapLeaveCsvContent === "function") {
+        const originalBuildSapLeaveCsvContent = exporter.buildSapLeaveCsvContent.bind(exporter);
+        exporter.buildSapLeaveCsvContent = (payload) => {
+          const content = originalBuildSapLeaveCsvContent(payload);
+          const body = content.startsWith("\uFEFF") ? content.slice(1) : content;
+          return `\uFEFF人員,工號,日期,日期,代號\r\n${body}`;
+        };
+      }
+
+      const parseDate = (value) => {
+        const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) return null;
+        const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+        return Number.isNaN(date.getTime()) ? null : date;
       };
+      const formatDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const compactDate = (value) => String(value || "").replaceAll("-", "");
+      const isRestLeave = (leave) => {
+        const code = String(leave?.code || "").trim();
+        const name = String(leave?.name || "").trim();
+        return ["0036", "0047"].includes(code) || ["休息日", "休假", "例假"].includes(name);
+      };
+
+      const buildScheduleRows = async (startDate, endDate) => {
+        const loaded = await window.schedulerApi.loadScheduleEntries({
+          startDate,
+          endDate,
+          members: state.members
+        });
+        const schedule = loaded?.schedule || {};
+        const shifts = new Map((state.shifts || []).map((item) => [item.id, item]));
+        const departments = new Map((state.departments || []).map((item) => [item.id, item]));
+        const leaves = new Map((state.leaves || []).map((item) => [item.id, item]));
+        const rows = [];
+        const start = parseDate(startDate);
+        const end = parseDate(endDate);
+
+        for (const member of state.members || []) {
+          for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+            const date = formatDate(cursor);
+            const key = `${member.id}_${cursor.getFullYear()}_${cursor.getMonth()}_${cursor.getDate()}`;
+            const slot = schedule[key];
+            if (!slot?.shift) continue;
+            const shift = shifts.get(slot.shift);
+            if (!shift) continue;
+            const department = departments.get(shift.applicableDeptId || "");
+            const leave = slot.leave ? leaves.get(slot.leave) : null;
+            rows.push({
+              values: [
+                department?.name || "",
+                member.name || "",
+                member.code || "",
+                compactDate(date)
+              ],
+              date,
+              departmentName: department?.name || "",
+              memberName: member.name || "",
+              highlight: Boolean(slot.leave && isRestLeave(leave))
+            });
+          }
+        }
+
+        rows.sort((a, b) => (
+          a.date.localeCompare(b.date)
+          || a.departmentName.localeCompare(b.departmentName, "zh-Hant")
+          || a.memberName.localeCompare(b.memberName, "zh-Hant")
+        ));
+        return rows;
+      };
+
+      const downloadBlob = (blob, fileName) => {
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      };
+
+      const openScheduleExportDialog = () => {
+        const defaults = getDefaultExportPeriod();
+        openEntityListModal({
+          title: "匯出排班期間",
+          modalClass: "modal modal-member-form",
+          body: `<div class="form-grid">
+            <div class="form-row"><label for="exportPeriodStart">開始日期</label><input id="exportPeriodStart" type="date" value="${defaults.startDate}"></div>
+            <div class="form-row"><label for="exportPeriodEnd">結束日期</label><input id="exportPeriodEnd" type="date" value="${defaults.endDate}"></div>
+          </div>`,
+          footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-run-schedule-export="true">匯出排班</button>`,
+          hideFooterClose: true
+        });
+      };
+
+      const runScheduleExport = async () => {
+        const startDate = document.getElementById("exportPeriodStart")?.value || "";
+        const endDate = document.getElementById("exportPeriodEnd")?.value || "";
+        const start = parseDate(startDate);
+        const end = parseDate(endDate);
+        if (!start || !end) {
+          reportValidationError("請選擇開始日期與結束日期");
+          return;
+        }
+        if (start > end) {
+          reportValidationError("開始日期必須早於或等於結束日期");
+          return;
+        }
+
+        try {
+          setSaveStatus("正在準備匯出資料...", true);
+          const rows = await buildScheduleRows(startDate, endDate);
+          if (!rows.length) {
+            showInfoMessage("目前沒有可匯出的排班資料");
+            closeModal();
+            setSaveStatus("");
+            return;
+          }
+
+          await exporter.ensureExcelJS();
+          const workbook = new ExcelJS.Workbook();
+          const sheet = workbook.addWorksheet("匯出排班", { views: [{ state: "frozen", ySplit: 1 }] });
+          const headers = ["上班地點(單位)", "姓名", "工號", "日期(YYYYMMDD)"];
+          sheet.addRow(headers);
+          rows.forEach((item) => {
+            const row = sheet.addRow(item.values);
+            if (item.highlight) {
+              row.eachCell((cell) => {
+                cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFF00" } };
+              });
+            }
+          });
+          sheet.getRow(1).font = { bold: true };
+          sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+          sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EBD8" } };
+          sheet.columns = [{ width: 20 }, { width: 16 }, { width: 16 }, { width: 18 }];
+          sheet.getColumn(3).numFmt = "@";
+          sheet.getColumn(4).numFmt = "@";
+          sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 4 } };
+          sheet.eachRow((row) => {
+            row.eachCell((cell) => {
+              cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+              cell.border = {
+                top: { style: "thin", color: { argb: "FFD8D2C7" } },
+                left: { style: "thin", color: { argb: "FFD8D2C7" } },
+                bottom: { style: "thin", color: { argb: "FFD8D2C7" } },
+                right: { style: "thin", color: { argb: "FFD8D2C7" } }
+              };
+            });
+          });
+          const blob = await exporter.workbookToBlob(workbook);
+          const fileName = `匯出排班_${compactDate(startDate)}-${compactDate(endDate)}.xlsx`;
+          downloadBlob(blob, fileName);
+          closeModal();
+          setSaveStatus("");
+        } catch (error) {
+          setSaveStatus(`匯出失敗：${error.message || error}`);
+        }
+      };
+
+      document.getElementById("exportScheduleButton")?.addEventListener("click", () => {
+        closeCoreActionsMenu();
+        openScheduleExportDialog();
+      });
+      document.body.addEventListener("click", async (event) => {
+        const button = event.target.closest("[data-run-schedule-export]");
+        if (!button) return;
+        button.disabled = true;
+        try {
+          await runScheduleExport();
+        } finally {
+          if (button.isConnected) button.disabled = false;
+        }
+      });
     })();
   </script>
 </body>
