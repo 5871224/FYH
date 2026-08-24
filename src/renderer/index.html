@@ -271,22 +271,87 @@
         const name = String(leave?.name || "").trim();
         return ["0036", "0047"].includes(code) || ["休息日", "休假", "例假"].includes(name);
       };
+      const getSelectedScheduleGroupId = () => String(
+        state?.currentGroupId
+        || (typeof groupFeatureState !== "undefined" ? groupFeatureState.currentGroupId : "")
+        || ""
+      );
+      const getCurrentGroupExportMembers = () => {
+        const groupId = getSelectedScheduleGroupId();
+        return (state.members || []).filter((member) => !groupId || member.groupId === groupId);
+      };
+      const filterExportRowsToCurrentGroup = (rows) => {
+        const memberIds = new Set(
+          getCurrentGroupExportMembers()
+            .map((member) => String(member.id || ""))
+            .filter(Boolean)
+        );
+        return (Array.isArray(rows) ? rows : []).filter((row) => (
+          memberIds.has(String(row?.member_id || row?.memberId || ""))
+        ));
+      };
+
+      if (typeof window.runPeriodExport === "function") {
+        window.runPeriodExport = async (type) => {
+          const startDate = document.getElementById("exportPeriodStart")?.value || "";
+          const endDate = document.getElementById("exportPeriodEnd")?.value || "";
+          const start = parseDate(startDate);
+          const end = parseDate(endDate);
+          if (!start || !end) {
+            reportValidationError("請選擇開始日期與結束日期");
+            return;
+          }
+          if (start > end) {
+            reportValidationError("開始日期必須早於或等於結束日期");
+            return;
+          }
+          const method = type === "sap" ? "exportSapCsv" : type === "leave" ? "exportLeave" : "exportOvertime";
+          const emptyMessage = type === "sap"
+            ? "目前沒有可匯出的休例假資料"
+            : type === "leave"
+              ? "目前沒有可匯出的請假資料"
+              : "目前沒有可匯出的加班資料";
+          try {
+            setSaveStatus("正在準備匯出資料...", true);
+            const exportRows = filterExportRowsToCurrentGroup(
+              await window.schedulerApi.loadScheduleExportRows(startDate, endDate)
+            );
+            const result = await window.schedulerApi[method]({
+              state,
+              startDate,
+              endDate,
+              exportRows
+            });
+            if (result?.empty) showInfoMessage(emptyMessage);
+            closeModal();
+            setSaveStatus("");
+          } catch (error) {
+            setSaveStatus(`匯出失敗：${error.message || error}`);
+          }
+        };
+      }
 
       const buildScheduleRows = async (startDate, endDate) => {
+        const currentGroupId = getSelectedScheduleGroupId();
+        const members = getCurrentGroupExportMembers();
         const loaded = await window.schedulerApi.loadScheduleEntries({
           startDate,
           endDate,
-          members: state.members
+          members
         });
         const schedule = loaded?.schedule || {};
-        const shifts = new Map((state.shifts || []).map((item) => [item.id, item]));
-        const departments = new Map((state.departments || []).map((item) => [item.id, item]));
+        const shifts = new Map((state.shifts || [])
+          .filter((item) => !currentGroupId || item.groupId === currentGroupId)
+          .map((item) => [item.id, item]));
+        const departments = new Map((state.departments || [])
+          .filter((item) => !currentGroupId || item.groupId === currentGroupId)
+          .map((item) => [item.id, item]));
         const leaves = new Map((state.leaves || []).map((item) => [item.id, item]));
         const rows = [];
         const start = parseDate(startDate);
         const end = parseDate(endDate);
 
-        for (const member of state.members || []) {
+        for (const member of members) {
           for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
             const date = formatDate(cursor);
             const key = `${member.id}_${cursor.getFullYear()}_${cursor.getMonth()}_${cursor.getDate()}`;

@@ -19,6 +19,7 @@ const sources = new Map(runtimeFiles.map((file) => [
 ]));
 const indexSource = fs.readFileSync(path.join(rendererDir, "index.html"), "utf8");
 const runtimeSource = [...sources.values()].join("\n");
+const consumerSources = [indexSource, ...sources.values()];
 
 function lineOf(source, offset) {
   return source.slice(0, offset).split(/\r?\n/).length;
@@ -74,7 +75,7 @@ function dataAttributeHasConsumer(name) {
     new RegExp(`getAttribute\\(["']data-${kebab}["']\\)`),
     new RegExp(`\\[data-${kebab}(?:[\\]=~^$*|\\s])`)
   ];
-  return [...sources.values()].some((source) => patterns.some((pattern) => pattern.test(source)));
+  return consumerSources.some((source) => patterns.some((pattern) => pattern.test(source)));
 }
 
 function idHasClickConsumer(id) {
@@ -85,10 +86,10 @@ function idHasClickConsumer(id) {
     new RegExp(`getElementById\\(["']${escaped}["']\\)\\?*\\.addEventListener\\(["']click["']`),
     new RegExp(`querySelector\\(["']#${escaped}["']\\)\\?*\\.addEventListener\\(["']click["']`)
   ];
-  if ([...sources.values()].some((source) => directPatterns.some((pattern) => pattern.test(source)))) return true;
+  if (consumerSources.some((source) => directPatterns.some((pattern) => pattern.test(source)))) return true;
 
   // 允許先由 helper 取得按鈕集合，再統一綁 click 的正式模式，例如 undo/redo。
-  return [...sources.values()].some((source) => {
+  return consumerSources.some((source) => {
     const mentionsId = source.includes(`"${id}"`) || source.includes(`'${id}'`);
     return mentionsId && /addEventListener\(\s*["']click["']/.test(source);
   });
@@ -104,7 +105,7 @@ function hasButtonConsumer(button) {
   if (button.dataAttributes.some(dataAttributeHasConsumer)) return true;
   if (idHasClickConsumer(button.id)) return true;
   if (button.type === "submit") {
-    return [...sources.values()].some((source) => /addEventListener\(\s*["']submit["']/.test(source));
+    return consumerSources.some((source) => /addEventListener\(\s*["']submit["']/.test(source));
   }
   return false;
 }
