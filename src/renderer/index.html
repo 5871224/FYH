@@ -14,16 +14,16 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
+      gap: 10px;
       width: 100%;
-      padding: 7px 11px;
-      border: 1px solid var(--line);
+      padding: 9px 12px;
+      border: 1px solid #d8c7aa;
       border-radius: 999px;
-      background: #fff;
+      background: #f1e4cf;
       color: var(--text);
-      font-size: 12px;
-      font-weight: 700;
-      line-height: 1.4;
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.35;
       cursor: default;
       outline: none;
       user-select: none;
@@ -32,12 +32,12 @@
     .core-actions-menu-trigger:hover,
     .core-actions-menu-trigger:focus-visible,
     .core-actions-menu-category:focus-within > .core-actions-menu-trigger {
-      background: #fbf8f1;
+      background: #e7d6ba;
     }
 
     .core-actions-menu-arrow {
-      color: var(--muted);
-      font-size: 16px;
+      color: var(--accent-strong);
+      font-size: 18px;
       line-height: 1;
     }
 
@@ -69,6 +69,13 @@
 
     .core-actions-menu-category:not(:has(.ops-btn:not([hidden]):not([style*="display: none"]))) {
       display: none;
+    }
+
+    @media (min-width: 981px) {
+      #coreActionsMenu {
+        width: 136px;
+        min-width: 136px;
+      }
     }
 
     @media (max-width: 980px) {
@@ -659,6 +666,23 @@
         } finally {
           if (button.isConnected) button.disabled = false;
         }
+      });
+    })();
+  </script>
+  <script>
+    (() => {
+      const menu = document.getElementById("coreActionsMenu");
+      if (!menu) return;
+      menu.querySelectorAll(".core-actions-menu-category").forEach((category) => {
+        category.addEventListener("pointerenter", () => {
+          const active = document.activeElement;
+          const pinnedCategory = typeof active?.closest === "function"
+            ? active.closest(".core-actions-menu-category")
+            : null;
+          if (pinnedCategory && pinnedCategory !== category && menu.contains(pinnedCategory)) {
+            active.blur?.();
+          }
+        });
       });
     })();
   </script>
