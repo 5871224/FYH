@@ -6,6 +6,158 @@
   <title>福圓號</title>
   <link rel="stylesheet" href="./app.css?v=3b36354883e8">
   <style>
+    .core-actions-menu-category {
+      position: relative;
+    }
+
+    .core-actions-menu-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      width: 100%;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.4;
+      cursor: default;
+      outline: none;
+      user-select: none;
+    }
+
+    .core-actions-menu-trigger:hover,
+    .core-actions-menu-trigger:focus-visible,
+    .core-actions-menu-category:focus-within > .core-actions-menu-trigger {
+      background: #fbf8f1;
+    }
+
+    .core-actions-menu-arrow {
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .core-actions-submenu {
+      display: none;
+      position: absolute;
+      top: -8px;
+      right: calc(100% - 6px);
+      z-index: 31;
+      min-width: 190px;
+      padding: 8px;
+      gap: 6px;
+      border: 1px solid rgba(166, 143, 111, 0.22);
+      border-radius: 16px;
+      background: #fffdf8;
+      box-shadow: 0 18px 34px rgba(72, 52, 31, 0.16);
+    }
+
+    .core-actions-menu-category:hover > .core-actions-submenu,
+    .core-actions-menu-category:focus-within > .core-actions-submenu {
+      display: grid;
+    }
+
+    .core-actions-submenu .ops-btn {
+      width: 100%;
+      white-space: nowrap;
+      text-align: left;
+    }
+
+    .core-actions-menu-category:not(:has(.ops-btn:not([hidden]):not([style*="display: none"]))) {
+      display: none;
+    }
+
+    @media (max-width: 980px) {
+      .core-actions-submenu {
+        position: static;
+        width: 100%;
+        min-width: 0;
+        margin-top: 4px;
+        padding: 4px 0 0 12px;
+        border: 0;
+        box-shadow: none;
+        background: transparent;
+      }
+    }
+
+    @media print {
+      @page {
+        size: A4 landscape;
+        margin: 8mm;
+      }
+
+      html,
+      body {
+        background: #fff !important;
+        overflow: visible !important;
+      }
+
+      body > :not(.app-shell) {
+        display: none !important;
+      }
+
+      .app-shell {
+        display: block !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+      }
+
+      .app-shell > * {
+        display: none !important;
+      }
+
+      #scheduleCard {
+        display: block !important;
+        width: max-content !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        background: #fff !important;
+      }
+
+      #scheduleCard .calendar-nav {
+        display: block !important;
+        margin: 0 0 4mm !important;
+      }
+
+      #scheduleCard .calendar-nav-left,
+      #scheduleCard .nav-actions,
+      #scheduleCard .table-top-scrollbar,
+      #scheduleCard .table-sticky-header,
+      #scheduleArchiveBanner {
+        display: none !important;
+      }
+
+      #scheduleCard .month-title-wrap {
+        display: block !important;
+        width: 100% !important;
+        text-align: center !important;
+      }
+
+      #scheduleCard .month-title-wrap h2 {
+        margin: 0 !important;
+        font-size: 16pt !important;
+      }
+
+      #scheduleCard .table-wrap {
+        width: max-content !important;
+        overflow: visible !important;
+      }
+
+      #mainTable {
+        zoom: 0.36;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+
     @media (min-width: 981px) {
       .attendance-review-filters {
         grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -91,16 +243,36 @@
           <button class="nav-btn" id="nextPeriodButton" type="button">後八週</button>
           <div class="core-actions-shell" id="coreActionsShell">
             <button class="ghost-btn core-actions-toggle" id="coreActionsToggle" type="button" aria-expanded="false">登入</button>
-            <div class="core-actions-menu" id="coreActionsMenu" aria-hidden="true">
-              <button class="ghost-btn ops-btn manager-action" id="weekStartSettingsButton" type="button">週期設定</button>
-              <button class="ghost-btn ops-btn manager-action" id="autoSchedulePreviewButton" type="button">自動排班預覽</button>
-              <button class="ghost-btn ops-btn manager-action" id="autoFillSchedulePreviewButton" type="button">自動補班預覽</button>
-              <button class="ghost-btn ops-btn manager-action" id="autoScheduleApplyButton" type="button">套用預覽</button>
-              <button class="ghost-btn ops-btn manager-action" id="autoScheduleCancelButton" type="button">取消預覽</button>
-              <button class="ghost-btn ops-btn manager-action" id="exportScheduleButton" type="button">匯出排班</button>
-              <button class="ghost-btn ops-btn manager-action" id="exportSapButton" type="button">匯出休例假</button>
-              <button class="ghost-btn ops-btn manager-action" id="exportLeaveButton" type="button">匯出請假</button>
-              <button class="ghost-btn ops-btn manager-action" id="exportOvertimeButton" type="button" hidden>匯出加班</button>
+            <div class="core-actions-menu" id="coreActionsMenu" aria-hidden="true" role="menu">
+              <div class="core-actions-menu-category" role="none">
+                <div class="core-actions-menu-trigger" tabindex="0" role="menuitem" aria-haspopup="menu"><span>設定</span><span class="core-actions-menu-arrow" aria-hidden="true">‹</span></div>
+                <div class="core-actions-submenu" role="menu" aria-label="設定">
+                  <button class="ghost-btn ops-btn group-feature-action" id="permissionSettingsMenuButton" type="button" data-group-feature-action="permission-settings">權限設定</button>
+                  <button class="ghost-btn ops-btn group-feature-action" id="groupSettingsMenuButton" type="button" data-group-feature-action="group-settings">群組設定</button>
+                  <button class="ghost-btn ops-btn manager-action" id="weekStartSettingsButton" type="button">週期設定</button>
+                  <button class="ghost-btn ops-btn group-feature-action" id="scheduleArchiveMenuButton" type="button" data-group-feature-action="schedule-archive">班表封存</button>
+                  <button class="ghost-btn ops-btn group-feature-action" id="scheduleConditionsMenuButton" type="button" data-group-feature-action="schedule-conditions">排班條件</button>
+                </div>
+              </div>
+              <div class="core-actions-menu-category" role="none">
+                <div class="core-actions-menu-trigger" tabindex="0" role="menuitem" aria-haspopup="menu"><span>排班</span><span class="core-actions-menu-arrow" aria-hidden="true">‹</span></div>
+                <div class="core-actions-submenu" role="menu" aria-label="排班">
+                  <button class="ghost-btn ops-btn manager-action" id="autoSchedulePreviewButton" type="button">自動排班預覽</button>
+                  <button class="ghost-btn ops-btn manager-action" id="autoFillSchedulePreviewButton" type="button">自動補班預覽</button>
+                  <button class="ghost-btn ops-btn manager-action" id="autoScheduleApplyButton" type="button">套用預覽</button>
+                  <button class="ghost-btn ops-btn manager-action" id="autoScheduleCancelButton" type="button">取消預覽</button>
+                </div>
+              </div>
+              <div class="core-actions-menu-category" role="none">
+                <div class="core-actions-menu-trigger" tabindex="0" role="menuitem" aria-haspopup="menu"><span>匯出</span><span class="core-actions-menu-arrow" aria-hidden="true">‹</span></div>
+                <div class="core-actions-submenu" role="menu" aria-label="匯出">
+                  <button class="ghost-btn ops-btn manager-action" id="exportScheduleButton" type="button">匯出排班</button>
+                  <button class="ghost-btn ops-btn manager-action" id="exportSapButton" type="button">匯出休例假</button>
+                  <button class="ghost-btn ops-btn manager-action" id="exportLeaveButton" type="button">匯出請假</button>
+                  <button class="ghost-btn ops-btn manager-action" id="printScheduleButton" type="button" onclick="closeCoreActionsMenu(); window.print();">列印班表</button>
+                  <button class="ghost-btn ops-btn manager-action" id="exportOvertimeButton" type="button" hidden>匯出加班</button>
+                </div>
+              </div>
             </div>
           </div>
           <button class="ghost-btn compact-btn user-menu-auth" id="coreHomeButton" type="button" data-home-action="home" aria-label="返回首頁" title="返回首頁"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg></button>
