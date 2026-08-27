@@ -56,12 +56,13 @@
       box-shadow: 0 18px 34px rgba(72, 52, 31, 0.16);
     }
 
-    .core-actions-menu-category:focus-within > .core-actions-submenu {
+    .core-actions-menu-category.touch-open > .core-actions-submenu {
       display: grid;
     }
 
     @media (hover: hover) and (pointer: fine) {
-      .core-actions-menu-category:hover > .core-actions-submenu {
+      .core-actions-menu-category:hover > .core-actions-submenu,
+      .core-actions-menu-category:focus-within > .core-actions-submenu {
         display: grid;
       }
     }
@@ -613,15 +614,31 @@
       const menu = document.getElementById("coreActionsMenu");
       if (!menu) return;
       const touchLikePointer = window.matchMedia("(hover: none), (pointer: coarse)");
-      menu.querySelectorAll(".core-actions-menu-category").forEach((category) => {
+      const categories = [...menu.querySelectorAll(".core-actions-menu-category")];
+
+      const closeTouchSubmenus = (except = null) => {
+        categories.forEach((category) => {
+          if (category === except) return;
+          category.classList.remove("touch-open");
+          category.querySelector(":scope > .core-actions-menu-trigger")?.setAttribute("aria-expanded", "false");
+        });
+      };
+
+      categories.forEach((category) => {
         const trigger = category.querySelector(":scope > .core-actions-menu-trigger");
-        trigger?.addEventListener("click", () => {
-          if (touchLikePointer.matches) {
-            trigger.focus({ preventScroll: true });
-          }
+        trigger?.setAttribute("aria-expanded", "false");
+        trigger?.addEventListener("click", (event) => {
+          if (!touchLikePointer.matches) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const opening = !category.classList.contains("touch-open");
+          closeTouchSubmenus(category);
+          category.classList.toggle("touch-open", opening);
+          trigger.setAttribute("aria-expanded", opening ? "true" : "false");
+          if (opening) trigger.focus({ preventScroll: true });
         });
         category.addEventListener("pointerenter", (event) => {
-          if (event.pointerType && event.pointerType !== "mouse") return;
+          if (touchLikePointer.matches || (event.pointerType && event.pointerType !== "mouse")) return;
           const active = document.activeElement;
           const pinnedCategory = typeof active?.closest === "function"
             ? active.closest(".core-actions-menu-category")
@@ -631,6 +648,12 @@
           }
         });
       });
+
+      new MutationObserver(() => {
+        if (menu.getAttribute("aria-hidden") === "true") {
+          closeTouchSubmenus();
+        }
+      }).observe(menu, { attributes: true, attributeFilter: ["aria-hidden"] });
     })();
   </script>
 </body>
