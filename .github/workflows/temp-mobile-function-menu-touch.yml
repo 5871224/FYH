@@ -54,31 +54,41 @@ jobs:
 
           for path in paths:
               text = path.read_text(encoding='utf-8')
-              export_count = text.count('匯出排班')
-              if export_count < 4:
-                  raise SystemExit(f'{path}: expected at least 4 匯出排班 labels, found {export_count}')
-              text = text.replace('匯出排班', '匯出上班日')
-
-              if text.count(old_pointer) != 1:
-                  raise SystemExit(f'{path}: pointerenter block count = {text.count(old_pointer)}')
-              text = text.replace(old_pointer, new_pointer, 1)
-
+              if '匯出排班' in text:
+                  text = text.replace('匯出排班', '匯出上班日')
+              if old_pointer in text:
+                  text = text.replace(old_pointer, new_pointer, 1)
+              elif new_pointer not in text:
+                  raise SystemExit(f'{path}: pointerenter block not found')
               if touch_css not in text:
                   if text.count(touch_css_anchor) != 1:
                       raise SystemExit(f'{path}: CSS anchor count = {text.count(touch_css_anchor)}')
                   text = text.replace(touch_css_anchor, touch_css + touch_css_anchor, 1)
-
               path.write_text(text, encoding='utf-8')
           PY
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate and capture output
+        shell: bash
+        run: |
+          set +e
+          npm run ci:check 2>&1 | tee .ci-mobile-menu-failure.txt
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/renderer/index.html docs/index.html .ci-mobile-menu-failure.txt
+            git diff --cached --quiet || git commit -m "chore: capture mobile menu CI failure"
+            git push origin HEAD:fix/mobile-function-menu-touch
+            exit "$status"
+          fi
+          rm -f .ci-mobile-menu-failure.txt
+
       - name: Remove temporary workflow
         run: rm .github/workflows/temp-mobile-function-menu-touch.yml
-
-      - name: Validate
-        run: npm run ci:check
 
       - name: Commit result
         shell: bash
