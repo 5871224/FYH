@@ -56,9 +56,14 @@
       box-shadow: 0 18px 34px rgba(72, 52, 31, 0.16);
     }
 
-    .core-actions-menu-category:hover > .core-actions-submenu,
     .core-actions-menu-category:focus-within > .core-actions-submenu {
       display: grid;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .core-actions-menu-category:hover > .core-actions-submenu {
+        display: grid;
+      }
     }
 
     .core-actions-submenu .ops-btn {
@@ -79,6 +84,11 @@
     }
 
     @media (max-width: 980px) {
+      .core-actions-menu-trigger {
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
       .core-actions-submenu {
         position: static;
         width: 100%;
@@ -88,6 +98,10 @@
         border: 0;
         box-shadow: none;
         background: transparent;
+      }
+
+      .core-actions-submenu .ops-btn {
+        min-height: 44px;
       }
     }
 
@@ -199,7 +213,7 @@
               <div class="core-actions-menu-category" role="none">
                 <div class="core-actions-menu-trigger" tabindex="0" role="menuitem" aria-haspopup="menu"><span>匯出</span><span class="core-actions-menu-arrow" aria-hidden="true">‹</span></div>
                 <div class="core-actions-submenu" role="menu" aria-label="匯出">
-                  <button class="ghost-btn ops-btn manager-action" id="exportScheduleButton" type="button">匯出排班</button>
+                  <button class="ghost-btn ops-btn manager-action" id="exportScheduleButton" type="button">匯出上班日</button>
                   <button class="ghost-btn ops-btn manager-action" id="exportSapButton" type="button">匯出休例假</button>
                   <button class="ghost-btn ops-btn manager-action" id="exportLeaveButton" type="button">匯出請假</button>
                   <button class="ghost-btn ops-btn manager-action" id="exportOvertimeButton" type="button" hidden>匯出加班</button>
@@ -502,13 +516,13 @@
       const openScheduleExportDialog = () => {
         const defaults = getDefaultExportPeriod();
         openEntityListModal({
-          title: "匯出排班期間",
+          title: "匯出上班日期間",
           modalClass: "modal modal-member-form",
           body: `<div class="form-grid">
             <div class="form-row"><label for="exportPeriodStart">開始日期</label><input id="exportPeriodStart" type="date" value="${defaults.startDate}"></div>
             <div class="form-row"><label for="exportPeriodEnd">結束日期</label><input id="exportPeriodEnd" type="date" value="${defaults.endDate}"></div>
           </div>`,
-          footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-run-schedule-export="true">匯出排班</button>`,
+          footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-run-schedule-export="true">匯出上班日</button>`,
           hideFooterClose: true
         });
       };
@@ -531,7 +545,7 @@
           setSaveStatus("正在準備匯出資料...", true);
           const rows = await buildScheduleRows(startDate, endDate);
           if (!rows.length) {
-            showInfoMessage("目前沒有可匯出的排班資料");
+            showInfoMessage("目前沒有可匯出的上班日資料");
             closeModal();
             setSaveStatus("");
             return;
@@ -539,7 +553,7 @@
 
           await exporter.ensureExcelJS();
           const workbook = new ExcelJS.Workbook();
-          const sheet = workbook.addWorksheet("匯出排班", { views: [{ state: "frozen", ySplit: 1 }] });
+          const sheet = workbook.addWorksheet("匯出上班日", { views: [{ state: "frozen", ySplit: 1 }] });
           const headers = ["上班地點(單位)", "姓名", "工號", "日期(YYYYMMDD)"];
           sheet.addRow(headers);
           rows.forEach((item) => {
@@ -569,7 +583,7 @@
             });
           });
           const blob = await exporter.workbookToBlob(workbook);
-          const fileName = `匯出排班_${compactDate(startDate)}-${compactDate(endDate)}.xlsx`;
+          const fileName = `匯出上班日_${compactDate(startDate)}-${compactDate(endDate)}.xlsx`;
           downloadBlob(blob, fileName);
           closeModal();
           setSaveStatus("");
@@ -598,8 +612,16 @@
     (() => {
       const menu = document.getElementById("coreActionsMenu");
       if (!menu) return;
+      const touchLikePointer = window.matchMedia("(hover: none), (pointer: coarse)");
       menu.querySelectorAll(".core-actions-menu-category").forEach((category) => {
-        category.addEventListener("pointerenter", () => {
+        const trigger = category.querySelector(":scope > .core-actions-menu-trigger");
+        trigger?.addEventListener("click", () => {
+          if (touchLikePointer.matches) {
+            trigger.focus({ preventScroll: true });
+          }
+        });
+        category.addEventListener("pointerenter", (event) => {
+          if (event.pointerType && event.pointerType !== "mouse") return;
           const active = document.activeElement;
           const pinnedCategory = typeof active?.closest === "function"
             ? active.closest(".core-actions-menu-category")
