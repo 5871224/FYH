@@ -31,29 +31,29 @@ jobs:
           from pathlib import Path
 
           paths = [Path('src/renderer/index.html'), Path('docs/index.html')]
-          touch_css_anchor = '''    @media (min-width: 981px) {
-      .attendance-review-filters {'''
-          touch_css = '''    @media (hover: none), (pointer: coarse) {
-      .core-actions-menu-trigger {
-        touch-action: manipulation;
-      }
-
-      .core-actions-menu-category:hover > .core-actions-submenu {
-        display: none;
-      }
-
-      .core-actions-menu-category:focus-within > .core-actions-submenu {
-        display: grid;
-      }
-    }
-
-'''
+          touch_css_anchor = "    @media (min-width: 981px) {\n      .attendance-review-filters {"
+          touch_css = "\n".join([
+              "    @media (hover: none), (pointer: coarse) {",
+              "      .core-actions-menu-trigger {",
+              "        touch-action: manipulation;",
+              "      }",
+              "",
+              "      .core-actions-menu-category:hover > .core-actions-submenu {",
+              "        display: none;",
+              "      }",
+              "",
+              "      .core-actions-menu-category:focus-within > .core-actions-submenu {",
+              "        display: grid;",
+              "      }",
+              "    }",
+              "",
+              ""
+          ])
           old_pointer = 'category.addEventListener("pointerenter", () => {\n          const active = document.activeElement;'
           new_pointer = 'category.addEventListener("pointerenter", (event) => {\n          if (event.pointerType && event.pointerType !== "mouse") return;\n          const active = document.activeElement;'
 
           for path in paths:
               text = path.read_text(encoding='utf-8')
-
               export_count = text.count('匯出排班')
               if export_count < 4:
                   raise SystemExit(f'{path}: expected at least 4 匯出排班 labels, found {export_count}')
