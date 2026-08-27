@@ -32,108 +32,70 @@ jobs:
           path = Path('src/renderer/index.html')
           text = path.read_text(encoding='utf-8')
 
-          old_css = '''    .core-actions-menu-category:focus-within > .core-actions-submenu {
-      display: grid;
-    }
-
-    @media (hover: hover) and (pointer: fine) {
-      .core-actions-menu-category:hover > .core-actions-submenu {
-        display: grid;
-      }
-    }
-'''
-          new_css = '''    .core-actions-menu-category.touch-open > .core-actions-submenu {
-      display: grid;
-    }
-
-    @media (hover: hover) and (pointer: fine) {
-      .core-actions-menu-category:hover > .core-actions-submenu,
-      .core-actions-menu-category:focus-within > .core-actions-submenu {
-        display: grid;
-      }
-    }
-'''
+          old_css = "    .core-actions-menu-category:focus-within > .core-actions-submenu {\n      display: grid;\n    }\n\n    @media (hover: hover) and (pointer: fine) {\n      .core-actions-menu-category:hover > .core-actions-submenu {\n        display: grid;\n      }\n    }\n"
+          new_css = "    .core-actions-menu-category.touch-open > .core-actions-submenu {\n      display: grid;\n    }\n\n    @media (hover: hover) and (pointer: fine) {\n      .core-actions-menu-category:hover > .core-actions-submenu,\n      .core-actions-menu-category:focus-within > .core-actions-submenu {\n        display: grid;\n      }\n    }\n"
           if text.count(old_css) != 1:
               raise SystemExit(f'Expected one submenu CSS block, found {text.count(old_css)}')
           text = text.replace(old_css, new_css)
 
-          old_script = '''  <script>
-    (() => {
-      const menu = document.getElementById("coreActionsMenu");
-      if (!menu) return;
-      const touchLikePointer = window.matchMedia("(hover: none), (pointer: coarse)");
-      menu.querySelectorAll(".core-actions-menu-category").forEach((category) => {
-        const trigger = category.querySelector(":scope > .core-actions-menu-trigger");
-        trigger?.addEventListener("click", () => {
-          if (touchLikePointer.matches) {
-            trigger.focus({ preventScroll: true });
-          }
-        });
-        category.addEventListener("pointerenter", (event) => {
-          if (event.pointerType && event.pointerType !== "mouse") return;
-          const active = document.activeElement;
-          const pinnedCategory = typeof active?.closest === "function"
-            ? active.closest(".core-actions-menu-category")
-            : null;
-          if (pinnedCategory && pinnedCategory !== category && menu.contains(pinnedCategory)) {
-            active.blur?.();
-          }
-        });
-      });
-    })();
-  </script>
-'''
-          new_script = '''  <script>
-    (() => {
-      const menu = document.getElementById("coreActionsMenu");
-      if (!menu) return;
-      const touchLikePointer = window.matchMedia("(hover: none), (pointer: coarse)");
-      const categories = [...menu.querySelectorAll(".core-actions-menu-category")];
+          start_marker = '  <script>\n    (() => {\n      const menu = document.getElementById("coreActionsMenu");\n      if (!menu) return;\n      const touchLikePointer = window.matchMedia("(hover: none), (pointer: coarse)");\n'
+          start = text.rfind(start_marker)
+          end = text.find('  </script>\n</body>', start)
+          if start < 0 or end < 0:
+              raise SystemExit('Mobile menu script block not found')
 
-      const closeTouchSubmenus = (except = null) => {
-        categories.forEach((category) => {
-          if (category === except) return;
-          category.classList.remove("touch-open");
-          category.querySelector(":scope > .core-actions-menu-trigger")?.setAttribute("aria-expanded", "false");
-        });
-      };
-
-      categories.forEach((category) => {
-        const trigger = category.querySelector(":scope > .core-actions-menu-trigger");
-        trigger?.setAttribute("aria-expanded", "false");
-        trigger?.addEventListener("click", (event) => {
-          if (!touchLikePointer.matches) return;
-          event.preventDefault();
-          event.stopPropagation();
-          const opening = !category.classList.contains("touch-open");
-          closeTouchSubmenus(category);
-          category.classList.toggle("touch-open", opening);
-          trigger.setAttribute("aria-expanded", opening ? "true" : "false");
-          if (opening) trigger.focus({ preventScroll: true });
-        });
-        category.addEventListener("pointerenter", (event) => {
-          if (touchLikePointer.matches || (event.pointerType && event.pointerType !== "mouse")) return;
-          const active = document.activeElement;
-          const pinnedCategory = typeof active?.closest === "function"
-            ? active.closest(".core-actions-menu-category")
-            : null;
-          if (pinnedCategory && pinnedCategory !== category && menu.contains(pinnedCategory)) {
-            active.blur?.();
-          }
-        });
-      });
-
-      new MutationObserver(() => {
-        if (menu.getAttribute("aria-hidden") === "true") {
-          closeTouchSubmenus();
-        }
-      }).observe(menu, { attributes: true, attributeFilter: ["aria-hidden"] });
-    })();
-  </script>
-'''
-          if text.count(old_script) != 1:
-              raise SystemExit(f'Expected one mobile menu script block, found {text.count(old_script)}')
-          path.write_text(text.replace(old_script, new_script), encoding='utf-8')
+          lines = [
+              '  <script>',
+              '    (() => {',
+              '      const menu = document.getElementById("coreActionsMenu");',
+              '      if (!menu) return;',
+              '      const touchLikePointer = window.matchMedia("(hover: none), (pointer: coarse)");',
+              '      const categories = [...menu.querySelectorAll(".core-actions-menu-category")];',
+              '',
+              '      const closeTouchSubmenus = (except = null) => {',
+              '        categories.forEach((category) => {',
+              '          if (category === except) return;',
+              '          category.classList.remove("touch-open");',
+              '          category.querySelector(":scope > .core-actions-menu-trigger")?.setAttribute("aria-expanded", "false");',
+              '        });',
+              '      };',
+              '',
+              '      categories.forEach((category) => {',
+              '        const trigger = category.querySelector(":scope > .core-actions-menu-trigger");',
+              '        trigger?.setAttribute("aria-expanded", "false");',
+              '        trigger?.addEventListener("click", (event) => {',
+              '          if (!touchLikePointer.matches) return;',
+              '          event.preventDefault();',
+              '          event.stopPropagation();',
+              '          const opening = !category.classList.contains("touch-open");',
+              '          closeTouchSubmenus(category);',
+              '          category.classList.toggle("touch-open", opening);',
+              '          trigger.setAttribute("aria-expanded", opening ? "true" : "false");',
+              '          if (opening) trigger.focus({ preventScroll: true });',
+              '        });',
+              '        category.addEventListener("pointerenter", (event) => {',
+              '          if (touchLikePointer.matches || (event.pointerType && event.pointerType !== "mouse")) return;',
+              '          const active = document.activeElement;',
+              '          const pinnedCategory = typeof active?.closest === "function"',
+              '            ? active.closest(".core-actions-menu-category")',
+              '            : null;',
+              '          if (pinnedCategory && pinnedCategory !== category && menu.contains(pinnedCategory)) {',
+              '            active.blur?.();',
+              '          }',
+              '        });',
+              '      });',
+              '',
+              '      new MutationObserver(() => {',
+              '        if (menu.getAttribute("aria-hidden") === "true") {',
+              '          closeTouchSubmenus();',
+              '        }',
+              '      }).observe(menu, { attributes: true, attributeFilter: ["aria-hidden"] });',
+              '    })();',
+              '  </script>',
+          ]
+          replacement = '\n'.join(lines) + '\n'
+          text = text[:start] + replacement + text[end + len('  </script>\n'):]
+          path.write_text(text, encoding='utf-8')
           PY
 
       - name: Publish static web
