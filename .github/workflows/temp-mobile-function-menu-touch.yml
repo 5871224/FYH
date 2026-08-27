@@ -1,0 +1,91 @@
+name: Temporary mobile function menu touch fix
+
+on:
+  push:
+    branches:
+      - fix/mobile-function-menu-touch
+    paths:
+      - .github/workflows/temp-mobile-function-menu-touch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/mobile-function-menu-touch
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Patch mobile menu and export wording
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          paths = [Path('src/renderer/index.html'), Path('docs/index.html')]
+          touch_css_anchor = '''    @media (min-width: 981px) {
+      .attendance-review-filters {'''
+          touch_css = '''    @media (hover: none), (pointer: coarse) {
+      .core-actions-menu-trigger {
+        touch-action: manipulation;
+      }
+
+      .core-actions-menu-category:hover > .core-actions-submenu {
+        display: none;
+      }
+
+      .core-actions-menu-category:focus-within > .core-actions-submenu {
+        display: grid;
+      }
+    }
+
+'''
+          old_pointer = 'category.addEventListener("pointerenter", () => {\n          const active = document.activeElement;'
+          new_pointer = 'category.addEventListener("pointerenter", (event) => {\n          if (event.pointerType && event.pointerType !== "mouse") return;\n          const active = document.activeElement;'
+
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+
+              export_count = text.count('匯出排班')
+              if export_count < 4:
+                  raise SystemExit(f'{path}: expected at least 4 匯出排班 labels, found {export_count}')
+              text = text.replace('匯出排班', '匯出上班日')
+
+              if text.count(old_pointer) != 1:
+                  raise SystemExit(f'{path}: pointerenter block count = {text.count(old_pointer)}')
+              text = text.replace(old_pointer, new_pointer, 1)
+
+              if touch_css not in text:
+                  if text.count(touch_css_anchor) != 1:
+                      raise SystemExit(f'{path}: CSS anchor count = {text.count(touch_css_anchor)}')
+                  text = text.replace(touch_css_anchor, touch_css + touch_css_anchor, 1)
+
+              path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Remove temporary workflow
+        run: rm .github/workflows/temp-mobile-function-menu-touch.yml
+
+      - name: Validate
+        run: npm run ci:check
+
+      - name: Commit result
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "修正手機功能選單觸控與匯出名稱"
+          git push origin HEAD:fix/mobile-function-menu-touch
