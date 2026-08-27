@@ -32,62 +32,50 @@ jobs:
 
           config_path = Path('src/renderer/app-config.js')
           config = config_path.read_text(encoding='utf-8')
-          old = '''  function ensureMenuButton() {
-            const menu = document.getElementById("coreActionsMenu");
-            if (!menu) return;
-            let button = document.getElementById(BUTTON_ID);
-            if (!button) {
-              button = document.createElement("button");
-              button.id = BUTTON_ID;
-              button.type = "button";
-              button.className = "ghost-btn ops-btn";
-              button.textContent = "列印班表";
-              const archive = document.getElementById("scheduleArchiveMenuButton");
-              archive ? archive.insertAdjacentElement("afterend", button) : menu.prepend(button);
-            }
-            const visible = canPrint();
-            button.style.display = visible ? "" : "none";
-            button.disabled = !visible;
-          }'''
-          # Dedent only the Python heredoc indentation, not the JavaScript indentation.
-          old = '\n'.join(line[10:] if line.startswith('          ') else line for line in old.splitlines())
-          new = '''  function ensureMenuButton() {
-            const menu = document.getElementById("coreActionsMenu");
-            if (!menu) return;
-            let button = document.getElementById(BUTTON_ID);
-            if (!button) {
-              button = document.createElement("button");
-              button.id = BUTTON_ID;
-              button.type = "button";
-              button.className = "ghost-btn ops-btn";
-              button.textContent = "列印班表";
-            }
-            const exportSubmenu = menu.querySelector('.core-actions-submenu[aria-label="匯出"]');
-            if (exportSubmenu && button.parentElement !== exportSubmenu) {
-              const overtimeButton = document.getElementById("exportOvertimeButton");
-              if (overtimeButton?.parentElement === exportSubmenu) {
-                overtimeButton.insertAdjacentElement("beforebegin", button);
-              } else {
-                exportSubmenu.appendChild(button);
-              }
-            } else if (!exportSubmenu && !button.isConnected) {
-              menu.prepend(button);
-            }
-            const visible = canPrint();
-            button.style.display = visible ? "" : "none";
-            button.disabled = !visible;
-          }'''
-          new = '\n'.join(line[10:] if line.startswith('          ') else line for line in new.splitlines())
-          if config.count(old) != 1:
-              raise SystemExit(f'Expected one rich print menu block, found {config.count(old)}')
-          config_path.write_text(config.replace(old, new), encoding='utf-8')
+          start_marker = '  function ensureMenuButton() {'
+          end_marker = '\n\n  function overlap(item, startDate, endDate) {'
+          start = config.find(start_marker)
+          end = config.find(end_marker, start)
+          if start < 0 or end < 0:
+              raise SystemExit('Rich print ensureMenuButton block not found')
+          new = '\n'.join([
+              '  function ensureMenuButton() {',
+              '    const menu = document.getElementById("coreActionsMenu");',
+              '    if (!menu) return;',
+              '    let button = document.getElementById(BUTTON_ID);',
+              '    if (!button) {',
+              '      button = document.createElement("button");',
+              '      button.id = BUTTON_ID;',
+              '      button.type = "button";',
+              '      button.className = "ghost-btn ops-btn";',
+              '      button.textContent = "列印班表";',
+              '    }',
+              '    const exportSubmenu = menu.querySelector(\'.core-actions-submenu[aria-label="匯出"]\');',
+              '    if (exportSubmenu && button.parentElement !== exportSubmenu) {',
+              '      const overtimeButton = document.getElementById("exportOvertimeButton");',
+              '      if (overtimeButton?.parentElement === exportSubmenu) {',
+              '        overtimeButton.insertAdjacentElement("beforebegin", button);',
+              '      } else {',
+              '        exportSubmenu.appendChild(button);',
+              '      }',
+              '    } else if (!exportSubmenu && !button.isConnected) {',
+              '      menu.prepend(button);',
+              '    }',
+              '    const visible = canPrint();',
+              '    button.style.display = visible ? "" : "none";',
+              '    button.disabled = !visible;',
+              '  }',
+          ])
+          config_path.write_text(config[:start] + new + config[end:], encoding='utf-8')
 
           index_path = Path('src/renderer/index.html')
           html = index_path.read_text(encoding='utf-8')
-          old_button = '                  <button class="ghost-btn ops-btn manager-action" id="printScheduleButton" type="button" onclick="closeCoreActionsMenu(); window.print();">列印班表</button>\n'
-          if html.count(old_button) != 1:
-              raise SystemExit(f'Expected one legacy direct-print button, found {html.count(old_button)}')
-          html = html.replace(old_button, '')
+          legacy_marker = 'id="printScheduleButton"'
+          legacy_start = html.rfind('                  <button', 0, html.find(legacy_marker) + 1)
+          legacy_end = html.find('\n', html.find(legacy_marker))
+          if html.count(legacy_marker) != 1 or legacy_start < 0 or legacy_end < 0:
+              raise SystemExit(f'Expected one legacy direct-print button, found {html.count(legacy_marker)}')
+          html = html[:legacy_start] + html[legacy_end + 1:]
 
           print_start = html.find('    @media print {\n')
           next_block = '\n    @media (min-width: 981px) {\n      .attendance-review-filters'
