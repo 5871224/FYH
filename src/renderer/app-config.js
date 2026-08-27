@@ -114,8 +114,17 @@ window.SCHEDULER_CONFIG = {
       button.type = "button";
       button.className = "ghost-btn ops-btn";
       button.textContent = "列印班表";
-      const archive = document.getElementById("scheduleArchiveMenuButton");
-      archive ? archive.insertAdjacentElement("afterend", button) : menu.prepend(button);
+    }
+    const exportSubmenu = menu.querySelector('.core-actions-submenu[aria-label="匯出"]');
+    if (exportSubmenu && button.parentElement !== exportSubmenu) {
+      const overtimeButton = document.getElementById("exportOvertimeButton");
+      if (overtimeButton?.parentElement === exportSubmenu) {
+        overtimeButton.insertAdjacentElement("beforebegin", button);
+      } else {
+        exportSubmenu.appendChild(button);
+      }
+    } else if (!exportSubmenu && !button.isConnected) {
+      menu.prepend(button);
     }
     const visible = canPrint();
     button.style.display = visible ? "" : "none";

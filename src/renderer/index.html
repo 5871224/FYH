@@ -91,80 +91,6 @@
       }
     }
 
-    @media print {
-      @page {
-        size: A4 landscape;
-        margin: 8mm;
-      }
-
-      html,
-      body {
-        background: #fff !important;
-        overflow: visible !important;
-      }
-
-      body > :not(.app-shell) {
-        display: none !important;
-      }
-
-      .app-shell {
-        display: block !important;
-        min-height: 0 !important;
-        padding: 0 !important;
-      }
-
-      .app-shell > * {
-        display: none !important;
-      }
-
-      #scheduleCard {
-        display: block !important;
-        width: max-content !important;
-        min-width: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        border: 0 !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
-        background: #fff !important;
-      }
-
-      #scheduleCard .calendar-nav {
-        display: block !important;
-        margin: 0 0 4mm !important;
-      }
-
-      #scheduleCard .calendar-nav-left,
-      #scheduleCard .nav-actions,
-      #scheduleCard .table-top-scrollbar,
-      #scheduleCard .table-sticky-header,
-      #scheduleArchiveBanner {
-        display: none !important;
-      }
-
-      #scheduleCard .month-title-wrap {
-        display: block !important;
-        width: 100% !important;
-        text-align: center !important;
-      }
-
-      #scheduleCard .month-title-wrap h2 {
-        margin: 0 !important;
-        font-size: 16pt !important;
-      }
-
-      #scheduleCard .table-wrap {
-        width: max-content !important;
-        overflow: visible !important;
-      }
-
-      #mainTable {
-        zoom: 0.36;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-    }
-
     @media (min-width: 981px) {
       .attendance-review-filters {
         grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -276,7 +202,6 @@
                   <button class="ghost-btn ops-btn manager-action" id="exportScheduleButton" type="button">匯出排班</button>
                   <button class="ghost-btn ops-btn manager-action" id="exportSapButton" type="button">匯出休例假</button>
                   <button class="ghost-btn ops-btn manager-action" id="exportLeaveButton" type="button">匯出請假</button>
-                  <button class="ghost-btn ops-btn manager-action" id="printScheduleButton" type="button" onclick="closeCoreActionsMenu(); window.print();">列印班表</button>
                   <button class="ghost-btn ops-btn manager-action" id="exportOvertimeButton" type="button" hidden>匯出加班</button>
                 </div>
               </div>
