@@ -25,11 +25,14 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Repair temporary transformation script
+        run: node scripts/fix-temp-script.js
+
       - name: Apply source transformation
         run: node scripts/tmp-vietnamese-settings-fix.js
 
       - name: Remove temporary tooling before validation
-        run: rm scripts/tmp-vietnamese-settings-fix.js .github/workflows/tmp-vietnamese-settings-fix.yml
+        run: rm scripts/fix-temp-script.js scripts/tmp-vietnamese-settings-fix.js .github/workflows/tmp-vietnamese-settings-fix.yml
 
       - name: Build published web files
         run: npm run web:publish
