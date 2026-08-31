@@ -1,0 +1,58 @@
+name: Temporary Vietnamese Settings Fix
+
+on:
+  push:
+    branches:
+      - fix/vietnamese-settings-fields-20260831
+
+permissions:
+  contents: write
+
+jobs:
+  transform:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          ref: fix/vietnamese-settings-fields-20260831
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Apply source transformation
+        run: node scripts/tmp-vietnamese-settings-fix.js
+
+      - name: Remove temporary tooling before validation
+        run: rm scripts/tmp-vietnamese-settings-fix.js .github/workflows/tmp-vietnamese-settings-fix.yml
+
+      - name: Build published web files
+        run: npm run web:publish
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Check normalized storage
+        run: node scripts/check-normalized-storage.js
+
+      - name: Check renderer bundles
+        run: npm run renderer:check
+
+      - name: Check CSS architecture
+        run: npm run css:architecture
+
+      - name: Check JavaScript architecture
+        run: npm run js:architecture
+
+      - name: Commit transformed files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "修正越文設定欄位與正式存檔流程"
+          git push origin HEAD:fix/vietnamese-settings-fields-20260831
