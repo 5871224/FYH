@@ -37,8 +37,30 @@ jobs:
       - name: Build published web files
         run: npm run web:publish
 
-      - name: Run unit tests
-        run: npm test
+      - name: Run unit tests and capture diagnostics
+        run: |
+          set +e
+          npm test > /tmp/fyh-test-output.txt 2>&1
+          status=$?
+          set -e
+          cat /tmp/fyh-test-output.txt
+          echo "TEST_STATUS=$status" >> "$GITHUB_ENV"
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/fyh-test-output.txt .tmp-vietnamese-test-output.txt
+          fi
+
+      - name: Commit failed test diagnostics
+        if: env.TEST_STATUS != '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .tmp-vietnamese-test-output.txt
+          git commit -m "Capture Vietnamese localization test diagnostics"
+          git push origin HEAD:fix/vietnamese-settings-fields-20260831
+
+      - name: Stop on unit test failure
+        if: env.TEST_STATUS != '0'
+        run: exit 1
 
       - name: Check normalized storage
         run: node scripts/check-normalized-storage.js
