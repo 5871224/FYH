@@ -31,6 +31,28 @@ test("Vietnamese localization runtime parses and exposes the agreed fields", () 
   assert.match(source, /language === VI && vi \? vi : String\(item\?\.name \|\| ""\)/);
 });
 
+test("Vietnamese fixed UI covers home and attendance review labels", () => {
+  const source = read("src/renderer/app-config.js");
+  [
+    '"簽到簿": "Sổ chấm công"',
+    '"修改密碼": "Đổi mật khẩu"',
+    '"全部群組": "Tất cả nhóm"',
+    '"全部人員": "Tất cả nhân viên"',
+    '"員工": "Nhân viên"',
+    '"異常": "Bất thường"',
+    '"常用備註": "Ghi chú thường dùng"',
+    '"批次審核": "Duyệt hàng loạt"',
+    '"批次退回": "Trả lại hàng loạt"',
+    '"設為未審": "Đặt thành chưa duyệt"',
+    '"設為已審": "Đặt thành đã duyệt"',
+    '"歷程": "Lịch sử"'
+  ].forEach((token) => assert.ok(source.includes(token), `missing Vietnamese fixed label: ${token}`));
+
+  assert.match(source, /querySelector\("#homeCard \.home-header-actions"\)/);
+  assert.match(source, /actions\.insertBefore\(shell, passwordButton\)/);
+  assert.doesNotMatch(source, /position:fixed;right:10px;bottom:10px/);
+});
+
 test("Vietnamese schema adds only the agreed user-maintained labels", () => {
   const sql = read("supabase/003_vietnamese_display_names.sql");
 
