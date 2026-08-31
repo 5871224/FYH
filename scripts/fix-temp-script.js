@@ -9,6 +9,10 @@ const replacements = [
   [
     "  const second = first < 0 ? -1 : source.indexOf(before, first + before.length);\n  if (first < 0 || second >= 0) {\n    throw new Error(`${relative}: ${label || \"replacement\"} expected exactly once`);\n  }",
     "  if (first < 0) {\n    throw new Error(`${relative}: ${label || \"replacement\"} expected at least once`);\n  }"
+  ],
+  [
+    "  write(relative, `const test = require(\"node:test\");",
+    "  write(relative, String.raw`const test = require(\"node:test\");"
   ]
 ];
 for (const [before, after] of replacements) {
