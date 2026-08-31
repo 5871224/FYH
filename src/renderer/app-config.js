@@ -359,3 +359,551 @@ window.SCHEDULER_CONFIG = {
   if (document.readyState === "complete") install();
   else window.addEventListener("load", install, { once: true });
 })();
+
+// 繁中／越文語系層。
+// 固定介面文字由本層翻譯；群組、單位、人員、班別、假別、餐點則讀取資料庫越文欄位，空白時維持中文。
+(function installVietnameseLocalization() {
+  if (typeof document === "undefined") return;
+
+  const LANGUAGE_KEY = "fyh.language";
+  const VI = "vi-VN";
+  const ZH = "zh-TW";
+  const config = window.SCHEDULER_CONFIG || {};
+  const baseUrl = String(config.supabaseUrl || "").replace(/\/+$/, "");
+  const anonKey = String(config.supabaseAnonKey || "");
+  let language = localStorage.getItem(LANGUAGE_KEY) === VI ? VI : ZH;
+  let installed = false;
+  let labelsLoaded = false;
+  let labels = { groups: [], departments: [], members: [], shifts: [], leaves: [], mealProducts: [] };
+  let applying = false;
+
+  const fixedVi = new Map(Object.entries({
+    "首頁": "Trang chủ",
+    "打卡": "Chấm công",
+    "訂餐": "Đặt cơm",
+    "紀錄": "Lịch sử",
+    "班表": "Lịch làm việc",
+    "登入": "Đăng nhập",
+    "登出": "Đăng xuất",
+    "設定": "Cài đặt",
+    "排班": "Xếp ca",
+    "匯出": "Xuất dữ liệu",
+    "班別": "Ca làm việc",
+    "假別": "Loại nghỉ",
+    "加班": "Tăng ca",
+    "例休檢查": "Kiểm tra ngày nghỉ",
+    "權限設定": "Cài đặt quyền",
+    "群組設定": "Cài đặt nhóm",
+    "週期設定": "Cài đặt chu kỳ",
+    "班表封存": "Lưu trữ lịch",
+    "排班條件": "Điều kiện xếp ca",
+    "自動排班預覽": "Xem trước xếp ca tự động",
+    "自動補班預覽": "Xem trước bổ sung ca",
+    "套用預覽": "Áp dụng bản xem trước",
+    "取消預覽": "Hủy bản xem trước",
+    "匯出上班日": "Xuất ngày làm việc",
+    "匯出休例假": "Xuất ngày nghỉ",
+    "匯出請假": "Xuất nghỉ phép",
+    "匯出加班": "Xuất tăng ca",
+    "列印班表": "In lịch làm việc",
+    "班表列印預覽": "Xem trước lịch in",
+    "列印": "In",
+    "返回": "Quay lại",
+    "方向": "Hướng",
+    "自動": "Tự động",
+    "直式": "Dọc",
+    "橫式": "Ngang",
+    "前八週": "8 tuần trước",
+    "前一週": "Tuần trước",
+    "後一週": "Tuần sau",
+    "後八週": "8 tuần sau",
+    "人員檢視": "Theo nhân viên",
+    "人員檢視-統計欄": "Theo nhân viên - thống kê",
+    "班別檢視": "Theo ca",
+    "單位": "Bộ phận",
+    "人員": "Nhân viên",
+    "統計": "Thống kê",
+    "姓名": "Họ tên",
+    "工號": "Mã nhân viên",
+    "開始日期": "Ngày bắt đầu",
+    "結束日期": "Ngày kết thúc",
+    "到職日": "Ngày vào làm",
+    "離職日": "Ngày nghỉ việc",
+    "狀態": "Trạng thái",
+    "操作": "Thao tác",
+    "編輯": "Sửa",
+    "刪除": "Xóa",
+    "新增": "Thêm",
+    "儲存": "Lưu",
+    "儲存修改": "Lưu thay đổi",
+    "取消": "Hủy",
+    "確認": "Xác nhận",
+    "全部": "Tất cả",
+    "全部顯示": "Hiển thị tất cả",
+    "未指定": "Chưa chỉ định",
+    "未設定": "Chưa cài đặt",
+    "啟用": "Bật",
+    "停用": "Tắt",
+    "是": "Có",
+    "否": "Không",
+    "月薪": "Lương tháng",
+    "日薪": "Lương ngày",
+    "計薪方式": "Cách tính lương",
+    "例假星期": "Ngày nghỉ cố định",
+    "所屬群組": "Nhóm",
+    "所屬單位": "Bộ phận",
+    "排班班別": "Ca có thể xếp",
+    "群組": "Nhóm",
+    "群組名稱": "Tên nhóm",
+    "群組代碼": "Mã nhóm",
+    "單位名稱": "Tên bộ phận",
+    "越文名稱": "Tên tiếng Việt",
+    "可否訂餐": "Cho phép đặt cơm",
+    "不顯示": "Không hiển thị",
+    "可否打卡": "Cho phép chấm công",
+    "是否啟用打卡": "Bật chấm công",
+    "地址": "Địa chỉ",
+    "緯度": "Vĩ độ",
+    "經度": "Kinh độ",
+    "固定對外 IP": "IP công cộng cố định",
+    "人員設定": "Cài đặt nhân viên",
+    "單位設定": "Cài đặt bộ phận",
+    "班別設定": "Cài đặt ca",
+    "假別設定": "Cài đặt loại nghỉ",
+    "訂餐管理": "Quản lý đặt cơm",
+    "訂餐設定": "Cài đặt đặt cơm",
+    "品項": "Món",
+    "價格": "Giá",
+    "公司補助（元）": "Trợ cấp công ty (NT$)",
+    "新增商品": "Thêm món",
+    "儲存設定": "Lưu cài đặt",
+    "今日訂餐": "Đặt cơm hôm nay",
+    "數量": "Số lượng",
+    "單價": "Đơn giá",
+    "小計": "Thành tiền",
+    "備註": "Ghi chú",
+    "個人記錄": "Lịch sử cá nhân",
+    "簽到審核": "Duyệt chấm công",
+    "日期": "Ngày",
+    "圖示": "Biểu tượng",
+    "打卡時間": "Giờ chấm công",
+    "上班時數": "Giờ làm việc",
+    "加班時數": "Giờ tăng ca",
+    "審核": "Duyệt",
+    "未審": "Chưa duyệt",
+    "已審": "Đã duyệt",
+    "上班": "Vào ca",
+    "下班": "Tan ca",
+    "上班打卡": "Chấm công vào ca",
+    "下班打卡": "Chấm công tan ca",
+    "上一頁": "Trang trước",
+    "下一頁": "Trang sau",
+    "讀取中…": "Đang tải…",
+    "載入中…": "Đang tải…",
+    "沒有資料": "Không có dữ liệu",
+    "正常": "Bình thường",
+    "拖曳排序": "Kéo để sắp xếp",
+    "返回首頁": "Về trang chủ",
+    "上一步（Ctrl+Z）": "Hoàn tác (Ctrl+Z)",
+    "下一步（Ctrl+Y）": "Làm lại (Ctrl+Y)",
+    "收合工具列": "Thu gọn thanh công cụ"
+  }));
+
+  function normalizeLabelRows(value) {
+    return Array.isArray(value) ? value.map((row) => ({ id: String(row?.id || ""), nameVi: String(row?.nameVi || "").trim() })) : [];
+  }
+
+  function setLabels(payload) {
+    labels = {
+      groups: normalizeLabelRows(payload?.groups),
+      departments: normalizeLabelRows(payload?.departments),
+      members: normalizeLabelRows(payload?.members),
+      shifts: normalizeLabelRows(payload?.shifts),
+      leaves: normalizeLabelRows(payload?.leaves),
+      mealProducts: normalizeLabelRows(payload?.mealProducts)
+    };
+    labelsLoaded = true;
+  }
+
+  function labelMap(category) {
+    return new Map((labels[category] || []).map((row) => [row.id, row.nameVi]));
+  }
+
+  function applyLabels(items, category) {
+    const byId = labelMap(category);
+    return Array.isArray(items) ? items.map((item) => ({ ...item, nameVi: byId.get(String(item?.id || "")) || item?.nameVi || "" })) : items;
+  }
+
+  function enrichPayload(payload) {
+    if (!payload || typeof payload !== "object") return payload;
+    if (Array.isArray(payload.departments)) payload.departments = applyLabels(payload.departments, "departments");
+    if (Array.isArray(payload.members)) payload.members = applyLabels(payload.members, "members");
+    if (Array.isArray(payload.shifts)) payload.shifts = applyLabels(payload.shifts, "shifts");
+    if (Array.isArray(payload.leaves)) payload.leaves = applyLabels(payload.leaves, "leaves");
+    if (Array.isArray(payload.products)) payload.products = applyLabels(payload.products, "mealProducts");
+    if (payload.accessBundle?.groups) payload.accessBundle.groups = applyLabels(payload.accessBundle.groups, "groups");
+    if (payload.status?.products) payload.status.products = applyLabels(payload.status.products, "mealProducts");
+    return payload;
+  }
+
+  function mergeGlobalLabels() {
+    try {
+      if (typeof state !== "undefined" && state) {
+        state.departments = applyLabels(state.departments, "departments");
+        state.members = applyLabels(state.members, "members");
+        state.shifts = applyLabels(state.shifts, "shifts");
+        state.leaves = applyLabels(state.leaves, "leaves");
+      }
+      if (typeof groupFeatureState !== "undefined" && groupFeatureState?.bundle?.groups) {
+        groupFeatureState.bundle.groups = applyLabels(groupFeatureState.bundle.groups, "groups");
+      }
+      if (typeof recordsState !== "undefined" && recordsState?.mealAdmin?.products) {
+        recordsState.mealAdmin.products = applyLabels(recordsState.mealAdmin.products, "mealProducts");
+      }
+      if (typeof mealOrderState !== "undefined" && mealOrderState?.status?.products) {
+        mealOrderState.status.products = applyLabels(mealOrderState.status.products, "mealProducts");
+      }
+    } catch (error) {
+      console.warn("套用越文名稱失敗", error);
+    }
+  }
+
+  function currentSession() {
+    return window.schedulerApi?.getAuthContext?.()?.session || null;
+  }
+
+  async function rpc(name, body = {}) {
+    const session = currentSession();
+    if (!session?.access_token || !baseUrl || !anonKey) throw new Error("尚未登入");
+    const response = await fetch(`${baseUrl}/rest/v1/rpc/${name}`, {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      let message = text || `HTTP ${response.status}`;
+      try { message = JSON.parse(text)?.message || message; } catch {}
+      throw new Error(message);
+    }
+    return text ? JSON.parse(text) : null;
+  }
+
+  async function refreshLabels() {
+    if (!currentSession()?.access_token) return labels;
+    const payload = await rpc("get_vietnamese_labels_v1", {});
+    setLabels(payload || {});
+    mergeGlobalLabels();
+    return labels;
+  }
+
+  function upsertCachedLabel(category, id, nameVi) {
+    if (!id) return;
+    const rows = labels[category] || [];
+    const index = rows.findIndex((row) => row.id === id);
+    const next = { id, nameVi: String(nameVi || "").trim() };
+    if (index >= 0) rows[index] = next;
+    else rows.push(next);
+  }
+
+  async function saveLabel(entity, category, id, value) {
+    const normalizedId = String(id || "").trim();
+    if (!normalizedId) return;
+    await rpc("save_vietnamese_label_v1", { p_entity: entity, p_id: normalizedId, p_value: String(value || "").trim() });
+    upsertCachedLabel(category, normalizedId, value);
+    mergeGlobalLabels();
+  }
+
+  function findResultId(result, fallback = "") {
+    return String(result?.id || result?.row?.id || result?.data?.id || result?.member?.id || result?.profile?.id || fallback || "").trim();
+  }
+
+  function readInput(id) {
+    return document.getElementById(id)?.value?.trim?.() || "";
+  }
+
+  function reportLocalizedSaveError(error) {
+    const message = `越文名稱儲存失敗：${error?.message || error}`;
+    try { window.setSaveStatus?.(message); } catch {}
+    console.warn(message);
+  }
+
+  function wrapApiMethod(name, wrapper) {
+    const api = window.schedulerApi;
+    const original = api?.[name];
+    if (typeof original !== "function" || original.__fyhVietnameseWrapped) return;
+    const wrapped = wrapper(original.bind(api));
+    wrapped.__fyhVietnameseWrapped = true;
+    api[name] = wrapped;
+  }
+
+  function installApiIntegration() {
+    wrapApiMethod("loadState", (original) => async (...args) => {
+      const result = await original(...args);
+      try { await refreshLabels(); enrichPayload(result); } catch (error) { console.warn("讀取越文名稱失敗", error); }
+      queueMicrotask(refreshUi);
+      return result;
+    });
+
+    wrapApiMethod("getGroupAccessBundle", (original) => async (...args) => {
+      const result = await original(...args);
+      try {
+        if (!labelsLoaded) await refreshLabels();
+        if (result?.groups) result.groups = applyLabels(result.groups, "groups");
+      } catch (error) { console.warn("讀取群組越文名稱失敗", error); }
+      return result;
+    });
+
+    ["getTodayMealOrder", "getMealAdminSettings"].forEach((methodName) => {
+      wrapApiMethod(methodName, (original) => async (...args) => {
+        const result = await original(...args);
+        try {
+          if (!labelsLoaded) await refreshLabels();
+          enrichPayload(result);
+        } catch (error) { console.warn("讀取餐點越文名稱失敗", error); }
+        queueMicrotask(refreshUi);
+        return result;
+      });
+    });
+
+    wrapApiMethod("saveScheduleGroup", (original) => async (group, ...args) => {
+      const nameVi = readInput("groupNameVi");
+      if (group && typeof group === "object") group.nameVi = nameVi;
+      const result = await original(group, ...args);
+      try { await saveLabel("group", "groups", findResultId(result, group?.id), nameVi); } catch (error) { reportLocalizedSaveError(error); }
+      return result;
+    });
+
+    wrapApiMethod("saveDepartmentItem", (original) => async (department, ...args) => {
+      const nameVi = readInput("departmentNameVi");
+      if (department && typeof department === "object") department.nameVi = nameVi;
+      const result = await original(department, ...args);
+      try { await saveLabel("department", "departments", findResultId(result, department?.id), nameVi); } catch (error) { reportLocalizedSaveError(error); }
+      return result;
+    });
+
+    wrapApiMethod("syncMemberProfile", (original) => async (member, ...args) => {
+      const nameVi = readInput("memberNameVi") || member?.nameVi || "";
+      if (member && typeof member === "object") member.nameVi = nameVi;
+      const result = await original(member, ...args);
+      try { await saveLabel("member", "members", findResultId(result, member?.id), nameVi); } catch (error) { reportLocalizedSaveError(error); }
+      return result;
+    });
+
+    wrapApiMethod("saveShiftItem", (original) => async (shift, ...args) => {
+      const nameVi = readInput("shiftNameVi");
+      if (shift && typeof shift === "object") shift.nameVi = nameVi;
+      const result = await original(shift, ...args);
+      try { await saveLabel("shift", "shifts", findResultId(result, shift?.id), nameVi); } catch (error) { reportLocalizedSaveError(error); }
+      return result;
+    });
+
+    wrapApiMethod("saveCatalogItem", (original) => async (category, item, ...args) => {
+      const nameVi = category === "leave" ? readInput("leaveNameVi") : "";
+      if (category === "leave" && item && typeof item === "object") item.nameVi = nameVi;
+      const result = await original(category, item, ...args);
+      if (category === "leave") {
+        try { await saveLabel("leave", "leaves", findResultId(result, item?.id), nameVi); } catch (error) { reportLocalizedSaveError(error); }
+      }
+      return result;
+    });
+
+    wrapApiMethod("saveMealAdminSettings", (original) => async (payload, ...args) => {
+      const localizedByName = new Map();
+      document.querySelectorAll("[data-meal-product-row]").forEach((row) => {
+        const name = row.querySelector('[data-meal-product-field="name"]')?.value?.trim?.() || "";
+        const nameVi = row.querySelector("[data-meal-product-name-vi]")?.value?.trim?.() || "";
+        if (name) localizedByName.set(name, nameVi);
+      });
+      const result = await original(payload, ...args);
+      const products = Array.isArray(result?.products) ? result.products : Array.isArray(payload?.products) ? payload.products : [];
+      for (const product of products) {
+        const nameVi = localizedByName.get(String(product?.name || "").trim()) || "";
+        if (product && typeof product === "object") product.nameVi = nameVi;
+        const id = findResultId(product, product?.id);
+        if (!id) continue;
+        try { await saveLabel("meal_product", "mealProducts", id, nameVi); } catch (error) { reportLocalizedSaveError(error); }
+      }
+      return result;
+    });
+  }
+
+  function currentEntity(category) {
+    const targetId = typeof modalContext !== "undefined" ? String(modalContext?.targetId || "") : "";
+    try {
+      if (category === "group") return (typeof groupFeatureState !== "undefined" ? groupFeatureState.bundle?.groups : [])?.find((item) => String(item.id) === targetId) || null;
+      if (typeof state === "undefined") return null;
+      if (category === "department") return state.departments?.find((item) => String(item.id) === targetId) || null;
+      if (category === "member") return state.members?.find((item) => String(item.id) === targetId) || null;
+      if (category === "shift") return state.shifts?.find((item) => String(item.id) === targetId) || null;
+      if (category === "leave") return state.leaves?.find((item) => String(item.id) === targetId) || null;
+    } catch {}
+    return null;
+  }
+
+  function addLocalizedField(sourceId, localizedId, category) {
+    const source = document.getElementById(sourceId);
+    if (!(source instanceof HTMLInputElement) || document.getElementById(localizedId)) return;
+    const row = source.closest(".form-row");
+    if (!row) return;
+    const wrapper = document.createElement("div");
+    wrapper.className = "form-row fyh-localized-name-field";
+    const item = currentEntity(category);
+    wrapper.innerHTML = `<label for="${localizedId}">越文名稱</label><input id="${localizedId}" type="text" maxlength="60" value="${String(item?.nameVi || "").replaceAll("&", "&amp;").replaceAll("\"", "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}" placeholder="可留空；越文模式會顯示中文">`;
+    row.insertAdjacentElement("afterend", wrapper);
+  }
+
+  function ensureLocalizedFormFields() {
+    addLocalizedField("groupName", "groupNameVi", "group");
+    addLocalizedField("departmentName", "departmentNameVi", "department");
+    addLocalizedField("memberName", "memberNameVi", "member");
+    addLocalizedField("shiftName", "shiftNameVi", "shift");
+    const contextCategory = typeof modalContext !== "undefined" ? modalContext?.category : "";
+    if (contextCategory === "leave") {
+      const leaveSourceId = document.getElementById("leaveCatalogName") ? "leaveCatalogName" : document.getElementById("namedItemName") ? "namedItemName" : "";
+      if (leaveSourceId) addLocalizedField(leaveSourceId, "leaveNameVi", "leave");
+    }
+  }
+
+  function ensureMealLocalizedColumn() {
+    const table = document.querySelector(".meal-settings-table");
+    if (!table) return;
+    const headRow = table.querySelector("thead tr");
+    const nameHead = headRow?.querySelector(".meal-settings-name-col");
+    if (headRow && nameHead && !headRow.querySelector("[data-meal-name-vi-head]")) {
+      const th = document.createElement("th");
+      th.className = "meal-settings-name-col";
+      th.dataset.mealNameViHead = "true";
+      th.textContent = "越文名稱";
+      nameHead.insertAdjacentElement("afterend", th);
+    }
+    table.querySelectorAll("tbody [data-meal-product-row]").forEach((row) => {
+      if (row.querySelector("[data-meal-product-name-vi]")) return;
+      const nameCell = row.querySelector(".meal-settings-name-col");
+      const id = row.querySelector('[data-meal-product-field="id"]')?.value || "";
+      const cached = labelMap("mealProducts").get(String(id)) || "";
+      if (!nameCell) return;
+      const td = document.createElement("td");
+      td.className = "meal-settings-name-col";
+      td.innerHTML = `<input type="text" maxlength="60" value="${cached.replaceAll("&", "&amp;").replaceAll("\"", "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}" data-meal-product-name-vi placeholder="可留空">`;
+      nameCell.insertAdjacentElement("afterend", td);
+    });
+  }
+
+  function entityTranslationMap() {
+    const map = new Map();
+    const add = (items) => (items || []).forEach((item) => {
+      const zh = String(item?.name || item?.full_name || "").trim();
+      const vi = String(item?.nameVi || "").trim();
+      if (zh && vi) map.set(zh, vi);
+    });
+    try {
+      if (typeof groupFeatureState !== "undefined") add(groupFeatureState.bundle?.groups);
+      if (typeof state !== "undefined") {
+        add(state.departments); add(state.members); add(state.shifts); add(state.leaves);
+      }
+      if (typeof recordsState !== "undefined") add(recordsState.mealAdmin?.products);
+      if (typeof mealOrderState !== "undefined") add(mealOrderState.status?.products);
+    } catch {}
+    return map;
+  }
+
+  function translateDynamic(text) {
+    const month = text.match(/^(\d{4})\s*年\s*(\d{1,2})\s*月$/);
+    if (month) return `Tháng ${Number(month[2])} năm ${month[1]}`;
+    const page = text.match(/^共\s*(\d+)\s*筆，第\s*(\d+)\s*\/\s*(\d+)\s*頁$/);
+    if (page) return `Tổng ${page[1]} mục, trang ${page[2]} / ${page[3]}`;
+    const total = text.match(/^目前合計\s*(\d+)\s*份，\$(.+)$/);
+    if (total) return `Tổng hiện tại ${total[1]} phần, $${total[2]}`;
+    return "";
+  }
+
+  function translateText(text, entityMap) {
+    const trimmed = String(text || "").trim();
+    if (!trimmed) return text;
+    const translated = fixedVi.get(trimmed) || entityMap.get(trimmed) || translateDynamic(trimmed);
+    if (!translated) return text;
+    const leading = text.match(/^\s*/)?.[0] || "";
+    const trailing = text.match(/\s*$/)?.[0] || "";
+    return `${leading}${translated}${trailing}`;
+  }
+
+  function translateDom(root = document.body) {
+    if (language !== VI || !root || applying) return;
+    applying = true;
+    try {
+      const entities = entityTranslationMap();
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach((node) => {
+        const parent = node.parentElement;
+        if (!parent || ["SCRIPT", "STYLE", "TEXTAREA"].includes(parent.tagName)) return;
+        const next = translateText(node.nodeValue || "", entities);
+        if (next !== node.nodeValue) node.nodeValue = next;
+      });
+      root.querySelectorAll?.("[title], [aria-label], [placeholder]").forEach((element) => {
+        ["title", "aria-label", "placeholder"].forEach((attribute) => {
+          const value = element.getAttribute(attribute);
+          if (!value) return;
+          const next = translateText(value, entities).trim();
+          if (next !== value) element.setAttribute(attribute, next);
+        });
+      });
+      document.documentElement.lang = "vi";
+    } finally {
+      applying = false;
+    }
+  }
+
+  function ensureLanguageControl() {
+    if (document.getElementById("fyhLanguageSelect")) return;
+    const style = document.createElement("style");
+    style.id = "fyhLanguageStyles";
+    style.textContent = ".fyh-language-switch{position:fixed;right:10px;bottom:10px;z-index:1500;padding:5px 7px;border:1px solid rgba(166,143,111,.35);border-radius:12px;background:#fffdf8;box-shadow:0 4px 16px #0002}.fyh-language-switch select{min-height:34px;border:0;background:transparent;color:var(--text,#2b241c);font-weight:700;outline:none}.fyh-localized-name-field input{width:100%}";
+    document.head.appendChild(style);
+    const shell = document.createElement("div");
+    shell.className = "fyh-language-switch";
+    shell.innerHTML = `<select id="fyhLanguageSelect" aria-label="語言"><option value="${ZH}" ${language === ZH ? "selected" : ""}>繁體中文</option><option value="${VI}" ${language === VI ? "selected" : ""}>Tiếng Việt</option></select>`;
+    document.body.appendChild(shell);
+    shell.querySelector("select")?.addEventListener("change", (event) => {
+      localStorage.setItem(LANGUAGE_KEY, event.target.value === VI ? VI : ZH);
+      window.location.reload();
+    });
+  }
+
+  function refreshUi() {
+    ensureLanguageControl();
+    ensureLocalizedFormFields();
+    ensureMealLocalizedColumn();
+    translateDom(document.body);
+  }
+
+  function install() {
+    if (installed) return;
+    if (!window.schedulerApi) { setTimeout(install, 25); return; }
+    installed = true;
+    installApiIntegration();
+    window.fyhI18n = {
+      get language() { return language; },
+      isVietnamese: () => language === VI,
+      displayName(item) {
+        const vi = String(item?.nameVi || "").trim();
+        return language === VI && vi ? vi : String(item?.name || "");
+      },
+      refreshLabels,
+      refresh: refreshUi
+    };
+    const observer = new MutationObserver(() => queueMicrotask(refreshUi));
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    if (currentSession()?.access_token) refreshLabels().catch((error) => console.warn("讀取越文名稱失敗", error)).finally(refreshUi);
+    else refreshUi();
+  }
+
+  setTimeout(install, 0);
+})();
