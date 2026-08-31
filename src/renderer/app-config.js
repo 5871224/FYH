@@ -382,9 +382,12 @@ window.SCHEDULER_CONFIG = {
     "打卡": "Chấm công",
     "訂餐": "Đặt cơm",
     "紀錄": "Lịch sử",
+    "簽到簿": "Sổ chấm công",
     "班表": "Lịch làm việc",
     "登入": "Đăng nhập",
     "登出": "Đăng xuất",
+    "修改密碼": "Đổi mật khẩu",
+    "語言": "Ngôn ngữ",
     "設定": "Cài đặt",
     "排班": "Xếp ca",
     "匯出": "Xuất dữ liệu",
@@ -422,6 +425,7 @@ window.SCHEDULER_CONFIG = {
     "班別檢視": "Theo ca",
     "單位": "Bộ phận",
     "人員": "Nhân viên",
+    "員工": "Nhân viên",
     "統計": "Thống kê",
     "姓名": "Họ tên",
     "工號": "Mã nhân viên",
@@ -440,6 +444,9 @@ window.SCHEDULER_CONFIG = {
     "確認": "Xác nhận",
     "全部": "Tất cả",
     "全部顯示": "Hiển thị tất cả",
+    "全部群組": "Tất cả nhóm",
+    "全部人員": "Tất cả nhân viên",
+    "全部單位": "Tất cả bộ phận",
     "未指定": "Chưa chỉ định",
     "未設定": "Chưa cài đặt",
     "啟用": "Bật",
@@ -482,6 +489,7 @@ window.SCHEDULER_CONFIG = {
     "單價": "Đơn giá",
     "小計": "Thành tiền",
     "備註": "Ghi chú",
+    "常用備註": "Ghi chú thường dùng",
     "個人記錄": "Lịch sử cá nhân",
     "簽到審核": "Duyệt chấm công",
     "日期": "Ngày",
@@ -489,9 +497,15 @@ window.SCHEDULER_CONFIG = {
     "打卡時間": "Giờ chấm công",
     "上班時數": "Giờ làm việc",
     "加班時數": "Giờ tăng ca",
+    "異常": "Bất thường",
     "審核": "Duyệt",
     "未審": "Chưa duyệt",
     "已審": "Đã duyệt",
+    "批次審核": "Duyệt hàng loạt",
+    "批次退回": "Trả lại hàng loạt",
+    "設為未審": "Đặt thành chưa duyệt",
+    "設為已審": "Đặt thành đã duyệt",
+    "歷程": "Lịch sử",
     "上班": "Vào ca",
     "下班": "Tan ca",
     "上班打卡": "Chấm công vào ca",
@@ -502,6 +516,7 @@ window.SCHEDULER_CONFIG = {
     "載入中…": "Đang tải…",
     "沒有資料": "Không có dữ liệu",
     "正常": "Bình thường",
+    "使用者": "Người dùng",
     "拖曳排序": "Kéo để sắp xếp",
     "返回首頁": "Về trang chủ",
     "上一步（Ctrl+Z）": "Hoàn tác (Ctrl+Z)",
@@ -862,19 +877,35 @@ window.SCHEDULER_CONFIG = {
   }
 
   function ensureLanguageControl() {
-    if (document.getElementById("fyhLanguageSelect")) return;
-    const style = document.createElement("style");
-    style.id = "fyhLanguageStyles";
-    style.textContent = ".fyh-language-switch{position:fixed;right:10px;bottom:10px;z-index:1500;padding:5px 7px;border:1px solid rgba(166,143,111,.35);border-radius:12px;background:#fffdf8;box-shadow:0 4px 16px #0002}.fyh-language-switch select{min-height:34px;border:0;background:transparent;color:var(--text,#2b241c);font-weight:700;outline:none}.fyh-localized-name-field input{width:100%}";
-    document.head.appendChild(style);
-    const shell = document.createElement("div");
-    shell.className = "fyh-language-switch";
-    shell.innerHTML = `<select id="fyhLanguageSelect" aria-label="語言"><option value="${ZH}" ${language === ZH ? "selected" : ""}>繁體中文</option><option value="${VI}" ${language === VI ? "selected" : ""}>Tiếng Việt</option></select>`;
-    document.body.appendChild(shell);
-    shell.querySelector("select")?.addEventListener("change", (event) => {
-      localStorage.setItem(LANGUAGE_KEY, event.target.value === VI ? VI : ZH);
-      window.location.reload();
-    });
+    const actions = document.querySelector("#homeCard .home-header-actions");
+    const passwordButton = actions?.querySelector(".home-password-btn");
+    const existing = document.querySelector(".fyh-language-switch");
+    if (!actions || !passwordButton) {
+      existing?.remove();
+      return;
+    }
+
+    if (!document.getElementById("fyhLanguageStyles")) {
+      const style = document.createElement("style");
+      style.id = "fyhLanguageStyles";
+      style.textContent = ".fyh-language-switch{display:inline-flex;align-items:center}.fyh-language-switch select{min-height:40px;padding:0 34px 0 12px;border:1px solid rgba(166,143,111,.35);border-radius:12px;background:#fffdf8;color:var(--text,#2b241c);font-weight:700;outline:none}.fyh-localized-name-field input{width:100%}";
+      document.head.appendChild(style);
+    }
+
+    let shell = existing;
+    if (!shell) {
+      shell = document.createElement("div");
+      shell.className = "fyh-language-switch";
+      shell.innerHTML = `<select id="fyhLanguageSelect" aria-label="語言"><option value="${ZH}" ${language === ZH ? "selected" : ""}>繁體中文</option><option value="${VI}" ${language === VI ? "selected" : ""}>Tiếng Việt</option></select>`;
+      shell.querySelector("select")?.addEventListener("change", (event) => {
+        localStorage.setItem(LANGUAGE_KEY, event.target.value === VI ? VI : ZH);
+        window.location.reload();
+      });
+    }
+
+    if (shell.parentElement !== actions || shell.nextElementSibling !== passwordButton) {
+      actions.insertBefore(shell, passwordButton);
+    }
   }
 
   function refreshUi() {
