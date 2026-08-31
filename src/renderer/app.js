@@ -8143,12 +8143,12 @@ function openGroupSettings() {
 }
 
 function openGroupForm(groupId = "") {
-  const group = getAllGroups().find((item) => item.id === groupId) || { id: "", code: "", name: "", mealEnabled: false, status: "active", sortOrder: getAllGroups().length };
+  const group = getAllGroups().find((item) => item.id === groupId) || { id: "", code: "", name: "", nameVi: "", mealEnabled: false, status: "active", sortOrder: getAllGroups().length };
   modalContext = { category: "group-form", targetId: group.id || "" };
   openEntityListModal({
     title: group.id ? "修改群組" : "新增群組",
     modalClass: "modal modal-form-compact",
-    body: `<div class="form-grid two-col"><div class="form-row"><label for="groupCode">群組代碼</label><input id="groupCode" type="text" maxlength="30" value="${escapeHtml(group.code)}"></div><div class="form-row"><label for="groupName">群組名稱</label><input id="groupName" type="text" maxlength="30" value="${escapeHtml(group.name)}"></div><div class="form-row"><label class="checkbox-row"><input id="groupMealEnabled" type="checkbox" ${group.mealEnabled ? "checked" : ""}>可否訂餐</label></div><div class="form-row"><label for="groupStatus">狀態</label><select id="groupStatus"><option value="active" ${group.status === "active" ? "selected" : ""}>啟用</option><option value="inactive" ${group.status === "inactive" ? "selected" : ""}>停用</option></select></div></div>`,
+    body: `<div class="form-grid two-col"><div class="form-row"><label for="groupCode">群組代碼</label><input id="groupCode" type="text" maxlength="30" value="${escapeHtml(group.code)}"></div><div class="form-row"><label for="groupName">群組名稱</label><input id="groupName" type="text" maxlength="30" value="${escapeHtml(group.name)}"></div><div class="form-row"><label for="groupNameVi">越文名稱</label><input id="groupNameVi" type="text" maxlength="60" value="${escapeHtml(group.nameVi || "")}" placeholder="可留空；越文模式會顯示中文"></div><div class="form-row"><label class="checkbox-row"><input id="groupMealEnabled" type="checkbox" ${group.mealEnabled ? "checked" : ""}>可否訂餐</label></div><div class="form-row"><label for="groupStatus">狀態</label><select id="groupStatus"><option value="active" ${group.status === "active" ? "selected" : ""}>啟用</option><option value="inactive" ${group.status === "inactive" ? "selected" : ""}>停用</option></select></div></div>`,
     headerButtons: `<button class="btn-primary" type="button" data-save-schedule-group="true">${group.id ? "儲存修改" : "新增"}</button>`,
     hideFooterClose: true
   });
@@ -8157,9 +8157,10 @@ function openGroupForm(groupId = "") {
 async function saveScheduleGroupFromForm() {
   const code = document.getElementById("groupCode")?.value.trim() || "";
   const name = document.getElementById("groupName")?.value.trim() || "";
+  const nameVi = document.getElementById("groupNameVi")?.value.trim() || "";
   if (!code || !name) { reportValidationError("請填寫群組代碼與群組名稱"); return; }
   const existing = getAllGroups().find((item) => item.id === modalContext.targetId) || null;
-  await window.schedulerApi.saveScheduleGroup({ id: existing?.id || "", code, name, mealEnabled: Boolean(document.getElementById("groupMealEnabled")?.checked), status: document.getElementById("groupStatus")?.value || "active", sortOrder: existing?.sortOrder ?? getAllGroups().length });
+  await window.schedulerApi.saveScheduleGroup({ id: existing?.id || "", code, name, nameVi, mealEnabled: Boolean(document.getElementById("groupMealEnabled")?.checked), status: document.getElementById("groupStatus")?.value || "active", sortOrder: existing?.sortOrder ?? getAllGroups().length });
   await reloadGroupApplicationState();
   openGroupSettings();
 }
@@ -9443,10 +9444,11 @@ function renderMealSettingsSection() {
       ${mealAdmin.error ? `<div class="auth-error">${escapeHtml(mealAdmin.error)}</div>` : ""}
       <div class="meal-settings-table-wrap">
         <table class="meal-settings-table">
-          <thead><tr><th class="meal-settings-drag-col"></th><th class="meal-settings-name-col">品項</th><th class="meal-settings-price-col">價格</th><th class="meal-settings-active-col">啟用</th><th class="meal-settings-operation-col">操作</th></tr></thead>
+          <thead><tr><th class="meal-settings-drag-col"></th><th class="meal-settings-name-col">品項</th><th class="meal-settings-name-col">越文名稱</th><th class="meal-settings-price-col">價格</th><th class="meal-settings-active-col">啟用</th><th class="meal-settings-operation-col">操作</th></tr></thead>
           <tbody>${mealAdmin.products.map((product, index) => `<tr data-meal-product-row="${index}">
             <td class="meal-settings-drag-col"><span class="meal-drag-handle" draggable="true" title="拖曳排序" aria-label="拖曳排序">≡</span></td>
             <td class="meal-settings-name-col"><input type="text" value="${escapeHtml(product.name || "")}" data-meal-product-field="name"></td>
+            <td class="meal-settings-name-col"><input type="text" maxlength="60" value="${escapeHtml(product.nameVi || product.name_vi || "")}" data-meal-product-field="nameVi" placeholder="可留空"></td>
             <td class="meal-settings-price-col"><input type="number" min="0" step="1" value="${escapeHtml(String(product.price || 0))}" data-meal-product-field="price"></td>
             <td class="meal-settings-active-col"><input type="checkbox" ${product.is_active !== false ? "checked" : ""} data-meal-product-field="isActive"><input type="hidden" value="${escapeHtml(product.id || "")}" data-meal-product-field="id"></td>
             <td class="meal-settings-operation-col"><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-meal-product="${escapeHtml(String(index))}" aria-label="刪除" title="刪除"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M7 7l1 13h8l1-13"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg></button></td>
@@ -10879,6 +10881,7 @@ function readMealAdminProducts() {
   return Array.from(document.querySelectorAll("[data-meal-product-row]")).map((row) => ({
     id: row.querySelector('[data-meal-product-field="id"]')?.value || "",
     name: row.querySelector('[data-meal-product-field="name"]')?.value || "",
+    nameVi: row.querySelector('[data-meal-product-field="nameVi"]')?.value?.trim() || "",
     price: Number(row.querySelector('[data-meal-product-field="price"]')?.value || 0),
     isActive: Boolean(row.querySelector('[data-meal-product-field="isActive"]')?.checked),
     is_active: Boolean(row.querySelector('[data-meal-product-field="isActive"]')?.checked)

@@ -359,12 +359,12 @@ function openGroupSettings() {
 }
 
 function openGroupForm(groupId = "") {
-  const group = getAllGroups().find((item) => item.id === groupId) || { id: "", code: "", name: "", mealEnabled: false, status: "active", sortOrder: getAllGroups().length };
+  const group = getAllGroups().find((item) => item.id === groupId) || { id: "", code: "", name: "", nameVi: "", mealEnabled: false, status: "active", sortOrder: getAllGroups().length };
   modalContext = { category: "group-form", targetId: group.id || "" };
   openEntityListModal({
     title: group.id ? "修改群組" : "新增群組",
     modalClass: "modal modal-form-compact",
-    body: `<div class="form-grid two-col"><div class="form-row"><label for="groupCode">群組代碼</label><input id="groupCode" type="text" maxlength="30" value="${escapeHtml(group.code)}"></div><div class="form-row"><label for="groupName">群組名稱</label><input id="groupName" type="text" maxlength="30" value="${escapeHtml(group.name)}"></div><div class="form-row"><label class="checkbox-row"><input id="groupMealEnabled" type="checkbox" ${group.mealEnabled ? "checked" : ""}>可否訂餐</label></div><div class="form-row"><label for="groupStatus">狀態</label><select id="groupStatus"><option value="active" ${group.status === "active" ? "selected" : ""}>啟用</option><option value="inactive" ${group.status === "inactive" ? "selected" : ""}>停用</option></select></div></div>`,
+    body: `<div class="form-grid two-col"><div class="form-row"><label for="groupCode">群組代碼</label><input id="groupCode" type="text" maxlength="30" value="${escapeHtml(group.code)}"></div><div class="form-row"><label for="groupName">群組名稱</label><input id="groupName" type="text" maxlength="30" value="${escapeHtml(group.name)}"></div><div class="form-row"><label for="groupNameVi">越文名稱</label><input id="groupNameVi" type="text" maxlength="60" value="${escapeHtml(group.nameVi || "")}" placeholder="可留空；越文模式會顯示中文"></div><div class="form-row"><label class="checkbox-row"><input id="groupMealEnabled" type="checkbox" ${group.mealEnabled ? "checked" : ""}>可否訂餐</label></div><div class="form-row"><label for="groupStatus">狀態</label><select id="groupStatus"><option value="active" ${group.status === "active" ? "selected" : ""}>啟用</option><option value="inactive" ${group.status === "inactive" ? "selected" : ""}>停用</option></select></div></div>`,
     headerButtons: `<button class="btn-primary" type="button" data-save-schedule-group="true">${group.id ? "儲存修改" : "新增"}</button>`,
     hideFooterClose: true
   });
@@ -373,9 +373,10 @@ function openGroupForm(groupId = "") {
 async function saveScheduleGroupFromForm() {
   const code = document.getElementById("groupCode")?.value.trim() || "";
   const name = document.getElementById("groupName")?.value.trim() || "";
+  const nameVi = document.getElementById("groupNameVi")?.value.trim() || "";
   if (!code || !name) { reportValidationError("請填寫群組代碼與群組名稱"); return; }
   const existing = getAllGroups().find((item) => item.id === modalContext.targetId) || null;
-  await window.schedulerApi.saveScheduleGroup({ id: existing?.id || "", code, name, mealEnabled: Boolean(document.getElementById("groupMealEnabled")?.checked), status: document.getElementById("groupStatus")?.value || "active", sortOrder: existing?.sortOrder ?? getAllGroups().length });
+  await window.schedulerApi.saveScheduleGroup({ id: existing?.id || "", code, name, nameVi, mealEnabled: Boolean(document.getElementById("groupMealEnabled")?.checked), status: document.getElementById("groupStatus")?.value || "active", sortOrder: existing?.sortOrder ?? getAllGroups().length });
   await reloadGroupApplicationState();
   openGroupSettings();
 }

@@ -642,92 +642,6 @@ window.SCHEDULER_CONFIG = {
     return labelRefreshPromise;
   }
 
-  function upsertCachedLabel(category, id, nameVi) {
-    if (!id) return;
-    const rows = labels[category] || [];
-    const index = rows.findIndex((row) => row.id === id);
-    const next = { id, nameVi: String(nameVi || "").trim() };
-    if (index >= 0) rows[index] = next;
-    else rows.push(next);
-  }
-
-  async function saveLabel(entity, category, id, value) {
-    const normalizedId = String(id || "").trim();
-    if (!normalizedId || typeof window.schedulerApi?.saveVietnameseLabel !== "function") return;
-    await window.schedulerApi.saveVietnameseLabel(entity, normalizedId, String(value || "").trim());
-    upsertCachedLabel(category, normalizedId, value);
-    mergeGlobalLabels();
-  }
-
-  function installApiIntegration() {
-    // Vietnamese data access is part of the formal schedulerApi provider.
-    // Entity save paths explicitly persist their localized field; no runtime method override is used here.
-  }
-
-  function currentEntity(category) {
-    const targetId = typeof modalContext !== "undefined" ? String(modalContext?.targetId || "") : "";
-    try {
-      if (category === "group") return (typeof groupFeatureState !== "undefined" ? groupFeatureState.bundle?.groups : [])?.find((item) => String(item.id) === targetId) || null;
-      if (category === "role") return (typeof groupFeatureState !== "undefined" ? groupFeatureState.bundle?.roles : [])?.find((item) => String(item.id) === targetId) || null;
-      if (typeof state === "undefined") return null;
-      if (category === "department") return state.departments?.find((item) => String(item.id) === targetId) || null;
-      if (category === "member") return state.members?.find((item) => String(item.id) === targetId) || null;
-      if (category === "shift") return state.shifts?.find((item) => String(item.id) === targetId) || null;
-      if (category === "leave") return state.leaves?.find((item) => String(item.id) === targetId) || null;
-    } catch {}
-    return null;
-  }
-
-  function addLocalizedField(sourceId, localizedId, category) {
-    const source = document.getElementById(sourceId);
-    if (!(source instanceof HTMLInputElement) || document.getElementById(localizedId)) return;
-    const row = source.closest(".form-row");
-    if (!row) return;
-    const wrapper = document.createElement("div");
-    wrapper.className = "form-row fyh-localized-name-field";
-    const item = currentEntity(category);
-    wrapper.innerHTML = `<label for="${localizedId}">越文名稱</label><input id="${localizedId}" type="text" maxlength="60" value="${String(item?.nameVi || "").replaceAll("&", "&amp;").replaceAll("\"", "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}" placeholder="可留空；越文模式會顯示中文">`;
-    row.insertAdjacentElement("afterend", wrapper);
-  }
-
-  function ensureLocalizedFormFields() {
-    addLocalizedField("groupName", "groupNameVi", "group");
-    addLocalizedField("departmentName", "departmentNameVi", "department");
-    addLocalizedField("memberName", "memberNameVi", "member");
-    addLocalizedField("shiftName", "shiftNameVi", "shift");
-    addLocalizedField("accessRoleName", "accessRoleNameVi", "role");
-    const contextCategory = typeof modalContext !== "undefined" ? modalContext?.category : "";
-    if (contextCategory === "leave") {
-      const leaveSourceId = document.getElementById("leaveCatalogName") ? "leaveCatalogName" : document.getElementById("namedItemName") ? "namedItemName" : "";
-      if (leaveSourceId) addLocalizedField(leaveSourceId, "leaveNameVi", "leave");
-    }
-  }
-
-  function ensureMealLocalizedColumn() {
-    const table = document.querySelector(".meal-settings-table");
-    if (!table) return;
-    const headRow = table.querySelector("thead tr");
-    const nameHead = headRow?.querySelector(".meal-settings-name-col");
-    if (headRow && nameHead && !headRow.querySelector("[data-meal-name-vi-head]")) {
-      const th = document.createElement("th");
-      th.className = "meal-settings-name-col";
-      th.dataset.mealNameViHead = "true";
-      th.textContent = "越文名稱";
-      nameHead.insertAdjacentElement("afterend", th);
-    }
-    table.querySelectorAll("tbody [data-meal-product-row]").forEach((row) => {
-      if (row.querySelector("[data-meal-product-name-vi]")) return;
-      const nameCell = row.querySelector(".meal-settings-name-col");
-      const id = row.querySelector('[data-meal-product-field="id"]')?.value || "";
-      const cached = labelMap("mealProducts").get(String(id)) || "";
-      if (!nameCell) return;
-      const td = document.createElement("td");
-      td.className = "meal-settings-name-col";
-      td.innerHTML = `<input type="text" maxlength="60" value="${cached.replaceAll("&", "&amp;").replaceAll("\"", "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}" data-meal-product-name-vi placeholder="可留空">`;
-      nameCell.insertAdjacentElement("afterend", td);
-    });
-  }
-
   function entityTranslationMap() {
     const map = new Map();
     const add = (items) => (items || []).forEach((item) => {
@@ -828,8 +742,6 @@ window.SCHEDULER_CONFIG = {
 
   function refreshUi() {
     ensureLanguageControl();
-    ensureLocalizedFormFields();
-    ensureMealLocalizedColumn();
     if (labelsLoaded) mergeGlobalLabels();
     if (isAuthenticated() && !labelsLoaded && !labelRefreshPromise) {
       refreshLabels().then(() => queueMicrotask(refreshUi)).catch((error) => console.warn("讀取越文名稱失敗", error));
