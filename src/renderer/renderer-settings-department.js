@@ -39,7 +39,7 @@ async function openDepartmentSettings() {
     return `
       <div class="department-settings-row sortable-settings-item" data-sort-category="department" data-sort-item="${escapeHtml(department.id)}" data-drop-department="${escapeHtml(department.id)}">
          ${renderSettingsOrderDragColumn()}
-         <div class="department-settings-title">${escapeHtml(department.name)}</div>
+         <div class="department-settings-title"><span>${escapeHtml(department.name)}</span><small class="department-settings-name-vi">${escapeHtml(department.nameVi || "-")}</small></div>
         <div class="member-inline-list">
           ${homeMembers.length
             ? homeMembers.map((member) => `
@@ -66,7 +66,7 @@ async function openDepartmentSettings() {
         <div class="department-settings-table department-settings-table-department">
           <div class="department-settings-row department-settings-head">
              ${renderSettingsOrderDragColumn(true)}
-             <div>單位</div>
+             <div>單位<br><span>越文名稱</span></div>
             <div>所屬人員</div>
             <div>開始日期<br>結束日期</div>
             <div>不顯示</div>
@@ -128,6 +128,10 @@ function renderDepartmentFormBody(department, attendanceFieldsDisabled) {
         <label for="departmentName">單位名稱</label>
         <input id="departmentName" type="text" maxlength="12" value="${escapeHtml(department.name)}" placeholder="請輸入單位名稱">
       </div>
+      <div class="form-row">
+        <label for="departmentNameVi">越文名稱</label>
+        <input id="departmentNameVi" type="text" maxlength="60" value="${escapeHtml(department.nameVi || "")}" placeholder="可留空">
+      </div>
       <div class="form-grid">
         <div class="form-row">
           <label for="departmentStartDate">開始日期</label>
@@ -154,7 +158,7 @@ function openDepartmentForm(mode, departmentId = "") {
     : null;
   const department = mode === "edit"
     ? state.departments.find((item) => item.id === departmentId)
-    : { id: "", name: "", groupId: groupFeatureState.currentGroupId, startDate: "", endDate: "", hiddenFromSchedule: false, address: "", latitude: "", longitude: "", publicIp: "", attendanceEnabled: false };
+    : { id: "", name: "", nameVi: "", groupId: groupFeatureState.currentGroupId, startDate: "", endDate: "", hiddenFromSchedule: false, address: "", latitude: "", longitude: "", publicIp: "", attendanceEnabled: false };
   if (!department) {
     return;
   }
@@ -195,6 +199,7 @@ function openDepartmentForm(mode, departmentId = "") {
 async function saveDepartment(mode) {
   const returnTo = modalContext.returnTo || null;
   const name = document.getElementById("departmentName")?.value.trim();
+  const nameVi = document.getElementById("departmentNameVi")?.value.trim() || "";
   const startDate = document.getElementById("departmentStartDate")?.value || "";
   const endDate = document.getElementById("departmentEndDate")?.value || "";
   const hiddenFromSchedule = Boolean(document.getElementById("departmentHiddenFromSchedule")?.checked);
@@ -241,7 +246,7 @@ async function saveDepartment(mode) {
       publicIp: previousDepartment?.publicIp || "",
       attendanceEnabled: Boolean(previousDepartment?.attendanceEnabled)
     };
-  const payload = { id: mode === "edit" ? modalContext.targetId : uid("d"), name, groupId, startDate, endDate, hiddenFromSchedule, ...attendancePayload };
+  const payload = { id: mode === "edit" ? modalContext.targetId : uid("d"), name, nameVi, groupId, startDate, endDate, hiddenFromSchedule, ...attendancePayload };
   const sortOrder = mode === "edit"
     ? state.departments.findIndex((department) => department.id === payload.id)
     : state.departments.length;

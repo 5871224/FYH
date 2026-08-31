@@ -4,6 +4,7 @@ import { actorIdOf, canAccessGroup, hasPermission, isProfileEffective, isUuid, r
 type MemberPayload = {
   employeeCode?: string;
   fullName?: string;
+  fullNameVi?: string;
   groupId?: string;
   accessRoleId?: string;
   hireDate?: string | null;
@@ -62,6 +63,7 @@ async function requireMemberManager(ctx: any) {
 function normalizeMember(member: MemberPayload) {
   const employeeCode = String(member?.employeeCode || "").trim();
   const fullName = String(member?.fullName || "").trim();
+  const fullNameVi = String(member?.fullNameVi || "").trim();
   const groupId = String(member?.groupId || "").trim();
   const accessRoleId = String(member?.accessRoleId || "").trim();
   if (!employeeCode || !fullName) throw new Error("缺少工號或姓名");
@@ -76,6 +78,7 @@ function normalizeMember(member: MemberPayload) {
   return {
     employeeCode,
     fullName,
+    fullNameVi,
     groupId,
     accessRoleId,
     hireDate: member?.hireDate || null,
@@ -247,6 +250,7 @@ async function upsertMember(ctx: any, body: any) {
   const profileValues = {
     employee_code: member.employeeCode,
     full_name: member.fullName,
+    full_name_vi: member.fullNameVi || null,
     access_role_id: accessRole.id,
     group_id: member.groupId,
     hire_date: member.hireDate,

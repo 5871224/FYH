@@ -359,12 +359,12 @@ function openGroupSettings() {
 }
 
 function openGroupForm(groupId = "") {
-  const group = getAllGroups().find((item) => item.id === groupId) || { id: "", code: "", name: "", mealEnabled: false, status: "active", sortOrder: getAllGroups().length };
+  const group = getAllGroups().find((item) => item.id === groupId) || { id: "", code: "", name: "", nameVi: "", mealEnabled: false, status: "active", sortOrder: getAllGroups().length };
   modalContext = { category: "group-form", targetId: group.id || "" };
   openEntityListModal({
     title: group.id ? "修改群組" : "新增群組",
     modalClass: "modal modal-form-compact",
-    body: `<div class="form-grid two-col"><div class="form-row"><label for="groupCode">群組代碼</label><input id="groupCode" type="text" maxlength="30" value="${escapeHtml(group.code)}"></div><div class="form-row"><label for="groupName">群組名稱</label><input id="groupName" type="text" maxlength="30" value="${escapeHtml(group.name)}"></div><div class="form-row"><label class="checkbox-row"><input id="groupMealEnabled" type="checkbox" ${group.mealEnabled ? "checked" : ""}>可否訂餐</label></div><div class="form-row"><label for="groupStatus">狀態</label><select id="groupStatus"><option value="active" ${group.status === "active" ? "selected" : ""}>啟用</option><option value="inactive" ${group.status === "inactive" ? "selected" : ""}>停用</option></select></div></div>`,
+    body: `<div class="form-grid two-col"><div class="form-row"><label for="groupCode">群組代碼</label><input id="groupCode" type="text" maxlength="30" value="${escapeHtml(group.code)}"></div><div class="form-row"><label for="groupName">群組名稱</label><input id="groupName" type="text" maxlength="30" value="${escapeHtml(group.name)}"></div><div class="form-row"><label for="groupNameVi">越文名稱</label><input id="groupNameVi" type="text" maxlength="60" value="${escapeHtml(group.nameVi || "")}" placeholder="可留空；越文模式會顯示中文"></div><div class="form-row"><label class="checkbox-row"><input id="groupMealEnabled" type="checkbox" ${group.mealEnabled ? "checked" : ""}>可否訂餐</label></div><div class="form-row"><label for="groupStatus">狀態</label><select id="groupStatus"><option value="active" ${group.status === "active" ? "selected" : ""}>啟用</option><option value="inactive" ${group.status === "inactive" ? "selected" : ""}>停用</option></select></div></div>`,
     headerButtons: `<button class="btn-primary" type="button" data-save-schedule-group="true">${group.id ? "儲存修改" : "新增"}</button>`,
     hideFooterClose: true
   });
@@ -373,9 +373,10 @@ function openGroupForm(groupId = "") {
 async function saveScheduleGroupFromForm() {
   const code = document.getElementById("groupCode")?.value.trim() || "";
   const name = document.getElementById("groupName")?.value.trim() || "";
+  const nameVi = document.getElementById("groupNameVi")?.value.trim() || "";
   if (!code || !name) { reportValidationError("請填寫群組代碼與群組名稱"); return; }
   const existing = getAllGroups().find((item) => item.id === modalContext.targetId) || null;
-  await window.schedulerApi.saveScheduleGroup({ id: existing?.id || "", code, name, mealEnabled: Boolean(document.getElementById("groupMealEnabled")?.checked), status: document.getElementById("groupStatus")?.value || "active", sortOrder: existing?.sortOrder ?? getAllGroups().length });
+  await window.schedulerApi.saveScheduleGroup({ id: existing?.id || "", code, name, nameVi, mealEnabled: Boolean(document.getElementById("groupMealEnabled")?.checked), status: document.getElementById("groupStatus")?.value || "active", sortOrder: existing?.sortOrder ?? getAllGroups().length });
   await reloadGroupApplicationState();
   openGroupSettings();
 }
@@ -454,7 +455,7 @@ function openPermissionSettings() {
   openEntityListModal({
     title: "權限設定",
     modalClass: "modal modal-wide permission-settings-modal settings-list-modal",
-    body: `<div class="records-table-wrap"><table class="records-table permission-settings-table"><thead><tr><th class="permission-role-drag-col"></th><th class="permission-role-col">角色名稱</th><th class="permission-group-col">適用群組</th><th class="permission-items-col">權限項目</th><th class="permission-actions-col">操作</th></tr></thead><tbody id="permissionSettingsRows">${getAllRoles().map((role) => `<tr data-permission-role-id="${escapeHtml(role.id)}"><td class="permission-role-drag-col"><span class="settings-order-drag-handle" draggable="true" data-permission-role-drag-handle="${escapeHtml(role.id)}" title="拖曳排序" aria-label="拖曳排序">≡</span></td><td class="permission-role-col">${escapeHtml(role.name)}</td><td class="permission-group-col">${escapeHtml(roleGroupSummary(role))}</td><td class="permission-summary-cell permission-items-col">${renderPermissionSummaryTags(role)}</td><td class="permission-actions-col"><button class="settings-icon-btn" type="button" data-edit-access-role="${escapeHtml(role.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-access-role="${escapeHtml(role.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td></tr>`).join("")}</tbody></table></div>`,
+    body: `<div class="records-table-wrap"><table class="records-table permission-settings-table"><thead><tr><th class="permission-role-drag-col"></th><th class="permission-role-col">角色名稱</th><th class="permission-role-vi-col">越文名稱</th><th class="permission-group-col">適用群組</th><th class="permission-items-col">權限項目</th><th class="permission-actions-col">操作</th></tr></thead><tbody id="permissionSettingsRows">${getAllRoles().map((role) => `<tr data-permission-role-id="${escapeHtml(role.id)}"><td class="permission-role-drag-col"><span class="settings-order-drag-handle" draggable="true" data-permission-role-drag-handle="${escapeHtml(role.id)}" title="拖曳排序" aria-label="拖曳排序">≡</span></td><td class="permission-role-col">${escapeHtml(role.name)}</td><td class="permission-role-vi-col">${escapeHtml(role.nameVi || "-")}</td><td class="permission-group-col">${escapeHtml(roleGroupSummary(role))}</td><td class="permission-summary-cell permission-items-col">${renderPermissionSummaryTags(role)}</td><td class="permission-actions-col"><button class="settings-icon-btn" type="button" data-edit-access-role="${escapeHtml(role.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-access-role="${escapeHtml(role.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td></tr>`).join("")}</tbody></table></div>`,
     headerButtons: '<button class="btn-primary" type="button" data-add-access-role="true">新增</button>',
     hideFooterClose: true
   });
@@ -463,13 +464,13 @@ function openPermissionSettings() {
 function permissionCheckbox(permission, checked) { return `<label class="permission-check"><input type="checkbox" value="${permission}" data-role-permission="${permission}" ${checked ? "checked" : ""}>${escapeHtml(GROUP_PERMISSION_LABELS[permission])}</label>`; }
 
 function openAccessRoleForm(roleId = "") {
-  const role = getAllRoles().find((item) => item.id === roleId) || { id: "", code: "", name: "", permissions: ["schedule_view"], groupIds: [groupFeatureState.currentGroupId].filter(Boolean) };
+  const role = getAllRoles().find((item) => item.id === roleId) || { id: "", code: "", name: "", nameVi: "", permissions: ["schedule_view"], groupIds: [groupFeatureState.currentGroupId].filter(Boolean) };
   const permissions = new Set(role.permissions || []);
   modalContext = { category: "access-role-form", targetId: role.id || "" };
   openEntityListModal({
     title: role.id ? "修改角色" : "新增角色",
     modalClass: "modal modal-wide access-role-form-modal",
-    body: `<div class="form-row"><label for="accessRoleName">角色名稱</label><input id="accessRoleName" type="text" maxlength="30" value="${escapeHtml(role.name)}"></div><fieldset class="role-group-fieldset"><legend>適用群組</legend><div class="role-group-grid">${getAllGroups().map((group) => `<label><input type="checkbox" data-role-group="${escapeHtml(group.id)}" ${role.groupIds?.includes(group.id) ? "checked" : ""}>${escapeHtml(group.name)}</label>`).join("")}</div></fieldset><fieldset class="role-permission-fieldset"><legend>權限項目</legend><div class="schedule-permission-row"><span>班表</span><label><input type="checkbox" data-role-permission="schedule_view" ${permissions.has("schedule_view") ? "checked" : ""}>查看</label><label><input type="checkbox" data-role-permission="schedule_manage" ${permissions.has("schedule_manage") ? "checked" : ""}>管理</label></div><div class="role-permission-grid">${["group_settings","department_settings","member_settings","leave_settings","permission_settings","attendance_review","meal_admin"].map((permission) => permissionCheckbox(permission, permissions.has(permission))).join("")}</div></fieldset>`,
+    body: `<div class="form-row"><label for="accessRoleName">角色名稱</label><input id="accessRoleName" type="text" maxlength="30" value="${escapeHtml(role.name)}"></div><div class="form-row"><label for="accessRoleNameVi">越文名稱</label><input id="accessRoleNameVi" type="text" maxlength="60" value="${escapeHtml(role.nameVi || "")}" placeholder="可留空"></div><fieldset class="role-group-fieldset"><legend>適用群組</legend><div class="role-group-grid">${getAllGroups().map((group) => `<label><input type="checkbox" data-role-group="${escapeHtml(group.id)}" ${role.groupIds?.includes(group.id) ? "checked" : ""}>${escapeHtml(group.name)}</label>`).join("")}</div></fieldset><fieldset class="role-permission-fieldset"><legend>權限項目</legend><div class="schedule-permission-row"><span>班表</span><label><input type="checkbox" data-role-permission="schedule_view" ${permissions.has("schedule_view") ? "checked" : ""}>查看</label><label><input type="checkbox" data-role-permission="schedule_manage" ${permissions.has("schedule_manage") ? "checked" : ""}>管理</label></div><div class="role-permission-grid">${["group_settings","department_settings","member_settings","leave_settings","permission_settings","attendance_review","meal_admin"].map((permission) => permissionCheckbox(permission, permissions.has(permission))).join("")}</div></fieldset>`,
     headerButtons: `<button class="btn-primary" type="button" data-save-access-role="true">${role.id ? "儲存修改" : "新增"}</button>`,
     hideFooterClose: true
   });
@@ -477,11 +478,12 @@ function openAccessRoleForm(roleId = "") {
 
 async function saveAccessRoleFromForm() {
   const name = document.getElementById("accessRoleName")?.value.trim() || "";
+  const nameVi = document.getElementById("accessRoleNameVi")?.value.trim() || "";
   if (!name) { reportValidationError("請填寫角色名稱"); return; }
   const existing = getAllRoles().find((role) => role.id === modalContext.targetId) || null;
   const permissions = Array.from(document.querySelectorAll("[data-role-permission]:checked")).map((input) => input.dataset.rolePermission || "").filter(Boolean);
   const groupIds = Array.from(document.querySelectorAll("[data-role-group]:checked")).map((input) => input.dataset.roleGroup || "").filter(Boolean);
-  await window.schedulerApi.saveAccessRole({ id: existing?.id || "", code: existing?.code || "", name, permissions, groupIds });
+  await window.schedulerApi.saveAccessRole({ id: existing?.id || "", code: existing?.code || "", name, nameVi, permissions, groupIds });
   await reloadGroupApplicationState();
   openPermissionSettings();
 }
@@ -597,7 +599,7 @@ function openMemberForm(mode, memberId = "") {
     : modalContext?.category === "member-settings" ? captureSettingsReturnContext({ category: "member-settings" }) : null;
   const defaultAccessRoleId = getDefaultAccessRoleId();
   const member = mode === "edit" ? state.members.find((item) => item.id === memberId) : {
-    id: "", code: "", name: "", groupId: groupFeatureState.currentGroupId,
+    id: "", code: "", name: "", nameVi: "", groupId: groupFeatureState.currentGroupId,
     deptId: getDepartmentsForGroup(groupFeatureState.currentGroupId)[0]?.id || "",
     hireDate: "", leaveDate: "", payByDay: false, fixedRestWeekday: 0,
     scheduleShiftIds: [], roleId: defaultAccessRoleId
@@ -610,7 +612,7 @@ function openMemberForm(mode, memberId = "") {
   openEntityListModal({
     title: `${mode === "edit" ? "修改" : "新增"}人員`,
     modalClass: "modal modal-member-form",
-    body: `<div class="form-grid two-col"><div class="form-row"><label for="memberCode">工號</label><input id="memberCode" type="text" maxlength="12" value="${escapeHtml(member.code)}"></div><div class="form-row"><label for="memberName">姓名</label><input id="memberName" type="text" maxlength="12" value="${escapeHtml(member.name)}"></div><div class="form-row"><label for="memberRole">權限</label><select id="memberRole" ${hasPermission("permission_settings") ? "" : "disabled"}>${renderMemberCustomRoleOptions(member)}</select></div><div class="form-row"><label for="memberSalaryType">計薪方式</label><select id="memberSalaryType"><option value="monthly" ${member.payByDay ? "" : "selected"}>月薪</option><option value="daily" ${member.payByDay ? "selected" : ""}>日薪</option></select></div><div class="form-row"><label for="memberHireDate">到職日</label><input id="memberHireDate" type="date" value="${escapeHtml(member.hireDate)}"></div><div class="form-row"><label for="memberLeaveDate">離職日</label><input id="memberLeaveDate" type="date" value="${escapeHtml(member.leaveDate)}"></div><div class="form-row"><label for="memberFixedRestWeekday">例假星期</label><select id="memberFixedRestWeekday">${REST_WEEKDAY_OPTIONS.map((option) => `<option value="${option.value}" ${normalizeRestWeekday(member.fixedRestWeekday) === option.value ? "selected" : ""}>${option.label}</option>`).join("")}</select></div><div class="form-row"><label for="memberGroup">所屬群組</label><select id="memberGroup">${renderMemberGroupOptions(groupId)}</select></div><div class="form-row"><label for="memberDept">所屬單位</label><select id="memberDept">${renderMemberUnitOptions(groupId, member.deptId || "")}</select></div>${mode === "edit" ? `<div class="form-row"><button class="ghost-btn" type="button" data-reset-member-password="${escapeHtml(member.code)}">重設密碼為 0000</button></div>` : ""}<div class="form-row form-row-wide"><label>排班班別</label><div class="schedule-dept-summary-row"><div class="readonly-pill schedule-shift-summary">${escapeHtml(memberShiftNamesForGroup(groupId, selectedShifts))}</div><button class="ghost-btn compact-btn" type="button" data-toggle-schedule-shifts="true">設定</button></div>${renderMemberGroupShiftSelector(groupId, selectedShifts)}</div></div>`,
+    body: `<div class="form-grid two-col"><div class="form-row"><label for="memberCode">工號</label><input id="memberCode" type="text" maxlength="12" value="${escapeHtml(member.code)}"></div><div class="form-row"><label for="memberName">姓名</label><input id="memberName" type="text" maxlength="12" value="${escapeHtml(member.name)}"></div><div class="form-row"><label for="memberNameVi">越文名稱</label><input id="memberNameVi" type="text" maxlength="60" value="${escapeHtml(member.nameVi || "")}" placeholder="可留空"></div><div class="form-row"><label for="memberRole">權限</label><select id="memberRole" ${hasPermission("permission_settings") ? "" : "disabled"}>${renderMemberCustomRoleOptions(member)}</select></div><div class="form-row"><label for="memberSalaryType">計薪方式</label><select id="memberSalaryType"><option value="monthly" ${member.payByDay ? "" : "selected"}>月薪</option><option value="daily" ${member.payByDay ? "selected" : ""}>日薪</option></select></div><div class="form-row"><label for="memberHireDate">到職日</label><input id="memberHireDate" type="date" value="${escapeHtml(member.hireDate)}"></div><div class="form-row"><label for="memberLeaveDate">離職日</label><input id="memberLeaveDate" type="date" value="${escapeHtml(member.leaveDate)}"></div><div class="form-row"><label for="memberFixedRestWeekday">例假星期</label><select id="memberFixedRestWeekday">${REST_WEEKDAY_OPTIONS.map((option) => `<option value="${option.value}" ${normalizeRestWeekday(member.fixedRestWeekday) === option.value ? "selected" : ""}>${option.label}</option>`).join("")}</select></div><div class="form-row"><label for="memberGroup">所屬群組</label><select id="memberGroup">${renderMemberGroupOptions(groupId)}</select></div><div class="form-row"><label for="memberDept">所屬單位</label><select id="memberDept">${renderMemberUnitOptions(groupId, member.deptId || "")}</select></div>${mode === "edit" ? `<div class="form-row"><button class="ghost-btn" type="button" data-reset-member-password="${escapeHtml(member.code)}">重設密碼為 0000</button></div>` : ""}<div class="form-row form-row-wide"><label>排班班別</label><div class="schedule-dept-summary-row"><div class="readonly-pill schedule-shift-summary">${escapeHtml(memberShiftNamesForGroup(groupId, selectedShifts))}</div><button class="ghost-btn compact-btn" type="button" data-toggle-schedule-shifts="true">設定</button></div>${renderMemberGroupShiftSelector(groupId, selectedShifts)}</div></div>`,
     headerButtons: `<button class="btn-primary" type="button" data-save-member="${mode}">${mode === "edit" ? "儲存修改" : "新增"}</button>`,
     hideFooterClose: true
   });
@@ -627,7 +629,7 @@ async function saveMember(mode) {
   const roleId = document.getElementById("memberRole")?.value || previousMember?.roleId || "";
   const scheduleShiftIds = readMemberScheduleShiftIds();
   const payload = {
-    id: mode === "edit" ? modalContext.targetId : uid("m"), code: document.getElementById("memberCode")?.value.trim(), name: document.getElementById("memberName")?.value.trim(),
+    id: mode === "edit" ? modalContext.targetId : uid("m"), code: document.getElementById("memberCode")?.value.trim(), name: document.getElementById("memberName")?.value.trim(), nameVi: document.getElementById("memberNameVi")?.value.trim() || "",
     groupId, deptId, scheduleShiftIds, positionId: previousMember?.positionId || "", proxyMemberId: "", hireDate, leaveDate,
     payByDay: document.getElementById("memberSalaryType")?.value === "daily", fixedRestWeekday: normalizeRestWeekday(document.getElementById("memberFixedRestWeekday")?.value),
     monthlyRestDays: Math.max(0, Number(previousMember?.monthlyRestDays) || 0), roleId

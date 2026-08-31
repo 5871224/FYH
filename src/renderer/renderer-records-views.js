@@ -336,10 +336,11 @@ function renderMealSettingsSection() {
       ${mealAdmin.error ? `<div class="auth-error">${escapeHtml(mealAdmin.error)}</div>` : ""}
       <div class="meal-settings-table-wrap">
         <table class="meal-settings-table">
-          <thead><tr><th class="meal-settings-drag-col"></th><th class="meal-settings-name-col">品項</th><th class="meal-settings-price-col">價格</th><th class="meal-settings-active-col">啟用</th><th class="meal-settings-operation-col">操作</th></tr></thead>
+          <thead><tr><th class="meal-settings-drag-col"></th><th class="meal-settings-name-col">品項</th><th class="meal-settings-name-col">越文名稱</th><th class="meal-settings-price-col">價格</th><th class="meal-settings-active-col">啟用</th><th class="meal-settings-operation-col">操作</th></tr></thead>
           <tbody>${mealAdmin.products.map((product, index) => `<tr data-meal-product-row="${index}">
             <td class="meal-settings-drag-col"><span class="meal-drag-handle" draggable="true" title="拖曳排序" aria-label="拖曳排序">≡</span></td>
             <td class="meal-settings-name-col"><input type="text" value="${escapeHtml(product.name || "")}" data-meal-product-field="name"></td>
+            <td class="meal-settings-name-col"><input type="text" maxlength="60" value="${escapeHtml(product.nameVi || product.name_vi || "")}" data-meal-product-field="nameVi" placeholder="可留空"></td>
             <td class="meal-settings-price-col"><input type="number" min="0" step="1" value="${escapeHtml(String(product.price || 0))}" data-meal-product-field="price"></td>
             <td class="meal-settings-active-col"><input type="checkbox" ${product.is_active !== false ? "checked" : ""} data-meal-product-field="isActive"><input type="hidden" value="${escapeHtml(product.id || "")}" data-meal-product-field="id"></td>
             <td class="meal-settings-operation-col"><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-meal-product="${escapeHtml(String(index))}" aria-label="刪除" title="刪除"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M7 7l1 13h8l1-13"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg></button></td>

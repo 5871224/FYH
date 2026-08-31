@@ -28,6 +28,7 @@ function sanitizeDepartment(department, fallbackIndex) {
   return {
     id: department?.id || uid(`d${fallbackIndex}`),
     name: department?.name || `單位 ${fallbackIndex + 1}`,
+    nameVi: department?.nameVi || "",
     startDate: department?.startDate || "",
     endDate: department?.endDate || "",
     hiddenFromSchedule: Boolean(department?.hiddenFromSchedule),
@@ -66,6 +67,7 @@ function sanitizeMember(member, fallbackIndex, merged) {
     id: member?.id || uid(`m${fallbackIndex}`),
     code: member?.code || "",
     name: member?.name || `人員 ${fallbackIndex + 1}`,
+    nameVi: member?.nameVi || "",
     deptId,
     scheduleShiftIds: normalizeScheduleShiftIds(member, merged.shifts),
     positionId: member?.positionId && merged.positions.some((position) => position.id === member.positionId)
@@ -92,6 +94,7 @@ function sanitizeShift(shift, fallbackIndex, merged) {
     return {
       id: shift?.id || uid(`s${fallbackIndex}`),
       name: shift?.name || `班別 ${fallbackIndex + 1}`,
+      nameVi: shift?.nameVi || "",
       color,
       textColor: shift?.textColor || autoLeaveTextColor(color),
       autoTextColor: Boolean(autoText),
@@ -122,6 +125,7 @@ function sanitizeLeaveItem(item, index) {
     id: item?.id || uid(`l${index}`),
     code,
     name: item?.name || catalogEntry.name,
+    nameVi: item?.nameVi || "",
     color,
     textColor: item?.textColor || autoLeaveTextColor(color),
     autoTextColor: Boolean(autoText),

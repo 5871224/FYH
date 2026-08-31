@@ -39,6 +39,6 @@ test("新增單位自動沿用開啟表單時的目前群組", () => {
   assert.match(source, /groupId: groupFeatureState\.currentGroupId/);
   assert.match(source, /modalContext = \{ mode, category: "department", targetId: departmentId, groupId, returnTo \}/);
   assert.match(source, /previousDepartment\?\.groupId \|\| modalContext\.groupId \|\| groupFeatureState\.currentGroupId/);
-  assert.match(source, /const payload = \{[^\n]+name, groupId, startDate/);
+  assert.match(source, /const payload = \{[^\n]+name, nameVi, groupId, startDate/);
   assert.match(spec, /新增表單不顯示群組欄位；系統自動以開啟時的目前群組作為單位所屬群組/);
 });

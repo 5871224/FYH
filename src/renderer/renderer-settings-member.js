@@ -96,7 +96,7 @@ function getFilteredMemberSettingsMembers() {
   const normalizedName = memberSettingsFilters.name.trim().toLowerCase();
   const sourceMembers = state.members.filter((member) => !member.deleted);
   const filteredMembers = sourceMembers.filter((member) => {
-    const matchesName = !normalizedName || member.name.toLowerCase().includes(normalizedName);
+    const matchesName = !normalizedName || member.name.toLowerCase().includes(normalizedName) || String(member.nameVi || "").toLowerCase().includes(normalizedName);
     const matchesDepartment = memberSettingsFilters.department === "all"
       ? true
       : memberSettingsFilters.department === "__none__"
@@ -133,6 +133,7 @@ function renderMemberSettingsList() {
               ${renderSettingsOrderDragColumn(true)}
               <div>工號</div>
               <div>姓名</div>
+              <div>越文名稱</div>
               <div>排班班別</div>
               <div>權限</div>
               <div>到職日<br>離職日</div>
@@ -147,6 +148,7 @@ function renderMemberSettingsList() {
                  ${renderSettingsOrderDragColumn()}
                  <div class="member-table-code">${escapeHtml(member.code)}</div>
                 <div class="member-table-name">${escapeHtml(member.name)}</div>
+                <div class="member-table-name-vi">${escapeHtml(member.nameVi || "-")}</div>
                 <div class="member-shift-pill-list">${renderMemberScheduleShiftPills(member)}</div>
                 <div>${getRoleLabel(member.roleId)}</div>
                 <div class="member-date-stack"><span>${escapeHtml(member.hireDate || "-")}</span><span>${escapeHtml(member.leaveDate || "-")}</span></div>

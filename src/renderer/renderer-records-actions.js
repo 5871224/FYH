@@ -293,6 +293,7 @@ function readMealAdminProducts() {
   return Array.from(document.querySelectorAll("[data-meal-product-row]")).map((row) => ({
     id: row.querySelector('[data-meal-product-field="id"]')?.value || "",
     name: row.querySelector('[data-meal-product-field="name"]')?.value || "",
+    nameVi: row.querySelector('[data-meal-product-field="nameVi"]')?.value?.trim() || "",
     price: Number(row.querySelector('[data-meal-product-field="price"]')?.value || 0),
     isActive: Boolean(row.querySelector('[data-meal-product-field="isActive"]')?.checked),
     is_active: Boolean(row.querySelector('[data-meal-product-field="isActive"]')?.checked)
