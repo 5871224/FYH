@@ -32,7 +32,7 @@ jobs:
         run: node scripts/tmp-vietnamese-settings-fix.js
 
       - name: Remove temporary tooling before validation
-        run: rm scripts/fix-temp-script.js scripts/tmp-vietnamese-settings-fix.js .github/workflows/tmp-vietnamese-settings-fix.yml
+        run: rm -f scripts/fix-temp-script.js scripts/tmp-vietnamese-settings-fix.js .github/workflows/tmp-vietnamese-settings-fix.yml .tmp-vietnamese-test-output.txt
 
       - name: Build published web files
         run: npm run web:publish
