@@ -70,6 +70,7 @@ test("group and meal Vietnamese names use their formal save paths", () => {
   assert.match(mealActions, /nameVi:\s*row\.querySelector\('\[data-meal-product-field="nameVi"\]'\)/);
   assert.ok(sql.includes("v_name_vi"));
   assert.ok(sql.includes("name_vi=excluded.name_vi") || sql.includes("name_vi = excluded.name_vi"));
+  assert.match(sql, /insert into public\.meal_products\(id, name, name_vi, price, is_active, sort_order, updated_at\)/);
 });
 
 test("Vietnamese schema is canonical, includes roles, and excludes overtime and holidays", () => {
