@@ -1,0 +1,46 @@
+name: Merge Vietnamese Schema Once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/merge-vietnamese-schema-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  merge-schema:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge Vietnamese schema into canonical 002
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f supabase/003_vietnamese_display_names.sql
+          printf '\n\n' >> supabase/002_current_updates.sql
+          cat supabase/003_vietnamese_display_names.sql >> supabase/002_current_updates.sql
+          rm supabase/003_vietnamese_display_names.sql
+          sed -i 's#supabase/003_vietnamese_display_names.sql#supabase/002_current_updates.sql#g' tests/vietnamese-localization.test.js
+          rm .github/workflows/merge-vietnamese-schema-once.yml
+
+      - name: Verify canonical schema and tests
+        run: |
+          node scripts/check-normalized-storage.js
+          npm test
+
+      - name: Commit canonical merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add supabase/002_current_updates.sql supabase/003_vietnamese_display_names.sql tests/vietnamese-localization.test.js .github/workflows/merge-vietnamese-schema-once.yml
+          git commit -m '合併越文 schema 至正式資料庫更新檔'
+          git push origin HEAD:main
