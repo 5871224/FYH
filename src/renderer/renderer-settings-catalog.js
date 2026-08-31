@@ -30,8 +30,10 @@ function openListSettings(category) {
               <div class="settings-table-row settings-table-head settings-table-row-${category}">
                  ${renderSettingsOrderDragColumn(true)}
                  <div>預覽</div>
+                ${category === "shift" ? "<div>越文名稱</div>" : ""}
                 ${category === "leave" ? "<div>假別代碼</div>" : ""}
                 ${category === "shift" ? "" : `<div>${category === "leave" ? "假別" : "加班"}</div>`}
+                ${category === "leave" ? "<div>越文名稱</div>" : ""}
                 <div>${category === "shift" ? "適用單位" : category === "leave" ? "需填時間" : "時段"}</div>
                 ${category === "shift" ? "<div>需求人數</div>" : ""}
                 ${category === "shift" ? "<div>排班人員</div>" : ""}
@@ -47,8 +49,10 @@ function openListSettings(category) {
                    <div class="settings-table-color">
                     <div class="settings-table-preview" style="background:${escapeHtml(item.color)};color:${escapeHtml(getItemTextColor(item, item.color))}">${escapeHtml(item.name || item.code || "名稱")}</div>
                   </div>
+                  ${category === "shift" ? `<div class="settings-table-name-vi">${escapeHtml(item.nameVi || "-")}</div>` : ""}
                   ${category === "leave" ? `<div class="settings-table-code">${escapeHtml(item.code || "")}</div>` : ""}
                   ${category === "shift" ? "" : `<div class="settings-table-name">${escapeHtml(category === "leave" ? getLeaveCatalogDisplayName(item) : item.name)}</div>`}
+                  ${category === "leave" ? `<div class="settings-table-name-vi">${escapeHtml(item.nameVi || "-")}</div>` : ""}
                   <div class="settings-table-meta">${category === "shift"
                     ? escapeHtml(getDepartmentSummary(item.applicableDeptId))
                     : category === "leave"
@@ -189,6 +193,7 @@ function openShiftFormModal(mode, shiftId = "") {
     : {
       id: "",
       name: "",
+      nameVi: "",
       color: COLORS[0].hex,
       startTime: "",
       endTime: "",
@@ -224,6 +229,10 @@ function openShiftFormModal(mode, shiftId = "") {
           <input id="shiftRequiredStaffCount" type="number" min="0" max="99" step="1" value="${escapeHtml(String(shift.requiredStaffCount ?? 1))}">
         </div>
       </div>
+      <div class="form-row">
+        <label for="shiftNameVi">越文名稱</label>
+        <input id="shiftNameVi" type="text" maxlength="60" value="${escapeHtml(shift.nameVi || "")}" placeholder="可留空">
+      </div>
       <div class="form-section">
       <div class="form-grid">
         <div class="form-row">
@@ -252,6 +261,7 @@ function openShiftFormModal(mode, shiftId = "") {
 async function saveShiftFromModal(mode) {
   const returnTo = modalContext.returnTo || null;
   const name = document.getElementById("shiftName")?.value.trim();
+  const nameVi = document.getElementById("shiftNameVi")?.value.trim() || "";
   if (!name) {
     document.getElementById("shiftName")?.focus();
     return;
@@ -270,6 +280,7 @@ async function saveShiftFromModal(mode) {
   const payload = {
     id: mode === "edit" ? modalContext.targetId : uid("s"),
     name,
+    nameVi,
     color: modalColor,
     textColor: modalTextColor,
     autoTextColor: modalTextColorAuto,
@@ -311,6 +322,7 @@ function openNamedColorFormModal(category, mode, targetId = "") {
       id: "",
       code: category === "leave" ? LEAVE_CATALOG[0].code : "",
       name: category === "overtime" ? "加班" : LEAVE_CATALOG[0].name,
+      nameVi: "",
       color: COLORS[0].hex,
       requiresTime: false,
       requiresReason: false,
@@ -354,6 +366,10 @@ function openNamedColorFormModal(category, mode, targetId = "") {
         <div class="form-row">
           <label for="leaveCatalogName">名稱</label>
           <input id="leaveCatalogName" type="text" maxlength="20" placeholder="請輸入名稱" value="${escapeHtml(item.name || LEAVE_CATALOG.find((entry) => entry.code === item.code)?.name || "")}">
+        </div>
+        <div class="form-row">
+          <label for="leaveNameVi">越文名稱</label>
+          <input id="leaveNameVi" type="text" maxlength="60" placeholder="可留空" value="${escapeHtml(item.nameVi || "")}">
         </div>
         <div class="form-section">
           <div class="form-row checkbox-row checkbox-row-left">
@@ -475,6 +491,7 @@ async function saveLeaveItem(mode) {
   const returnTo = modalContext.returnTo || null;
   const selectedLeave = LEAVE_CATALOG.find((entry) => entry.code === (document.getElementById("leaveCatalogCode")?.value || ""));
   const name = document.getElementById("leaveCatalogName")?.value.trim() || "";
+  const nameVi = document.getElementById("leaveNameVi")?.value.trim() || "";
   if (!name) {
     document.getElementById("leaveCatalogName")?.focus();
     return;
@@ -492,6 +509,7 @@ const payload = {
     ...readNamedColorPayloadBase("leave", mode),
     code: selectedLeave?.code,
     name,
+    nameVi,
     requiresTime: Boolean(document.getElementById("leaveRequiresTime")?.checked),
     requiresReason: Boolean(document.getElementById("leaveRequiresReason")?.checked)
   };

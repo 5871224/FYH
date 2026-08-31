@@ -352,6 +352,20 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     return rows;
   }
 
+  async function getVietnameseLabels() {
+    ensureSignedIn();
+    return callRpc("get_vietnamese_labels_v1", {}) || {};
+  }
+
+  async function saveVietnameseLabel(entity, id, value) {
+    ensureSignedIn();
+    return callRpc("save_vietnamese_label_v1", {
+      p_entity: String(entity || "").trim(),
+      p_id: String(id || "").trim(),
+      p_value: String(value || "").trim()
+    });
+  }
+
   async function getMyProfileRow() {
     const rows = await callRpc("get_my_profile_v3", {}, { auth: true }) || [];
     return rows[0] || null;
@@ -1028,6 +1042,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       member: {
         employeeCode: String(member?.code || "").trim(),
         fullName: member?.name || "",
+        fullNameVi: member?.nameVi || "",
         groupId: member?.groupId || "",
         accessRoleId: member?.roleId || "",
         hireDate: member?.hireDate || null,
@@ -1080,9 +1095,11 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
 
   async function saveDepartmentItem(department, sortOrder = 0) {
     ensureSignedIn();
-    return callRpc("save_department_v3", {
+    const result = await callRpc("save_department_v3", {
       p_department: { ...department, sortOrder }
     });
+    await saveVietnameseLabel("department", department?.id, department?.nameVi || "");
+    return result;
   }
 
 
@@ -1096,22 +1113,28 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
 
     async function saveShiftItem(shift, sortOrder = 0) {
     ensureSignedIn();
-    return callRpc("save_shift_v3", {
+    const result = await callRpc("save_shift_v3", {
       p_shift: {
         ...shift,
         applicableDepartmentId: shift?.applicableDeptId || shift?.applicableDepartmentId || "",
         sortOrder
       }
     });
+    await saveVietnameseLabel("shift", shift?.id, shift?.nameVi || "");
+    return result;
   }
 
 
     async function saveCatalogItem(category, item, sortOrder = 0) {
     ensureSignedIn();
-    return callRpc("save_catalog_item_v3", {
+    const result = await callRpc("save_catalog_item_v3", {
       p_category: String(category || ""),
       p_item: { ...item, sortOrder }
     });
+    if (String(category || "") === "leave") {
+      await saveVietnameseLabel("leave", result?.id || item?.id, item?.nameVi || "");
+    }
+    return result;
   }
 
 
@@ -1235,10 +1258,18 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   async function saveScheduleCondition(item) { return callRpc("save_schedule_condition_v1", { p_item: item }); }
   async function deleteScheduleCondition(conditionId) { return callRpc("delete_schedule_condition_v1", { p_condition_id: conditionId }); }
   async function getScheduleArchiveRanges() { return callRpc("get_schedule_archive_ranges_v1", {}) || []; }
-  async function saveScheduleGroup(group) { return callRpc("save_schedule_group_v1", { p_group: group }); }
+  async function saveScheduleGroup(group) {
+    const result = await callRpc("save_schedule_group_v1", { p_group: group });
+    await saveVietnameseLabel("group", result?.group?.id || group?.id, group?.nameVi || "");
+    return result;
+  }
   async function deleteScheduleGroup(groupId, confirmName) { return callRpc("delete_schedule_group_v1", { p_group_id: groupId, p_confirm_name: confirmName }); }
   async function reorderScheduleGroups(groupIds) { return callRpc("reorder_schedule_groups_v1", { p_group_ids: groupIds }); }
-  async function saveAccessRole(role) { return callRpc("save_access_role_v1", { p_role: role }); }
+  async function saveAccessRole(role) {
+    const result = await callRpc("save_access_role_v1", { p_role: role });
+    await saveVietnameseLabel("role", result?.role?.id || role?.id, role?.nameVi || "");
+    return result;
+  }
   async function deleteAccessRole(roleId) { return callRpc("delete_access_role_v1", { p_role_id: roleId }); }
   async function validateMemberGroupChange(employeeCode, groupId) { return callRpc("validate_member_group_change_v1", { p_employee_code: employeeCode, p_new_group_id: groupId }); }
   async function getScheduleArchives(groupId = null) { return callRpc("get_schedule_archives_v1", { p_group_id: groupId }); }
@@ -1459,6 +1490,8 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     loadEmployeeAdminDirectory,
     loadScheduleEntries,
     loadScheduleExportRows,
+    getVietnameseLabels,
+    saveVietnameseLabel,
     saveDepartmentItem,
     deleteDepartmentItem,
     saveShiftItem,

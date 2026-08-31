@@ -5,81 +5,81 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const root = path.resolve(__dirname, "..");
+const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
-}
-
-test("Vietnamese localization runtime parses and exposes the agreed fields", () => {
-  const source = read("src/renderer/app-config.js");
-  assert.doesNotThrow(() => new vm.Script(source, { filename: "app-config.js" }));
-
-  [
-    "fyh.language",
-    "zh-TW",
-    "vi-VN",
-    "get_vietnamese_labels_v1",
-    "save_vietnamese_label_v1",
-    "groupNameVi",
-    "departmentNameVi",
-    "memberNameVi",
-    "shiftNameVi",
-    "leaveNameVi",
-    "data-meal-product-name-vi"
-  ].forEach((token) => assert.ok(source.includes(token), `missing localization token: ${token}`));
-
-  assert.match(source, /language === VI && vi \? vi : String\(item\?\.name \|\| ""\)/);
+test("Vietnamese localization uses the formal scheduler API and agreed fields", () => {
+  const config = read("src/renderer/app-config.js");
+  const webApi = read("src/renderer/web-api.js");
+  assert.doesNotThrow(() => new vm.Script(config, { filename: "app-config.js" }));
+  ["fyh.language", "zh-TW", "vi-VN", "roles: normalizeLabelRows", "departmentNameVi", "memberNameVi", "shiftNameVi", "leaveNameVi", "accessRoleNameVi"].forEach((token) => assert.ok(config.includes(token), 'missing localization token: ' + token));
+  assert.ok(webApi.includes("async function getVietnameseLabels()"));
+  assert.ok(webApi.includes("async function saveVietnameseLabel(entity, id, value)"));
+  assert.ok(config.includes("window.schedulerApi.getVietnameseLabels()"));
+  assert.ok(config.includes("window.schedulerApi.saveVietnameseLabel"));
+  assert.doesNotMatch(config.slice(config.indexOf("function installVietnameseLocalization")), /session\.access_token/);
+  assert.doesNotMatch(config.slice(config.indexOf("function installVietnameseLocalization")), /api\[name\]\s*=\s*wrapped/);
 });
 
-test("Vietnamese fixed UI covers home and attendance review labels", () => {
+test("Vietnamese fixed UI covers settings lists, forms, home and attendance review", () => {
   const source = read("src/renderer/app-config.js");
   [
-    '"簽到簿": "Sổ chấm công"',
     '"修改密碼": "Đổi mật khẩu"',
-    '"全部群組": "Tất cả nhóm"',
-    '"全部人員": "Tất cả nhân viên"',
-    '"員工": "Nhân viên"',
-    '"異常": "Bất thường"',
-    '"常用備註": "Ghi chú thường dùng"',
-    '"批次審核": "Duyệt hàng loạt"',
-    '"批次退回": "Trả lại hàng loạt"',
-    '"設為未審": "Đặt thành chưa duyệt"',
-    '"設為已審": "Đặt thành đã duyệt"',
-    '"歷程": "Lịch sử"'
-  ].forEach((token) => assert.ok(source.includes(token), `missing Vietnamese fixed label: ${token}`));
-
-  assert.match(source, /querySelector\("#homeCard \.home-header-actions"\)/);
+    '"單位設定": "Cài đặt bộ phận"',
+    '"人員設定": "Cài đặt nhân viên"',
+    '"班別設定": "Cài đặt ca"',
+    '"假別設定": "Cài đặt loại nghỉ"',
+    '"權限設定": "Cài đặt quyền"',
+    '"越文名稱": "Tên tiếng Việt"',
+    '"所屬人員": "Nhân viên thuộc bộ phận"',
+    '"角色名稱": "Tên vai trò"',
+    '"適用群組": "Nhóm áp dụng"',
+    '"權限項目": "Quyền hạn"',
+    '"修改單位": "Sửa bộ phận"',
+    '"修改人員": "Sửa nhân viên"',
+    '"修改班別": "Sửa ca"',
+    '"修改假別": "Sửa loại nghỉ"',
+    '"修改角色": "Sửa vai trò"',
+    '"批次審核": "Duyệt hàng loạt"'
+  ].forEach((token) => assert.ok(source.includes(token), 'missing Vietnamese fixed label: ' + token));
   assert.match(source, /actions\.insertBefore\(shell, passwordButton\)/);
   assert.doesNotMatch(source, /position:fixed;right:10px;bottom:10px/);
 });
 
-test("Vietnamese schema adds only the agreed user-maintained labels", () => {
-  const sql = read("supabase/003_vietnamese_display_names.sql");
+test("settings renderers expose Vietnamese columns and edit fields", () => {
+  const department = read("src/renderer/renderer-settings-department.js");
+  const member = read("src/renderer/renderer-settings-member.js");
+  const catalog = read("src/renderer/renderer-settings-catalog.js");
+  const permission = read("src/renderer/renderer-groups-permissions-archive.js");
+  ["departmentNameVi", "department.nameVi"].forEach((token) => assert.ok(department.includes(token)));
+  ["越文名稱", "member.nameVi"].forEach((token) => assert.ok(member.includes(token)));
+  ["shiftNameVi", "leaveNameVi", "item.nameVi"].forEach((token) => assert.ok(catalog.includes(token)));
+  ["accessRoleNameVi", "memberNameVi", "role.nameVi"].forEach((token) => assert.ok(permission.includes(token)));
+});
 
+test("Vietnamese schema is canonical, includes roles, and excludes overtime and holidays", () => {
+  const sql = read("supabase/002_current_updates.sql");
+  assert.equal(fs.existsSync(path.join(root, "supabase/003_vietnamese_display_names.sql")), false);
   [
     "schedule_groups add column if not exists name_vi",
     "set_departments add column if not exists name_vi",
     "set_employee add column if not exists full_name_vi",
     "set_shift add column if not exists name_vi",
     "set_leave add column if not exists name_vi",
-    "meal_products add column if not exists name_vi"
-  ].forEach((token) => assert.ok(sql.includes(token), `missing schema token: ${token}`));
-
+    "meal_products add column if not exists name_vi",
+    "access_roles add column if not exists name_vi",
+    "get_vietnamese_labels_v1",
+    "save_vietnamese_label_v1",
+    "when 'role' then",
+    "permission_settings"
+  ].forEach((token) => assert.ok(sql.includes(token), 'missing canonical Vietnamese SQL token: ' + token));
   assert.doesNotMatch(sql, /alter table public\.set_overtime\s+add column if not exists name_vi/i);
   assert.doesNotMatch(sql, /alter table public\.holidays\s+add column if not exists name_vi/i);
 });
 
-test("Vietnamese label API keeps permission checks for every editable entity", () => {
-  const sql = read("supabase/003_vietnamese_display_names.sql");
-  [
-    "group_settings",
-    "department_settings",
-    "member_settings",
-    "schedule_manage",
-    "leave_settings",
-    "meal_admin"
-  ].forEach((permission) => assert.ok(sql.includes(`'${permission}'`), `missing permission check: ${permission}`));
-
-  assert.match(sql, /revoke all on function public\.get_vietnamese_labels_v1\(\) from public, anon;/);
-  assert.match(sql, /revoke all on function public\.save_vietnamese_label_v1\(text, uuid, text\) from public, anon;/);
+test("member save persists Vietnamese full name through the member Edge function", () => {
+  const webApi = read("src/renderer/web-api.js");
+  const edge = read("supabase/functions/member-auth-admin/index.ts");
+  assert.ok(webApi.includes("fullNameVi: member?.nameVi"));
+  assert.ok(edge.includes("fullNameVi?: string"));
+  assert.ok(edge.includes("full_name_vi: member.fullNameVi || null"));
 });

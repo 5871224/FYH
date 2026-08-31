@@ -374,7 +374,7 @@ window.SCHEDULER_CONFIG = {
   let language = localStorage.getItem(LANGUAGE_KEY) === VI ? VI : ZH;
   let installed = false;
   let labelsLoaded = false;
-  let labels = { groups: [], departments: [], members: [], shifts: [], leaves: [], mealProducts: [] };
+  let labels = { groups: [], departments: [], members: [], shifts: [], leaves: [], roles: [], mealProducts: [] };
   let applying = false;
 
   const fixedVi = new Map(Object.entries({
@@ -465,6 +465,43 @@ window.SCHEDULER_CONFIG = {
     "群組代碼": "Mã nhóm",
     "單位名稱": "Tên bộ phận",
     "越文名稱": "Tên tiếng Việt",
+    "所屬人員": "Nhân viên thuộc bộ phận",
+    "預覽": "Xem trước",
+    "假別代碼": "Mã loại nghỉ",
+    "適用單位": "Bộ phận áp dụng",
+    "需求人數": "Số người cần",
+    "排班人員": "Nhân viên xếp ca",
+    "時段": "Khung giờ",
+    "需填時間": "Yêu cầu nhập giờ",
+    "需填原因": "Yêu cầu lý do",
+    "角色名稱": "Tên vai trò",
+    "適用群組": "Nhóm áp dụng",
+    "權限項目": "Quyền hạn",
+    "權限": "Quyền",
+    "在職": "Đang làm việc",
+    "離職": "Đã nghỉ việc",
+    "名稱": "Tên",
+    "上班時間": "Giờ vào ca",
+    "下班時間": "Giờ tan ca",
+    "查看": "Xem",
+    "管理": "Quản lý",
+    "修改單位": "Sửa bộ phận",
+    "新增單位": "Thêm bộ phận",
+    "修改人員": "Sửa nhân viên",
+    "新增人員": "Thêm nhân viên",
+    "修改班別": "Sửa ca",
+    "新增班別": "Thêm ca",
+    "修改假別": "Sửa loại nghỉ",
+    "新增假別": "Thêm loại nghỉ",
+    "修改角色": "Sửa vai trò",
+    "新增角色": "Thêm vai trò",
+    "不顯示於班表": "Không hiển thị trên lịch",
+    "請輸入單位名稱": "Nhập tên bộ phận",
+    "請輸入班別": "Nhập tên ca",
+    "請輸入名稱": "Nhập tên",
+    "輸入姓名": "Nhập họ tên",
+    "可留空": "Có thể để trống",
+    "可留空；越文模式會顯示中文": "Có thể để trống; nếu trống sẽ hiển thị tiếng Trung",
     "可否訂餐": "Cho phép đặt cơm",
     "不顯示": "Không hiển thị",
     "可否打卡": "Cho phép chấm công",
@@ -535,6 +572,7 @@ window.SCHEDULER_CONFIG = {
       members: normalizeLabelRows(payload?.members),
       shifts: normalizeLabelRows(payload?.shifts),
       leaves: normalizeLabelRows(payload?.leaves),
+      roles: normalizeLabelRows(payload?.roles),
       mealProducts: normalizeLabelRows(payload?.mealProducts)
     };
     labelsLoaded = true;
@@ -557,6 +595,7 @@ window.SCHEDULER_CONFIG = {
     if (Array.isArray(payload.leaves)) payload.leaves = applyLabels(payload.leaves, "leaves");
     if (Array.isArray(payload.products)) payload.products = applyLabels(payload.products, "mealProducts");
     if (payload.accessBundle?.groups) payload.accessBundle.groups = applyLabels(payload.accessBundle.groups, "groups");
+    if (payload.accessBundle?.roles) payload.accessBundle.roles = applyLabels(payload.accessBundle.roles, "roles");
     if (payload.status?.products) payload.status.products = applyLabels(payload.status.products, "mealProducts");
     return payload;
   }
@@ -569,8 +608,9 @@ window.SCHEDULER_CONFIG = {
         state.shifts = applyLabels(state.shifts, "shifts");
         state.leaves = applyLabels(state.leaves, "leaves");
       }
-      if (typeof groupFeatureState !== "undefined" && groupFeatureState?.bundle?.groups) {
+      if (typeof groupFeatureState !== "undefined" && groupFeatureState?.bundle) {
         groupFeatureState.bundle.groups = applyLabels(groupFeatureState.bundle.groups, "groups");
+        groupFeatureState.bundle.roles = applyLabels(groupFeatureState.bundle.roles, "roles");
       }
       if (typeof recordsState !== "undefined" && recordsState?.mealAdmin?.products) {
         recordsState.mealAdmin.products = applyLabels(recordsState.mealAdmin.products, "mealProducts");
@@ -583,38 +623,23 @@ window.SCHEDULER_CONFIG = {
     }
   }
 
-  function currentSession() {
-    return window.schedulerApi?.getAuthContext?.()?.session || null;
-  }
+  let labelRefreshPromise = null;
 
-  async function rpc(name, body = {}) {
-    const session = currentSession();
-    if (!session?.access_token || !baseUrl || !anonKey) throw new Error("尚未登入");
-    const response = await fetch(`${baseUrl}/rest/v1/rpc/${name}`, {
-      method: "POST",
-      headers: {
-        apikey: anonKey,
-        Authorization: `Bearer ${session.access_token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json"
-      },
-      body: JSON.stringify(body)
-    });
-    const text = await response.text();
-    if (!response.ok) {
-      let message = text || `HTTP ${response.status}`;
-      try { message = JSON.parse(text)?.message || message; } catch {}
-      throw new Error(message);
-    }
-    return text ? JSON.parse(text) : null;
+  function isAuthenticated() {
+    return Boolean(window.schedulerApi?.getAuthContext?.()?.authenticated);
   }
 
   async function refreshLabels() {
-    if (!currentSession()?.access_token) return labels;
-    const payload = await rpc("get_vietnamese_labels_v1", {});
-    setLabels(payload || {});
-    mergeGlobalLabels();
-    return labels;
+    if (!isAuthenticated() || typeof window.schedulerApi?.getVietnameseLabels !== "function") return labels;
+    if (labelRefreshPromise) return labelRefreshPromise;
+    labelRefreshPromise = Promise.resolve(window.schedulerApi.getVietnameseLabels())
+      .then((payload) => {
+        setLabels(payload || {});
+        mergeGlobalLabels();
+        return labels;
+      })
+      .finally(() => { labelRefreshPromise = null; });
+    return labelRefreshPromise;
   }
 
   function upsertCachedLabel(category, id, nameVi) {
@@ -628,130 +653,22 @@ window.SCHEDULER_CONFIG = {
 
   async function saveLabel(entity, category, id, value) {
     const normalizedId = String(id || "").trim();
-    if (!normalizedId) return;
-    await rpc("save_vietnamese_label_v1", { p_entity: entity, p_id: normalizedId, p_value: String(value || "").trim() });
+    if (!normalizedId || typeof window.schedulerApi?.saveVietnameseLabel !== "function") return;
+    await window.schedulerApi.saveVietnameseLabel(entity, normalizedId, String(value || "").trim());
     upsertCachedLabel(category, normalizedId, value);
     mergeGlobalLabels();
   }
 
-  function findResultId(result, fallback = "") {
-    return String(result?.id || result?.row?.id || result?.data?.id || result?.member?.id || result?.profile?.id || fallback || "").trim();
-  }
-
-  function readInput(id) {
-    return document.getElementById(id)?.value?.trim?.() || "";
-  }
-
-  function reportLocalizedSaveError(error) {
-    const message = `越文名稱儲存失敗：${error?.message || error}`;
-    try { window.setSaveStatus?.(message); } catch {}
-    console.warn(message);
-  }
-
-  function wrapApiMethod(name, wrapper) {
-    const api = window.schedulerApi;
-    const original = api?.[name];
-    if (typeof original !== "function" || original.__fyhVietnameseWrapped) return;
-    const wrapped = wrapper(original.bind(api));
-    wrapped.__fyhVietnameseWrapped = true;
-    api[name] = wrapped;
-  }
-
   function installApiIntegration() {
-    wrapApiMethod("loadState", (original) => async (...args) => {
-      const result = await original(...args);
-      try { await refreshLabels(); enrichPayload(result); } catch (error) { console.warn("讀取越文名稱失敗", error); }
-      queueMicrotask(refreshUi);
-      return result;
-    });
-
-    wrapApiMethod("getGroupAccessBundle", (original) => async (...args) => {
-      const result = await original(...args);
-      try {
-        if (!labelsLoaded) await refreshLabels();
-        if (result?.groups) result.groups = applyLabels(result.groups, "groups");
-      } catch (error) { console.warn("讀取群組越文名稱失敗", error); }
-      return result;
-    });
-
-    ["getTodayMealOrder", "getMealAdminSettings"].forEach((methodName) => {
-      wrapApiMethod(methodName, (original) => async (...args) => {
-        const result = await original(...args);
-        try {
-          if (!labelsLoaded) await refreshLabels();
-          enrichPayload(result);
-        } catch (error) { console.warn("讀取餐點越文名稱失敗", error); }
-        queueMicrotask(refreshUi);
-        return result;
-      });
-    });
-
-    wrapApiMethod("saveScheduleGroup", (original) => async (group, ...args) => {
-      const nameVi = readInput("groupNameVi");
-      if (group && typeof group === "object") group.nameVi = nameVi;
-      const result = await original(group, ...args);
-      try { await saveLabel("group", "groups", findResultId(result, group?.id), nameVi); } catch (error) { reportLocalizedSaveError(error); }
-      return result;
-    });
-
-    wrapApiMethod("saveDepartmentItem", (original) => async (department, ...args) => {
-      const nameVi = readInput("departmentNameVi");
-      if (department && typeof department === "object") department.nameVi = nameVi;
-      const result = await original(department, ...args);
-      try { await saveLabel("department", "departments", findResultId(result, department?.id), nameVi); } catch (error) { reportLocalizedSaveError(error); }
-      return result;
-    });
-
-    wrapApiMethod("syncMemberProfile", (original) => async (member, ...args) => {
-      const nameVi = readInput("memberNameVi") || member?.nameVi || "";
-      if (member && typeof member === "object") member.nameVi = nameVi;
-      const result = await original(member, ...args);
-      try { await saveLabel("member", "members", findResultId(result, member?.id), nameVi); } catch (error) { reportLocalizedSaveError(error); }
-      return result;
-    });
-
-    wrapApiMethod("saveShiftItem", (original) => async (shift, ...args) => {
-      const nameVi = readInput("shiftNameVi");
-      if (shift && typeof shift === "object") shift.nameVi = nameVi;
-      const result = await original(shift, ...args);
-      try { await saveLabel("shift", "shifts", findResultId(result, shift?.id), nameVi); } catch (error) { reportLocalizedSaveError(error); }
-      return result;
-    });
-
-    wrapApiMethod("saveCatalogItem", (original) => async (category, item, ...args) => {
-      const nameVi = category === "leave" ? readInput("leaveNameVi") : "";
-      if (category === "leave" && item && typeof item === "object") item.nameVi = nameVi;
-      const result = await original(category, item, ...args);
-      if (category === "leave") {
-        try { await saveLabel("leave", "leaves", findResultId(result, item?.id), nameVi); } catch (error) { reportLocalizedSaveError(error); }
-      }
-      return result;
-    });
-
-    wrapApiMethod("saveMealAdminSettings", (original) => async (payload, ...args) => {
-      const localizedByName = new Map();
-      document.querySelectorAll("[data-meal-product-row]").forEach((row) => {
-        const name = row.querySelector('[data-meal-product-field="name"]')?.value?.trim?.() || "";
-        const nameVi = row.querySelector("[data-meal-product-name-vi]")?.value?.trim?.() || "";
-        if (name) localizedByName.set(name, nameVi);
-      });
-      const result = await original(payload, ...args);
-      const products = Array.isArray(result?.products) ? result.products : Array.isArray(payload?.products) ? payload.products : [];
-      for (const product of products) {
-        const nameVi = localizedByName.get(String(product?.name || "").trim()) || "";
-        if (product && typeof product === "object") product.nameVi = nameVi;
-        const id = findResultId(product, product?.id);
-        if (!id) continue;
-        try { await saveLabel("meal_product", "mealProducts", id, nameVi); } catch (error) { reportLocalizedSaveError(error); }
-      }
-      return result;
-    });
+    // Vietnamese data access is part of the formal schedulerApi provider.
+    // Entity save paths explicitly persist their localized field; no runtime method override is used here.
   }
 
   function currentEntity(category) {
     const targetId = typeof modalContext !== "undefined" ? String(modalContext?.targetId || "") : "";
     try {
       if (category === "group") return (typeof groupFeatureState !== "undefined" ? groupFeatureState.bundle?.groups : [])?.find((item) => String(item.id) === targetId) || null;
+      if (category === "role") return (typeof groupFeatureState !== "undefined" ? groupFeatureState.bundle?.roles : [])?.find((item) => String(item.id) === targetId) || null;
       if (typeof state === "undefined") return null;
       if (category === "department") return state.departments?.find((item) => String(item.id) === targetId) || null;
       if (category === "member") return state.members?.find((item) => String(item.id) === targetId) || null;
@@ -778,6 +695,7 @@ window.SCHEDULER_CONFIG = {
     addLocalizedField("departmentName", "departmentNameVi", "department");
     addLocalizedField("memberName", "memberNameVi", "member");
     addLocalizedField("shiftName", "shiftNameVi", "shift");
+    addLocalizedField("accessRoleName", "accessRoleNameVi", "role");
     const contextCategory = typeof modalContext !== "undefined" ? modalContext?.category : "";
     if (contextCategory === "leave") {
       const leaveSourceId = document.getElementById("leaveCatalogName") ? "leaveCatalogName" : document.getElementById("namedItemName") ? "namedItemName" : "";
@@ -818,7 +736,7 @@ window.SCHEDULER_CONFIG = {
       if (zh && vi) map.set(zh, vi);
     });
     try {
-      if (typeof groupFeatureState !== "undefined") add(groupFeatureState.bundle?.groups);
+      if (typeof groupFeatureState !== "undefined") { add(groupFeatureState.bundle?.groups); add(groupFeatureState.bundle?.roles); }
       if (typeof state !== "undefined") {
         add(state.departments); add(state.members); add(state.shifts); add(state.leaves);
       }
@@ -912,6 +830,10 @@ window.SCHEDULER_CONFIG = {
     ensureLanguageControl();
     ensureLocalizedFormFields();
     ensureMealLocalizedColumn();
+    if (labelsLoaded) mergeGlobalLabels();
+    if (isAuthenticated() && !labelsLoaded && !labelRefreshPromise) {
+      refreshLabels().then(() => queueMicrotask(refreshUi)).catch((error) => console.warn("讀取越文名稱失敗", error));
+    }
     translateDom(document.body);
   }
 
@@ -928,11 +850,12 @@ window.SCHEDULER_CONFIG = {
         return language === VI && vi ? vi : String(item?.name || "");
       },
       refreshLabels,
+      saveLabel,
       refresh: refreshUi
     };
     const observer = new MutationObserver(() => queueMicrotask(refreshUi));
     observer.observe(document.documentElement, { childList: true, subtree: true });
-    if (currentSession()?.access_token) refreshLabels().catch((error) => console.warn("讀取越文名稱失敗", error)).finally(refreshUi);
+    if (isAuthenticated()) refreshLabels().catch((error) => console.warn("讀取越文名稱失敗", error)).finally(refreshUi);
     else refreshUi();
   }
 

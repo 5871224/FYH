@@ -3975,14 +3975,17 @@ body.is-meal-view .meal-tabs ~ .records-section {
 }
 
 .member-settings-modal .member-table-row {
-  grid-template-columns: var(--settings-drag-column-width) 104px minmax(86px, .9fr) minmax(170px, 1.45fr) 64px 108px 84px 78px var(--settings-action-column-width);
+  grid-template-columns: var(--settings-drag-column-width) 104px minmax(86px, .9fr) minmax(110px, .95fr) minmax(170px, 1.45fr) 64px 108px 84px 78px var(--settings-action-column-width);
 }
 
 .catalog-settings-modal .settings-table-row-shift {
-  grid-template-columns: var(--settings-drag-column-width) minmax(76px, .55fr) minmax(96px, .65fr) minmax(64px, .42fr) minmax(280px, 2.7fr) minmax(92px, .62fr) minmax(68px, .45fr) var(--settings-action-column-width);
+  grid-template-columns: var(--settings-drag-column-width) minmax(76px, .55fr) minmax(110px, .8fr) minmax(96px, .65fr) minmax(64px, .42fr) minmax(280px, 2.7fr) minmax(92px, .62fr) minmax(68px, .45fr) var(--settings-action-column-width);
 }
 
-.catalog-settings-modal .settings-table-row-leave,
+.catalog-settings-modal .settings-table-row-leave {
+  grid-template-columns: var(--settings-drag-column-width) repeat(7, minmax(0, 1fr)) var(--settings-action-column-width);
+}
+
 .catalog-settings-modal .settings-table-row-overtime {
   grid-template-columns: var(--settings-drag-column-width) repeat(6, minmax(0, 1fr)) var(--settings-action-column-width);
 }
@@ -4109,7 +4112,7 @@ body.is-meal-view .meal-tabs ~ .records-section {
 
 @media (max-width: 900px) {
   .member-settings-modal .member-table-row {
-    grid-template-columns: var(--settings-drag-column-width) 92px minmax(72px, .85fr) minmax(150px, 1.25fr) 54px 92px 72px 68px var(--settings-action-column-width);
+    grid-template-columns: var(--settings-drag-column-width) 92px minmax(72px, .85fr) minmax(96px, .9fr) minmax(150px, 1.25fr) 54px 92px 72px 68px var(--settings-action-column-width);
   }
 }
 
@@ -4477,6 +4480,18 @@ body.is-meal-view .meal-tabs ~ .records-section {
 .department-settings-modal .department-settings-table-department .department-settings-title {
   grid-column: 2;
   order: 0;
+}
+
+.department-settings-title {
+  display: grid;
+  gap: 2px;
+}
+
+.department-settings-name-vi {
+  color: var(--ui-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 .department-settings-modal .department-settings-table-department .member-inline-list {
