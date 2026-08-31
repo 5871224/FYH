@@ -7,17 +7,17 @@ const vm = require("node:vm");
 const root = path.resolve(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
-test("Vietnamese localization uses the formal scheduler API and agreed fields", () => {
+test("Vietnamese localization uses the formal scheduler API and no runtime field patching", () => {
   const config = read("src/renderer/app-config.js");
   const webApi = read("src/renderer/web-api.js");
   assert.doesNotThrow(() => new vm.Script(config, { filename: "app-config.js" }));
-  ["fyh.language", "zh-TW", "vi-VN", "roles: normalizeLabelRows", "departmentNameVi", "memberNameVi", "shiftNameVi", "leaveNameVi", "accessRoleNameVi"].forEach((token) => assert.ok(config.includes(token), 'missing localization token: ' + token));
+  ["fyh.language", "zh-TW", "vi-VN", "roles: normalizeLabelRows"].forEach((token) => assert.ok(config.includes(token), 'missing localization token: ' + token));
   assert.ok(webApi.includes("async function getVietnameseLabels()"));
   assert.ok(webApi.includes("async function saveVietnameseLabel(entity, id, value)"));
   assert.ok(config.includes("window.schedulerApi.getVietnameseLabels()"));
-  assert.ok(config.includes("window.schedulerApi.saveVietnameseLabel"));
   assert.doesNotMatch(config.slice(config.indexOf("function installVietnameseLocalization")), /session\.access_token/);
   assert.doesNotMatch(config.slice(config.indexOf("function installVietnameseLocalization")), /api\[name\]\s*=\s*wrapped/);
+  assert.doesNotMatch(config, /function\s+(?:addLocalizedField|ensureLocalizedFormFields|ensureMealLocalizedColumn)\b/);
 });
 
 test("Vietnamese fixed UI covers settings lists, forms, home and attendance review", () => {
@@ -50,10 +50,26 @@ test("settings renderers expose Vietnamese columns and edit fields", () => {
   const member = read("src/renderer/renderer-settings-member.js");
   const catalog = read("src/renderer/renderer-settings-catalog.js");
   const permission = read("src/renderer/renderer-groups-permissions-archive.js");
+  const mealViews = read("src/renderer/renderer-records-views.js");
   ["departmentNameVi", "department.nameVi"].forEach((token) => assert.ok(department.includes(token)));
   ["越文名稱", "member.nameVi"].forEach((token) => assert.ok(member.includes(token)));
   ["shiftNameVi", "leaveNameVi", "item.nameVi"].forEach((token) => assert.ok(catalog.includes(token)));
-  ["accessRoleNameVi", "memberNameVi", "role.nameVi"].forEach((token) => assert.ok(permission.includes(token)));
+  ["accessRoleNameVi", "memberNameVi", "role.nameVi", "groupNameVi", "group.nameVi"].forEach((token) => assert.ok(permission.includes(token)));
+  assert.ok(mealViews.includes('data-meal-product-field="nameVi"'));
+  assert.ok(mealViews.includes("product.nameVi || product.name_vi"));
+});
+
+test("group and meal Vietnamese names use their formal save paths", () => {
+  const groupSource = read("src/renderer/renderer-groups-permissions-archive.js");
+  const mealActions = read("src/renderer/renderer-records-actions.js");
+  const webApi = read("src/renderer/web-api.js");
+  const sql = read("supabase/002_current_updates.sql");
+  assert.match(groupSource, /const nameVi = document\.getElementById\("groupNameVi"\)/);
+  assert.match(groupSource, /saveScheduleGroup\(\{[^}]*\bnameVi\b/s);
+  assert.match(webApi, /saveVietnameseLabel\("group", result\?\.group\?\.id \|\| group\?\.id, group\?\.nameVi \|\| ""\)/);
+  assert.match(mealActions, /nameVi:\s*row\.querySelector\('\[data-meal-product-field="nameVi"\]'\)/);
+  assert.ok(sql.includes("v_name_vi"));
+  assert.ok(sql.includes("name_vi=excluded.name_vi") || sql.includes("name_vi = excluded.name_vi"));
 });
 
 test("Vietnamese schema is canonical, includes roles, and excludes overtime and holidays", () => {
