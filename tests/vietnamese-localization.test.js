@@ -41,7 +41,9 @@ test("Vietnamese fixed UI covers settings lists, forms, home and attendance revi
     '"修改班別": "Sửa ca"',
     '"修改假別": "Sửa loại nghỉ"',
     '"修改角色": "Sửa vai trò"',
-    '"批次審核": "Duyệt hàng loạt"'
+    '"批次審核": "Duyệt hàng loạt"',
+    '"匯入": "Nhập dữ liệu"',
+    '"功能": "Chức năng"'
   ].forEach((token) => assert.ok(source.includes(token), 'missing Vietnamese fixed label: ' + token));
   assert.match(source, /actions\.insertBefore\(shell, passwordButton\)/);
   assert.doesNotMatch(source, /position:fixed;right:10px;bottom:10px/);
