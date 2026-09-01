@@ -1,0 +1,49 @@
+name: Temporary Vietnamese Font Scope
+
+on:
+  push:
+    branches:
+      - fix/vietnamese-font-scope-20260901
+    paths:
+      - scripts/tmp-adjust-vietnamese-font.js
+      - .github/workflows/tmp-adjust-vietnamese-font.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/vietnamese-font-scope-20260901
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply font scope changes
+        run: node scripts/tmp-adjust-vietnamese-font.js
+      - name: Remove temporary tooling
+        run: rm scripts/tmp-adjust-vietnamese-font.js .github/workflows/tmp-adjust-vietnamese-font.yml
+      - name: Build published web files
+        run: npm run web:publish
+      - name: Run validation
+        run: |
+          npm test
+          npm run web:check
+          node scripts/check-normalized-storage.js
+          node scripts/check-expansion-acceptance.js
+          node scripts/check-settings-lists.js
+          npm run renderer:check
+          npm run css:architecture
+          npm run js:architecture
+      - name: Commit formal changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "調整越文字體套用範圍與字重"
+          git push origin HEAD:fix/vietnamese-font-scope-20260901
