@@ -1,0 +1,42 @@
+name: Temporary Be Vietnam Pro
+
+on:
+  push:
+    branches:
+      - fix/be-vietnam-pro-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/be-vietnam-pro-20260901
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply font changes
+        run: node scripts/tmp-be-vietnam-pro.js
+      - name: Remove temporary tooling
+        run: rm scripts/tmp-be-vietnam-pro.js .github/workflows/tmp-be-vietnam-pro.yml
+      - name: Build published web files
+        run: npm run web:publish
+      - name: Run validation
+        run: npm run ci:check
+      - name: Commit formal changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "套用 Be Vietnam Pro 越文字體"
+            git push origin HEAD:fix/be-vietnam-pro-20260901
+          fi
