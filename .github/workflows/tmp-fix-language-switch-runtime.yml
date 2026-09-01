@@ -31,6 +31,9 @@ jobs:
       - name: Publish static web
         run: npm run web:publish
 
+      - name: Remove temporary tooling before validation
+        run: rm -f scripts/tmp-fix-language-switch-runtime.js .github/workflows/tmp-fix-language-switch-runtime.yml
+
       - name: Validate
         run: |
           npm test
@@ -38,9 +41,6 @@ jobs:
           npm run renderer:check
           npm run css:architecture
           npm run js:architecture
-
-      - name: Remove temporary tooling
-        run: rm -f scripts/tmp-fix-language-switch-runtime.js .github/workflows/tmp-fix-language-switch-runtime.yml
 
       - name: Commit fix
         run: |
