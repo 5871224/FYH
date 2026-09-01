@@ -42,6 +42,18 @@ jobs:
       - name: Apply access control v2
         run: python3 scripts/tmp_access_control_v2.py
 
+      - name: Normalize generated validation syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for file in ["tests/access-control-model.test.js", "scripts/check-renderer-alignment.js"]:
+              path = Path(file)
+              text = path.read_text(encoding="utf-8")
+              text = text.replace("\\n  assert.doesNotMatch(sql, /v_(?:old|new)_role\\.permissions|other_role\\.permissions/);", "\n  assert.doesNotMatch(sql, /v_(?:old|new)_role\\.permissions|other_role\\.permissions/);")
+              text = text.replace('\\nassert(!renderer.includes("function renderTodayOvertimePanel")', '\nassert(!renderer.includes("function renderTodayOvertimePanel")')
+              path.write_text(text, encoding="utf-8")
+          PY
+
       - name: Show legacy references
         shell: bash
         run: |
