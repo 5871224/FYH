@@ -127,3 +127,35 @@ test("member save persists Vietnamese full name through the member Edge function
   assert.ok(edge.includes("fullNameVi?: string"));
   assert.ok(edge.includes("full_name_vi: member.fullNameVi || null"));
 });
+
+
+test("function menu tables and action controls have Vietnamese labels", () => {
+  const source = read("src/renderer/app-config.js");
+  const required = [
+    ["自動排班期間", "Khoảng thời gian xếp ca tự động"],
+    ["自動補班期間", "Khoảng thời gian bổ sung ca tự động"],
+    ["產生預覽", "Tạo bản xem trước"],
+    ["預覽列印", "Xem trước khi in"],
+    ["條件類型", "Loại điều kiện"],
+    ["限額", "Giới hạn"],
+    ["同班限制", "Giới hạn cùng ca"],
+    ["同休限制", "Giới hạn cùng nghỉ"],
+    ["日期範圍", "Khoảng ngày"],
+    ["封存時間", "Thời gian lưu trữ"],
+    ["封存人員", "Người lưu trữ"],
+    ["人員數", "Số nhân viên"],
+    ["資料筆數", "Số bản ghi"],
+    ["封存", "Lưu trữ"],
+    ["解除封存", "Bỏ lưu trữ"],
+    ["群組－單位", "Nhóm－Bộ phận"],
+    ["班表查看", "Xem lịch làm việc"],
+    ["班表管理", "Quản lý lịch làm việc"],
+    ["八週起算日", "Ngày bắt đầu chu kỳ 8 tuần"],
+    ["每週起算日", "Ngày bắt đầu tuần"],
+    ["每月起算日", "Ngày bắt đầu tháng"],
+    ["星期一", "Thứ hai"],
+    ["星期日", "Chủ nhật"]
+  ];
+  required.forEach(([zh, vi]) => assert.ok(source.includes(`"${zh}": "${vi}"`), `missing function UI translation: ${zh}`));
+  assert.ok(source.includes("const monthDay = text.match"));
+});
