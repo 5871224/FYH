@@ -27,6 +27,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Repair temporary migration matcher
+        run: node scripts/tmp-repair-localized-migration.js
+
       - name: Apply source migration
         run: node scripts/tmp-localized-settings-columns.js
 
@@ -34,7 +37,7 @@ jobs:
         run: npm run web:publish
 
       - name: Remove temporary tooling before validation
-        run: rm -f scripts/tmp-localized-settings-columns.js .github/workflows/tmp-localized-settings-columns.yml
+        run: rm -f scripts/tmp-localized-settings-columns.js scripts/tmp-repair-localized-migration.js .github/workflows/tmp-localized-settings-columns.yml
 
       - name: Validate
         run: |
