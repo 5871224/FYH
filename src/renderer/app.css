@@ -6445,3 +6445,12 @@ body:not(.is-authenticated) .toolbar-card {
 }
 .records-date-sort-btn:hover { text-decoration: underline; }
 .records-date-sort-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 2px; }
+
+/* 越文打卡文字較長：維持既有按鈕高度，僅在越文模式限制寬度並允許兩行。 */
+html[lang="vi"] .attendance-ledger-table .attendance-clock-buttons [data-personal-clock-action] {
+  width: 96px;
+  max-width: 96px;
+  white-space: normal !important;
+  line-height: 1.2;
+  text-align: center;
+}
