@@ -36,7 +36,7 @@ jobs:
 
       - name: Correct transformer
         run: |
-          rm -f tmp-access-v2-test.log
+          rm -f tmp-access-v2-test.txt tmp-access-v2-test-summary.txt
           python3 scripts/tmp_patch_access_transformer.py
 
       - name: Apply access control v2
@@ -59,16 +59,18 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          npm test 2>&1 | tee tmp-access-v2-test.log
+          npm test 2>&1 | tee /tmp/access-v2-test.log
 
       - name: Save unit-test diagnostics
         if: steps.unit_tests.outcome == 'failure'
         shell: bash
         run: |
           set -euo pipefail
+          cp /tmp/access-v2-test.log tmp-access-v2-test.txt
+          grep -nE 'not ok|AssertionError|ERR_ASSERTION|error:|fail|expected|actual' /tmp/access-v2-test.log > tmp-access-v2-test-summary.txt || true
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add tmp-access-v2-test.log
+          git add tmp-access-v2-test.txt tmp-access-v2-test-summary.txt
           git commit -m 'chore: capture access v2 test failure [skip ci]'
           git push origin HEAD:feat/access-control-v2-20260901
           exit 1
@@ -100,7 +102,7 @@ jobs:
           grep -F 'requestFunction("access-control"' src/renderer/web-api.js
 
       - name: Remove temporary tooling
-        run: rm -f scripts/tmp-access-control-v2.js scripts/tmp_access_control_v2.py scripts/tmp_patch_access_transformer.py .github/workflows/tmp-access-control-v2.yml tmp-access-v2-test.log
+        run: rm -f scripts/tmp-access-control-v2.js scripts/tmp_access_control_v2.py scripts/tmp_patch_access_transformer.py .github/workflows/tmp-access-control-v2.yml tmp-access-v2-test.txt tmp-access-v2-test-summary.txt
 
       - name: Final diff checks
         run: |
