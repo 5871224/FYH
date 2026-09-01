@@ -1,8 +1,5 @@
-451:not ok 75 - 正式 SQL 必須包含群組、角色共用／群組權限與班表封存模型
-456:  failureType: 'testCodeFailure'
-457:  error: |-
-656:  code: 'ERR_ASSERTION'
-657:  name: 'AssertionError'
-658:  expected:
-659:  actual: |-
-3182:# fail 1
+57:# SyntaxError: Invalid or unexpected token
+68:not ok 2 - tests/access-control-model.test.js
+73:  failureType: 'testCodeFailure'
+76:  error: 'test failed'
+2747:# fail 1
