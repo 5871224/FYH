@@ -51,6 +51,33 @@ if (!css.includes(oldBlock)) {
 css = css.replace(oldBlock, newBlock);
 fs.writeFileSync(responsivePath, css, 'utf8');
 
+const consolidationPath = 'tests/css-consolidation.test.js';
+let consolidation = fs.readFileSync(consolidationPath, 'utf8');
+const oldTest = `test("手機假別與加班設定表格應使用內部水平捲動", () => {
+  const foundation = read("src/renderer/css/foundation.css");
+  const responsive = read("src/renderer/css/responsive.css");
+  assert.match(foundation, /\\.member-table-scroll,\\s*\\.settings-table-scroll\\s*\\{[^}]*overflow:\\s*auto;/s);
+  assert.match(responsive, /\\.catalog-settings-modal \\.settings-table-row-leave\\s*\\{\\s*min-width:\\s*720px;/s);
+  assert.match(responsive, /\\.catalog-settings-modal \\.settings-table-row-overtime\\s*\\{\\s*min-width:\\s*840px;/s);
+  assert.doesNotMatch(responsive, /\\.catalog-settings-modal \\.settings-table-row-shift\\s*\\{\\s*min-width:/s);
+});`;
+const newTest = `test("手機單位、人員、班別與假別設定表格應使用內部水平捲動", () => {
+  const foundation = read("src/renderer/css/foundation.css");
+  const responsive = read("src/renderer/css/responsive.css");
+  assert.match(foundation, /\\.member-table-scroll,\\s*\\.settings-table-scroll\\s*\\{[^}]*overflow:\\s*auto;/s);
+  assert.match(responsive, /\\.department-settings-modal \\.department-settings-table-wrap,[\\s\\S]*overflow-x:\\s*auto;/s);
+  assert.match(responsive, /\\.department-settings-modal \\.department-settings-table-department,[\\s\\S]*min-width:\\s*900px;/s);
+  assert.match(responsive, /\\.member-settings-modal \\.member-table,[\\s\\S]*min-width:\\s*980px;/s);
+  assert.match(responsive, /\\.catalog-settings-modal \\.settings-table-row-shift\\s*\\{\\s*min-width:\\s*920px;/s);
+  assert.match(responsive, /\\.catalog-settings-modal \\.settings-table-row-leave\\s*\\{\\s*min-width:\\s*760px;/s);
+  assert.match(responsive, /\\.catalog-settings-modal \\.settings-table-row-overtime\\s*\\{\\s*min-width:\\s*840px;/s);
+});`;
+if (!consolidation.includes(oldTest)) {
+  throw new Error('old mobile settings test contract not found');
+}
+consolidation = consolidation.replace(oldTest, newTest);
+fs.writeFileSync(consolidationPath, consolidation, 'utf8');
+
 const testPath = 'tests/settings-mobile-table-scroll.test.js';
 fs.writeFileSync(testPath, `const test = require("node:test");
 const assert = require("node:assert/strict");
