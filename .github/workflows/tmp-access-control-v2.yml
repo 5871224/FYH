@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   apply:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -63,7 +64,10 @@ jobs:
           grep -nE 'function public\.(has_access_permission|can_access_group|role_applies_to_group|get_group_access_bundle_v1|save_access_role_v1|delete_access_role_v1)|role\.permissions|access_role_groups' supabase/002_current_updates.sql || true
 
       - name: Remove temporary tooling from validation tree
-        run: rm -f scripts/tmp-access-control-v2.js scripts/tmp_access_control_v2.py scripts/tmp_patch_access_transformer.py .github/workflows/tmp-access-control-v2.yml tmp-access-v2-test.txt tmp-access-v2-test-summary.txt
+        run: rm -f scripts/tmp-access-control-v2.js scripts/tmp_access_control_v2.py scripts/tmp_patch_access_transformer.py tmp-access-v2-test.txt tmp-access-v2-test-summary.txt
+
+      - name: Keep formal workflows unchanged
+        run: git restore --source=HEAD -- .github/workflows/deploy-pages.yml
 
       - name: Build published web files
         run: npm run web:publish
