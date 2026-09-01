@@ -3249,7 +3249,7 @@ function syncScheduleColumnWidths() {
   const statsWidth = state.tableView === "member" && state.tableStatsVisible ? 86 : 0;
   if (state.tableView === "shift") {
     const visibleShifts = getVisibleShiftRows();
-    const shiftContentWidth = visibleShifts.reduce((max, shift) => Math.max(max, measureTextWidth(shift.name, deptStyle)), 0);
+    const shiftContentWidth = visibleShifts.reduce((max, shift) => Math.max(max, measureTextWidth(getLocalizedName(shift), deptStyle)), 0);
     const demandValues = visibleShifts.map((shift) => String(shift.requiredStaffCount ?? 0));
     const demandContentWidth = demandValues.reduce((max, text) => Math.max(max, measureTextWidth(text, personStyle)), 0);
     const shiftHeaderWidth = measureTextWidth("班別", headerStyle);
@@ -3258,9 +3258,9 @@ function syncScheduleColumnWidths() {
     personWidth = clamp(Math.ceil(Math.max(demandContentWidth, demandHeaderWidth) + 18), 74, 104);
   } else {
     const visibleGroups = getVisibleTableGroups();
-    const visibleDepartments = visibleGroups.map(({ department }) => department.name);
+    const visibleDepartments = visibleGroups.map(({ department }) => getLocalizedName(department));
     const visibleMembers = visibleGroups.flatMap(({ members }) => (
-      members.map((member) => `${member.name || ""}${member.payByDay ? "PT" : ""}`)
+      members.map((member) => `${getLocalizedName(member)}${member.payByDay ? "PT" : ""}`)
     ));
     const deptContentWidth = visibleDepartments.reduce((max, text) => Math.max(max, measureTextWidth(text, deptStyle)), 0);
     const personContentWidth = visibleMembers.reduce((max, text) => Math.max(max, measureTextWidth(text, personStyle)), 0);
@@ -5719,7 +5719,7 @@ function syncSelectedToolbarPreview() {
   const { type, item } = selected;
   const categoryLabel = type === "shift" ? "班別" : "假別";
   const color = item.color || "#888780";
-  const name = item.name || categoryLabel;
+  const name = getLocalizedName(item, categoryLabel);
   preview.hidden = false;
   preview.style.backgroundColor = color;
   preview.style.color = getItemTextColor(item, color);
@@ -5741,7 +5741,7 @@ function renderDeptFilter() {
   select.innerHTML = `
     <option value="all">全部單位</option>
     ${departments.map((department) => (
-      `<option value="${department.id}" ${state.deptFilter === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`
+      `<option value="${department.id}" ${state.deptFilter === department.id ? "selected" : ""}>${escapeHtml(getLocalizedName(department))}</option>`
     )).join("")}
   `;
 }
@@ -5758,7 +5758,7 @@ function renderTableDeptScopeFilter() {
   select.innerHTML = `
     <option value="all">全部顯示</option>
     ${departments.map((department) => (
-      `<option value="${department.id}" ${state.tableDeptScopeFilter === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`
+      `<option value="${department.id}" ${state.tableDeptScopeFilter === department.id ? "selected" : ""}>${escapeHtml(getLocalizedName(department))}</option>`
     )).join("")}
   `;
 }
@@ -5777,7 +5777,7 @@ function renderChips(containerId, category, items) {
     const active = state.selected.type === category && state.selected.id === item.id;
     const foreground = getItemTextColor(item, item.color);
     const style = `color:${foreground};background:${item.color};border-color:${item.color};`;
-    return `<button class="chip ${active ? "active" : ""}" style="${style}" type="button" data-chip-type="${category}" data-chip-id="${item.id}">${escapeHtml(item.name)}</button>`;
+    return `<button class="chip ${active ? "active" : ""}" style="${style}" type="button" data-chip-type="${category}" data-chip-id="${item.id}">${escapeHtml(getLocalizedName(item))}</button>`;
   });
   const cancelType = `cancel-${category}`;
   const cancelActive = state.selected.type === cancelType;
@@ -5813,7 +5813,7 @@ function memberMatchesSelectedShift(member) {
 function memberLabel(member) {
   const selectedShiftClass = memberMatchesSelectedShift(member) ? "shift-eligible-member-name" : "";
   const payTypeLabel = member.payByDay ? '<span class="member-pay-type">PT</span>' : "";
-  return `<span class="member-main ${selectedShiftClass}">${escapeHtml(member.name)}${payTypeLabel}</span>`;
+  return `<span class="member-main ${selectedShiftClass}">${escapeHtml(getLocalizedName(member))}${payTypeLabel}</span>`;
 }
 ;
 
@@ -5945,7 +5945,7 @@ function renderShiftViewCell(members, dateString) {
         const regularHolidayWorkClass = isRegularHolidayWorkSlot(getDisplayedSlot(member.id, dateString))
           ? " regular-holiday-work-member"
           : "";
-        return `<div class="shift-view-member${regularHolidayWorkClass}" data-shift-schedule-member="${escapeHtml(member.id)}">${escapeHtml(member.name)}</div>`;
+        return `<div class="shift-view-member${regularHolidayWorkClass}" data-shift-schedule-member="${escapeHtml(member.id)}">${escapeHtml(getLocalizedName(member))}</div>`;
       }).join("")}
     </div>
   `;
@@ -5980,7 +5980,7 @@ function renderCellInner(key, memberId = "", day = 0, slotOverride = null, isPre
     if (shift) {
       segments.push({
         category: "shift",
-        name: shift.name,
+        name: getLocalizedName(shift),
         color: shift.color,
         textColor: getItemTextColor(shift, shift.color)
       });
@@ -6050,7 +6050,7 @@ function renderTable() {
     } else {
       shifts.forEach((shift) => {
         html += "<tr>";
-        html += `<td class="dept-col">${escapeHtml(shift.name)}</td>`;
+        html += `<td class="dept-col">${escapeHtml(getLocalizedName(shift))}</td>`;
         html += `<td class="person-col demand-col">${escapeHtml(String(shift.requiredStaffCount ?? 0))}</td>`;
         visibleDates.forEach((dateString, index) => {
           const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, index, days);
@@ -6079,7 +6079,7 @@ function renderTable() {
             ? ` data-table-department-id="${escapeHtml(department.id)}"`
             : "";
           html += `<tr class="empty-department-row" data-table-empty-department-id="${escapeHtml(department.id)}" title="可將人員拖曳到此單位">`;
-          html += `<td class="dept-col${orderDragClass}"${departmentDragAttrs}${departmentEditAttrs}>${escapeHtml(department.name)}</td>`;
+          html += `<td class="dept-col${orderDragClass}"${departmentDragAttrs}${departmentEditAttrs}>${escapeHtml(getLocalizedName(department))}</td>`;
           html += '<td class="person-col empty-department-person-col" aria-label="目前沒有所屬人員"></td>';
           if (state.tableStatsVisible) {
             html += '<td class="stats-col empty-department-stats-col"></td>';
@@ -6097,7 +6097,7 @@ function renderTable() {
             const departmentEditAttrs = (canEditScheduleOrder || canEditDepartmentSettings)
               ? ` data-table-department-id="${escapeHtml(department.id)}"`
               : "";
-            html += `<td class="dept-col${orderDragClass}"${draggableAttr} rowspan="${members.length}"${departmentEditAttrs}>${escapeHtml(department.name)}</td>`;
+            html += `<td class="dept-col${orderDragClass}"${draggableAttr} rowspan="${members.length}"${departmentEditAttrs}>${escapeHtml(getLocalizedName(department))}</td>`;
           }
           const memberEditAttrs = canEditMemberSettings
             ? ` data-table-member-id="${escapeHtml(member.id)}" data-table-member-department-id="${escapeHtml(getMemberHomeDeptId(member))}"`
@@ -6165,7 +6165,7 @@ function openListSettings(category) {
       return "-";
     }
     return members.map((member) => (
-      `<span class="settings-member-chip" data-shift-schedule-member="${escapeHtml(member.id)}" title="雙擊修改人員">${escapeHtml(member.name)}</span>`
+      `<span class="settings-member-chip" data-shift-schedule-member="${escapeHtml(member.id)}" title="雙擊修改人員">${escapeHtml(getLocalizedName(member))}</span>`
     )).join("");
   };
   const body = list.length
@@ -6176,10 +6176,8 @@ function openListSettings(category) {
               <div class="settings-table-row settings-table-head settings-table-row-${category}">
                  ${renderSettingsOrderDragColumn(true)}
                  <div>預覽</div>
-                ${category === "shift" ? "<div>越文名稱</div>" : ""}
                 ${category === "leave" ? "<div>假別代碼</div>" : ""}
                 ${category === "shift" ? "" : `<div>${category === "leave" ? "假別" : "加班"}</div>`}
-                ${category === "leave" ? "<div>越文名稱</div>" : ""}
                 <div>${category === "shift" ? "適用單位" : category === "leave" ? "需填時間" : "時段"}</div>
                 ${category === "shift" ? "<div>需求人數</div>" : ""}
                 ${category === "shift" ? "<div>排班人員</div>" : ""}
@@ -6193,12 +6191,10 @@ function openListSettings(category) {
                 <div class="settings-table-row settings-table-row-${category} sortable-settings-item" data-sort-category="${category}" data-sort-item="${item.id}">
                    ${renderSettingsOrderDragColumn()}
                    <div class="settings-table-color">
-                    <div class="settings-table-preview" style="background:${escapeHtml(item.color)};color:${escapeHtml(getItemTextColor(item, item.color))}">${escapeHtml(item.name || item.code || "名稱")}</div>
+                    <div class="settings-table-preview" style="background:${escapeHtml(item.color)};color:${escapeHtml(getItemTextColor(item, item.color))}">${escapeHtml(getLocalizedName(item, item.name || item.code || "名稱"))}</div>
                   </div>
-                  ${category === "shift" ? `<div class="settings-table-name-vi">${escapeHtml(item.nameVi || "-")}</div>` : ""}
                   ${category === "leave" ? `<div class="settings-table-code">${escapeHtml(item.code || "")}</div>` : ""}
-                  ${category === "shift" ? "" : `<div class="settings-table-name">${escapeHtml(category === "leave" ? getLeaveCatalogDisplayName(item) : item.name)}</div>`}
-                  ${category === "leave" ? `<div class="settings-table-name-vi">${escapeHtml(item.nameVi || "-")}</div>` : ""}
+                  ${category === "shift" ? "" : `<div class="settings-table-name">${escapeHtml(category === "leave" ? getLocalizedName(item, getLeaveCatalogDisplayName(item)) : getLocalizedName(item))}</div>`}
                   <div class="settings-table-meta">${category === "shift"
                     ? escapeHtml(getDepartmentSummary(item.applicableDeptId))
                     : category === "leave"
@@ -6782,12 +6778,12 @@ async function openDepartmentSettings() {
     return `
       <div class="department-settings-row sortable-settings-item" data-sort-category="department" data-sort-item="${escapeHtml(department.id)}" data-drop-department="${escapeHtml(department.id)}">
          ${renderSettingsOrderDragColumn()}
-         <div class="department-settings-title"><span>${escapeHtml(department.name)}</span><small class="department-settings-name-vi">${escapeHtml(department.nameVi || "-")}</small></div>
+         <div class="department-settings-title"><span>${escapeHtml(getLocalizedName(department))}</span></div>
         <div class="member-inline-list">
           ${homeMembers.length
             ? homeMembers.map((member) => `
               <div class="member-item draggable-member" draggable="true" data-member-card="${escapeHtml(member.id)}" data-drop-member="${escapeHtml(member.id)}" data-drop-department="${escapeHtml(department.id)}">
-                <span>${escapeHtml(member.name)}</span>
+                <span>${escapeHtml(getLocalizedName(member))}</span>
               </div>
             `).join("")
             : '<div class="dept-empty-pill">拖曳人員到這裡</div>'
@@ -6809,7 +6805,7 @@ async function openDepartmentSettings() {
         <div class="department-settings-table department-settings-table-department">
           <div class="department-settings-row department-settings-head">
              ${renderSettingsOrderDragColumn(true)}
-             <div>單位<br><span>越文名稱</span></div>
+             <div>單位</div>
             <div>所屬人員</div>
             <div>開始日期<br>結束日期</div>
             <div>不顯示</div>
@@ -7342,7 +7338,7 @@ function renderScheduleShiftSelector(member) {
           <label class="schedule-dept-option" draggable="true" data-schedule-shift-option="${escapeHtml(shift.id)}">
             <input type="checkbox" value="${escapeHtml(shift.id)}" ${checked ? "checked" : ""}>
             <span class="schedule-dept-rank">${checked ? index + 1 : "-"}</span>
-            <span>${escapeHtml(shift.name)}</span>
+            <span>${escapeHtml(getLocalizedName(shift))}</span>
           </label>
         `;
       }).join("")}
@@ -7362,7 +7358,7 @@ function syncScheduleShiftSummary() {
   if (!summary) {
     return;
   }
-  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, shift.name]));
+  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, getLocalizedName(shift)]));
   const names = readMemberScheduleShiftIds()
     .map((shiftId) => shiftMap.get(shiftId))
     .filter(Boolean);
@@ -7453,7 +7449,6 @@ function renderMemberSettingsList() {
               ${renderSettingsOrderDragColumn(true)}
               <div>工號</div>
               <div>姓名</div>
-              <div>越文名稱</div>
               <div>排班班別</div>
               <div>權限</div>
               <div>到職日<br>離職日</div>
@@ -7467,8 +7462,7 @@ function renderMemberSettingsList() {
               <div class="member-table-row sortable-settings-item" data-sort-category="member" data-sort-item="${escapeHtml(member.id)}" data-member-settings-row="${escapeHtml(member.id)}">
                  ${renderSettingsOrderDragColumn()}
                  <div class="member-table-code">${escapeHtml(member.code)}</div>
-                <div class="member-table-name">${escapeHtml(member.name)}</div>
-                <div class="member-table-name-vi">${escapeHtml(member.nameVi || "-")}</div>
+                <div class="member-table-name">${escapeHtml(getLocalizedName(member))}</div>
                 <div class="member-shift-pill-list">${renderMemberScheduleShiftPills(member)}</div>
                 <div>${getRoleLabel(member.roleId)}</div>
                 <div class="member-date-stack"><span>${escapeHtml(member.hireDate || "-")}</span><span>${escapeHtml(member.leaveDate || "-")}</span></div>
@@ -7544,7 +7538,7 @@ async function openMemberSettings() {
           <label for="memberSettingsDepartmentFilter">單位</label>
           <select id="memberSettingsDepartmentFilter" data-member-settings-filter-field="department">
             <option value="all" ${memberSettingsFilters.department === "all" ? "selected" : ""}>全部</option>
-            ${state.departments.filter((department) => !department.deleted).map((department) => `<option value="${escapeHtml(department.id)}" ${memberSettingsFilters.department === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}
+            ${state.departments.filter((department) => !department.deleted).map((department) => `<option value="${escapeHtml(department.id)}" ${memberSettingsFilters.department === department.id ? "selected" : ""}>${escapeHtml(getLocalizedName(department))}</option>`).join("")}
             <option value="__none__" ${memberSettingsFilters.department === "__none__" ? "selected" : ""}>未指定</option>
           </select>
         </div>
@@ -8239,7 +8233,7 @@ function openPermissionSettings() {
   openEntityListModal({
     title: "權限設定",
     modalClass: "modal modal-wide permission-settings-modal settings-list-modal",
-    body: `<div class="records-table-wrap"><table class="records-table permission-settings-table"><thead><tr><th class="permission-role-drag-col"></th><th class="permission-role-col">角色名稱</th><th class="permission-role-vi-col">越文名稱</th><th class="permission-group-col">適用群組</th><th class="permission-items-col">權限項目</th><th class="permission-actions-col">操作</th></tr></thead><tbody id="permissionSettingsRows">${getAllRoles().map((role) => `<tr data-permission-role-id="${escapeHtml(role.id)}"><td class="permission-role-drag-col"><span class="settings-order-drag-handle" draggable="true" data-permission-role-drag-handle="${escapeHtml(role.id)}" title="拖曳排序" aria-label="拖曳排序">≡</span></td><td class="permission-role-col">${escapeHtml(role.name)}</td><td class="permission-role-vi-col">${escapeHtml(role.nameVi || "-")}</td><td class="permission-group-col">${escapeHtml(roleGroupSummary(role))}</td><td class="permission-summary-cell permission-items-col">${renderPermissionSummaryTags(role)}</td><td class="permission-actions-col"><button class="settings-icon-btn" type="button" data-edit-access-role="${escapeHtml(role.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-access-role="${escapeHtml(role.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td></tr>`).join("")}</tbody></table></div>`,
+    body: `<div class="records-table-wrap"><table class="records-table permission-settings-table"><thead><tr><th class="permission-role-drag-col"></th><th class="permission-role-col">角色名稱</th><th class="permission-group-col">適用群組</th><th class="permission-items-col">權限項目</th><th class="permission-actions-col">操作</th></tr></thead><tbody id="permissionSettingsRows">${getAllRoles().map((role) => `<tr data-permission-role-id="${escapeHtml(role.id)}"><td class="permission-role-drag-col"><span class="settings-order-drag-handle" draggable="true" data-permission-role-drag-handle="${escapeHtml(role.id)}" title="拖曳排序" aria-label="拖曳排序">≡</span></td><td class="permission-role-col">${escapeHtml(getLocalizedName(role))}</td><td class="permission-group-col">${escapeHtml(roleGroupSummary(role))}</td><td class="permission-summary-cell permission-items-col">${renderPermissionSummaryTags(role)}</td><td class="permission-actions-col"><button class="settings-icon-btn" type="button" data-edit-access-role="${escapeHtml(role.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-access-role="${escapeHtml(role.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td></tr>`).join("")}</tbody></table></div>`,
     headerButtons: '<button class="btn-primary" type="button" data-add-access-role="true">新增</button>',
     hideFooterClose: true
   });
@@ -8425,6 +8419,8 @@ async function saveMember(mode) {
     if (previousMember && previousMember.groupId !== payload.groupId) await window.schedulerApi.validateMemberGroupChange(previousMember.code, payload.groupId);
     await window.schedulerApi.syncMemberProfile(payload, previousMember?.code || "");
     await reloadGroupApplicationState();
+    await window.fyhI18n?.refreshLabels?.();
+    window.fyhI18n?.refresh?.();
     closeModal();
     await reopenSettingsModalPreservingScroll(returnTo || { category: "member-settings", scrollTop: 0 });
   } catch (error) { reportValidationError(`同步人員資料失敗：${error.message}`); }
@@ -10397,8 +10393,15 @@ function setSaveStatus(message, saving = false) {
   isSaving = saving;
 }
 
+function getLocalizedName(item, chineseFallback = "") {
+  const chineseName = String(chineseFallback || item?.name || "");
+  const vietnameseName = String(item?.nameVi || "").trim();
+  return window.fyhI18n?.isVietnamese?.() && vietnameseName ? vietnameseName : chineseName;
+}
+
 function getDepartmentName(deptId) {
-  return state.departments.find((department) => department.id === deptId)?.name || "未指定單位";
+  const department = state.departments.find((item) => item.id === deptId);
+  return department ? getLocalizedName(department) : "未指定單位";
 }
 
 function getSalaryTypeLabel(member) {
@@ -10430,13 +10433,13 @@ function getMemberHomeDeptId(member) {
 }
 
 function getMemberScheduleShiftNames(member) {
-  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, shift.name]));
+  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, getLocalizedName(shift)]));
   const names = getMemberScheduleShiftIds(member).map((shiftId) => shiftMap.get(shiftId)).filter(Boolean);
   return names.length ? names.join("、") : "未指定";
 }
 
 function renderMemberScheduleShiftPills(member) {
-  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, shift.name]));
+  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, getLocalizedName(shift)]));
   const names = getMemberScheduleShiftIds(member).map((shiftId) => shiftMap.get(shiftId)).filter(Boolean);
   if (!names.length) {
     return "-";
@@ -10487,7 +10490,8 @@ function getLeaveLabel(leave) {
   if (!leave) {
     return "";
   }
-  return leave.code ? `${leave.code} ${leave.name}` : leave.name;
+  const name = getLocalizedName(leave);
+  return leave.code ? `${leave.code} ${name}` : name;
 }
 ;
 

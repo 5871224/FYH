@@ -232,7 +232,7 @@ function syncScheduleColumnWidths() {
   const statsWidth = state.tableView === "member" && state.tableStatsVisible ? 86 : 0;
   if (state.tableView === "shift") {
     const visibleShifts = getVisibleShiftRows();
-    const shiftContentWidth = visibleShifts.reduce((max, shift) => Math.max(max, measureTextWidth(shift.name, deptStyle)), 0);
+    const shiftContentWidth = visibleShifts.reduce((max, shift) => Math.max(max, measureTextWidth(getLocalizedName(shift), deptStyle)), 0);
     const demandValues = visibleShifts.map((shift) => String(shift.requiredStaffCount ?? 0));
     const demandContentWidth = demandValues.reduce((max, text) => Math.max(max, measureTextWidth(text, personStyle)), 0);
     const shiftHeaderWidth = measureTextWidth("班別", headerStyle);
@@ -241,9 +241,9 @@ function syncScheduleColumnWidths() {
     personWidth = clamp(Math.ceil(Math.max(demandContentWidth, demandHeaderWidth) + 18), 74, 104);
   } else {
     const visibleGroups = getVisibleTableGroups();
-    const visibleDepartments = visibleGroups.map(({ department }) => department.name);
+    const visibleDepartments = visibleGroups.map(({ department }) => getLocalizedName(department));
     const visibleMembers = visibleGroups.flatMap(({ members }) => (
-      members.map((member) => `${member.name || ""}${member.payByDay ? "PT" : ""}`)
+      members.map((member) => `${getLocalizedName(member)}${member.payByDay ? "PT" : ""}`)
     ));
     const deptContentWidth = visibleDepartments.reduce((max, text) => Math.max(max, measureTextWidth(text, deptStyle)), 0);
     const personContentWidth = visibleMembers.reduce((max, text) => Math.max(max, measureTextWidth(text, personStyle)), 0);

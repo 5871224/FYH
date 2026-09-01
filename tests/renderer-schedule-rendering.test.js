@@ -44,6 +44,7 @@ test("儲存格渲染應保留班別、假別與加班三段資訊", () => {
     state: { schedule: {} },
     getItem: (category, id) => items[category][id] || null,
     getItemTextColor: () => "#ffffff", textColor: () => "#ffffff", escapeHtml: String,
+    getLocalizedName: (item, fallback = "") => String(item?.name || fallback || ""),
     shouldPromptLeaveDetail: () => false
   };
   const api = evaluate(["renderer-schedule-cells.js"], "({ renderCellInner })", context);
@@ -65,6 +66,7 @@ test("例假排班只變更例假段落與班別檢視人員區塊", () => {
     getItemTextColor: () => "#ffffff",
     textColor: () => "#ffffff",
     escapeHtml: String,
+    getLocalizedName: (item, fallback = "") => String(item?.name || fallback || ""),
     shouldPromptLeaveDetail: () => false,
     getDisplayedSlot: () => slot
   };
@@ -87,6 +89,7 @@ test("需填時間或需填原因的假別應產生明細提示標記", () => {
     state: { schedule: {} },
     getItem: (category, id) => category === "leave" ? leaves[id] || null : null,
     getItemTextColor: () => "#ffffff", textColor: () => "#ffffff", escapeHtml: String,
+    getLocalizedName: (item, fallback = "") => String(item?.name || fallback || ""),
     shouldPromptLeaveDetail: (leave) => Boolean(leave?.requiresTime || leave?.requiresReason)
   };
   const api = evaluate(["renderer-schedule-cells.js"], "({ renderCellInner })", context);

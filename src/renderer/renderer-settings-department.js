@@ -39,12 +39,12 @@ async function openDepartmentSettings() {
     return `
       <div class="department-settings-row sortable-settings-item" data-sort-category="department" data-sort-item="${escapeHtml(department.id)}" data-drop-department="${escapeHtml(department.id)}">
          ${renderSettingsOrderDragColumn()}
-         <div class="department-settings-title"><span>${escapeHtml(department.name)}</span><small class="department-settings-name-vi">${escapeHtml(department.nameVi || "-")}</small></div>
+         <div class="department-settings-title"><span>${escapeHtml(getLocalizedName(department))}</span></div>
         <div class="member-inline-list">
           ${homeMembers.length
             ? homeMembers.map((member) => `
               <div class="member-item draggable-member" draggable="true" data-member-card="${escapeHtml(member.id)}" data-drop-member="${escapeHtml(member.id)}" data-drop-department="${escapeHtml(department.id)}">
-                <span>${escapeHtml(member.name)}</span>
+                <span>${escapeHtml(getLocalizedName(member))}</span>
               </div>
             `).join("")
             : '<div class="dept-empty-pill">拖曳人員到這裡</div>'
@@ -66,7 +66,7 @@ async function openDepartmentSettings() {
         <div class="department-settings-table department-settings-table-department">
           <div class="department-settings-row department-settings-head">
              ${renderSettingsOrderDragColumn(true)}
-             <div>單位<br><span>越文名稱</span></div>
+             <div>單位</div>
             <div>所屬人員</div>
             <div>開始日期<br>結束日期</div>
             <div>不顯示</div>

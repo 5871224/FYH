@@ -23,7 +23,7 @@ function syncSelectedToolbarPreview() {
   const { type, item } = selected;
   const categoryLabel = type === "shift" ? "班別" : "假別";
   const color = item.color || "#888780";
-  const name = item.name || categoryLabel;
+  const name = getLocalizedName(item, categoryLabel);
   preview.hidden = false;
   preview.style.backgroundColor = color;
   preview.style.color = getItemTextColor(item, color);
@@ -45,7 +45,7 @@ function renderDeptFilter() {
   select.innerHTML = `
     <option value="all">全部單位</option>
     ${departments.map((department) => (
-      `<option value="${department.id}" ${state.deptFilter === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`
+      `<option value="${department.id}" ${state.deptFilter === department.id ? "selected" : ""}>${escapeHtml(getLocalizedName(department))}</option>`
     )).join("")}
   `;
 }
@@ -62,7 +62,7 @@ function renderTableDeptScopeFilter() {
   select.innerHTML = `
     <option value="all">全部顯示</option>
     ${departments.map((department) => (
-      `<option value="${department.id}" ${state.tableDeptScopeFilter === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`
+      `<option value="${department.id}" ${state.tableDeptScopeFilter === department.id ? "selected" : ""}>${escapeHtml(getLocalizedName(department))}</option>`
     )).join("")}
   `;
 }
@@ -81,7 +81,7 @@ function renderChips(containerId, category, items) {
     const active = state.selected.type === category && state.selected.id === item.id;
     const foreground = getItemTextColor(item, item.color);
     const style = `color:${foreground};background:${item.color};border-color:${item.color};`;
-    return `<button class="chip ${active ? "active" : ""}" style="${style}" type="button" data-chip-type="${category}" data-chip-id="${item.id}">${escapeHtml(item.name)}</button>`;
+    return `<button class="chip ${active ? "active" : ""}" style="${style}" type="button" data-chip-type="${category}" data-chip-id="${item.id}">${escapeHtml(getLocalizedName(item))}</button>`;
   });
   const cancelType = `cancel-${category}`;
   const cancelActive = state.selected.type === cancelType;
@@ -117,5 +117,5 @@ function memberMatchesSelectedShift(member) {
 function memberLabel(member) {
   const selectedShiftClass = memberMatchesSelectedShift(member) ? "shift-eligible-member-name" : "";
   const payTypeLabel = member.payByDay ? '<span class="member-pay-type">PT</span>' : "";
-  return `<span class="member-main ${selectedShiftClass}">${escapeHtml(member.name)}${payTypeLabel}</span>`;
+  return `<span class="member-main ${selectedShiftClass}">${escapeHtml(getLocalizedName(member))}${payTypeLabel}</span>`;
 }
