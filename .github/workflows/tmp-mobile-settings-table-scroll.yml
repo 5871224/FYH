@@ -1,0 +1,43 @@
+name: Temporary Mobile Settings Table Scroll
+
+on:
+  push:
+    branches:
+      - fix/mobile-settings-table-scroll-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/mobile-settings-table-scroll-20260901
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply mobile table changes
+        run: node scripts/tmp-mobile-settings-table-scroll.js
+      - name: Remove temporary tooling
+        run: rm scripts/tmp-mobile-settings-table-scroll.js .github/workflows/tmp-mobile-settings-table-scroll.yml
+      - name: Build published web files
+        run: npm run web:publish
+      - name: Run validation
+        run: |
+          npm test
+          node scripts/check-normalized-storage.js
+          npm run renderer:check
+          npm run css:architecture
+          npm run js:architecture
+      - name: Commit formal changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "調整手機設定表格為水平滑動" || exit 0
+          git push origin HEAD:fix/mobile-settings-table-scroll-20260901
