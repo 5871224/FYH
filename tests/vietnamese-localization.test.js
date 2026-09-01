@@ -43,10 +43,24 @@ test("Vietnamese fixed UI covers settings lists, forms, home and attendance revi
     '"修改角色": "Sửa vai trò"',
     '"批次審核": "Duyệt hàng loạt"',
     '"匯入": "Nhập dữ liệu"',
-    '"功能": "Chức năng"'
+    '"功能": "Chức năng"',
+    '"修改群組": "Sửa nhóm"',
+    '"新增群組": "Thêm nhóm"',
+    '"修改排班條件": "Sửa điều kiện xếp ca"',
+    '"新增排班條件": "Thêm điều kiện xếp ca"'
   ].forEach((token) => assert.ok(source.includes(token), 'missing Vietnamese fixed label: ' + token));
   assert.match(source, /actions\.insertBefore\(shell, passwordButton\)/);
   assert.doesNotMatch(source, /position:fixed;right:10px;bottom:10px/);
+  assert.ok(source.includes("text.match(/^排班條件－(.+)$/)"));
+  assert.ok(source.includes("text.match(/^(.+)封存班表$/)"));
+});
+
+test("schedule weekday headers switch to Vietnamese labels", () => {
+  const layout = read("src/renderer/renderer-schedule-layout.js");
+  const config = read("src/renderer/app-config.js");
+  assert.ok(layout.includes('["CN", "T2", "T3", "T4", "T5", "T6", "T7"]'));
+  assert.ok(layout.includes("getScheduleWeekdayLabel(weekday)"));
+  assert.ok(config.includes('["CN", "T2", "T3", "T4", "T5", "T6", "T7"]'));
 });
 
 test("settings lists localize the original name column while edit forms retain Vietnamese fields", () => {

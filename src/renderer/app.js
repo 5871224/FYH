@@ -3019,6 +3019,13 @@ async function reopenSettingsModalPreservingScroll(context) {
  * 由 renderer.js 第一階段拆分；維持既有全域 bundle 執行方式。
  */
 
+function getScheduleWeekdayLabel(weekday) {
+  const labels = window.fyhI18n?.isVietnamese?.()
+    ? ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]
+    : WEEKDAY_LABELS;
+  return labels[weekday] || "";
+}
+
 function renderStickyTableHeader(dates) {
   const container = document.getElementById("tableStickyHeaderDays");
   const stickyHeader = document.getElementById("tableStickyHeader");
@@ -3039,7 +3046,7 @@ function renderStickyTableHeader(dates) {
     const weekStripeClass = getWeekStripeClassForDate(dateString);
     const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, index, dates.length);
     cells.push(
-      `<div class="table-sticky-cell table-sticky-cell-day ${cls} ${weekStripeClass} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-schedule-column="${index}" data-date="${dateString}">${date.getMonth() + 1}/${day}<span>${WEEKDAY_LABELS[weekday]}</span></div>`
+      `<div class="table-sticky-cell table-sticky-cell-day ${cls} ${weekStripeClass} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-schedule-column="${index}" data-date="${dateString}">${date.getMonth() + 1}/${day}<span>${getScheduleWeekdayLabel(weekday)}</span></div>`
     );
   });
   container.innerHTML = cells.join("");

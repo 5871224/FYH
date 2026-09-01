@@ -198,7 +198,8 @@ window.SCHEDULER_CONFIG = {
 
   function dateHeader(dateString) {
     const date = toDateObject(dateString);
-    return `${date.getMonth() + 1}/${date.getDate()}<span>${WEEKDAYS[date.getDay()]}</span>`;
+    const weekdayLabels = window.fyhI18n?.isVietnamese?.() ? ["CN", "T2", "T3", "T4", "T5", "T6", "T7"] : WEEKDAYS;
+    return `${date.getMonth() + 1}/${date.getDate()}<span>${weekdayLabels[date.getDay()]}</span>`;
   }
 
   function renderTable(dates, groups) {
@@ -399,9 +400,14 @@ window.SCHEDULER_CONFIG = {
     "例休檢查": "Kiểm tra ngày nghỉ",
     "權限設定": "Cài đặt quyền",
     "群組設定": "Cài đặt nhóm",
+    "修改群組": "Sửa nhóm",
+    "新增群組": "Thêm nhóm",
     "週期設定": "Cài đặt chu kỳ",
     "班表封存": "Lưu trữ lịch",
     "排班條件": "Điều kiện xếp ca",
+    "修改排班條件": "Sửa điều kiện xếp ca",
+    "新增排班條件": "Thêm điều kiện xếp ca",
+    "封存班表": "Lịch đã lưu trữ",
     "自動排班預覽": "Xem trước xếp ca tự động",
     "自動補班預覽": "Xem trước bổ sung ca",
     "套用預覽": "Áp dụng bản xem trước",
@@ -684,7 +690,11 @@ window.SCHEDULER_CONFIG = {
     return map;
   }
 
-  function translateDynamic(text) {
+  function translateDynamic(text, entityMap) {
+    const conditionTitle = text.match(/^排班條件－(.+)$/);
+    if (conditionTitle) return `Điều kiện xếp ca－${entityMap.get(conditionTitle[1]) || conditionTitle[1]}`;
+    const archiveTitle = text.match(/^(.+)封存班表$/);
+    if (archiveTitle) return `${entityMap.get(archiveTitle[1]) || archiveTitle[1]}－Lịch đã lưu trữ`;
     const month = text.match(/^(\d{4})\s*年\s*(\d{1,2})\s*月$/);
     if (month) return `Tháng ${Number(month[2])} năm ${month[1]}`;
     const page = text.match(/^共\s*(\d+)\s*筆，第\s*(\d+)\s*\/\s*(\d+)\s*頁$/);
@@ -697,7 +707,7 @@ window.SCHEDULER_CONFIG = {
   function translateText(text, entityMap) {
     const trimmed = String(text || "").trim();
     if (!trimmed) return text;
-    const translated = fixedVi.get(trimmed) || entityMap.get(trimmed) || translateDynamic(trimmed);
+    const translated = fixedVi.get(trimmed) || entityMap.get(trimmed) || translateDynamic(trimmed, entityMap);
     if (!translated) return text;
     const leading = text.match(/^\s*/)?.[0] || "";
     const trailing = text.match(/\s*$/)?.[0] || "";
