@@ -1,0 +1,122 @@
+403:not ok 67 - Edge Functions share Taipei/effective-account and permission primitives
+408:  failureType: 'testCodeFailure'
+409:  error: |-
+505:  code: 'ERR_ASSERTION'
+506:  name: 'AssertionError'
+507:  expected:
+508:  actual: |-
+655:not ok 75 - 正式 SQL 必須包含群組、角色權限與班表封存模型
+660:  failureType: 'testCodeFailure'
+661:  error: |-
+917:  code: 'ERR_ASSERTION'
+918:  name: 'AssertionError'
+919:  expected:
+920:  actual: |-
+3322:      v_actual_id uuid;
+3343:        returning id into v_actual_id;
+3344:        v_ids:=array_append(v_ids,v_actual_id);
+4647:not ok 84 - test filenames no longer keep phase or v2 stage names
+4652:  failureType: 'testCodeFailure'
+4653:  error: |-
+4655:    + actual - expected
+4662:  code: 'ERR_ASSERTION'
+4663:  name: 'AssertionError'
+4664:  expected:
+4665:  actual:
+4690:not ok 87 - formal tree excludes obsolete migration and patch files
+4695:  failureType: 'testCodeFailure'
+4696:  error: |-
+4698:    + actual - expected
+4705:  code: 'ERR_ASSERTION'
+4706:  name: 'AssertionError'
+4707:  expected:
+4708:  actual:
+4823:not ok 105 - 儲存庫只保留單一正式 GitHub Actions workflow
+4828:  failureType: 'testCodeFailure'
+4829:  error: |-
+4831:    + actual - expected
+4838:  code: 'ERR_ASSERTION'
+4839:  name: 'AssertionError'
+4840:  expected:
+4842:  actual:
+4926:not ok 118 - 簽到簿群組審核 API 由正式 web-api 提供
+4931:  failureType: 'testCodeFailure'
+4932:  error: |-
+4974:      'function clearPersonalAttendanceDraft(workDate, field, expectedValue) {\n' +
+4978:      '  if (arguments.length >= 3 && current.personalDrafts[key] !== expectedValue) return;\n' +
+5035:      '    error: current.error || ""\n' +
+5043:      '  recordsState = { ...recordsState, loading: true, error: "" };\n' +
+5058:      '      error: ""\n' +
+5061:      '    recordsState = { ...recordsState, loading: false, personal: [], error: error.message || "讀取簽到簿失敗" };\n' +
+5074:      '    attendanceReview: { ...review, loading: true, error: "", requestId }\n' +
+5098:      '        error: ""\n' +
+5109:      '        error: error.message || "讀取簽到審核失敗"\n' +
+5120:      '  recordsState = { ...recordsState, mealStats: { ...(recordsState.mealStats || {}), loading: true, error: "" } };\n' +
+5129:      '    recordsState = { ...recordsState, mealStats: { error: error.message || "讀取訂餐統計失敗" } };\n' +
+5138:      '    mealAdmin: { ...recordsState.mealAdmin, loading: true, error: "" }\n' +
+5145:      '      mealAdmin: { loading: false, products: result.products || [], settings: result.settings || { daily_cutoff_time: "10:30" }, error: "" }\n' +
+5150:      '      mealAdmin: { ...recordsState.mealAdmin, loading: false, error: error.message || "讀取訂餐設定失敗" }\n' +
+5156:  code: 'ERR_ASSERTION'
+5157:  name: 'AssertionError'
+5158:  expected:
+5159:  actual: |-
+5199:    function clearPersonalAttendanceDraft(workDate, field, expectedValue) {
+5203:      if (arguments.length >= 3 && current.personalDrafts[key] !== expectedValue) return;
+5260:        error: current.error || ""
+5268:      recordsState = { ...recordsState, loading: true, error: "" };
+5283:          error: ""
+5286:        recordsState = { ...recordsState, loading: false, personal: [], error: error.message || "讀取簽到簿失敗" };
+5299:        attendanceReview: { ...review, loading: true, error: "", requestId }
+5323:            error: ""
+5334:            error: error.message || "讀取簽到審核失敗"
+5345:      recordsState = { ...recordsState, mealStats: { ...(recordsState.mealStats || {}), loading: true, error: "" } };
+5354:        recordsState = { ...recordsState, mealStats: { error: error.message || "讀取訂餐統計失敗" } };
+5363:        mealAdmin: { ...recordsState.mealAdmin, loading: true, error: "" }
+5370:          mealAdmin: { loading: false, products: result.products || [], settings: result.settings || { daily_cutoff_time: "10:30" }, error: "" }
+5375:          mealAdmin: { ...recordsState.mealAdmin, loading: false, error: error.message || "讀取訂餐設定失敗" }
+5398:not ok 120 - 人員設定先顯示載入畫面，再延遲讀取管理欄位
+5403:  failureType: 'testCodeFailure'
+5404:  error: |-
+5482:  code: 'ERR_ASSERTION'
+5483:  name: 'AssertionError'
+5484:  expected:
+5485:  actual: |-
+5751:not ok 151 - 權限角色拖曳由正式 renderer 立即持久化，並共用人員權限選單順序
+5756:  failureType: 'testCodeFailure'
+5757:  error: |-
+5986:  code: 'ERR_ASSERTION'
+5987:  name: 'AssertionError'
+5988:  expected:
+5989:  actual: |-
+6806:not ok 153 - 班表頁匯出加班維持只匯出明確加班設定
+6811:  failureType: 'testCodeFailure'
+6812:  error: |-
+6817:  code: 'ERR_ASSERTION'
+6818:  name: 'AssertionError'
+6819:  expected:
+6820:  actual: ''
+6832:not ok 154 - 權限設定角色表格第一欄由正式 renderer 提供拖曳排序並持久化
+6837:  failureType: 'testCodeFailure'
+6838:  error: |-
+7067:  code: 'ERR_ASSERTION'
+7068:  name: 'AssertionError'
+7069:  expected:
+7070:  actual: |-
+7881:not ok 155 - 權限設定的權限項目使用可換行膠囊標籤並取得主要寬度
+7886:  failureType: 'testCodeFailure'
+7887:  error: |-
+8116:  code: 'ERR_ASSERTION'
+8117:  name: 'AssertionError'
+8118:  expected:
+8119:  actual: |-
+9062:not ok 178 - 管理能力應完全由權限項目與適用群組決定
+9067:  failureType: 'testCodeFailure'
+9068:  error: 'getCommonPermissions is not defined'
+10492:not ok 414 - 班表姓名雙擊依人員設定權限開啟並延遲載入管理欄位
+10497:  failureType: 'testCodeFailure'
+10498:  error: |-
+10819:  code: 'ERR_ASSERTION'
+10820:  name: 'AssertionError'
+10821:  expected:
+10822:  actual: |-
+11401:# fail 13
