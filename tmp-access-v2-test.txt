@@ -6,451 +6,451 @@ TAP version 13
 # Subtest: 瀏覽器不得直接 CRUD 核心資料表
 ok 1 - 瀏覽器不得直接 CRUD 核心資料表
   ---
-  duration_ms: 11.869796
+  duration_ms: 9.994817
   type: 'test'
   ...
 # Subtest: 權限資料層不得用 runtime monkey patch
 ok 2 - 權限資料層不得用 runtime monkey patch
   ---
-  duration_ms: 2.573727
+  duration_ms: 2.0358
   type: 'test'
   ...
 # Subtest: 正式寫入 API 都是具名領域操作
 ok 3 - 正式寫入 API 都是具名領域操作
   ---
-  duration_ms: 0.690296
+  duration_ms: 0.664238
   type: 'test'
   ...
 # Subtest: 舊通用 API 與重複 Edge Function 不得存在
 ok 4 - 舊通用 API 與重複 Edge Function 不得存在
   ---
-  duration_ms: 0.3259
+  duration_ms: 0.265094
   type: 'test'
   ...
 # Subtest: 本人 Edge Function 必須拒絕已軟刪除帳號
 ok 5 - 本人 Edge Function 必須拒絕已軟刪除帳號
   ---
-  duration_ms: 0.374531
+  duration_ms: 0.38922
   type: 'test'
   ...
 # Subtest: 打卡地點只能使用本人所屬群組的有效單位
 ok 6 - 打卡地點只能使用本人所屬群組的有效單位
   ---
-  duration_ms: 0.167115
+  duration_ms: 0.236963
   type: 'test'
   ...
 # Subtest: 正式 SQL 只保留 canonical 權限模型
 ok 7 - 正式 SQL 只保留 canonical 權限模型
   ---
-  duration_ms: 1.877496
+  duration_ms: 1.771137
   type: 'test'
   ...
 # Subtest: 前端角色只使用 access_role_id 與權限資料，不保留文字角色相容層
 ok 8 - 前端角色只使用 access_role_id 與權限資料，不保留文字角色相容層
   ---
-  duration_ms: 1.450537
+  duration_ms: 1.24944
   type: 'test'
   ...
 # Subtest: 權限資料模型只保留最新版
 ok 9 - 權限資料模型只保留最新版
   ---
-  duration_ms: 1.666248
+  duration_ms: 1.838787
   type: 'test'
   ...
 # Subtest: 前端只使用共用與群組權限
 ok 10 - 前端只使用共用與群組權限
   ---
-  duration_ms: 0.515405
+  duration_ms: 0.517791
   type: 'test'
   ...
 # Subtest: Edge Function 不使用舊權限 helper
 ok 11 - Edge Function 不使用舊權限 helper
   ---
-  duration_ms: 2.097833
+  duration_ms: 1.402318
   type: 'test'
   ...
 # Subtest: 簽到審核可維護共用常用備註，個人記錄可選擇或自由輸入
 ok 12 - 簽到審核可維護共用常用備註，個人記錄可選擇或自由輸入
   ---
-  duration_ms: 3.153295
+  duration_ms: 3.748139
   type: 'test'
   ...
 # Subtest: 個人未審紀錄不限當日可修改工時與備註，且個人頁移除訂餐欄
 ok 13 - 個人未審紀錄不限當日可修改工時與備註，且個人頁移除訂餐欄
   ---
-  duration_ms: 0.584259
+  duration_ms: 0.535126
   type: 'test'
   ...
 # Subtest: 個人記錄與簽到審核預設日期降冪並可切換
 ok 14 - 個人記錄與簽到審核預設日期降冪並可切換
   ---
-  duration_ms: 1.592837
+  duration_ms: 1.4114
   type: 'test'
   ...
 # Subtest: 正常異常欄留白，只有異常才顯示文字
 ok 15 - 正常異常欄留白，只有異常才顯示文字
   ---
-  duration_ms: 0.330716
+  duration_ms: 0.284994
   type: 'test'
   ...
 # Subtest: 遲到第六分鐘起、提早超過三十分鐘才早退
 ok 16 - 遲到第六分鐘起、提早超過三十分鐘才早退
   ---
-  duration_ms: 0.239705
+  duration_ms: 0.217744
   type: 'test'
   ...
 # Subtest: 簽到審核群組篩選前後端一致並套用匯出
 ok 17 - 簽到審核群組篩選前後端一致並套用匯出
   ---
-  duration_ms: 0.220261
+  duration_ms: 0.418573
   type: 'test'
   ...
 # Subtest: SAP 例休假匯出檔名使用 sap例休假
 ok 18 - SAP 例休假匯出檔名使用 sap例休假
   ---
-  duration_ms: 0.198278
+  duration_ms: 0.202792
   type: 'test'
   ...
 # Subtest: 首頁與簽到簿使用新導覽
 ok 19 - 首頁與簽到簿使用新導覽
   ---
-  duration_ms: 0.826346
+  duration_ms: 0.965016
   type: 'test'
   ...
 # Subtest: 個人記錄與簽到審核欄位完整
 ok 20 - 個人記錄與簽到審核欄位完整
   ---
-  duration_ms: 0.364927
+  duration_ms: 0.389009
   type: 'test'
   ...
 # Subtest: 前端只呼叫統一 attendance-ledger API
 ok 21 - 前端只呼叫統一 attendance-ledger API
   ---
-  duration_ms: 1.274968
+  duration_ms: 1.542025
   type: 'test'
   ...
 # Subtest: 每日簽到與訂餐後端只使用新資料模型
 ok 22 - 每日簽到與訂餐後端只使用新資料模型
   ---
-  duration_ms: 0.519285
+  duration_ms: 0.51018
   type: 'test'
   ...
 # Subtest: Edge Function 部署清單只包含新簽到端點
 ok 23 - Edge Function 部署清單只包含新簽到端點
   ---
-  duration_ms: 0.265926
+  duration_ms: 0.290312
   type: 'test'
   ...
 # Subtest: 舊出勤 Edge Function 原始碼已移除
 ok 24 - 舊出勤 Edge Function 原始碼已移除
   ---
-  duration_ms: 0.195405
+  duration_ms: 0.252666
   type: 'test'
   ...
 # Subtest: 正式 SQL 不保留舊出勤結構或遷移檔
 ok 25 - 正式 SQL 不保留舊出勤結構或遷移檔
   ---
-  duration_ms: 2.816097
+  duration_ms: 3.264509
   type: 'test'
   ...
 # Subtest: 手機打卡只以 300 公尺距離判斷，不因 GPS 精度數值阻擋
 ok 26 - 手機打卡只以 300 公尺距離判斷，不因 GPS 精度數值阻擋
   ---
-  duration_ms: 1.961335
+  duration_ms: 1.208679
   type: 'test'
   ...
 # Subtest: 簽到審核移除代為申請並只顯示員工姓名
 ok 27 - 簽到審核移除代為申請並只顯示員工姓名
   ---
-  duration_ms: 1.850243
+  duration_ms: 1.403469
   type: 'test'
   ...
 # Subtest: 簽到審核使用一致班表圖示與三個單行 SVG 操作
 ok 28 - 簽到審核使用一致班表圖示與三個單行 SVG 操作
   ---
-  duration_ms: 2.40027
+  duration_ms: 1.946257
   type: 'test'
   ...
 # Subtest: 背景初始化完成後不強制把已開啟頁面切回首頁
 ok 29 - 背景初始化完成後不強制把已開啟頁面切回首頁
   ---
-  duration_ms: 0.400338
+  duration_ms: 0.312655
   type: 'test'
   ...
 # Subtest: 個人記錄輸入採暫存與靜默重新讀取
 ok 30 - 個人記錄輸入採暫存與靜默重新讀取
   ---
-  duration_ms: 0.914625
+  duration_ms: 0.741193
   type: 'test'
   ...
 # Subtest: 簽到審核桌面版六個篩選欄位同列且清單員工名稱帶群組前綴
 ok 31 - 簽到審核桌面版六個篩選欄位同列且清單員工名稱帶群組前綴
   ---
-  duration_ms: 1.84246
+  duration_ms: 1.570508
   type: 'test'
   ...
 # Subtest: 休例日排班的額外加班時數會往班別開始前推
 ok 32 - 休例日排班的額外加班時數會往班別開始前推
   ---
-  duration_ms: 3.111815
+  duration_ms: 2.757164
   type: 'test'
   ...
 # Subtest: 簽到審核寫入採批次後端與前端局部更新
 ok 33 - 簽到審核寫入採批次後端與前端局部更新
   ---
-  duration_ms: 1.919892
+  duration_ms: 2.638467
   type: 'test'
   ...
 # Subtest: 簽到審核操作圖示與表頭狀態清楚
 ok 34 - 簽到審核操作圖示與表頭狀態清楚
   ---
-  duration_ms: 2.02755
+  duration_ms: 1.448807
   type: 'test'
   ...
 # Subtest: 簽到審核編輯上下班地點會完整傳到後端並受群組權限驗證
 ok 35 - 簽到審核編輯上下班地點會完整傳到後端並受群組權限驗證
   ---
-  duration_ms: 2.31862
+  duration_ms: 1.88731
   type: 'test'
   ...
 # Subtest: 簽到修改歷程使用中文操作名稱並顯示時間與地點前後值
 ok 36 - 簽到修改歷程使用中文操作名稱並顯示時間與地點前後值
   ---
-  duration_ms: 0.506077
+  duration_ms: 0.350031
   type: 'test'
   ...
 # Subtest: 簽到審核匯出使用正式 exportRows 十二欄契約並納入休例日排班
 ok 37 - 簽到審核匯出使用正式 exportRows 十二欄契約並納入休例日排班
   ---
-  duration_ms: 4.689553
+  duration_ms: 2.694902
   type: 'test'
   ...
 # Subtest: 簽到審核換頁會重試網路層失敗並防止過期請求覆蓋
 ok 38 - 簽到審核換頁會重試網路層失敗並防止過期請求覆蓋
   ---
-  duration_ms: 2.941851
+  duration_ms: 2.600181
   type: 'test'
   ...
 # Subtest: 簽到審核後端會分批讀取完整班表與打卡資料
 ok 39 - 簽到審核後端會分批讀取完整班表與打卡資料
   ---
-  duration_ms: 0.971224
+  duration_ms: 0.353236
   type: 'test'
   ...
 # Subtest: 休息日或例假簽到審核匯出在加班開始四小時後帶一小時休息
 ok 40 - 休息日或例假簽到審核匯出在加班開始四小時後帶一小時休息
   ---
-  duration_ms: 0.937529
+  duration_ms: 0.580194
   type: 'test'
   ...
 # Subtest: 簽到審核列印 A4 直式且每頁 40 筆
 ok 41 - 簽到審核列印 A4 直式且每頁 40 筆
   ---
-  duration_ms: 1.892802
+  duration_ms: 1.99489
   type: 'test'
   ...
 # Subtest: 簽到審核使用寬版容器、整齊篩選列與完整操作欄
 ok 42 - 簽到審核使用寬版容器、整齊篩選列與完整操作欄
   ---
-  duration_ms: 4.69659
+  duration_ms: 3.652337
   type: 'test'
   ...
 # Subtest: 通用 Backend API 核心不得依賴 Supabase transport 名稱
 ok 43 - 通用 Backend API 核心不得依賴 Supabase transport 名稱
   ---
-  duration_ms: 1.891928
+  duration_ms: 1.546993
   type: 'test'
   ...
 # Subtest: Provider 專用登入細節只存在 backend/providers
 ok 44 - Provider 專用登入細節只存在 backend/providers
   ---
-  duration_ms: 0.422792
+  duration_ms: 0.314929
   type: 'test'
   ...
 # Subtest: 正式 API 使用版本化具名路徑，不提供通用動態 CRUD
 ok 45 - 正式 API 使用版本化具名路徑，不提供通用動態 CRUD
   ---
-  duration_ms: 0.319422
+  duration_ms: 0.257223
   type: 'test'
   ...
 # Subtest: 一般 PostgreSQL 資料層不得依賴 Supabase HTTP transport
 ok 46 - 一般 PostgreSQL 資料層不得依賴 Supabase HTTP transport
   ---
-  duration_ms: 1.543067
+  duration_ms: 1.265183
   type: 'test'
   ...
 # Subtest: 福園號密碼雜湊使用 Node crypto scrypt，不依賴 Provider Token
 ok 47 - 福園號密碼雜湊使用 Node crypto scrypt，不依賴 Provider Token
   ---
-  duration_ms: 0.424157
+  duration_ms: 0.278525
   type: 'test'
   ...
 # Subtest: /api/v1/health 使用福園號通用服務名稱與契約版本
 ok 48 - /api/v1/health 使用福園號通用服務名稱與契約版本
   ---
-  duration_ms: 86.27766
+  duration_ms: 104.688761
   type: 'test'
   ...
 # Subtest: 登入後只把 HttpOnly 不透明 Session ID 放到瀏覽器，不回傳 Provider Token
 ok 49 - 登入後只把 HttpOnly 不透明 Session ID 放到瀏覽器，不回傳 Provider Token
   ---
-  duration_ms: 59.143695
+  duration_ms: 32.569901
   type: 'test'
   ...
 # Subtest: 沒有後端 Session 時受保護 API 一律回 401
 ok 50 - 沒有後端 Session 時受保護 API 一律回 401
   ---
-  duration_ms: 23.750186
+  duration_ms: 10.770663
   type: 'test'
   ...
 # Subtest: 未設定 Provider 時健康檢查仍可用，登入明確回 503
 ok 51 - 未設定 Provider 時健康檢查仍可用，登入明確回 503
   ---
-  duration_ms: 32.778111
+  duration_ms: 8.924284
   type: 'test'
   ...
 # Subtest: 舊 /api/health 不再是正式端點
 ok 52 - 舊 /api/health 不再是正式端點
   ---
-  duration_ms: 18.083998
+  duration_ms: 14.460024
   type: 'test'
   ...
 # Subtest: Session Store 維持手機 48 小時、桌機與平板 30 分鐘閒置規則
 ok 53 - Session Store 維持手機 48 小時、桌機與平板 30 分鐘閒置規則
   ---
-  duration_ms: 0.485546
+  duration_ms: 3.495824
   type: 'test'
   ...
 # Subtest: production 切換前必須提供可持久化 Session Store
 ok 54 - production 切換前必須提供可持久化 Session Store
   ---
-  duration_ms: 0.682677
+  duration_ms: 0.550159
   type: 'test'
   ...
 # Subtest: 一般 API 遇到 JWT 過期只重新初始化一次並只重試原請求一次
 ok 55 - 一般 API 遇到 JWT 過期只重新初始化一次並只重試原請求一次
   ---
-  duration_ms: 3.064558
+  duration_ms: 3.444597
   type: 'test'
   ...
 # Subtest: 非登入錯誤不得觸發重新登入或重試
 ok 56 - 非登入錯誤不得觸發重新登入或重試
   ---
-  duration_ms: 1.185285
+  duration_ms: 1.333045
   type: 'test'
   ...
 # Subtest: initializeAuth 本身失敗時不得遞迴刷新
 ok 57 - initializeAuth 本身失敗時不得遞迴刷新
   ---
-  duration_ms: 1.961035
+  duration_ms: 2.199414
   type: 'test'
   ...
 # Subtest: 通用門面不向畫面公開 Provider Session 且隱藏底層實作名稱
 ok 58 - 通用門面不向畫面公開 Provider Session 且隱藏底層實作名稱
   ---
-  duration_ms: 0.994778
+  duration_ms: 1.055912
   type: 'test'
   ...
 # Subtest: Supabase Auth Adapter 在伺服器端處理工號假 Email 與 Token
 ok 59 - Supabase Auth Adapter 在伺服器端處理工號假 Email 與 Token
   ---
-  duration_ms: 43.662489
+  duration_ms: 31.094785
   type: 'test'
   ...
 # Subtest: Supabase Auth Adapter 過期時只在 Provider 內刷新 Token
 ok 60 - Supabase Auth Adapter 過期時只在 Provider 內刷新 Token
   ---
-  duration_ms: 5.055097
+  duration_ms: 1.701202
   type: 'test'
   ...
 # Subtest: 正式請假匯出排除休例假、隱藏單位與無假別資料
 ok 61 - 正式請假匯出排除休例假、隱藏單位與無假別資料
   ---
-  duration_ms: 1.345634
+  duration_ms: 1.122901
   type: 'test'
   ...
 # Subtest: 正式加班匯出輸出十二欄時間與休息區段
 ok 62 - 正式加班匯出輸出十二欄時間與休息區段
   ---
-  duration_ms: 0.23292
+  duration_ms: 0.181871
   type: 'test'
   ...
 # Subtest: 正式 SAP 休例假匯出套用代碼並排除日薪人員
 ok 63 - 正式 SAP 休例假匯出套用代碼並排除日薪人員
   ---
-  duration_ms: 0.148607
+  duration_ms: 0.169212
   type: 'test'
   ...
 # Subtest: SAP CSV 保留 BOM 並正確跳脫逗號與雙引號
 ok 64 - SAP CSV 保留 BOM 並正確跳脫逗號與雙引號
   ---
-  duration_ms: 0.189093
+  duration_ms: 0.182131
   type: 'test'
   ...
 # Subtest: canonical renderer has no legacy role state or guessed schedule ids
 ok 65 - canonical renderer has no legacy role state or guessed schedule ids
   ---
-  duration_ms: 1.860109
+  duration_ms: 1.630847
   type: 'test'
   ...
 # Subtest: group state keeps canonical metadata directly and archive ranges separately
 ok 66 - group state keeps canonical metadata directly and archive ranges separately
   ---
-  duration_ms: 1.84546
+  duration_ms: 2.081919
   type: 'test'
   ...
 # Subtest: Edge Functions share Taipei/effective-account and common/group permission primitives
 ok 67 - Edge Functions share Taipei/effective-account and common/group permission primitives
   ---
-  duration_ms: 1.126145
+  duration_ms: 0.955733
   type: 'test'
   ...
 # Subtest: XLSX meal formatting belongs to exporter, not transport API
 ok 68 - XLSX meal formatting belongs to exporter, not transport API
   ---
-  duration_ms: 2.086025
+  duration_ms: 1.439122
   type: 'test'
   ...
 # Subtest: leave and overtime saves use explicit domain paths
 ok 69 - leave and overtime saves use explicit domain paths
   ---
-  duration_ms: 0.471529
+  duration_ms: 0.338184
   type: 'test'
   ...
 # Subtest: SQL canonical source has no text-role compatibility model or dynamic policy rewriting
 ok 70 - SQL canonical source has no text-role compatibility model or dynamic policy rewriting
   ---
-  duration_ms: 2.442948
+  duration_ms: 1.906138
   type: 'test'
   ...
 # Subtest: each final RLS policy is created once and authenticated has no direct write policy
 ok 71 - each final RLS policy is created once and authenticated has no direct write policy
   ---
-  duration_ms: 2.372617
+  duration_ms: 1.847601
   type: 'test'
   ...
 # Subtest: 正式前端只由 app-config.js 與 app.js 啟動，不保留後載入覆寫模組
 ok 72 - 正式前端只由 app-config.js 與 app.js 啟動，不保留後載入覆寫模組
   ---
-  duration_ms: 3.166901
+  duration_ms: 2.521193
   type: 'test'
   ...
 # Subtest: 正式 renderer 不使用後載入函式覆寫來替換核心 render 函式
 ok 73 - 正式 renderer 不使用後載入函式覆寫來替換核心 render 函式
   ---
-  duration_ms: 14.85175
+  duration_ms: 9.631356
   type: 'test'
   ...
 # Subtest: 全新資料庫只保留兩個正式 SQL 檔與每日簽到模型
 ok 74 - 全新資料庫只保留兩個正式 SQL 檔與每日簽到模型
   ---
-  duration_ms: 3.172906
+  duration_ms: 2.514262
   type: 'test'
   ...
 # Subtest: 正式 SQL 必須包含群組、角色共用／群組權限與班表封存模型
 not ok 75 - 正式 SQL 必須包含群組、角色共用／群組權限與班表封存模型
   ---
-  duration_ms: 9.716707
+  duration_ms: 5.445416
   type: 'test'
   location: '/home/runner/work/FYH/FYH/tests/canonical-schema.test.js:22:1'
   failureType: 'testCodeFailure'
@@ -898,55 +898,55 @@ not ok 75 - 正式 SQL 必須包含群組、角色共用／群組權限與班表
 # Subtest: 群組簽到審核 Edge Function 必須列入部署清單與文件
 ok 76 - 群組簽到審核 Edge Function 必須列入部署清單與文件
   ---
-  duration_ms: 1.064943
+  duration_ms: 0.784268
   type: 'test'
   ...
 # Subtest: 正式文件不得描述切換期相容或補丁式執行
 ok 77 - 正式文件不得描述切換期相容或補丁式執行
   ---
-  duration_ms: 1.195115
+  duration_ms: 3.462905
   type: 'test'
   ...
 # Subtest: 可從 PR 說明讀取允許與禁止修改範圍
 ok 78 - 可從 PR 說明讀取允許與禁止修改範圍
   ---
-  duration_ms: 2.212346
+  duration_ms: 2.039997
   type: 'test'
   ...
 # Subtest: 路徑規則支援精確檔案、單層萬用字元與遞迴目錄
 ok 79 - 路徑規則支援精確檔案、單層萬用字元與遞迴目錄
   ---
-  duration_ms: 0.835215
+  duration_ms: 0.69899
   type: 'test'
   ...
 # Subtest: 超出允許範圍或命中禁止範圍時應失敗
 ok 80 - 超出允許範圍或命中禁止範圍時應失敗
   ---
-  duration_ms: 0.717488
+  duration_ms: 0.649276
   type: 'test'
   ...
 # Subtest: 禁止使用允許整個儲存庫的過度寬泛規則
 ok 81 - 禁止使用允許整個儲存庫的過度寬泛規則
   ---
-  duration_ms: 0.570385
+  duration_ms: 0.562848
   type: 'test'
   ...
 # Subtest: Git 修改清單應保留中文檔名而不是引號跳脫碼
 ok 82 - Git 修改清單應保留中文檔名而不是引號跳脫碼
   ---
-  duration_ms: 62.266743
+  duration_ms: 72.52208
   type: 'test'
   ...
 # Subtest: formal checks no longer use v2 phase naming
 ok 83 - formal checks no longer use v2 phase naming
   ---
-  duration_ms: 1.632533
+  duration_ms: 1.029693
   type: 'test'
   ...
 # Subtest: test filenames no longer keep phase or v2 stage names
 not ok 84 - test filenames no longer keep phase or v2 stage names
   ---
-  duration_ms: 2.994087
+  duration_ms: 1.637157
   type: 'test'
   location: '/home/runner/work/FYH/FYH/tests/codebase-architecture-guards.test.js:22:1'
   failureType: 'testCodeFailure'
@@ -977,19 +977,19 @@ not ok 84 - test filenames no longer keep phase or v2 stage names
 # Subtest: bundle description no longer marks transitional or legacy runtime
 ok 85 - bundle description no longer marks transitional or legacy runtime
   ---
-  duration_ms: 0.283697
+  duration_ms: 0.245265
   type: 'test'
   ...
 # Subtest: JavaScript architecture check blocks duplicate shared functions
 ok 86 - JavaScript architecture check blocks duplicate shared functions
   ---
-  duration_ms: 255.900096
+  duration_ms: 150.038334
   type: 'test'
   ...
 # Subtest: formal tree excludes obsolete migration and patch files
 not ok 87 - formal tree excludes obsolete migration and patch files
   ---
-  duration_ms: 2.037352
+  duration_ms: 1.525441
   type: 'test'
   location: '/home/runner/work/FYH/FYH/tests/codebase-architecture-guards.test.js:42:1'
   failureType: 'testCodeFailure'
@@ -1020,109 +1020,109 @@ not ok 87 - formal tree excludes obsolete migration and patch files
 # Subtest: export flow is not overwritten by later renderer modules
 ok 88 - export flow is not overwritten by later renderer modules
   ---
-  duration_ms: 9.519202
+  duration_ms: 7.540975
   type: 'test'
   ...
 # Subtest: renderer modules only reach backend through schedulerApi
 ok 89 - renderer modules only reach backend through schedulerApi
   ---
-  duration_ms: 5.878165
+  duration_ms: 4.277968
   type: 'test'
   ...
 # Subtest: only the formal backend provider creates schedulerApi
 ok 90 - only the formal backend provider creates schedulerApi
   ---
-  duration_ms: 3.921979
+  duration_ms: 3.260663
   type: 'test'
   ...
 # Subtest: schedulerApi facade is readonly and strips provider auth tokens
 ok 91 - schedulerApi facade is readonly and strips provider auth tokens
   ---
-  duration_ms: 0.897658
+  duration_ms: 0.701855
   type: 'test'
   ...
 # Subtest: 訂餐核心樣式各只有一個正式根層來源
 ok 92 - 訂餐核心樣式各只有一個正式根層來源
   ---
-  duration_ms: 15.097896
+  duration_ms: 11.781147
   type: 'test'
   ...
 # Subtest: 班表外框不再依賴根層後載入修正
 ok 93 - 班表外框不再依賴根層後載入修正
   ---
-  duration_ms: 3.465149
+  duration_ms: 2.048369
   type: 'test'
   ...
 # Subtest: 既有打卡樣式規則不再於 pages 重複
 ok 94 - 既有打卡樣式規則不再於 pages 重複
   ---
-  duration_ms: 0.964154
+  duration_ms: 0.75907
   type: 'test'
   ...
 # Subtest: 班表共用樣式不再依賴後載入覆蓋
 ok 95 - 班表共用樣式不再依賴後載入覆蓋
   ---
-  duration_ms: 3.538529
+  duration_ms: 3.658595
   type: 'test'
   ...
 # Subtest: 手機主要頁面與表單響應式規格集中於 responsive
 ok 96 - 手機主要頁面與表單響應式規格集中於 responsive
   ---
-  duration_ms: 1.89065
+  duration_ms: 1.841161
   type: 'test'
   ...
 # Subtest: 手機單位、人員、班別與假別設定表格應使用內部水平捲動
 ok 97 - 手機單位、人員、班別與假別設定表格應使用內部水平捲動
   ---
-  duration_ms: 0.859133
+  duration_ms: 0.786811
   type: 'test'
   ...
 # Subtest: 訂餐與簽到簿使用 Chrome 式共用籤頁
 ok 98 - 訂餐與簽到簿使用 Chrome 式共用籤頁
   ---
-  duration_ms: 1.911987
+  duration_ms: 2.33167
   type: 'test'
   ...
 # Subtest: 電腦版主要頁面靠上且訂餐統計總計維持單行
 ok 99 - 電腦版主要頁面靠上且訂餐統計總計維持單行
   ---
-  duration_ms: 1.151467
+  duration_ms: 0.888122
   type: 'test'
   ...
 # Subtest: 未隱藏且無人員的單位由正式班表 renderer 顯示並可參與拖曳
 ok 100 - 未隱藏且無人員的單位由正式班表 renderer 顯示並可參與拖曳
   ---
-  duration_ms: 2.02273
+  duration_ms: 1.418241
   type: 'test'
   ...
 # Subtest: 人員可拖入空單位並保存新的所屬單位
 ok 101 - 人員可拖入空單位並保存新的所屬單位
   ---
-  duration_ms: 0.50859
+  duration_ms: 0.383831
   type: 'test'
   ...
 # Subtest: 空單位顯示與拖曳不介入自動排班候選人運算
 ok 102 - 空單位顯示與拖曳不介入自動排班候選人運算
   ---
-  duration_ms: 1.66327
+  duration_ms: 1.371352
   type: 'test'
   ...
 # Subtest: 班表四項匯出只使用目前選取群組
 ok 103 - 班表四項匯出只使用目前選取群組
   ---
-  duration_ms: 1.994433
+  duration_ms: 1.697767
   type: 'test'
   ...
 # Subtest: 正式發布 index 與 renderer index 保持一致
 ok 104 - 正式發布 index 與 renderer index 保持一致
   ---
-  duration_ms: 1.436299
+  duration_ms: 1.208999
   type: 'test'
   ...
 # Subtest: 儲存庫只保留單一正式 GitHub Actions workflow
 not ok 105 - 儲存庫只保留單一正式 GitHub Actions workflow
   ---
-  duration_ms: 3.086381
+  duration_ms: 1.759559
   type: 'test'
   location: '/home/runner/work/FYH/FYH/tests/github-actions-hygiene.test.js:14:1'
   failureType: 'testCodeFailure'
@@ -1153,904 +1153,277 @@ not ok 105 - 儲存庫只保留單一正式 GitHub Actions workflow
 # Subtest: 正式 workflow 只驗證，不重複部署 GitHub Pages
 ok 106 - 正式 workflow 只驗證，不重複部署 GitHub Pages
   ---
-  duration_ms: 0.730667
+  duration_ms: 0.43717
   type: 'test'
   ...
 # Subtest: 純文件變更只跑輕量守門測試，其他異動跑完整驗證
 ok 107 - 純文件變更只跑輕量守門測試，其他異動跑完整驗證
   ---
-  duration_ms: 0.756508
+  duration_ms: 0.449289
   type: 'test'
   ...
 # Subtest: 正式 workflow 不得自動修改或推送 PR 分支
 ok 108 - 正式 workflow 不得自動修改或推送 PR 分支
   ---
-  duration_ms: 0.368636
+  duration_ms: 0.204505
   type: 'test'
   ...
 # Subtest: 群組設定單位欄使用可換行膠囊標籤並取得主要寬度
 ok 109 - 群組設定單位欄使用可換行膠囊標籤並取得主要寬度
   ---
-  duration_ms: 5.128225
+  duration_ms: 3.306892
   type: 'test'
   ...
 # Subtest: 首頁功能按鈕依實際顯示數量自動填滿可用寬度
 ok 110 - 首頁功能按鈕依實際顯示數量自動填滿可用寬度
   ---
-  duration_ms: 1.494733
+  duration_ms: 1.257432
   type: 'test'
   ...
 # Subtest: 首頁只讀最小群組資格，不在登入後預載完整班表
 ok 111 - 首頁只讀最小群組資格，不在登入後預載完整班表
   ---
-  duration_ms: 5.748912
+  duration_ms: 5.143096
   type: 'test'
   ...
 # Subtest: 簽到簿不再使用 v2 或舊審核 UI 標記
 ok 112 - 簽到簿不再使用 v2 或舊審核 UI 標記
   ---
-  duration_ms: 12.838631
+  duration_ms: 10.452309
   type: 'test'
   ...
 # Subtest: 簽到簿篩選只由正式記錄事件處理器更新並重新載入
 ok 113 - 簽到簿篩選只由正式記錄事件處理器更新並重新載入
   ---
-  duration_ms: 0.464879
+  duration_ms: 0.357191
   type: 'test'
   ...
 # Subtest: 登入資料狀態由工廠與單一重設函式提供
 ok 114 - 登入資料狀態由工廠與單一重設函式提供
   ---
-  duration_ms: 0.537954
+  duration_ms: 0.408338
   type: 'test'
   ...
 # Subtest: 自動排班預覽只由共用函式寫入與儲存
 ok 115 - 自動排班預覽只由共用函式寫入與儲存
   ---
-  duration_ms: 0.507538
+  duration_ms: 0.371883
   type: 'test'
   ...
 # Subtest: 語系切換初始化需要的正式 helper 必須完整存在
 ok 116 - 語系切換初始化需要的正式 helper 必須完整存在
   ---
-  duration_ms: 0.901399
+  duration_ms: 1.020199
   type: 'test'
   ...
 # Subtest: 首頁與班表資料載入使用正式模組，不靠後載入攔截器
 ok 117 - 首頁與班表資料載入使用正式模組，不靠後載入攔截器
   ---
-  duration_ms: 1.856345
+  duration_ms: 1.081349
   type: 'test'
   ...
 # Subtest: 簽到簿群組審核 API 由正式 web-api 提供
-not ok 118 - 簽到簿群組審核 API 由正式 web-api 提供
+ok 118 - 簽到簿群組審核 API 由正式 web-api 提供
   ---
-  duration_ms: 7.123164
+  duration_ms: 3.164781
   type: 'test'
-  location: '/home/runner/work/FYH/FYH/tests/lazy-page-data-loading.test.js:20:1'
-  failureType: 'testCodeFailure'
-  error: |-
-    The input did not match the regular expression /hasPermission\("attendance_review"\)/. Input:
-    
-    '/* 簽到簿、訂餐統計及訂餐設定資料讀取控制。 */\n' +
-      '\n' +
-      'function ensureRecordsState() {\n' +
-      '  const today = getTodayDateString();\n' +
-      '  recordsState.personalFilters = recordsState.personalFilters || {\n' +
-      '    fromDate: addDaysToDateString(today, -49),\n' +
-      '    toDate: today,\n' +
-      '    sortDirection: "desc"\n' +
-      '  };\n' +
-      '  recordsState.personalFilters.sortDirection = recordsState.personalFilters.sortDirection === "asc" ? "asc" : "desc";\n' +
-      '  recordsState.personalPage = Number(recordsState.personalPage || 1);\n' +
-      '  recordsState.personalTotal = Number(recordsState.personalTotal || 0);\n' +
-      '  recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);\n' +
-      '  recordsState.personalDrafts = recordsState.personalDrafts || {};\n' +
-      '  recordsState.commonAttendanceNotes = Array.isArray(recordsState.commonAttendanceNotes) ? recordsState.commonAttendanceNotes : [];\n' +
-      '  recordsState.mealPage = Number(recordsState.mealPage || 1);\n' +
-      '  recordsState.mealReportView = recordsState.mealReportView || "detail";\n' +
-      '  recordsState.attendanceReview = recordsState.attendanceReview || createRecordsState().attendanceReview;\n' +
-      '  return recordsState;\n' +
-      '}\n' +
-      '\n' +
-      'function personalAttendanceDraftKey(workDate, field) {\n' +
-      '  return `${workDate}|${field}`;\n' +
-      '}\n' +
-      '\n' +
-      'function setPersonalAttendanceDraft(workDate, field, value) {\n' +
-      '  if (!workDate || !field) return;\n' +
-      '  const current = ensureRecordsState();\n' +
-      '  current.personalDrafts[personalAttendanceDraftKey(workDate, field)] = value;\n' +
-      '}\n' +
-      '\n' +
-      'function getPersonalAttendanceValue(record, field) {\n' +
-      '  const current = ensureRecordsState();\n' +
-      '  const key = personalAttendanceDraftKey(record?.date || "", field);\n' +
-      '  return Object.prototype.hasOwnProperty.call(current.personalDrafts, key)\n' +
-      '    ? current.personalDrafts[key]\n' +
-      '    : record?.[field];\n' +
-      '}\n' +
-      '\n' +
-      'function clearPersonalAttendanceDraft(workDate, field, expectedValue) {\n' +
-      '  const current = ensureRecordsState();\n' +
-      '  const key = personalAttendanceDraftKey(workDate, field);\n' +
-      '  if (!Object.prototype.hasOwnProperty.call(current.personalDrafts, key)) return;\n' +
-      '  if (arguments.length >= 3 && current.personalDrafts[key] !== expectedValue) return;\n' +
-      '  delete current.personalDrafts[key];\n' +
-      '}\n' +
-      '\n' +
-      'function captureRecordsScrollPosition() {\n' +
-      '  return {\n' +
-      '    windowX: window.scrollX,\n' +
-      '    windowY: window.scrollY,\n' +
-      '    tableWraps: Array.from(document.querySelectorAll("#recordsCard .records-table-wrap"))\n' +
-      '      .filter((element) => element instanceof HTMLElement)\n' +
-      '      .map((element, index) => ({\n' +
-      '        index,\n' +
-      '        top: element.scrollTop,\n' +
-      '        left: element.scrollLeft\n' +
-      '      }))\n' +
-      '  };\n' +
-      '}\n' +
-      '\n' +
-      'function restoreRecordsScrollPosition(snapshot) {\n' +
-      '  if (!snapshot) return;\n' +
-      '  requestAnimationFrame(() => requestAnimationFrame(() => {\n' +
-      '    window.scrollTo(snapshot.windowX, snapshot.windowY);\n' +
-      '    const tableWraps = Array.from(document.querySelectorAll("#recordsCard .records-table-wrap"))\n' +
-      '      .filter((element) => element instanceof HTMLElement);\n' +
-      '    snapshot.tableWraps.forEach((entry) => {\n' +
-      '      const element = tableWraps[entry.index];\n' +
-      '      if (!element) return;\n' +
-      '      element.scrollTop = entry.top;\n' +
-      '      element.scrollLeft = entry.left;\n' +
-      '    });\n' +
-      '  }));\n' +
-      '}\n' +
-      '\n' +
-      'function ensureAttendanceReviewState() {\n' +
-      '  ensureRecordsState();\n' +
-      '  const current = recordsState.attendanceReview || {};\n' +
-      '  const filters = current.filters || {};\n' +
-      '  recordsState.attendanceReview = {\n' +
-      '    loading: Boolean(current.loading),\n' +
-      '    loaded: Boolean(current.loaded),\n' +
-      '    rows: current.rows || [],\n' +
-      '    members: current.members || [],\n' +
-      '    departments: current.departments || [],\n' +
-      '    issueTypes: current.issueTypes || [],\n' +
-      '    total: Number(current.total || 0),\n' +
-      '    page: Number(current.page || 1),\n' +
-      '    pageSize: Number(current.pageSize || 50),\n' +
-      '    requestId: Number(current.requestId || 0),\n' +
-      '    filters: {\n' +
-      '      status: filters.status || "unreviewed",\n' +
-      '      fromDate: filters.fromDate || addDaysToDateString(getTodayDateString(), -30),\n' +
-      '      toDate: filters.toDate || getTodayDateString(),\n' +
-      '      memberId: filters.memberId || "",\n' +
-      '      issueType: filters.issueType || "",\n' +
-      '      groupId: filters.groupId || "",\n' +
-      '      sortDirection: filters.sortDirection === "asc" ? "asc" : "desc"\n' +
-      '    },\n' +
-      '    error: current.error || ""\n' +
-      '  };\n' +
-      '  return recordsState.attendanceReview;\n' +
-      '}\n' +
-      '\n' +
-      'async function loadRecordsPage(shouldRender = true) {\n' +
-      '  if (!isLoggedIn()) return;\n' +
-      '  ensureRecordsState();\n' +
-      '  recordsState = { ...recordsState, loading: true, error: "" };\n' +
-      '  if (shouldRender) renderAll();\n' +
-      '  try {\n' +
-      '    const result = await window.schedulerApi.getPersonalRecords({\n' +
-      '      ...recordsState.personalFilters,\n' +
-      '      page: recordsState.personalPage\n' +
-      '    });\n' +
-      '    recordsState = {\n' +
-      '      ...recordsState,\n' +
-      '      loading: false,\n' +
-      '      personal: result.records || [],\n' +
-      '      commonAttendanceNotes: Array.isArray(result.commonNotes) ? result.commonNotes : recordsState.commonAttendanceNotes,\n' +
-      '      personalTotal: Number(result.total || 0),\n' +
-      '      personalPage: Number(result.page || 1),\n' +
-      '      personalPageSize: Number(result.pageSize || 50),\n' +
-      '      error: ""\n' +
-      '    };\n' +
-      '  } catch (error) {\n' +
-      '    recordsState = { ...recordsState, loading: false, personal: [], error: error.message || "讀取簽到簿失敗" };\n' +
-      '  }\n' +
-      '  if (shouldRender) renderAll();\n' +
-      '}\n' +
-      '\n' +
-      'async function loadAttendanceReview(shouldRender = true) {\n' +
-      '  if (!hasAnyGroupPermission("attendance_review")) return false;\n' +
-      '  const review = ensureAttendanceReviewState();\n' +
-      '  const requestId = Number(review.requestId || 0) + 1;\n' +
-      '  const requestFilters = { ...review.filters };\n' +
-      '  const requestPage = Math.max(1, Number(review.page || 1));\n' +
-      '  recordsState = {\n' +
-      '    ...recordsState,\n' +
-      '    attendanceReview: { ...review, loading: true, error: "", requestId }\n' +
-      '  };\n' +
-      '  if (shouldRender) renderAll();\n' +
-      '  try {\n' +
-      '    const result = await window.schedulerApi.getAttendanceReviewList({\n' +
-      '      ...requestFilters,\n' +
-      '      page: requestPage\n' +
-      '    });\n' +
-      '    const current = ensureAttendanceReviewState();\n' +
-      '    if (Number(current.requestId || 0) !== requestId) return false;\n' +
-      '    recordsState = {\n' +
-      '      ...recordsState,\n' +
-      '      commonAttendanceNotes: Array.isArray(result.commonNotes) ? result.commonNotes : recordsState.commonAttendanceNotes,\n' +
-      '      attendanceReview: {\n' +
-      '        ...current,\n' +
-      '        loading: false,\n' +
-      '        loaded: true,\n' +
-      '        rows: result.rows || [],\n' +
-      '        members: result.members || [],\n' +
-      '        departments: result.departments || [],\n' +
-      '        issueTypes: result.issueTypes || [],\n' +
-      '        total: Number(result.total || 0),\n' +
-      '        page: Number(result.page || requestPage),\n' +
-      '        pageSize: Number(result.pageSize || 50),\n' +
-      '        error: ""\n' +
-      '      }\n' +
-      '    };\n' +
-      '  } catch (error) {\n' +
-      '    const current = ensureAttendanceReviewState();\n' +
-      '    if (Number(current.requestId || 0) !== requestId) return false;\n' +
-      '    recordsState = {\n' +
-      '      ...recordsState,\n' +
-      '      attendanceReview: {\n' +
-      '        ...current,\n' +
-      '        loading: false,\n' +
-      '        error: error.message || "讀取簽到審核失敗"\n' +
-      '      }\n' +
-      '    };\n' +
-      '  }\n' +
-      '  if (shouldRender) renderAll();\n' +
-      '  return !recordsState.attendanceReview.error;\n' +
-      '}\n' +
-      '\n' +
-      'async function loadMealReport(shouldRender = true) {\n' +
-      '  if (!hasManagementAccess()) return;\n' +
-      '  ensureRecordsState();\n' +
-      '  recordsState = { ...recordsState, mealStats: { ...(recordsState.mealStats || {}), loading: true, error: "" } };\n' +
-      '  if (shouldRender) renderAll();\n' +
-      '  try {\n' +
-      '    const result = await window.schedulerApi.getMealReport({\n' +
-      '      ...recordsState.mealFilters,\n' +
-      '      page: recordsState.mealPage\n' +
-      '    });\n' +
-      '    recordsState = { ...recordsState, mealStats: result, mealPage: Number(result.page || 1) };\n' +
-      '  } catch (error) {\n' +
-      '    recordsState = { ...recordsState, mealStats: { error: error.message || "讀取訂餐統計失敗" } };\n' +
-      '  }\n' +
-      '  if (shouldRender) renderAll();\n' +
-      '}\n' +
-      '\n' +
-      'async function loadMealAdminSettings(shouldRender = true) {\n' +
-      '  if (!hasManagementAccess()) return;\n' +
-      '  recordsState = {\n' +
-      '    ...recordsState,\n' +
-      '    mealAdmin: { ...recordsState.mealAdmin, loading: true, error: "" }\n' +
-      '  };\n' +
-      '  if (shouldRender) renderAll();\n' +
-      '  try {\n' +
-      '    const result = await window.schedulerApi.getMealAdminSettings();\n' +
-      '    recordsState = {\n' +
-      '      ...recordsState,\n' +
-      '      mealAdmin: { loading: false, products: result.products || [], settings: result.settings || { daily_cutoff_time: "10:30" }, error: "" }\n' +
-      '    };\n' +
-      '  } catch (error) {\n' +
-      '    recordsState = {\n' +
-      '      ...recordsState,\n' +
-      '      mealAdmin: { ...recordsState.mealAdmin, loading: false, error: error.message || "讀取訂餐設定失敗" }\n' +
-      '    };\n' +
-      '  }\n' +
-      '  if (shouldRender) renderAll();\n' +
-      '}\n'
-    
-  code: 'ERR_ASSERTION'
-  name: 'AssertionError'
-  expected:
-  actual: |-
-    /* 簽到簿、訂餐統計及訂餐設定資料讀取控制。 */
-    
-    function ensureRecordsState() {
-      const today = getTodayDateString();
-      recordsState.personalFilters = recordsState.personalFilters || {
-        fromDate: addDaysToDateString(today, -49),
-        toDate: today,
-        sortDirection: "desc"
-      };
-      recordsState.personalFilters.sortDirection = recordsState.personalFilters.sortDirection === "asc" ? "asc" : "desc";
-      recordsState.personalPage = Number(recordsState.personalPage || 1);
-      recordsState.personalTotal = Number(recordsState.personalTotal || 0);
-      recordsState.personalPageSize = Number(recordsState.personalPageSize || 50);
-      recordsState.personalDrafts = recordsState.personalDrafts || {};
-      recordsState.commonAttendanceNotes = Array.isArray(recordsState.commonAttendanceNotes) ? recordsState.commonAttendanceNotes : [];
-      recordsState.mealPage = Number(recordsState.mealPage || 1);
-      recordsState.mealReportView = recordsState.mealReportView || "detail";
-      recordsState.attendanceReview = recordsState.attendanceReview || createRecordsState().attendanceReview;
-      return recordsState;
-    }
-    
-    function personalAttendanceDraftKey(workDate, field) {
-      return `${workDate}|${field}`;
-    }
-    
-    function setPersonalAttendanceDraft(workDate, field, value) {
-      if (!workDate || !field) return;
-      const current = ensureRecordsState();
-      current.personalDrafts[personalAttendanceDraftKey(workDate, field)] = value;
-    }
-    
-    function getPersonalAttendanceValue(record, field) {
-      const current = ensureRecordsState();
-      const key = personalAttendanceDraftKey(record?.date || "", field);
-      return Object.prototype.hasOwnProperty.call(current.personalDrafts, key)
-        ? current.personalDrafts[key]
-        : record?.[field];
-    }
-    
-    function clearPersonalAttendanceDraft(workDate, field, expectedValue) {
-      const current = ensureRecordsState();
-      const key = personalAttendanceDraftKey(workDate, field);
-      if (!Object.prototype.hasOwnProperty.call(current.personalDrafts, key)) return;
-      if (arguments.length >= 3 && current.personalDrafts[key] !== expectedValue) return;
-      delete current.personalDrafts[key];
-    }
-    
-    function captureRecordsScrollPosition() {
-      return {
-        windowX: window.scrollX,
-        windowY: window.scrollY,
-        tableWraps: Array.from(document.querySelectorAll("#recordsCard .records-table-wrap"))
-          .filter((element) => element instanceof HTMLElement)
-          .map((element, index) => ({
-            index,
-            top: element.scrollTop,
-            left: element.scrollLeft
-          }))
-      };
-    }
-    
-    function restoreRecordsScrollPosition(snapshot) {
-      if (!snapshot) return;
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        window.scrollTo(snapshot.windowX, snapshot.windowY);
-        const tableWraps = Array.from(document.querySelectorAll("#recordsCard .records-table-wrap"))
-          .filter((element) => element instanceof HTMLElement);
-        snapshot.tableWraps.forEach((entry) => {
-          const element = tableWraps[entry.index];
-          if (!element) return;
-          element.scrollTop = entry.top;
-          element.scrollLeft = entry.left;
-        });
-      }));
-    }
-    
-    function ensureAttendanceReviewState() {
-      ensureRecordsState();
-      const current = recordsState.attendanceReview || {};
-      const filters = current.filters || {};
-      recordsState.attendanceReview = {
-        loading: Boolean(current.loading),
-        loaded: Boolean(current.loaded),
-        rows: current.rows || [],
-        members: current.members || [],
-        departments: current.departments || [],
-        issueTypes: current.issueTypes || [],
-        total: Number(current.total || 0),
-        page: Number(current.page || 1),
-        pageSize: Number(current.pageSize || 50),
-        requestId: Number(current.requestId || 0),
-        filters: {
-          status: filters.status || "unreviewed",
-          fromDate: filters.fromDate || addDaysToDateString(getTodayDateString(), -30),
-          toDate: filters.toDate || getTodayDateString(),
-          memberId: filters.memberId || "",
-          issueType: filters.issueType || "",
-          groupId: filters.groupId || "",
-          sortDirection: filters.sortDirection === "asc" ? "asc" : "desc"
-        },
-        error: current.error || ""
-      };
-      return recordsState.attendanceReview;
-    }
-    
-    async function loadRecordsPage(shouldRender = true) {
-      if (!isLoggedIn()) return;
-      ensureRecordsState();
-      recordsState = { ...recordsState, loading: true, error: "" };
-      if (shouldRender) renderAll();
-      try {
-        const result = await window.schedulerApi.getPersonalRecords({
-          ...recordsState.personalFilters,
-          page: recordsState.personalPage
-        });
-        recordsState = {
-          ...recordsState,
-          loading: false,
-          personal: result.records || [],
-          commonAttendanceNotes: Array.isArray(result.commonNotes) ? result.commonNotes : recordsState.commonAttendanceNotes,
-          personalTotal: Number(result.total || 0),
-          personalPage: Number(result.page || 1),
-          personalPageSize: Number(result.pageSize || 50),
-          error: ""
-        };
-      } catch (error) {
-        recordsState = { ...recordsState, loading: false, personal: [], error: error.message || "讀取簽到簿失敗" };
-      }
-      if (shouldRender) renderAll();
-    }
-    
-    async function loadAttendanceReview(shouldRender = true) {
-      if (!hasAnyGroupPermission("attendance_review")) return false;
-      const review = ensureAttendanceReviewState();
-      const requestId = Number(review.requestId || 0) + 1;
-      const requestFilters = { ...review.filters };
-      const requestPage = Math.max(1, Number(review.page || 1));
-      recordsState = {
-        ...recordsState,
-        attendanceReview: { ...review, loading: true, error: "", requestId }
-      };
-      if (shouldRender) renderAll();
-      try {
-        const result = await window.schedulerApi.getAttendanceReviewList({
-          ...requestFilters,
-          page: requestPage
-        });
-        const current = ensureAttendanceReviewState();
-        if (Number(current.requestId || 0) !== requestId) return false;
-        recordsState = {
-          ...recordsState,
-          commonAttendanceNotes: Array.isArray(result.commonNotes) ? result.commonNotes : recordsState.commonAttendanceNotes,
-          attendanceReview: {
-            ...current,
-            loading: false,
-            loaded: true,
-            rows: result.rows || [],
-            members: result.members || [],
-            departments: result.departments || [],
-            issueTypes: result.issueTypes || [],
-            total: Number(result.total || 0),
-            page: Number(result.page || requestPage),
-            pageSize: Number(result.pageSize || 50),
-            error: ""
-          }
-        };
-      } catch (error) {
-        const current = ensureAttendanceReviewState();
-        if (Number(current.requestId || 0) !== requestId) return false;
-        recordsState = {
-          ...recordsState,
-          attendanceReview: {
-            ...current,
-            loading: false,
-            error: error.message || "讀取簽到審核失敗"
-          }
-        };
-      }
-      if (shouldRender) renderAll();
-      return !recordsState.attendanceReview.error;
-    }
-    
-    async function loadMealReport(shouldRender = true) {
-      if (!hasManagementAccess()) return;
-      ensureRecordsState();
-      recordsState = { ...recordsState, mealStats: { ...(recordsState.mealStats || {}), loading: true, error: "" } };
-      if (shouldRender) renderAll();
-      try {
-        const result = await window.schedulerApi.getMealReport({
-          ...recordsState.mealFilters,
-          page: recordsState.mealPage
-        });
-        recordsState = { ...recordsState, mealStats: result, mealPage: Number(result.page || 1) };
-      } catch (error) {
-        recordsState = { ...recordsState, mealStats: { error: error.message || "讀取訂餐統計失敗" } };
-      }
-      if (shouldRender) renderAll();
-    }
-    
-    async function loadMealAdminSettings(shouldRender = true) {
-      if (!hasManagementAccess()) return;
-      recordsState = {
-        ...recordsState,
-        mealAdmin: { ...recordsState.mealAdmin, loading: true, error: "" }
-      };
-      if (shouldRender) renderAll();
-      try {
-        const result = await window.schedulerApi.getMealAdminSettings();
-        recordsState = {
-          ...recordsState,
-          mealAdmin: { loading: false, products: result.products || [], settings: result.settings || { daily_cutoff_time: "10:30" }, error: "" }
-        };
-      } catch (error) {
-        recordsState = {
-          ...recordsState,
-          mealAdmin: { ...recordsState.mealAdmin, loading: false, error: error.message || "讀取訂餐設定失敗" }
-        };
-      }
-      if (shouldRender) renderAll();
-    }
-    
-  operator: 'match'
-  stack: |-
-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/lazy-page-data-loading.test.js:24:10)
-    Test.runInAsyncScope (node:async_hooks:214:14)
-    Test.run (node:internal/test_runner/test:1047:25)
-    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
-    Test.postRun (node:internal/test_runner/test:1173:19)
-    Test.run (node:internal/test_runner/test:1101:12)
-    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
   ...
 # Subtest: 簽到審核只在讀取清單遇到暫時性閘道錯誤時重試一次
 ok 119 - 簽到審核只在讀取清單遇到暫時性閘道錯誤時重試一次
   ---
-  duration_ms: 2.464819
+  duration_ms: 2.114106
   type: 'test'
   ...
 # Subtest: 人員設定先顯示載入畫面，再延遲讀取管理欄位
-not ok 120 - 人員設定先顯示載入畫面，再延遲讀取管理欄位
+ok 120 - 人員設定先顯示載入畫面，再延遲讀取管理欄位
   ---
-  duration_ms: 0.878302
+  duration_ms: 0.301769
   type: 'test'
-  location: '/home/runner/work/FYH/FYH/tests/lazy-page-data-loading.test.js:62:1'
-  failureType: 'testCodeFailure'
-  error: |-
-    The input did not match the regular expression /hasPermission\("member_settings"\)/. Input:
-    
-    'async function openMemberSettings() {\n' +
-      '  if (!hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage")) {\n' +
-      '    showInfoMessage("沒有權限開啟人員設定");\n' +
-      '    return;\n' +
-      '  }\n' +
-      '  modalContext = { category: "member-settings" };\n' +
-      '  openEntityListModal({\n' +
-      '    title: "人員設定",\n' +
-      '    modalClass: "modal modal-wide member-settings-modal settings-list-modal",\n' +
-      `    body: '<div class="empty-state">讀取人員資料中…</div>',\n` +
-      '    hideFooterClose: true\n' +
-      '  });\n' +
-      '  try {\n' +
-      '    await ensureManagerDirectoryLoaded();\n' +
-      '    if (modalContext.category !== "member-settings") {\n' +
-      '      return;\n' +
-      '    }\n' +
-      '    const body = `\n' +
-      '      <div class="member-settings-filters">\n' +
-      '        <div class="form-row">\n' +
-      '          <label for="memberSettingsNameFilter">姓名</label>\n' +
-      '          <input id="memberSettingsNameFilter" type="text" value="${escapeHtml(memberSettingsFilters.name)}" placeholder="輸入姓名" data-member-settings-filter-field="name">\n' +
-      '        </div>\n' +
-      '        <div class="form-row">\n' +
-      '          <label for="memberSettingsDepartmentFilter">單位</label>\n' +
-      '          <select id="memberSettingsDepartmentFilter" data-member-settings-filter-field="department">\n' +
-      '            <option value="all" ${memberSettingsFilters.department === "all" ? "selected" : ""}>全部</option>\n' +
-      '            ${state.departments.filter((department) => !department.deleted).map((department) => `<option value="${escapeHtml(department.id)}" ${memberSettingsFilters.department === department.id ? "selected" : ""}>${escapeHtml(getLocalizedName(department))}</option>`).join("")}\n' +
-      '            <option value="__none__" ${memberSettingsFilters.department === "__none__" ? "selected" : ""}>未指定</option>\n' +
-      '          </select>\n' +
-      '        </div>\n' +
-      '        <div class="form-row">\n' +
-      '          <label for="memberSettingsRoleFilter">權限</label>\n' +
-      '          <select id="memberSettingsRoleFilter" data-member-settings-filter-field="role">\n' +
-      '            <option value="all" ${memberSettingsFilters.role === "all" ? "selected" : ""}>全部</option>\n' +
-      '            ${getAllRoles().map((role) => `<option value="${escapeHtml(role.id)}" ${memberSettingsFilters.role === role.id ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("")}\n' +
-      '          </select>\n' +
-      '        </div>\n' +
-      '        <div class="form-row">\n' +
-      '          <label for="memberSettingsEmploymentFilter">狀態</label>\n' +
-      '          <select id="memberSettingsEmploymentFilter" data-member-settings-filter-field="employment">\n' +
-      '            <option value="active" ${memberSettingsFilters.employment === "active" ? "selected" : ""}>在職</option>\n' +
-      '            <option value="inactive" ${memberSettingsFilters.employment === "inactive" ? "selected" : ""}>離職</option>\n' +
-      '            <option value="all" ${memberSettingsFilters.employment === "all" ? "selected" : ""}>全部</option>\n' +
-      '          </select>\n' +
-      '        </div>\n' +
-      '        <div class="form-row">\n' +
-      '          <label for="memberSettingsSalaryTypeFilter">計薪方式</label>\n' +
-      '          <select id="memberSettingsSalaryTypeFilter" data-member-settings-filter-field="salaryType">\n' +
-      '            <option value="all" ${memberSettingsFilters.salaryType === "all" ? "selected" : ""}>全部</option>\n' +
-      '            <option value="monthly" ${memberSettingsFilters.salaryType === "monthly" ? "selected" : ""}>月薪</option>\n' +
-      '            <option value="daily" ${memberSettingsFilters.salaryType === "daily" ? "selected" : ""}>日薪</option>\n' +
-      '          </select>\n' +
-      '        </div>\n' +
-      '      </div>\n' +
-      '      <div class="member-settings-list" id="memberSettingsList">${renderMemberSettingsList()}</div>\n' +
-      '    `;\n' +
-      '    openEntityListModal({\n' +
-      '      title: "人員設定",\n' +
-      '      modalClass: "modal modal-wide member-settings-modal settings-list-modal",\n' +
-      '      body,\n' +
-      '      headerButtons: `\n' +
-      '        <button class="ghost-btn" type="button" data-export-members="true">匯出</button>\n' +
-      '        <button class="ghost-btn" type="button" data-import-members="true">匯入</button>\n' +
-      '        <button class="btn-primary" type="button" data-open-add-member="true">新增</button>\n' +
-      '      `,\n' +
-      '      hideFooterClose: true\n' +
-      '    });\n' +
-      '  } catch (error) {\n' +
-      '    if (modalContext.category === "member-settings") {\n' +
-      '      showInfoMessage(`開啟人員設定失敗：${error.message || error}`);\n' +
-      '    }\n' +
-      '  }\n' +
-      '}'
-    
-  code: 'ERR_ASSERTION'
-  name: 'AssertionError'
-  expected:
-  actual: |-
-    async function openMemberSettings() {
-      if (!hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage")) {
-        showInfoMessage("沒有權限開啟人員設定");
-        return;
-      }
-      modalContext = { category: "member-settings" };
-      openEntityListModal({
-        title: "人員設定",
-        modalClass: "modal modal-wide member-settings-modal settings-list-modal",
-        body: '<div class="empty-state">讀取人員資料中…</div>',
-        hideFooterClose: true
-      });
-      try {
-        await ensureManagerDirectoryLoaded();
-        if (modalContext.category !== "member-settings") {
-          return;
-        }
-        const body = `
-          <div class="member-settings-filters">
-            <div class="form-row">
-              <label for="memberSettingsNameFilter">姓名</label>
-              <input id="memberSettingsNameFilter" type="text" value="${escapeHtml(memberSettingsFilters.name)}" placeholder="輸入姓名" data-member-settings-filter-field="name">
-            </div>
-            <div class="form-row">
-              <label for="memberSettingsDepartmentFilter">單位</label>
-              <select id="memberSettingsDepartmentFilter" data-member-settings-filter-field="department">
-                <option value="all" ${memberSettingsFilters.department === "all" ? "selected" : ""}>全部</option>
-                ${state.departments.filter((department) => !department.deleted).map((department) => `<option value="${escapeHtml(department.id)}" ${memberSettingsFilters.department === department.id ? "selected" : ""}>${escapeHtml(getLocalizedName(department))}</option>`).join("")}
-                <option value="__none__" ${memberSettingsFilters.department === "__none__" ? "selected" : ""}>未指定</option>
-              </select>
-            </div>
-            <div class="form-row">
-              <label for="memberSettingsRoleFilter">權限</label>
-              <select id="memberSettingsRoleFilter" data-member-settings-filter-field="role">
-                <option value="all" ${memberSettingsFilters.role === "all" ? "selected" : ""}>全部</option>
-                ${getAllRoles().map((role) => `<option value="${escapeHtml(role.id)}" ${memberSettingsFilters.role === role.id ? "selected" : ""}>${escapeHtml(role.name)}</option>`).join("")}
-              </select>
-            </div>
-            <div class="form-row">
-              <label for="memberSettingsEmploymentFilter">狀態</label>
-              <select id="memberSettingsEmploymentFilter" data-member-settings-filter-field="employment">
-                <option value="active" ${memberSettingsFilters.employment === "active" ? "selected" : ""}>在職</option>
-                <option value="inactive" ${memberSettingsFilters.employment === "inactive" ? "selected" : ""}>離職</option>
-                <option value="all" ${memberSettingsFilters.employment === "all" ? "selected" : ""}>全部</option>
-              </select>
-            </div>
-            <div class="form-row">
-              <label for="memberSettingsSalaryTypeFilter">計薪方式</label>
-              <select id="memberSettingsSalaryTypeFilter" data-member-settings-filter-field="salaryType">
-                <option value="all" ${memberSettingsFilters.salaryType === "all" ? "selected" : ""}>全部</option>
-                <option value="monthly" ${memberSettingsFilters.salaryType === "monthly" ? "selected" : ""}>月薪</option>
-                <option value="daily" ${memberSettingsFilters.salaryType === "daily" ? "selected" : ""}>日薪</option>
-              </select>
-            </div>
-          </div>
-          <div class="member-settings-list" id="memberSettingsList">${renderMemberSettingsList()}</div>
-        `;
-        openEntityListModal({
-          title: "人員設定",
-          modalClass: "modal modal-wide member-settings-modal settings-list-modal",
-          body,
-          headerButtons: `
-            <button class="ghost-btn" type="button" data-export-members="true">匯出</button>
-            <button class="ghost-btn" type="button" data-import-members="true">匯入</button>
-            <button class="btn-primary" type="button" data-open-add-member="true">新增</button>
-          `,
-          hideFooterClose: true
-        });
-      } catch (error) {
-        if (modalContext.category === "member-settings") {
-          showInfoMessage(`開啟人員設定失敗：${error.message || error}`);
-        }
-      }
-    }
-  operator: 'match'
-  stack: |-
-    TestContext.<anonymous> (/home/runner/work/FYH/FYH/tests/lazy-page-data-loading.test.js:65:10)
-    Test.runInAsyncScope (node:async_hooks:214:14)
-    Test.run (node:internal/test_runner/test:1047:25)
-    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
-    Test.postRun (node:internal/test_runner/test:1173:19)
-    Test.run (node:internal/test_runner/test:1101:12)
-    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
   ...
 # Subtest: 新增假別代碼重複時應直接顯示提示
 ok 121 - 新增假別代碼重複時應直接顯示提示
   ---
-  duration_ms: 7.673092
+  duration_ms: 4.300481
   type: 'test'
   ...
 # Subtest: 新增已停用假別代碼時由後端恢復原 ID 並覆寫新資料
 ok 122 - 新增已停用假別代碼時由後端恢復原 ID 並覆寫新資料
   ---
-  duration_ms: 2.296007
+  duration_ms: 1.564899
   type: 'test'
   ...
 # Subtest: 啟用中的相同假別代碼仍然拒絕重複新增
 ok 123 - 啟用中的相同假別代碼仍然拒絕重複新增
   ---
-  duration_ms: 1.486696
+  duration_ms: 0.763186
   type: 'test'
   ...
 # Subtest: 恢復停用假別後前端必須採用後端回傳的原 ID
 ok 124 - 恢復停用假別後前端必須採用後端回傳的原 ID
   ---
-  duration_ms: 5.643054
+  duration_ms: 3.496204
   type: 'test'
   ...
 # Subtest: settings list tables use one localized name column
 ok 125 - settings list tables use one localized name column
   ---
-  duration_ms: 3.713985
+  duration_ms: 3.934086
   type: 'test'
   ...
 # Subtest: member save refreshes Vietnamese labels before returning to the settings list
 ok 126 - member save refreshes Vietnamese labels before returning to the settings list
   ---
-  duration_ms: 0.677927
+  duration_ms: 0.526794
   type: 'test'
   ...
 # Subtest: schedule renders localized member, department and shift names directly
 ok 127 - schedule renders localized member, department and shift names directly
   ---
-  duration_ms: 0.459015
+  duration_ms: 1.630577
   type: 'test'
   ...
 # Subtest: 登入首頁與班表延後載入由正式 bundle 模組提供
 ok 128 - 登入首頁與班表延後載入由正式 bundle 模組提供
   ---
-  duration_ms: 1.814556
+  duration_ms: 1.032367
   type: 'test'
   ...
 # Subtest: 登入成功後直接沿用 signIn 回傳身分，不重做 initializeAuth
 ok 129 - 登入成功後直接沿用 signIn 回傳身分，不重做 initializeAuth
   ---
-  duration_ms: 0.458329
+  duration_ms: 0.243583
   type: 'test'
   ...
 # Subtest: 登入帳密錯誤只顯示中文提示，不顯示 Supabase JSON
 ok 130 - 登入帳密錯誤只顯示中文提示，不顯示 Supabase JSON
   ---
-  duration_ms: 2.568401
+  duration_ms: 1.911045
   type: 'test'
   ...
 # Subtest: 登入工號嚴格驗證，不得自動修剪或吃掉全型與其他字元
 ok 131 - 登入工號嚴格驗證，不得自動修剪或吃掉全型與其他字元
   ---
-  duration_ms: 1.697801
+  duration_ms: 0.988892
   type: 'test'
   ...
 # Subtest: 登入密碼必須保持原字串，不得 trim、replace 或 normalize
 ok 132 - 登入密碼必須保持原字串，不得 trim、replace 或 normalize
   ---
-  duration_ms: 0.804379
+  duration_ms: 0.430801
   type: 'test'
   ...
 # Subtest: 首頁初始化只取得 appInfo 與權限，不讀完整班表
 ok 133 - 首頁初始化只取得 appInfo 與權限，不讀完整班表
   ---
-  duration_ms: 0.363741
+  duration_ms: 0.167139
   type: 'test'
   ...
 # Subtest: 班表完整資料只在正式 ensureScheduleApplicationLoaded 載入
 ok 134 - 班表完整資料只在正式 ensureScheduleApplicationLoaded 載入
   ---
-  duration_ms: 0.936568
+  duration_ms: 0.196703
   type: 'test'
   ...
 # Subtest: 訂餐管理前端 action 必須與 meal-order 後端一致
 ok 135 - 訂餐管理前端 action 必須與 meal-order 後端一致
   ---
-  duration_ms: 10.303813
+  duration_ms: 10.910581
   type: 'test'
   ...
 # Subtest: 設定頁匯出應完整分派單位、班別、假別與加班
 ok 136 - 設定頁匯出應完整分派單位、班別、假別與加班
   ---
-  duration_ms: 4.135106
+  duration_ms: 2.765606
   type: 'test'
   ...
 # Subtest: 完整畫面重繪後才同步群組與功能權限 UI
 ok 137 - 完整畫面重繪後才同步群組與功能權限 UI
   ---
-  duration_ms: 0.319881
+  duration_ms: 0.238585
   type: 'test'
   ...
 # Subtest: 群組停用訂餐時應顯示正確原因並以後端狀態回寫前端快取
 ok 138 - 群組停用訂餐時應顯示正確原因並以後端狀態回寫前端快取
   ---
-  duration_ms: 1.865355
+  duration_ms: 1.007119
   type: 'test'
   ...
 # Subtest: 班表與管理人員名錄使用正式權限 RPC
 ok 139 - 班表與管理人員名錄使用正式權限 RPC
   ---
-  duration_ms: 2.275862
+  duration_ms: 2.48561
   type: 'test'
   ...
 # Subtest: 排班儲存只提交 UUID 主鍵，不以工號當外鍵
 ok 140 - 排班儲存只提交 UUID 主鍵，不以工號當外鍵
   ---
-  duration_ms: 1.31875
+  duration_ms: 1.743686
   type: 'test'
   ...
 # Subtest: 單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px
 ok 141 - 單位設定電腦版應使用七欄自適應寬度，不固定撐到 920px
   ---
-  duration_ms: 1.711548
+  duration_ms: 1.236069
   type: 'test'
   ...
 # Subtest: 人員設定應直接由正式模組輸出第一欄拖曳把手
 ok 142 - 人員設定應直接由正式模組輸出第一欄拖曳把手
   ---
-  duration_ms: 0.624247
+  duration_ms: 0.521015
   type: 'test'
   ...
 # Subtest: 拖曳人員只調整人員順序並重新開啟人員設定
 ok 143 - 拖曳人員只調整人員順序並重新開啟人員設定
   ---
-  duration_ms: 3.890706
+  duration_ms: 3.3322
   type: 'test'
   ...
 # Subtest: 未知排序類型不得再落入加班資料
 ok 144 - 未知排序類型不得再落入加班資料
   ---
-  duration_ms: 0.327111
+  duration_ms: 0.3359
   type: 'test'
   ...
 # Subtest: 修改人員頁班別依勾選順序顯示並從 1 連號
 ok 145 - 修改人員頁班別依勾選順序顯示並從 1 連號
   ---
-  duration_ms: 1.41618
+  duration_ms: 0.832259
   type: 'test'
   ...
 # Subtest: 新勾選班別接在目前已勾選班別最後
 ok 146 - 新勾選班別接在目前已勾選班別最後
   ---
-  duration_ms: 0.261187
+  duration_ms: 0.155772
   type: 'test'
   ...
 # Subtest: heavy admin/review data is lazy-loaded
 ok 147 - heavy admin/review data is lazy-loaded
   ---
-  duration_ms: 1.799595
+  duration_ms: 1.662776
   type: 'test'
   ...
 # Subtest: ExcelJS is lazy-loaded
 ok 148 - ExcelJS is lazy-loaded
   ---
-  duration_ms: 2.042835
+  duration_ms: 1.86112
   type: 'test'
   ...
 # Subtest: schedule hot RPCs materialize actor access instead of row-by-row permission helpers
 ok 149 - schedule hot RPCs materialize actor access instead of row-by-row permission helpers
   ---
-  duration_ms: 1.524066
+  duration_ms: 1.211644
   type: 'test'
   ...
 # Subtest: authenticated direct-write RLS policies are not recreated
 ok 150 - authenticated direct-write RLS policies are not recreated
   ---
-  duration_ms: 2.243885
+  duration_ms: 1.678508
   type: 'test'
   ...
 # Subtest: 權限角色拖曳由正式 renderer 立即持久化，並共用人員權限選單順序
 not ok 151 - 權限角色拖曳由正式 renderer 立即持久化，並共用人員權限選單順序
   ---
-  duration_ms: 4.517663
+  duration_ms: 4.411807
   type: 'test'
   location: '/home/runner/work/FYH/FYH/tests/permission-role-ordering-restday-export.test.js:9:1'
   failureType: 'testCodeFailure'
@@ -3099,13 +2472,13 @@ not ok 151 - 權限角色拖曳由正式 renderer 立即持久化，並共用人
 # Subtest: 班別與假別區塊底部不保留多餘間距
 ok 152 - 班別與假別區塊底部不保留多餘間距
   ---
-  duration_ms: 2.519562
+  duration_ms: 0.771868
   type: 'test'
   ...
 # Subtest: 班表頁匯出加班維持只匯出明確加班設定
 not ok 153 - 班表頁匯出加班維持只匯出明確加班設定
   ---
-  duration_ms: 1.540313
+  duration_ms: 1.352854
   type: 'test'
   location: '/home/runner/work/FYH/FYH/tests/permission-role-ordering-restday-export.test.js:30:1'
   failureType: 'testCodeFailure'
@@ -3131,7 +2504,7 @@ not ok 153 - 班表頁匯出加班維持只匯出明確加班設定
 # Subtest: 權限設定角色表格第一欄由正式 renderer 提供拖曳排序並持久化
 not ok 154 - 權限設定角色表格第一欄由正式 renderer 提供拖曳排序並持久化
   ---
-  duration_ms: 5.647875
+  duration_ms: 5.122365
   type: 'test'
   location: '/home/runner/work/FYH/FYH/tests/permission-role-ordering-ui.test.js:9:1'
   failureType: 'testCodeFailure'
@@ -4180,7 +3553,7 @@ not ok 154 - 權限設定角色表格第一欄由正式 renderer 提供拖曳排
 # Subtest: 權限設定的權限項目使用可換行膠囊標籤並取得主要寬度
 not ok 155 - 權限設定的權限項目使用可換行膠囊標籤並取得主要寬度
   ---
-  duration_ms: 11.858006
+  duration_ms: 7.323431
   type: 'test'
   location: '/home/runner/work/FYH/FYH/tests/permission-settings-loading-ui.test.js:9:1'
   failureType: 'testCodeFailure'
@@ -5229,139 +4602,139 @@ not ok 155 - 權限設定的權限項目使用可換行膠囊標籤並取得主�
 # Subtest: 首次載入班表顯示圓形載入動畫
 ok 156 - 首次載入班表顯示圓形載入動畫
   ---
-  duration_ms: 0.806138
+  duration_ms: 0.652541
   type: 'test'
   ...
 # Subtest: 個人記錄上下班打卡按鈕置中左右併排並加高
 ok 157 - 個人記錄上下班打卡按鈕置中左右併排並加高
   ---
-  duration_ms: 2.470755
+  duration_ms: 1.999766
   type: 'test'
   ...
 # Subtest: 發布版保留個人記錄打卡按鈕版面
 ok 158 - 發布版保留個人記錄打卡按鈕版面
   ---
-  duration_ms: 2.59592
+  duration_ms: 2.185524
   type: 'test'
   ...
 # Subtest: 越文上下班打卡按鈕允許兩行顯示
 ok 159 - 越文上下班打卡按鈕允許兩行顯示
   ---
-  duration_ms: 3.611228
+  duration_ms: 3.190089
   type: 'test'
   ...
 # Subtest: 個人記錄表格加寬打卡欄並保留完整審核欄
 ok 160 - 個人記錄表格加寬打卡欄並保留完整審核欄
   ---
-  duration_ms: 1.553602
+  duration_ms: 1.513263
   type: 'test'
   ...
 # Subtest: 上下班打卡按鈕使用不同顏色
 ok 161 - 上下班打卡按鈕使用不同顏色
   ---
-  duration_ms: 0.429261
+  duration_ms: 0.291534
   type: 'test'
   ...
 # Subtest: 個人記錄表格欄標題置中
 ok 162 - 個人記錄表格欄標題置中
   ---
-  duration_ms: 1.254405
+  duration_ms: 1.114639
   type: 'test'
   ...
 # Subtest: 發布版 CSS 保留個人記錄表頭置中規則
 ok 163 - 發布版 CSS 保留個人記錄表頭置中規則
   ---
-  duration_ms: 2.332526
+  duration_ms: 1.653601
   type: 'test'
   ...
 # Subtest: 個人記錄重繪會保存並還原視窗及表格捲動位置
 ok 164 - 個人記錄重繪會保存並還原視窗及表格捲動位置
   ---
-  duration_ms: 2.414489
+  duration_ms: 1.834481
   type: 'test'
   ...
 # Subtest: 個人記錄未打卡欄保持空白且地點同列
 ok 165 - 個人記錄未打卡欄保持空白且地點同列
   ---
-  duration_ms: 1.769045
+  duration_ms: 1.630568
   type: 'test'
   ...
 # Subtest: 非當日工時不渲染停用輸入框
 ok 166 - 非當日工時不渲染停用輸入框
   ---
-  duration_ms: 0.392622
+  duration_ms: 0.287207
   type: 'test'
   ...
 # Subtest: 備註使用單行輸入框並限制在欄內
 ok 167 - 備註使用單行輸入框並限制在欄內
   ---
-  duration_ms: 1.832998
+  duration_ms: 1.053709
   type: 'test'
   ...
 # Subtest: 登入結果不得把 Access Token 或 Refresh Token 暴露給 renderer
 ok 168 - 登入結果不得把 Access Token 或 Refresh Token 暴露給 renderer
   ---
-  duration_ms: 3.283043
+  duration_ms: 3.080625
   type: 'test'
   ...
 # Subtest: 同步登入狀態與一般 API 也必須經過同一個唯讀門面
 ok 169 - 同步登入狀態與一般 API 也必須經過同一個唯讀門面
   ---
-  duration_ms: 0.854623
+  duration_ms: 0.93397
   type: 'test'
   ...
 # Subtest: renderer 登入狀態不得依賴 provider Session 結構
 ok 170 - renderer 登入狀態不得依賴 provider Session 結構
   ---
-  duration_ms: 2.345023
+  duration_ms: 1.803565
   type: 'test'
   ...
 # Subtest: 個人記錄與簽到審核表格資料置中
 ok 171 - 個人記錄與簽到審核表格資料置中
   ---
-  duration_ms: 1.915588
+  duration_ms: 1.554304
   type: 'test'
   ...
 # Subtest: 發布版 CSS 保留簽到簿表格置中規則
 ok 172 - 發布版 CSS 保留簽到簿表格置中規則
   ---
-  duration_ms: 2.022627
+  duration_ms: 1.913178
   type: 'test'
   ...
 # Subtest: 目錄刪除成功後才更新前端狀態
 ok 173 - 目錄刪除成功後才更新前端狀態
   ---
-  duration_ms: 3.654949
+  duration_ms: 2.981388
   type: 'test'
   ...
 # Subtest: 後端刪除失敗時不應先移除前端資料
 ok 174 - 後端刪除失敗時不應先移除前端資料
   ---
-  duration_ms: 2.291866
+  duration_ms: 2.724876
   type: 'test'
   ...
 # Subtest: 安全目錄 API 與人員同步應由正式 web-api 提供
 ok 175 - 安全目錄 API 與人員同步應由正式 web-api 提供
   ---
-  duration_ms: 0.693019
+  duration_ms: 0.675986
   type: 'test'
   ...
 # Subtest: 目錄刪除畫面流程不應再依賴函式覆蓋
 ok 176 - 目錄刪除畫面流程不應再依賴函式覆蓋
   ---
-  duration_ms: 0.486408
+  duration_ms: 0.38948
   type: 'test'
   ...
 # Subtest: 目前人員應優先依 profile id，再依工號解析
 ok 177 - 目前人員應優先依 profile id，再依工號解析
   ---
-  duration_ms: 2.290752
+  duration_ms: 1.889723
   type: 'test'
   ...
 # Subtest: 管理能力應完全由權限項目與適用群組決定
 not ok 178 - 管理能力應完全由權限項目與適用群組決定
   ---
-  duration_ms: 2.384768
+  duration_ms: 1.633302
   type: 'test'
   location: '/home/runner/work/FYH/FYH/tests/renderer-auth-context.test.js:29:1'
   failureType: 'testCodeFailure'
@@ -5381,1417 +4754,1417 @@ not ok 178 - 管理能力應完全由權限項目與適用群組決定
 # Subtest: 假別明細與設定輔助應位於對應責任模組
 ok 179 - 假別明細與設定輔助應位於對應責任模組
   ---
-  duration_ms: 0.266717
+  duration_ms: 0.200919
   type: 'test'
   ...
 # Subtest: 登入、簽到簿與班表模組順序應維持且不再載入舊申請模組
 ok 180 - 登入、簽到簿與班表模組順序應維持且不再載入舊申請模組
   ---
-  duration_ms: 0.435628
+  duration_ms: 0.359355
   type: 'test'
   ...
 # Subtest: 排班前端不得保留已淘汰申請流程的無引用輔助名稱
 ok 181 - 排班前端不得保留已淘汰申請流程的無引用輔助名稱
   ---
-  duration_ms: 0.898105
+  duration_ms: 0.722886
   type: 'test'
   ...
 # Subtest: 自動補班只處理月薪人員的完全空白格
 ok 182 - 自動補班只處理月薪人員的完全空白格
   ---
-  duration_ms: 2.858806
+  duration_ms: 3.100305
   type: 'test'
   ...
 # Subtest: 套用自動補班應建立復原點並只儲存變更格
 ok 183 - 套用自動補班應建立復原點並只儲存變更格
   ---
-  duration_ms: 2.192877
+  duration_ms: 2.902982
   type: 'test'
   ...
 # Subtest: 共用套用與取消按鈕應依預覽類型分流
 ok 184 - 共用套用與取消按鈕應依預覽類型分流
   ---
-  duration_ms: 1.218313
+  duration_ms: 1.183542
   type: 'test'
   ...
 # Subtest: 自動補班應由正式模組提供而非覆蓋自動排班函式
 ok 185 - 自動補班應由正式模組提供而非覆蓋自動排班函式
   ---
-  duration_ms: 0.624775
+  duration_ms: 0.568897
   type: 'test'
   ...
 # Subtest: 八週休假目標應扣除既有例假
 ok 186 - 八週休假目標應扣除既有例假
   ---
-  duration_ms: 6.805602
+  duration_ms: 3.906425
   type: 'test'
   ...
 # Subtest: 班別需求應依營運狀態及需求人數計算
 ok 187 - 班別需求應依營運狀態及需求人數計算
   ---
-  duration_ms: 4.013013
+  duration_ms: 2.265772
   type: 'test'
   ...
 # Subtest: 最小成本分配應優先符合人員班別順位
 ok 188 - 最小成本分配應優先符合人員班別順位
   ---
-  duration_ms: 3.242361
+  duration_ms: 1.829513
   type: 'test'
   ...
 # Subtest: 同休限制應把任何假別都算入限額
 ok 189 - 同休限制應把任何假別都算入限額
   ---
-  duration_ms: 3.188632
+  duration_ms: 2.068599
   type: 'test'
   ...
 # Subtest: 同班限制應計入既有班別且可改排其他班別
 ok 190 - 同班限制應計入既有班別且可改排其他班別
   ---
-  duration_ms: 2.562977
+  duration_ms: 1.851636
   type: 'test'
   ...
 # Subtest: 同班限制應以有限局部重排維持完整班別覆蓋
 ok 191 - 同班限制應以有限局部重排維持完整班別覆蓋
   ---
-  duration_ms: 16.527438
+  duration_ms: 23.677254
   type: 'test'
   ...
 # Subtest: 既有人工班別已占用同班限額時自動排班應留缺額而非違規
 ok 192 - 既有人工班別已占用同班限額時自動排班應留缺額而非違規
   ---
-  duration_ms: 4.73369
+  duration_ms: 5.161433
   type: 'test'
   ...
 # Subtest: 同班限制演算法不得恢復無上限遞迴搜尋
 ok 193 - 同班限制演算法不得恢復無上限遞迴搜尋
   ---
-  duration_ms: 0.421616
+  duration_ms: 0.370561
   type: 'test'
   ...
 # Subtest: 失效人員應在讀取條件時忽略且不套用無效條件
 ok 194 - 失效人員應在讀取條件時忽略且不套用無效條件
   ---
-  duration_ms: 2.848102
+  duration_ms: 2.286623
   type: 'test'
   ...
 # Subtest: 自動排班應維持明確建置順序
 ok 195 - 自動排班應維持明確建置順序
   ---
-  duration_ms: 4.70504
+  duration_ms: 4.54787
   type: 'test'
   ...
 # Subtest: 按鈕掃描器必須涵蓋正式 renderer 的大量按鈕
 ok 196 - 按鈕掃描器必須涵蓋正式 renderer 的大量按鈕
   ---
-  duration_ms: 3.376024
+  duration_ms: 2.958394
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:128 收合工具列
 ok 197 - 按鈕契約 index.html:128 收合工具列
   ---
-  duration_ms: 1.76444
+  duration_ms: 1.243651
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:134 上一步（Ctrl+Z）
 ok 198 - 按鈕契約 index.html:134 上一步（Ctrl+Z）
   ---
-  duration_ms: 1.889389
+  duration_ms: 1.180257
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:137 下一步（Ctrl+Y）
 ok 199 - 按鈕契約 index.html:137 下一步（Ctrl+Y）
   ---
-  duration_ms: 1.692692
+  duration_ms: 1.2698
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:147 班別設定
 ok 200 - 按鈕契約 index.html:147 班別設定
   ---
-  duration_ms: 1.40638
+  duration_ms: 1.02121
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:155 假別設定
 ok 201 - 按鈕契約 index.html:155 假別設定
   ---
-  duration_ms: 1.388246
+  duration_ms: 1.005797
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:156 restComplianceButton
 ok 202 - 按鈕契約 index.html:156 restComplianceButton
   ---
-  duration_ms: 1.44717
+  duration_ms: 1.063392
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:164 加班設定
 ok 203 - 按鈕契約 index.html:164 加班設定
   ---
-  duration_ms: 1.442358
+  duration_ms: 1.008631
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:181 上一步（Ctrl+Z）
 ok 204 - 按鈕契約 index.html:181 上一步（Ctrl+Z）
   ---
-  duration_ms: 2.090126
+  duration_ms: 1.293435
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:184 下一步（Ctrl+Y）
 ok 205 - 按鈕契約 index.html:184 下一步（Ctrl+Y）
   ---
-  duration_ms: 1.847785
+  duration_ms: 1.43056
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:191 prevPeriodButton
 ok 206 - 按鈕契約 index.html:191 prevPeriodButton
   ---
-  duration_ms: 1.32137
+  duration_ms: 1.040238
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:192 prevWeekButton
 ok 207 - 按鈕契約 index.html:192 prevWeekButton
   ---
-  duration_ms: 1.378793
+  duration_ms: 0.982994
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:193 nextWeekButton
 ok 208 - 按鈕契約 index.html:193 nextWeekButton
   ---
-  duration_ms: 1.235279
+  duration_ms: 0.945457
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:194 nextPeriodButton
 ok 209 - 按鈕契約 index.html:194 nextPeriodButton
   ---
-  duration_ms: 1.232887
+  duration_ms: 0.932829
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:196 coreActionsToggle
 ok 210 - 按鈕契約 index.html:196 coreActionsToggle
   ---
-  duration_ms: 1.211377
+  duration_ms: 0.984635
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:201 permissionSettingsMenuButton
 ok 211 - 按鈕契約 index.html:201 permissionSettingsMenuButton
   ---
-  duration_ms: 1.468668
+  duration_ms: 1.086277
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:202 groupSettingsMenuButton
 ok 212 - 按鈕契約 index.html:202 groupSettingsMenuButton
   ---
-  duration_ms: 1.130213
+  duration_ms: 0.895232
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:203 weekStartSettingsButton
 ok 213 - 按鈕契約 index.html:203 weekStartSettingsButton
   ---
-  duration_ms: 1.233555
+  duration_ms: 0.991486
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:204 scheduleArchiveMenuButton
 ok 214 - 按鈕契約 index.html:204 scheduleArchiveMenuButton
   ---
-  duration_ms: 1.133748
+  duration_ms: 0.899709
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:210 scheduleConditionsMenuButton
 ok 215 - 按鈕契約 index.html:210 scheduleConditionsMenuButton
   ---
-  duration_ms: 1.076915
+  duration_ms: 0.941301
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:211 autoSchedulePreviewButton
 ok 216 - 按鈕契約 index.html:211 autoSchedulePreviewButton
   ---
-  duration_ms: 1.232719
+  duration_ms: 0.986409
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:212 autoFillSchedulePreviewButton
 ok 217 - 按鈕契約 index.html:212 autoFillSchedulePreviewButton
   ---
-  duration_ms: 0.636763
+  duration_ms: 0.511551
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:213 autoScheduleApplyButton
 ok 218 - 按鈕契約 index.html:213 autoScheduleApplyButton
   ---
-  duration_ms: 1.28797
+  duration_ms: 1.031385
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:214 autoScheduleCancelButton
 ok 219 - 按鈕契約 index.html:214 autoScheduleCancelButton
   ---
-  duration_ms: 1.282757
+  duration_ms: 1.002282
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:220 exportScheduleButton
 ok 220 - 按鈕契約 index.html:220 exportScheduleButton
   ---
-  duration_ms: 0.198212
+  duration_ms: 0.179146
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:221 exportSapButton
 ok 221 - 按鈕契約 index.html:221 exportSapButton
   ---
-  duration_ms: 1.256828
+  duration_ms: 1.050103
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:222 exportLeaveButton
 ok 222 - 按鈕契約 index.html:222 exportLeaveButton
   ---
-  duration_ms: 1.85687
+  duration_ms: 1.391791
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:223 exportOvertimeButton
 ok 223 - 按鈕契約 index.html:223 exportOvertimeButton
   ---
-  duration_ms: 1.251577
+  duration_ms: 1.285614
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:228 返回首頁
 ok 224 - 按鈕契約 index.html:228 返回首頁
   ---
-  duration_ms: 1.433201
+  duration_ms: 1.123011
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:236 前一週
 ok 225 - 按鈕契約 index.html:236 前一週
   ---
-  duration_ms: 1.251677
+  duration_ms: 1.016734
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:237 後一週
 ok 226 - 按鈕契約 index.html:237 後一週
   ---
-  duration_ms: 1.223744
+  duration_ms: 1.009413
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:529 data-close-button
 ok 227 - 按鈕契約 index.html:529 data-close-button
   ---
-  duration_ms: 1.953807
+  duration_ms: 1.565119
   type: 'test'
   ...
 # Subtest: 按鈕契約 index.html:529 data-run-schedule-export
 ok 228 - 按鈕契約 index.html:529 data-run-schedule-export
   ---
-  duration_ms: 0.319928
+  duration_ms: 0.313577
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-schedule-conditions.js:98 data-add-schedule-condition
 ok 229 - 按鈕契約 renderer-schedule-conditions.js:98 data-add-schedule-condition
   ---
-  duration_ms: 1.243089
+  duration_ms: 0.944166
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-schedule-conditions.js:148 data-save-schedule-condition
 ok 230 - 按鈕契約 renderer-schedule-conditions.js:148 data-save-schedule-condition
   ---
-  duration_ms: 1.399098
+  duration_ms: 1.012477
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-auto-fill-schedule.js:125 data-generate-auto-fill-schedule
 ok 231 - 按鈕契約 renderer-auto-fill-schedule.js:125 data-generate-auto-fill-schedule
   ---
-  duration_ms: 1.014349
+  duration_ms: 0.736707
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-auto-schedule.js:118 data-generate-auto-schedule
 ok 232 - 按鈕契約 renderer-auto-schedule.js:118 data-generate-auto-schedule
   ---
-  duration_ms: 2.068821
+  duration_ms: 1.546663
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-schedule-toolbar.js:84 data-chip-type, data-chip-id
 ok 233 - 按鈕契約 renderer-schedule-toolbar.js:84 data-chip-type, data-chip-id
   ---
-  duration_ms: 1.974369
+  duration_ms: 1.541675
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-schedule-toolbar.js:88 data-chip-type, data-chip-id
 ok 234 - 按鈕契約 renderer-schedule-toolbar.js:88 data-chip-type, data-chip-id
   ---
-  duration_ms: 1.8729
+  duration_ms: 1.418632
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-catalog.js:94 data-export-settings
 ok 235 - 按鈕契約 renderer-settings-catalog.js:94 data-export-settings
   ---
-  duration_ms: 2.057274
+  duration_ms: 1.559181
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-catalog.js:95 data-import-settings
 ok 236 - 按鈕契約 renderer-settings-catalog.js:95 data-import-settings
   ---
-  duration_ms: 2.071487
+  duration_ms: 1.471501
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-catalog.js:96 data-open-add
 ok 237 - 按鈕契約 renderer-settings-catalog.js:96 data-open-add
   ---
-  duration_ms: 2.025689
+  duration_ms: 1.514675
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-catalog.js:115 data-open-item-color
 ok 238 - 按鈕契約 renderer-settings-catalog.js:115 data-open-item-color
   ---
-  duration_ms: 2.0106
+  duration_ms: 1.515926
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-catalog.js:117 data-open-item-color
 ok 239 - 按鈕契約 renderer-settings-catalog.js:117 data-open-item-color
   ---
-  duration_ms: 1.901844
+  duration_ms: 1.493673
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-catalog.js:119 data-set-auto-item-text
 ok 240 - 按鈕契約 renderer-settings-catalog.js:119 data-set-auto-item-text
   ---
-  duration_ms: 2.171164
+  duration_ms: 1.642445
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-catalog.js:142 ${title}
 ok 241 - 按鈕契約 renderer-settings-catalog.js:142 ${title}
   ---
-  duration_ms: 0.097427
+  duration_ms: 0.097525
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-catalog.js:251 data-save-shift
 ok 242 - 按鈕契約 renderer-settings-catalog.js:251 data-save-shift
   ---
-  duration_ms: 2.038627
+  duration_ms: 2.194466
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-catalog.js:442 data-save-named-item
 ok 243 - 按鈕契約 renderer-settings-catalog.js:442 data-save-named-item
   ---
-  duration_ms: 2.891667
+  duration_ms: 1.487003
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-department.js:86 data-export-departments
 ok 244 - 按鈕契約 renderer-settings-department.js:86 data-export-departments
   ---
-  duration_ms: 2.079988
+  duration_ms: 1.474705
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-department.js:87 data-import-departments
 ok 245 - 按鈕契約 renderer-settings-department.js:87 data-import-departments
   ---
-  duration_ms: 2.00704
+  duration_ms: 1.48509
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-department.js:88 data-open-add-department
 ok 246 - 按鈕契約 renderer-settings-department.js:88 data-open-add-department
   ---
-  duration_ms: 2.018736
+  duration_ms: 1.484189
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-department.js:193 data-save-department
 ok 247 - 按鈕契約 renderer-settings-department.js:193 data-save-department
   ---
-  duration_ms: 2.019822
+  duration_ms: 1.48487
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-member.js:260 data-export-members
 ok 248 - 按鈕契約 renderer-settings-member.js:260 data-export-members
   ---
-  duration_ms: 2.059239
+  duration_ms: 1.500483
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-member.js:261 data-import-members
 ok 249 - 按鈕契約 renderer-settings-member.js:261 data-import-members
   ---
-  duration_ms: 2.002843
+  duration_ms: 1.4984
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-settings-member.js:262 data-open-add-member
 ok 250 - 按鈕契約 renderer-settings-member.js:262 data-open-add-member
   ---
-  duration_ms: 1.875735
+  duration_ms: 1.482707
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:358 編輯
 ok 251 - 按鈕契約 renderer-groups-permissions-archive.js:358 編輯
   ---
-  duration_ms: 1.255903
+  duration_ms: 0.988431
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:358 data-toggle-schedule-group
 ok 252 - 按鈕契約 renderer-groups-permissions-archive.js:358 data-toggle-schedule-group
   ---
-  duration_ms: 0.982009
+  duration_ms: 0.965878
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:358 刪除
 ok 253 - 按鈕契約 renderer-groups-permissions-archive.js:358 刪除
   ---
-  duration_ms: 1.179259
+  duration_ms: 0.978547
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:369 data-add-schedule-group
 ok 254 - 按鈕契約 renderer-groups-permissions-archive.js:369 data-add-schedule-group
   ---
-  duration_ms: 1.2234
+  duration_ms: 0.946969
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:381 data-save-schedule-group
 ok 255 - 按鈕契約 renderer-groups-permissions-archive.js:381 data-save-schedule-group
   ---
-  duration_ms: 1.230533
+  duration_ms: 0.957225
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:476 編輯
 ok 256 - 按鈕契約 renderer-groups-permissions-archive.js:476 編輯
   ---
-  duration_ms: 1.29393
+  duration_ms: 0.972327
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:476 刪除
 ok 257 - 按鈕契約 renderer-groups-permissions-archive.js:476 刪除
   ---
-  duration_ms: 1.374284
+  duration_ms: 1.005257
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:477 data-add-access-role
 ok 258 - 按鈕契約 renderer-groups-permissions-archive.js:477 data-add-access-role
   ---
-  duration_ms: 1.042918
+  duration_ms: 0.925648
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:494 data-save-access-role
 ok 259 - 按鈕契約 renderer-groups-permissions-archive.js:494 data-save-access-role
   ---
-  duration_ms: 1.285753
+  duration_ms: 0.951646
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:536 data-create-schedule-archive
 ok 260 - 按鈕契約 renderer-groups-permissions-archive.js:536 data-create-schedule-archive
   ---
-  duration_ms: 1.286922
+  duration_ms: 1.426002
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:536 data-view-schedule-archive
 ok 261 - 按鈕契約 renderer-groups-permissions-archive.js:536 data-view-schedule-archive
   ---
-  duration_ms: 1.266496
+  duration_ms: 0.950725
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:536 data-unarchive-schedule
 ok 262 - 按鈕契約 renderer-groups-permissions-archive.js:536 data-unarchive-schedule
   ---
-  duration_ms: 1.290191
+  duration_ms: 3.750653
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:638 data-reset-member-password
 ok 263 - 按鈕契約 renderer-groups-permissions-archive.js:638 data-reset-member-password
   ---
-  duration_ms: 2.13717
+  duration_ms: 1.654462
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:638 data-toggle-schedule-shifts
 ok 264 - 按鈕契約 renderer-groups-permissions-archive.js:638 data-toggle-schedule-shifts
   ---
-  duration_ms: 1.995363
+  duration_ms: 1.507103
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:639 data-save-member
 ok 265 - 按鈕契約 renderer-groups-permissions-archive.js:639 data-save-member
   ---
-  duration_ms: 1.947368
+  duration_ms: 1.55231
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:689 data-export-attendance-review
 ok 266 - 按鈕契約 renderer-groups-permissions-archive.js:689 data-export-attendance-review
   ---
-  duration_ms: 1.712096
+  duration_ms: 1.398361
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:689 data-attendance-review-batch
 ok 267 - 按鈕契約 renderer-groups-permissions-archive.js:689 data-attendance-review-batch
   ---
-  duration_ms: 1.572092
+  duration_ms: 1.246986
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:689 data-attendance-review-batch
 ok 268 - 按鈕契約 renderer-groups-permissions-archive.js:689 data-attendance-review-batch
   ---
-  duration_ms: 1.452243
+  duration_ms: 1.158845
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:692 編輯
 ok 269 - 按鈕契約 renderer-groups-permissions-archive.js:692 編輯
   ---
-  duration_ms: 2.030324
+  duration_ms: 1.600022
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:692 ${row.reviewed ? 
 ok 270 - 按鈕契約 renderer-groups-permissions-archive.js:692 ${row.reviewed ? 
   ---
-  duration_ms: 1.946691
+  duration_ms: 1.58558
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-groups-permissions-archive.js:692 歷程
 ok 271 - 按鈕契約 renderer-groups-permissions-archive.js:692 歷程
   ---
-  duration_ms: 1.975153
+  duration_ms: 1.553853
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-auth-context.js:268 data-auth-sign-in
 ok 272 - 按鈕契約 renderer-auth-context.js:268 data-auth-sign-in
   ---
-  duration_ms: 1.937935
+  duration_ms: 1.496387
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-auth-context.js:296 data-save-change-password
 ok 273 - 按鈕契約 renderer-auth-context.js:296 data-save-change-password
   ---
-  duration_ms: 1.98475
+  duration_ms: 1.593522
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-main-pages.js:19 data-open-change-password
 ok 274 - 按鈕契約 renderer-main-pages.js:19 data-open-change-password
   ---
-  duration_ms: 1.510378
+  duration_ms: 1.150763
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-main-pages.js:20 homeSignOutButton
 ok 275 - 按鈕契約 renderer-main-pages.js:20 homeSignOutButton
   ---
-  duration_ms: 1.631105
+  duration_ms: 1.259125
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-main-pages.js:24 data-home-action
 ok 276 - 按鈕契約 renderer-main-pages.js:24 data-home-action
   ---
-  duration_ms: 1.312896
+  duration_ms: 0.957225
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-main-pages.js:27 data-home-action
 ok 277 - 按鈕契約 renderer-main-pages.js:27 data-home-action
   ---
-  duration_ms: 1.299308
+  duration_ms: 1.009763
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-main-pages.js:30 data-home-action
 ok 278 - 按鈕契約 renderer-main-pages.js:30 data-home-action
   ---
-  duration_ms: 1.305214
+  duration_ms: 1.002912
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-main-pages.js:78 data-meal-tab
 ok 279 - 按鈕契約 renderer-main-pages.js:78 data-meal-tab
   ---
-  duration_ms: 1.524977
+  duration_ms: 2.003001
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-main-pages.js:79 data-meal-tab
 ok 280 - 按鈕契約 renderer-main-pages.js:79 data-meal-tab
   ---
-  duration_ms: 1.385834
+  duration_ms: 2.611196
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-main-pages.js:80 data-meal-tab
 ok 281 - 按鈕契約 renderer-main-pages.js:80 data-meal-tab
   ---
-  duration_ms: 1.443334
+  duration_ms: 0.901782
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-main-pages.js:105 data-save-today-meal
 ok 282 - 按鈕契約 renderer-main-pages.js:105 data-save-today-meal
   ---
-  duration_ms: 1.968858
+  duration_ms: 1.272023
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:10 返回首頁
 ok 283 - 按鈕契約 renderer-records-views.js:10 返回首頁
   ---
-  duration_ms: 1.282796
+  duration_ms: 0.773522
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:19 data-records-tab
 ok 284 - 按鈕契約 renderer-records-views.js:19 data-records-tab
   ---
-  duration_ms: 2.158745
+  duration_ms: 1.547704
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:34 日期${label}，點擊切換排序
 ok 285 - 按鈕契約 renderer-records-views.js:34 日期${label}，點擊切換排序
   ---
-  duration_ms: 1.862426
+  duration_ms: 1.312684
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:104 data-personal-clock-action, data-personal-clock-date
 ok 286 - 按鈕契約 renderer-records-views.js:104 data-personal-clock-action, data-personal-clock-date
   ---
-  duration_ms: 2.155293
+  duration_ms: 1.526933
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:105 data-personal-clock-action, data-personal-clock-date
 ok 287 - 按鈕契約 renderer-records-views.js:105 data-personal-clock-action, data-personal-clock-date
   ---
-  duration_ms: 2.193331
+  duration_ms: 1.584018
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:159 data-personal-record-page
 ok 288 - 按鈕契約 renderer-records-views.js:159 data-personal-record-page
   ---
-  duration_ms: 1.803249
+  duration_ms: 1.305513
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:159 data-personal-record-page
 ok 289 - 按鈕契約 renderer-records-views.js:159 data-personal-record-page
   ---
-  duration_ms: 1.672219
+  duration_ms: 1.209511
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:221 data-export-meal-report
 ok 290 - 按鈕契約 renderer-records-views.js:221 data-export-meal-report
   ---
-  duration_ms: 1.962936
+  duration_ms: 1.462377
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:228 data-meal-report-page
 ok 291 - 按鈕契約 renderer-records-views.js:228 data-meal-report-page
   ---
-  duration_ms: 1.424661
+  duration_ms: 1.308408
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:228 data-meal-report-page
 ok 292 - 按鈕契約 renderer-records-views.js:228 data-meal-report-page
   ---
-  duration_ms: 1.607204
+  duration_ms: 1.239845
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:253 data-attendance-review-page
 ok 293 - 按鈕契約 renderer-records-views.js:253 data-attendance-review-page
   ---
-  duration_ms: 1.551385
+  duration_ms: 1.208619
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:255 data-attendance-review-page
 ok 294 - 按鈕契約 renderer-records-views.js:255 data-attendance-review-page
   ---
-  duration_ms: 1.49719
+  duration_ms: 1.13534
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:278 data-attendance-common-notes
 ok 295 - 按鈕契約 renderer-records-views.js:278 data-attendance-common-notes
   ---
-  duration_ms: 1.400878
+  duration_ms: 1.224803
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:279 data-export-attendance-review
 ok 296 - 按鈕契約 renderer-records-views.js:279 data-export-attendance-review
   ---
-  duration_ms: 1.257785
+  duration_ms: 1.204332
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:280 data-print-attendance-review
 ok 297 - 按鈕契約 renderer-records-views.js:280 data-print-attendance-review
   ---
-  duration_ms: 1.276391
+  duration_ms: 1.238944
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:281 data-attendance-review-batch
 ok 298 - 按鈕契約 renderer-records-views.js:281 data-attendance-review-batch
   ---
-  duration_ms: 1.096575
+  duration_ms: 1.186547
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:282 data-attendance-review-batch
 ok 299 - 按鈕契約 renderer-records-views.js:282 data-attendance-review-batch
   ---
-  duration_ms: 1.073347
+  duration_ms: 1.132185
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:304 編輯
 ok 300 - 按鈕契約 renderer-records-views.js:304 編輯
   ---
-  duration_ms: 1.400901
+  duration_ms: 2.64699
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:305 ${row.reviewed ? 
 ok 301 - 按鈕契約 renderer-records-views.js:305 ${row.reviewed ? 
   ---
-  duration_ms: 1.730853
+  duration_ms: 1.456959
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:306 歷程
 ok 302 - 按鈕契約 renderer-records-views.js:306 歷程
   ---
-  duration_ms: 1.573711
+  duration_ms: 2.947618
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:332 data-add-meal-product
 ok 303 - 按鈕契約 renderer-records-views.js:332 data-add-meal-product
   ---
-  duration_ms: 1.425738
+  duration_ms: 1.460504
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:333 data-save-meal-settings
 ok 304 - 按鈕契約 renderer-records-views.js:333 data-save-meal-settings
   ---
-  duration_ms: 1.456792
+  duration_ms: 1.51121
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-views.js:346 刪除
 ok 305 - 按鈕契約 renderer-records-views.js:346 刪除
   ---
-  duration_ms: 1.274334
+  duration_ms: 1.316981
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-actions.js:40 data-close-button
 ok 306 - 按鈕契約 renderer-records-actions.js:40 data-close-button
   ---
-  duration_ms: 1.374027
+  duration_ms: 1.455807
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-actions.js:40 data-save-attendance-review
 ok 307 - 按鈕契約 renderer-records-actions.js:40 data-save-attendance-review
   ---
-  duration_ms: 1.50199
+  duration_ms: 1.573723
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-actions.js:79 data-close-button
 ok 308 - 按鈕契約 renderer-records-actions.js:79 data-close-button
   ---
-  duration_ms: 1.379745
+  duration_ms: 1.529457
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-actions.js:79 data-save-attendance-common-notes
 ok 309 - 按鈕契約 renderer-records-actions.js:79 data-save-attendance-common-notes
   ---
-  duration_ms: 1.199992
+  duration_ms: 1.37729
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-actions.js:482 data-attendance-review-print-close
 ok 310 - 按鈕契約 renderer-records-actions.js:482 data-attendance-review-print-close
   ---
-  duration_ms: 1.232009
+  duration_ms: 1.366635
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-records-actions.js:482 data-attendance-review-print-now
 ok 311 - 按鈕契約 renderer-records-actions.js:482 data-attendance-review-print-now
   ---
-  duration_ms: 1.227678
+  duration_ms: 1.320736
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-schedule-assignment-modals.js:12 關閉
 ok 312 - 按鈕契約 renderer-schedule-assignment-modals.js:12 關閉
   ---
-  duration_ms: 1.367693
+  duration_ms: 1.476147
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-schedule-assignment-modals.js:37 data-close-button
 ok 313 - 按鈕契約 renderer-schedule-assignment-modals.js:37 data-close-button
   ---
-  duration_ms: 1.415968
+  duration_ms: 1.640131
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-schedule-assignment-modals.js:135 data-save-leave-assignment
 ok 314 - 按鈕契約 renderer-schedule-assignment-modals.js:135 data-save-leave-assignment
   ---
-  duration_ms: 1.958288
+  duration_ms: 4.55461
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-schedule-assignment-modals.js:279 data-save-overtime-assignment
 ok 315 - 按鈕契約 renderer-schedule-assignment-modals.js:279 data-save-overtime-assignment
   ---
-  duration_ms: 1.875403
+  duration_ms: 3.833135
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-schedule-compliance-settings.js:116 data-save-week-start
 ok 316 - 按鈕契約 renderer-schedule-compliance-settings.js:116 data-save-week-start
   ---
-  duration_ms: 1.551461
+  duration_ms: 1.796505
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-export-actions.js:466 data-close-button
 ok 317 - 按鈕契約 renderer-export-actions.js:466 data-close-button
   ---
-  duration_ms: 1.385797
+  duration_ms: 1.503438
   type: 'test'
   ...
 # Subtest: 按鈕契約 renderer-export-actions.js:466 data-run-period-export
 ok 318 - 按鈕契約 renderer-export-actions.js:466 data-run-period-export
   ---
-  duration_ms: 1.454684
+  duration_ms: 1.45735
   type: 'test'
   ...
 # Subtest: 共用操作按鈕必須把呼叫端 attrs 寫入實際 button
 ok 319 - 共用操作按鈕必須把呼叫端 attrs 寫入實際 button
   ---
-  duration_ms: 0.283999
+  duration_ms: 0.324393
   type: 'test'
   ...
 # Subtest: 按鈕事件中的直接函式呼叫不可指向不存在的函式
 ok 320 - 按鈕事件中的直接函式呼叫不可指向不存在的函式
   ---
-  duration_ms: 1.955407
+  duration_ms: 4.827135
   type: 'test'
   ...
 # Subtest: renderer 使用的 schedulerApi 方法都必須由 web-api 公開
 ok 321 - renderer 使用的 schedulerApi 方法都必須由 web-api 公開
   ---
-  duration_ms: 0.173565
+  duration_ms: 0.164225
   type: 'test'
   ...
 # Subtest: 設定匯入按鈕必須完整連到單位、班別、假別與加班正式流程
 ok 322 - 設定匯入按鈕必須完整連到單位、班別、假別與加班正式流程
   ---
-  duration_ms: 0.136418
+  duration_ms: 0.117185
   type: 'test'
   ...
 # Subtest: renderer 不再含任何 v2 JavaScript 補丁
 ok 323 - renderer 不再含任何 v2 JavaScript 補丁
   ---
-  duration_ms: 1.746056
+  duration_ms: 1.806619
   type: 'test'
   ...
 # Subtest: 帳號刪除由正式 API 與人員模組提供
 ok 324 - 帳號刪除由正式 API 與人員模組提供
   ---
-  duration_ms: 1.436988
+  duration_ms: 1.885456
   type: 'test'
   ...
 # Subtest: 訂餐 Excel 由 exporter 建立，web-api 只協調下載
 ok 325 - 訂餐 Excel 由 exporter 建立，web-api 只協調下載
   ---
-  duration_ms: 1.043873
+  duration_ms: 0.908342
   type: 'test'
   ...
 # Subtest: 設定拖曳把手直接由正式畫面產生
 ok 326 - 設定拖曳把手直接由正式畫面產生
   ---
-  duration_ms: 0.943895
+  duration_ms: 0.92011
   type: 'test'
   ...
 # Subtest: 拖曳捲動保存由正式事件總控註冊
 ok 327 - 拖曳捲動保存由正式事件總控註冊
   ---
-  duration_ms: 0.329051
+  duration_ms: 0.260658
   type: 'test'
   ...
 # Subtest: renderer foundation 應保留目錄與每日簽到預設狀態
 ok 328 - renderer foundation 應保留目錄與每日簽到預設狀態
   ---
-  duration_ms: 2.275728
+  duration_ms: 1.839618
   type: 'test'
   ...
 # Subtest: 日期與時間工具應正確處理格式及區間
 ok 329 - 日期與時間工具應正確處理格式及區間
   ---
-  duration_ms: 1.295108
+  duration_ms: 1.012907
   type: 'test'
   ...
 # Subtest: renderer.js 不應再保存已拆出的核心區塊
 ok 330 - renderer.js 不應再保存已拆出的核心區塊
   ---
-  duration_ms: 1.139504
+  duration_ms: 1.212806
   type: 'test'
   ...
 # Subtest: 班表人員可拖到不同單位並沿用目標人員位置
 ok 331 - 班表人員可拖到不同單位並沿用目標人員位置
   ---
-  duration_ms: 3.525267
+  duration_ms: 3.038893
   type: 'test'
   ...
 # Subtest: 同單位人員排序仍應正常運作
 ok 332 - 同單位人員排序仍應正常運作
   ---
-  duration_ms: 1.196818
+  duration_ms: 0.976734
   type: 'test'
   ...
 # Subtest: 跨單位拖曳應由正式函式提供而非後載入覆蓋
 ok 333 - 跨單位拖曳應由正式函式提供而非後載入覆蓋
   ---
-  duration_ms: 8.078241
+  duration_ms: 8.696535
   type: 'test'
   ...
 # Subtest: 單位設定最終畫面應直接由正式模組提供七欄
 ok 334 - 單位設定最終畫面應直接由正式模組提供七欄
   ---
-  duration_ms: 5.911245
+  duration_ms: 2.99588
   type: 'test'
   ...
 # Subtest: 單位設定不應再依賴後載入函式覆蓋
 ok 335 - 單位設定不應再依賴後載入函式覆蓋
   ---
-  duration_ms: 1.697384
+  duration_ms: 1.294126
   type: 'test'
   ...
 # Subtest: Ctrl+C 應複製目前班表選取範圍
 ok 336 - Ctrl+C 應複製目前班表選取範圍
   ---
-  duration_ms: 2.534358
+  duration_ms: 2.090061
   type: 'test'
   ...
 # Subtest: 班表操作應保留復原、重做、複製、剪下、貼上與刪除入口
 ok 337 - 班表操作應保留復原、重做、複製、剪下、貼上與刪除入口
   ---
-  duration_ms: 0.202995
+  duration_ms: 0.159948
   type: 'test'
   ...
 # Subtest: 鍵盤與正式匯出操作應維持明確模組順序
 ok 338 - 鍵盤與正式匯出操作應維持明確模組順序
   ---
-  duration_ms: 0.346738
+  duration_ms: 0.278564
   type: 'test'
   ...
 # Subtest: 訂餐功能不再依賴 v2 補丁檔
 ok 339 - 訂餐功能不再依賴 v2 補丁檔
   ---
-  duration_ms: 2.419115
+  duration_ms: 2.299973
   type: 'test'
   ...
 # Subtest: 訂餐正式函式各只有一份宣告且沒有後載入覆蓋
 ok 340 - 訂餐正式函式各只有一份宣告且沒有後載入覆蓋
   ---
-  duration_ms: 1.136424
+  duration_ms: 1.032647
   type: 'test'
   ...
 # Subtest: 訂餐驗證、刪除與拖曳把手均由正式模組提供
 ok 341 - 訂餐驗證、刪除與拖曳把手均由正式模組提供
   ---
-  duration_ms: 0.348555
+  duration_ms: 0.352535
   type: 'test'
   ...
 # Subtest: 儲存訂餐重新渲染時應保留剛輸入的數量與備註
 ok 342 - 儲存訂餐重新渲染時應保留剛輸入的數量與備註
   ---
-  duration_ms: 0.280335
+  duration_ms: 0.364563
   type: 'test'
   ...
 # Subtest: 今日訂餐完成讀取後才顯示空商品提示，且不顯示處理中文字
 ok 343 - 今日訂餐完成讀取後才顯示空商品提示，且不顯示處理中文字
   ---
-  duration_ms: 0.237661
+  duration_ms: 0.343882
   type: 'test'
   ...
 # Subtest: 人員設定列應直接提供拖曳排序識別值
 ok 344 - 人員設定列應直接提供拖曳排序識別值
   ---
-  duration_ms: 2.882783
+  duration_ms: 2.202889
   type: 'test'
   ...
 # Subtest: 重新渲染人員清單應保留捲動位置與輸入游標
 ok 345 - 重新渲染人員清單應保留捲動位置與輸入游標
   ---
-  duration_ms: 2.185622
+  duration_ms: 1.611359
   type: 'test'
   ...
 # Subtest: 人員排序應由正式設定模組提供而非覆蓋函式
 ok 346 - 人員排序應由正式設定模組提供而非覆蓋函式
   ---
-  duration_ms: 1.968395
+  duration_ms: 1.505942
   type: 'test'
   ...
 # Subtest: 返回鍵遇到彈窗時應只關閉彈窗
 ok 347 - 返回鍵遇到彈窗時應只關閉彈窗
   ---
-  duration_ms: 2.519551
+  duration_ms: 2.226454
   type: 'test'
   ...
 # Subtest: 可見清單排序應保留未顯示項目的原位置
 ok 348 - 可見清單排序應保留未顯示項目的原位置
   ---
-  duration_ms: 2.106339
+  duration_ms: 1.730997
   type: 'test'
   ...
 # Subtest: 第十一階段應移出彈窗與排序控制並維持模組順序
 ok 349 - 第十一階段應移出彈窗與排序控制並維持模組順序
   ---
-  duration_ms: 0.518534
+  duration_ms: 0.409079
   type: 'test'
   ...
 # Subtest: renderer.js 只保留狀態與啟動流程
 ok 350 - renderer.js 只保留狀態與啟動流程
   ---
-  duration_ms: 2.297002
+  duration_ms: 3.96352
   type: 'test'
   ...
 # Subtest: 模組應依責任順序進入建置與測試來源
 ok 351 - 模組應依責任順序進入建置與測試來源
   ---
-  duration_ms: 0.432844
+  duration_ms: 0.324964
   type: 'test'
   ...
 # Subtest: 事件總控應完整註冊所有責任模組
 ok 352 - 事件總控應完整註冊所有責任模組
   ---
-  duration_ms: 0.241213
+  duration_ms: 0.198927
   type: 'test'
   ...
 # Subtest: 委派事件應保留主要操作入口
 ok 353 - 委派事件應保留主要操作入口
   ---
-  duration_ms: 0.492929
+  duration_ms: 0.373026
   type: 'test'
   ...
 # Subtest: 共用訊息與時間輸入工具應保留既有格式
 ok 354 - 共用訊息與時間輸入工具應保留既有格式
   ---
-  duration_ms: 3.462806
+  duration_ms: 4.145871
   type: 'test'
   ...
 # Subtest: 任職與營運區間判定應包含起訖日
 ok 355 - 任職與營運區間判定應包含起訖日
   ---
-  duration_ms: 1.189157
+  duration_ms: 3.034778
   type: 'test'
   ...
 # Subtest: 狀態正規化工具應保留顏色與排班清理規則
 ok 356 - 狀態正規化工具應保留顏色與排班清理規則
   ---
-  duration_ms: 4.805941
+  duration_ms: 5.532485
   type: 'test'
   ...
 # Subtest: renderer 模組應維持核心來源與建置順序
 ok 357 - renderer 模組應維持核心來源與建置順序
   ---
-  duration_ms: 9.031434
+  duration_ms: 10.503084
   type: 'test'
   ...
 # Subtest: 復原與重做按鈕應依堆疊及權限狀態停用
 ok 358 - 復原與重做按鈕應依堆疊及權限狀態停用
   ---
-  duration_ms: 2.819597
+  duration_ms: 1.731016
   type: 'test'
   ...
 # Subtest: 復原應將目前班表推入重做堆疊並還原目標快照
 ok 359 - 復原應將目前班表推入重做堆疊並還原目標快照
   ---
-  duration_ms: 3.473935
+  duration_ms: 2.289238
   type: 'test'
   ...
 # Subtest: 班表歷程控制應由正式互動模組提供而非覆蓋函式
 ok 360 - 班表歷程控制應由正式互動模組提供而非覆蓋函式
   ---
-  duration_ms: 5.754511
+  duration_ms: 9.6942
   type: 'test'
   ...
 # Subtest: 班表剪貼簿資料應完整複製目前明細且不共用物件
 ok 361 - 班表剪貼簿資料應完整複製目前明細且不共用物件
   ---
-  duration_ms: 3.721864
+  duration_ms: 2.307705
   type: 'test'
   ...
 # Subtest: 班表鍵值解析應支援含底線的人員代碼
 ok 362 - 班表鍵值解析應支援含底線的人員代碼
   ---
-  duration_ms: 3.074012
+  duration_ms: 2.025765
   type: 'test'
   ...
 # Subtest: 手動更新班表儲存格時應同步更新同一人員的統計欄
 ok 363 - 手動更新班表儲存格時應同步更新同一人員的統計欄
   ---
-  duration_ms: 1.856609
+  duration_ms: 1.436398
   type: 'test'
   ...
 # Subtest: 第三階段應維持核心來源與建置順序
 ok 364 - 第三階段應維持核心來源與建置順序
   ---
-  duration_ms: 6.235396
+  duration_ms: 5.647837
   type: 'test'
   ...
 # Subtest: 班表單位拖曳會儲存單位排序
 ok 365 - 班表單位拖曳會儲存單位排序
   ---
-  duration_ms: 4.067879
+  duration_ms: 2.952115
   type: 'test'
   ...
 # Subtest: 班表同單位人員拖曳只儲存人員排序
 ok 366 - 班表同單位人員拖曳只儲存人員排序
   ---
-  duration_ms: 1.310498
+  duration_ms: 1.0886
   type: 'test'
   ...
 # Subtest: 班表跨單位拖曳會先儲存人員所屬單位，再儲存人員排序
 ok 367 - 班表跨單位拖曳會先儲存人員所屬單位，再儲存人員排序
   ---
-  duration_ms: 0.85266
+  duration_ms: 0.902694
   type: 'test'
   ...
 # Subtest: 班表文字大小應依段落數與字數判定
 ok 368 - 班表文字大小應依段落數與字數判定
   ---
-  duration_ms: 2.576297
+  duration_ms: 1.527313
   type: 'test'
   ...
 # Subtest: 八週統計應分開計算例假、休息日、休息日出勤與未排
 ok 369 - 八週統計應分開計算例假、休息日、休息日出勤與未排
   ---
-  duration_ms: 1.966005
+  duration_ms: 1.146056
   type: 'test'
   ...
 # Subtest: 儲存格渲染應保留班別、假別與加班三段資訊
 ok 370 - 儲存格渲染應保留班別、假別與加班三段資訊
   ---
-  duration_ms: 2.674456
+  duration_ms: 1.768813
   type: 'test'
   ...
 # Subtest: 例假排班只變更例假段落與班別檢視人員區塊
 ok 371 - 例假排班只變更例假段落與班別檢視人員區塊
   ---
-  duration_ms: 1.779753
+  duration_ms: 1.030714
   type: 'test'
   ...
 # Subtest: 需填時間或需填原因的假別應產生明細提示標記
 ok 372 - 需填時間或需填原因的假別應產生明細提示標記
   ---
-  duration_ms: 1.187825
+  duration_ms: 0.681534
   type: 'test'
   ...
 # Subtest: 休假明細只保留右上關閉並將儲存放在標題列
 ok 373 - 休假明細只保留右上關閉並將儲存放在標題列
   ---
-  duration_ms: 0.583387
+  duration_ms: 0.324603
   type: 'test'
   ...
 # Subtest: 第五階段應移出班表渲染並維持建置順序
 ok 374 - 第五階段應移出班表渲染並維持建置順序
   ---
-  duration_ms: 7.165311
+  duration_ms: 4.301333
   type: 'test'
   ...
 # Subtest: 目錄設定應保留顏色預覽與共用操作按鈕
 ok 375 - 目錄設定應保留顏色預覽與共用操作按鈕
   ---
-  duration_ms: 3.032261
+  duration_ms: 2.408565
   type: 'test'
   ...
 # Subtest: 單位表單應保留有效期間、班表顯示與打卡欄位
 ok 376 - 單位表單應保留有效期間、班表顯示與打卡欄位
   ---
-  duration_ms: 2.701467
+  duration_ms: 2.695882
   type: 'test'
   ...
 # Subtest: 設定拖曳排序應只重排可見項目並保留缺漏項目
 ok 377 - 設定拖曳排序應只重排可見項目並保留缺漏項目
   ---
-  duration_ms: 2.148892
+  duration_ms: 4.592346
   type: 'test'
   ...
 # Subtest: 人員設定篩選應同時套用姓名、單位、權限、在職與薪資條件
 ok 378 - 人員設定篩選應同時套用姓名、單位、權限、在職與薪資條件
   ---
-  duration_ms: 1.928076
+  duration_ms: 1.508486
   type: 'test'
   ...
 # Subtest: 第六階段應移出設定管理並維持建置順序
 ok 379 - 第六階段應移出設定管理並維持建置順序
   ---
-  duration_ms: 7.129025
+  duration_ms: 6.454107
   type: 'test'
   ...
 # Subtest: 今日打卡狀態應透過 attendance-clock today 查詢
 ok 380 - 今日打卡狀態應透過 attendance-clock today 查詢
   ---
-  duration_ms: 2.43082
+  duration_ms: 2.746929
   type: 'test'
   ...
 # Subtest: 訂餐管理應保留補助並提供安全刪除品項操作
 ok 381 - 訂餐管理應保留補助並提供安全刪除品項操作
   ---
-  duration_ms: 2.191215
+  duration_ms: 2.50562
   type: 'test'
   ...
 # Subtest: 小型 API 應由正式 web-api 提供而非後載入覆蓋
 ok 382 - 小型 API 應由正式 web-api 提供而非後載入覆蓋
   ---
-  duration_ms: 0.584858
+  duration_ms: 0.601456
   type: 'test'
   ...
 # Subtest: iPad、觸控 Mac 與 Android 平板應使用電腦版 Session 規則
 ok 383 - iPad、觸控 Mac 與 Android 平板應使用電腦版 Session 規則
   ---
-  duration_ms: 5.030607
+  duration_ms: 3.413251
   type: 'test'
   ...
 # Subtest: 手機仍使用 localStorage 與 48 小時期限
 ok 384 - 手機仍使用 localStorage 與 48 小時期限
   ---
-  duration_ms: 0.822178
+  duration_ms: 0.664649
   type: 'test'
   ...
 # Subtest: 正式 Session 寫入只保留目前裝置應使用的儲存區
 ok 385 - 正式 Session 寫入只保留目前裝置應使用的儲存區
   ---
-  duration_ms: 0.906614
+  duration_ms: 0.709626
   type: 'test'
   ...
 # Subtest: 平板 Session 應由正式 web-api 管理而非包裝所有 API
 ok 386 - 平板 Session 應由正式 web-api 管理而非包裝所有 API
   ---
-  duration_ms: 0.251937
+  duration_ms: 0.212016
   type: 'test'
   ...
 # Subtest: 假別明細摘要應保留整天、時間與原因
 ok 387 - 假別明細摘要應保留整天、時間與原因
   ---
-  duration_ms: 3.263609
+  duration_ms: 2.405431
   type: 'test'
   ...
 # Subtest: 主頁渲染應保留三個入口、簽到簿名稱與訂餐管理分頁
 ok 388 - 主頁渲染應保留三個入口、簽到簿名稱與訂餐管理分頁
   ---
-  duration_ms: 0.330041
+  duration_ms: 0.255981
   type: 'test'
   ...
 # Subtest: 第十二階段應移出提示框與主頁渲染並維持模組順序
 ok 389 - 第十二階段應移出提示框與主頁渲染並維持模組順序
   ---
-  duration_ms: 0.402124
+  duration_ms: 0.263502
   type: 'test'
   ...
 # Subtest: 日期標題斑馬紋應跟隨每週起算日移動
 ok 390 - 日期標題斑馬紋應跟隨每週起算日移動
   ---
-  duration_ms: 5.955272
+  duration_ms: 4.32659
   type: 'test'
   ...
 # Subtest: 斑馬紋與週界線應使用同一個每週起算日
 ok 391 - 斑馬紋與週界線應使用同一個每週起算日
   ---
-  duration_ms: 1.31015
+  duration_ms: 0.950554
   type: 'test'
   ...
 # Subtest: 今天日期標題在電腦與手機都必須保持微亮藍色
 ok 392 - 今天日期標題在電腦與手機都必須保持微亮藍色
   ---
-  duration_ms: 0.644863
+  duration_ms: 0.474907
   type: 'test'
   ...
 # Subtest: 電腦與手機班表標題應共用放大後字級
 ok 393 - 電腦與手機班表標題應共用放大後字級
   ---
-  duration_ms: 0.379176
+  duration_ms: 0.297533
   type: 'test'
   ...
 # Subtest: 日期標題與表格內容週界線應只繪製單一同粗線條
 ok 394 - 日期標題與表格內容週界線應只繪製單一同粗線條
   ---
-  duration_ms: 0.435617
+  duration_ms: 0.336661
   type: 'test'
   ...
 # Subtest: 週期起訖應依設定的星期起始日計算
 ok 395 - 週期起訖應依設定的星期起始日計算
   ---
-  duration_ms: 1.642842
+  duration_ms: 1.408797
   type: 'test'
   ...
 # Subtest: 例休檢查應回報缺少例假、例假出勤與跨週連續出勤
 ok 396 - 例休檢查應回報缺少例假、例假出勤與跨週連續出勤
   ---
-  duration_ms: 1.481437
+  duration_ms: 1.262499
   type: 'test'
   ...
 # Subtest: 到離職週應至少保留兩個未在職日、例假或休息日
 ok 397 - 到離職週應至少保留兩個未在職日、例假或休息日
   ---
-  duration_ms: 1.788261
+  duration_ms: 1.113257
   type: 'test'
   ...
 # Subtest: 排班條件人員改為逐一追加且不可重複的下拉選單
 ok 398 - 排班條件人員改為逐一追加且不可重複的下拉選單
   ---
-  duration_ms: 1.836637
+  duration_ms: 1.67277
   type: 'test'
   ...
 # Subtest: 班表初始讀取範圍固定為目前八週 56 天
 ok 399 - 班表初始讀取範圍固定為目前八週 56 天
   ---
-  duration_ms: 1.471333
+  duration_ms: 1.139066
   type: 'test'
   ...
 # Subtest: 目前八週班表 RPC 必須以明確 offset/limit 分頁讀到全部列
 ok 400 - 目前八週班表 RPC 必須以明確 offset/limit 分頁讀到全部列
   ---
-  duration_ms: 2.605955
+  duration_ms: 1.969742
   type: 'test'
   ...
 # Subtest: 初始八週與切換八週都使用完整分頁讀取
 ok 401 - 初始八週與切換八週都使用完整分頁讀取
   ---
-  duration_ms: 0.499671
+  duration_ms: 0.312926
   type: 'test'
   ...
 # Subtest: 切換八週只載入目標 56 天，不預載前後一週
 ok 402 - 切換八週只載入目標 56 天，不預載前後一週
   ---
-  duration_ms: 0.252031
+  duration_ms: 0.233959
   type: 'test'
   ...
 # Subtest: 前後八週導覽仍在切換後按需載入班表
 ok 403 - 前後八週導覽仍在切換後按需載入班表
   ---
-  duration_ms: 6.777882
+  duration_ms: 5.068735
   type: 'test'
   ...
 # Subtest: 空白格新增班別或假別不得被轉成刪除請求
 ok 404 - 空白格新增班別或假別不得被轉成刪除請求
   ---
-  duration_ms: 1.888403
+  duration_ms: 1.473884
   type: 'test'
   ...
 # Subtest: 新增或更新班表必須取得伺服器實際寫入確認
 ok 405 - 新增或更新班表必須取得伺服器實際寫入確認
   ---
-  duration_ms: 2.10441
+  duration_ms: 1.576807
   type: 'test'
   ...
 # Subtest: 直接修改班表失敗時回復該格原始狀態
 ok 406 - 直接修改班表失敗時回復該格原始狀態
   ---
-  duration_ms: 0.367406
+  duration_ms: 0.278234
   type: 'test'
   ...
 # Subtest: 空白格的 undo 快照必須在建立 slot 之前取得
 ok 407 - 空白格的 undo 快照必須在建立 slot 之前取得
   ---
-  duration_ms: 0.346499
+  duration_ms: 0.320578
   type: 'test'
   ...
 # Subtest: 資料庫只有明確 delete_entry 才能刪除班表
 ok 408 - 資料庫只有明確 delete_entry 才能刪除班表
   ---
-  duration_ms: 1.300219
+  duration_ms: 1.109692
   type: 'test'
   ...
 # Subtest: 班別儲存 API 使用正式 applicableDepartmentId 欄位
 ok 409 - 班別儲存 API 使用正式 applicableDepartmentId 欄位
   ---
-  duration_ms: 0.687611
+  duration_ms: 0.419614
   type: 'test'
   ...
 # Subtest: 首次班表只載入目前八週 56 天並由完整分頁查詢取得全部列
 ok 410 - 首次班表只載入目前八週 56 天並由完整分頁查詢取得全部列
   ---
-  duration_ms: 1.821691
+  duration_ms: 1.618459
   type: 'test'
   ...
 # Subtest: 班表初始化不再依賴頁面補丁或第二次同區間查詢
 ok 411 - 班表初始化不再依賴頁面補丁或第二次同區間查詢
   ---
-  duration_ms: 0.35265
+  duration_ms: 0.244424
   type: 'test'
   ...
 # Subtest: 單位打卡設定仍延後到單位設定頁載入
 ok 412 - 單位打卡設定仍延後到單位設定頁載入
   ---
-  duration_ms: 1.409592
+  duration_ms: 1.393925
   type: 'test'
   ...
 # Subtest: 規格書明定首次班表不相容舊瀏覽位置
 ok 413 - 規格書明定首次班表不相容舊瀏覽位置
   ---
-  duration_ms: 0.491234
+  duration_ms: 0.515457
   type: 'test'
   ...
 # Subtest: 班表姓名雙擊依人員設定權限開啟並延遲載入管理欄位
 not ok 414 - 班表姓名雙擊依人員設定權限開啟並延遲載入管理欄位
   ---
-  duration_ms: 8.905225
+  duration_ms: 9.588793
   type: 'test'
   location: '/home/runner/work/FYH/FYH/tests/schedule-member-edit-and-department-group.test.js:9:1'
   failureType: 'testCodeFailure'
@@ -7451,255 +6824,255 @@ not ok 414 - 班表姓名雙擊依人員設定權限開啟並延遲載入管理�
 # Subtest: 新增單位自動沿用開啟表單時的目前群組
 ok 415 - 新增單位自動沿用開啟表單時的目前群組
   ---
-  duration_ms: 1.080837
+  duration_ms: 0.866871
   type: 'test'
   ...
 # Subtest: 單位設定拖曳人員會正式寫回人員單位
 ok 416 - 單位設定拖曳人員會正式寫回人員單位
   ---
-  duration_ms: 0.553947
+  duration_ms: 0.414427
   type: 'test'
   ...
 # Subtest: 班表浮動工具列使用整合式左側操作列
 ok 417 - 班表浮動工具列使用整合式左側操作列
   ---
-  duration_ms: 1.154931
+  duration_ms: 0.96061
   type: 'test'
   ...
 # Subtest: 班表週捲動與例假排班顯示具有正式程式契約
 ok 418 - 班表週捲動與例假排班顯示具有正式程式契約
   ---
-  duration_ms: 2.117355
+  duration_ms: 1.620122
   type: 'test'
   ...
 # Subtest: 前一週與後一週只水平捲動，不切換八週資料範圍
 ok 419 - 前一週與後一週只水平捲動，不切換八週資料範圍
   ---
-  duration_ms: 1.844029
+  duration_ms: 1.331892
   type: 'test'
   ...
 # Subtest: 一週水平距離以實際畫面七個日期欄計算
 ok 420 - 一週水平距離以實際畫面七個日期欄計算
   ---
-  duration_ms: 0.465789
+  duration_ms: 0.355429
   type: 'test'
   ...
 # Subtest: 上下班表捲軸同步不得中斷主班表 smooth scroll
 ok 421 - 上下班表捲軸同步不得中斷主班表 smooth scroll
   ---
-  duration_ms: 0.325465
+  duration_ms: 0.261049
   type: 'test'
   ...
 # Subtest: 前八週與後八週才切換完整班表期間
 ok 422 - 前八週與後八週才切換完整班表期間
   ---
-  duration_ms: 1.826183
+  duration_ms: 1.07492
   type: 'test'
   ...
 # Subtest: 週導覽按鈕依實際水平捲動邊界啟用停用
 ok 423 - 週導覽按鈕依實際水平捲動邊界啟用停用
   ---
-  duration_ms: 0.475705
+  duration_ms: 0.360376
   type: 'test'
   ...
 # Subtest: 規格書明定週導覽不改變八週資料範圍
 ok 424 - 規格書明定週導覽不改變八週資料範圍
   ---
-  duration_ms: 0.654813
+  duration_ms: 0.542988
   type: 'test'
   ...
 # Subtest: mobile settings tables keep readable width and scroll horizontally
 ok 425 - mobile settings tables keep readable width and scroll horizontally
   ---
-  duration_ms: 1.157131
+  duration_ms: 0.9334
   type: 'test'
   ...
 # Subtest: 共用設定返回流程應在重新開頁後還原捲動位置
 ok 426 - 共用設定返回流程應在重新開頁後還原捲動位置
   ---
-  duration_ms: 2.684976
+  duration_ms: 2.542925
   type: 'test'
   ...
 # Subtest: 刪除班別應先保存位置，成功更新後再還原
 ok 427 - 刪除班別應先保存位置，成功更新後再還原
   ---
-  duration_ms: 1.388008
+  duration_ms: 1.2965
   type: 'test'
   ...
 # Subtest: 所有主要設定刪除流程都必須使用共用捲動還原
 ok 428 - 所有主要設定刪除流程都必須使用共用捲動還原
   ---
-  duration_ms: 2.228126
+  duration_ms: 2.024513
   type: 'test'
   ...
 # Subtest: 設定列表應以完整內容寬度維持水平捲動後的表頭格式
 ok 429 - 設定列表應以完整內容寬度維持水平捲動後的表頭格式
   ---
-  duration_ms: 1.985893
+  duration_ms: 1.398662
   type: 'test'
   ...
 # Subtest: 班表頁外層寬度固定在頁面內，水平移動留在表格捲動區
 ok 430 - 班表頁外層寬度固定在頁面內，水平移動留在表格捲動區
   ---
-  duration_ms: 0.271391
+  duration_ms: 0.174139
   type: 'test'
   ...
 # Subtest: 班別假別加班刪除只走明確 RPC 契約
 ok 431 - 班別假別加班刪除只走明確 RPC 契約
   ---
-  duration_ms: 1.373655
+  duration_ms: 1.210642
   type: 'test'
   ...
 # Subtest: 設定刪除失敗時不得先關閉視窗或先移除本機資料
 ok 432 - 設定刪除失敗時不得先關閉視窗或先移除本機資料
   ---
-  duration_ms: 0.541604
+  duration_ms: 0.353496
   type: 'test'
   ...
 # Subtest: 個人記錄畫面使用正式狀態初始化來源
 ok 433 - 個人記錄畫面使用正式狀態初始化來源
   ---
-  duration_ms: 1.582514
+  duration_ms: 1.243691
   type: 'test'
   ...
 # Subtest: 正式期間匯出直接整合於操作模組並使用共用月份天數函式
 ok 434 - 正式期間匯出直接整合於操作模組並使用共用月份天數函式
   ---
-  duration_ms: 0.530584
+  duration_ms: 0.349441
   type: 'test'
   ...
 # Subtest: 架構檢查模式不得產生稽核報告檔
 ok 435 - 架構檢查模式不得產生稽核報告檔
   ---
-  duration_ms: 256.971448
+  duration_ms: 217.050784
   type: 'test'
   ...
 # Subtest: 班表浮動工具列支援快速連點修改與選中項目圖示
 ok 436 - 班表浮動工具列支援快速連點修改與選中項目圖示
   ---
-  duration_ms: 2.773972
+  duration_ms: 2.034909
   type: 'test'
   ...
 # Subtest: 班表浮動工具列使用正式 HTML 與 CSS 緊湊合併版面
 ok 437 - 班表浮動工具列使用正式 HTML 與 CSS 緊湊合併版面
   ---
-  duration_ms: 5.599956
+  duration_ms: 4.137038
   type: 'test'
   ...
 # Subtest: 班別與假別移除提示但保留快速連點修改
 ok 438 - 班別與假別移除提示但保留快速連點修改
   ---
-  duration_ms: 0.585395
+  duration_ms: 0.41011
   type: 'test'
   ...
 # Subtest: 正式前端不再發布或載入 mjs 後置覆寫模組
 ok 439 - 正式前端不再發布或載入 mjs 後置覆寫模組
   ---
-  duration_ms: 1.074339
+  duration_ms: 0.833841
   type: 'test'
   ...
 # Subtest: 浮動工具列控制按鈕直接由正式 HTML 與 CSS 排列
 ok 440 - 浮動工具列控制按鈕直接由正式 HTML 與 CSS 排列
   ---
-  duration_ms: 2.00718
+  duration_ms: 1.485731
   type: 'test'
   ...
 # Subtest: 班別與假別重新渲染後仍可快速連點開啟修改
 ok 441 - 班別與假別重新渲染後仍可快速連點開啟修改
   ---
-  duration_ms: 1.141248
+  duration_ms: 0.962943
   type: 'test'
   ...
 # Subtest: 公開設定檢查不執行瀏覽器 DOM 初始化
 ok 442 - 公開設定檢查不執行瀏覽器 DOM 初始化
   ---
-  duration_ms: 0.228421
+  duration_ms: 0.209241
   type: 'test'
   ...
 # Subtest: unused members are physically deleted while history keeps the profile
 ok 443 - unused members are physically deleted while history keeps the profile
   ---
-  duration_ms: 2.364945
+  duration_ms: 1.732378
   type: 'test'
   ...
 # Subtest: unused shift leave and overtime masters are physically deleted
 ok 444 - unused shift leave and overtime masters are physically deleted
   ---
-  duration_ms: 1.164359
+  duration_ms: 0.761444
   type: 'test'
   ...
 # Subtest: unused departments are physically deleted while referenced history is retained
 ok 445 - unused departments are physically deleted while referenced history is retained
   ---
-  duration_ms: 1.143475
+  duration_ms: 0.767573
   type: 'test'
   ...
 # Subtest: 越文只套用 Be Vietnam Pro 到實際翻譯文字並限制最粗 600
 ok 446 - 越文只套用 Be Vietnam Pro 到實際翻譯文字並限制最粗 600
   ---
-  duration_ms: 3.272185
+  duration_ms: 3.137821
   type: 'test'
   ...
 # Subtest: 發布版保留越文字體範圍設定
 ok 447 - 發布版保留越文字體範圍設定
   ---
-  duration_ms: 1.887776
+  duration_ms: 1.300145
   type: 'test'
   ...
 # Subtest: Vietnamese localization uses the formal scheduler API and no runtime field patching
 ok 448 - Vietnamese localization uses the formal scheduler API and no runtime field patching
   ---
-  duration_ms: 3.370628
+  duration_ms: 2.758677
   type: 'test'
   ...
 # Subtest: Vietnamese fixed UI covers settings lists, forms, home and attendance review
 ok 449 - Vietnamese fixed UI covers settings lists, forms, home and attendance review
   ---
-  duration_ms: 0.660646
+  duration_ms: 0.514706
   type: 'test'
   ...
 # Subtest: schedule weekday headers switch to Vietnamese labels
 ok 450 - schedule weekday headers switch to Vietnamese labels
   ---
-  duration_ms: 0.466244
+  duration_ms: 0.339756
   type: 'test'
   ...
 # Subtest: settings lists localize the original name column while edit forms retain Vietnamese fields
 ok 451 - settings lists localize the original name column while edit forms retain Vietnamese fields
   ---
-  duration_ms: 2.215722
+  duration_ms: 1.539762
   type: 'test'
   ...
 # Subtest: group and meal Vietnamese names use their formal save paths
 ok 452 - group and meal Vietnamese names use their formal save paths
   ---
-  duration_ms: 1.857174
+  duration_ms: 1.157273
   type: 'test'
   ...
 # Subtest: Vietnamese schema is canonical, includes roles, and excludes overtime and holidays
 ok 453 - Vietnamese schema is canonical, includes roles, and excludes overtime and holidays
   ---
-  duration_ms: 1.906055
+  duration_ms: 1.311662
   type: 'test'
   ...
 # Subtest: member save persists Vietnamese full name through the member Edge function
 ok 454 - member save persists Vietnamese full name through the member Edge function
   ---
-  duration_ms: 0.965431
+  duration_ms: 0.690077
   type: 'test'
   ...
 # Subtest: function menu tables and action controls have Vietnamese labels
 ok 455 - function menu tables and action controls have Vietnamese labels
   ---
-  duration_ms: 0.590573
+  duration_ms: 0.410692
   type: 'test'
   ...
 1..455
 # tests 455
 # suites 0
-# pass 443
-# fail 12
+# pass 445
+# fail 10
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 2714.983243
+# duration_ms 2252.636868
