@@ -139,5 +139,30 @@ text = text.replace(
     '  assert.doesNotMatch(sql, /create(?:\\s+or\\s+replace)?\\s+function public\\.(?:get_group_access_bundle_v1|save_access_role_v1|delete_access_role_v1)/i);\\n  assert.doesNotMatch(sql, /v_(?:old|new)_role\\.permissions|other_role\\.permissions/);'
 )
 
+# Deno runs with strict TypeScript. Scope callback annotations only to the
+# generated access-control Edge Function block so renderer JavaScript remains JS.
+edge_start = text.index('def write_access_control_edge():')
+edge_end = text.index('\n\ndef transform_web_api():', edge_start)
+edge_block = text[edge_start:edge_end]
+edge_replacements = {
+    'actorRows.map((row) =>': 'actorRows.map((row: any) =>',
+    'actorRows.filter((row) =>': 'actorRows.filter((row: any) =>',
+    '.map((row) => row.group_id)': '.map((row: any) => row.group_id)',
+    'allGroups.filter((group) =>': 'allGroups.filter((group: any) =>',
+    'roles.map((role) => role.id)': 'roles.map((role: any) => role.id)',
+    'roles.filter((role) =>': 'roles.filter((role: any) =>',
+    'groups.map((group) => ({': 'groups.map((group: any) => ({',
+    'roles.map((role) => roleDto(role, allRoleRows))': 'roles.map((role: any) => roleDto(role, allRoleRows))',
+    '.filter((role) => role.id !== excludingRoleId': '.filter((role: any) => role.id !== excludingRoleId',
+    '.map((role) => role.id);': '.map((role: any) => role.id);',
+    '(employeeResult.data || []).filter((profile) =>': '(employeeResult.data || []).filter((profile: any) =>',
+    '(groupResult.data || []).map((row) => row.id)': '(groupResult.data || []).map((row: any) => row.id)',
+    '(usersResult.data || []).some((profile) =>': '(usersResult.data || []).some((profile: any) =>',
+    '(Array.isArray(body?.roleIds) ? body.roleIds : []).map((id) =>': '(Array.isArray(body?.roleIds) ? body.roleIds : []).map((id: any) =>',
+}
+for old_ts, new_ts in edge_replacements.items():
+    edge_block = edge_block.replace(old_ts, new_ts)
+text = text[:edge_start] + edge_block + text[edge_end:]
+
 path.write_text(text, encoding='utf-8')
 print('transformer corrections applied')
