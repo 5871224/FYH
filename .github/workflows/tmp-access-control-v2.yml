@@ -1,6 +1,9 @@
 name: Temporary Access Control V2
 
 on:
+  push:
+    branches:
+      - feat/access-control-v2-20260901
   workflow_dispatch:
 
 permissions:
