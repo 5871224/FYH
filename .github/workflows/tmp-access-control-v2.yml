@@ -1,0 +1,97 @@
+name: Temporary Access Control V2
+
+on:
+  push:
+    branches:
+      - feat/access-control-v2-20260901
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tmp-access-control-v2
+  cancel-in-progress: true
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: feat/access-control-v2-20260901
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Apply access control v2
+        run: python3 scripts/tmp_access_control_v2.py
+
+      - name: Show legacy references
+        shell: bash
+        run: |
+          echo '--- renderer / edge legacy references ---'
+          grep -R -nE 'access_role_groups|has_access_permission|can_access_group|role_applies_to_group|applicableGroupIds|getAccessPermissions|roleAppliesToGroup' src/renderer supabase/functions || true
+          echo '--- SQL legacy runtime definitions/references ---'
+          grep -nE 'function public\.(has_access_permission|can_access_group|role_applies_to_group|get_group_access_bundle_v1|save_access_role_v1|delete_access_role_v1)|role\.permissions|access_role_groups' supabase/002_current_updates.sql || true
+
+      - name: Build published web files
+        run: npm run web:publish
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Check renderer architecture
+        run: |
+          npm run renderer:check
+          npm run js:architecture
+          npm run css:architecture
+          node scripts/check-normalized-storage.js
+          node scripts/check-expansion-acceptance.js
+          node scripts/check-settings-lists.js
+
+      - name: Check Edge TypeScript
+        run: |
+          for file in supabase/functions/*/index.ts; do
+            deno check --node-modules-dir=auto "$file"
+          done
+
+      - name: Ensure obsolete runtime access layer is gone
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -R -nE 'access_role_groups|has_access_permission|can_access_group|role_applies_to_group' src/renderer supabase/functions
+          ! grep -nE 'create([[:space:]]+or[[:space:]]+replace)?[[:space:]]+function[[:space:]]+public\.(has_access_permission|can_access_group|role_applies_to_group|get_group_access_bundle_v1|save_access_role_v1|delete_access_role_v1)' supabase/002_current_updates.sql
+          ! grep -R -nE 'applicableGroupIds|getAccessPermissions|roleAppliesToGroup|role\.groupIds' src/renderer
+          grep -F 'create table if not exists public.access_role_group_permissions' supabase/002_current_updates.sql
+          grep -F 'common_permissions text[]' supabase/002_current_updates.sql
+          grep -F 'requestFunction("access-control"' src/renderer/web-api.js
+
+      - name: Remove temporary tooling
+        run: rm -f scripts/tmp-access-control-v2.js scripts/tmp_access_control_v2.py .github/workflows/tmp-access-control-v2.yml
+
+      - name: Final diff checks
+        run: |
+          git diff --check
+          git diff --exit-code -- docs || true
+          git status --short
+
+      - name: Commit formal changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m '重構權限為共用與群組權限模型'
+          git push origin HEAD:feat/access-control-v2-20260901
