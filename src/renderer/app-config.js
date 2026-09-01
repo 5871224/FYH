@@ -763,21 +763,33 @@ window.SCHEDULER_CONFIG = {
     applying = true;
     try {
       const entities = entityTranslationMap();
+      const viTextValues = new Set([...fixedVi.values(), ...entities.values()]
+        .map((value) => String(value || "").trim())
+        .filter(Boolean));
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
       const nodes = [];
       while (walker.nextNode()) nodes.push(walker.currentNode);
       nodes.forEach((node) => {
         const parent = node.parentElement;
         if (!parent || ["SCRIPT", "STYLE", "TEXTAREA"].includes(parent.tagName)) return;
-        const next = translateText(node.nodeValue || "", entities);
-        if (next !== node.nodeValue) node.nodeValue = next;
+        const before = node.nodeValue || "";
+        const next = translateText(before, entities);
+        if (next !== before) {
+          node.nodeValue = next;
+          parent.classList.add("fyh-vi-text");
+        } else if (viTextValues.has(String(before).trim())) {
+          parent.classList.add("fyh-vi-text");
+        }
       });
       root.querySelectorAll?.("[title], [aria-label], [placeholder]").forEach((element) => {
         ["title", "aria-label", "placeholder"].forEach((attribute) => {
           const value = element.getAttribute(attribute);
           if (!value) return;
           const next = translateText(value, entities).trim();
-          if (next !== value) element.setAttribute(attribute, next);
+          if (next !== value) {
+            element.setAttribute(attribute, next);
+            if (attribute === "placeholder") element.classList.add("fyh-vi-placeholder");
+          }
         });
       });
       document.documentElement.lang = "vi";
