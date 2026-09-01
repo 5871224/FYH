@@ -391,6 +391,8 @@ window.SCHEDULER_CONFIG = {
     "設定": "Cài đặt",
     "排班": "Xếp ca",
     "匯出": "Xuất dữ liệu",
+    "匯入": "Nhập dữ liệu",
+    "功能": "Chức năng",
     "班別": "Ca làm việc",
     "假別": "Loại nghỉ",
     "加班": "Tăng ca",
