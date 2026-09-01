@@ -26,25 +26,27 @@ test("目前人員應優先依 profile id，再依工號解析", () => {
   assert.equal(api.resolveCurrentMember().id, "M1");
 });
 
-test("管理能力應完全由權限項目與適用群組決定", () => {
+test("管理能力應完全由共用權限與群組權限決定", () => {
   const start = authContext.indexOf("function canManagePermissions");
   const end = authContext.indexOf("async function ensureManagerDirectoryLoaded", start);
-  let permissions = [];
+  let commonPermissions = [];
+  const actor = { groupPermissions: { G1: [] } };
   const context = {
     authenticated: true,
     currentUser: { id: "U1" },
     groupFeatureState: { currentGroupId: "G1" },
-    getAccessPermissions: () => permissions,
-    hasPermission: (permission) => permissions.includes(permission),
-    roleAppliesToGroup: (groupId) => groupId === "G1"
+    getCommonPermissions: () => commonPermissions,
+    getAccessActor: () => actor,
+    hasCommonPermission: (permission) => commonPermissions.includes(permission),
+    hasGroupPermission: (groupId, permission) => (actor.groupPermissions[groupId] || []).includes(permission)
   };
   const api = vm.runInNewContext(authContext.slice(start, end) + "\n;({ canManagePermissions, hasManagementAccess, canEditSchedule })", context);
   assert.equal(api.hasManagementAccess(), false);
-  permissions = ["schedule_view", "schedule_manage"];
+  actor.groupPermissions.G1 = ["schedule_view", "schedule_manage"];
   assert.equal(api.hasManagementAccess(), true);
   assert.equal(api.canManagePermissions(), false);
   assert.equal(api.canEditSchedule(), true);
-  permissions.push("permission_settings");
+  commonPermissions.push("settings");
   assert.equal(api.canManagePermissions(), true);
 });
 
