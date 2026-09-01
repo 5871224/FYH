@@ -15,6 +15,8 @@ test("Vietnamese localization uses the formal scheduler API and no runtime field
   assert.ok(webApi.includes("async function getVietnameseLabels()"));
   assert.ok(webApi.includes("async function saveVietnameseLabel(entity, id, value)"));
   assert.ok(config.includes("window.schedulerApi.getVietnameseLabels()"));
+  assert.ok(config.includes("function installApiIntegration()"), "missing installApiIntegration runtime definition");
+  assert.ok(config.includes("async function saveLabel("), "missing saveLabel runtime definition");
   assert.doesNotMatch(config.slice(config.indexOf("function installVietnameseLocalization")), /session\.access_token/);
   assert.doesNotMatch(config.slice(config.indexOf("function installVietnameseLocalization")), /api\[name\]\s*=\s*wrapped/);
   assert.doesNotMatch(config, /function\s+(?:addLocalizedField|ensureLocalizedFormFields|ensureMealLocalizedColumn)\b/);

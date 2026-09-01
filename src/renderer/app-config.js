@@ -642,6 +642,28 @@ window.SCHEDULER_CONFIG = {
     return labelRefreshPromise;
   }
 
+  function upsertCachedLabel(category, id, nameVi) {
+    if (!id) return;
+    const rows = labels[category] || [];
+    const index = rows.findIndex((row) => row.id === id);
+    const next = { id, nameVi: String(nameVi || "").trim() };
+    if (index >= 0) rows[index] = next;
+    else rows.push(next);
+  }
+
+  async function saveLabel(entity, category, id, value) {
+    const normalizedId = String(id || "").trim();
+    if (!normalizedId || typeof window.schedulerApi?.saveVietnameseLabel !== "function") return;
+    await window.schedulerApi.saveVietnameseLabel(entity, normalizedId, String(value || "").trim());
+    upsertCachedLabel(category, normalizedId, value);
+    mergeGlobalLabels();
+  }
+
+  function installApiIntegration() {
+    // Vietnamese data access is part of the formal schedulerApi provider.
+    // Entity save paths explicitly persist their localized field; no runtime method override is used here.
+  }
+
   function entityTranslationMap() {
     const map = new Map();
     const add = (items) => (items || []).forEach((item) => {
