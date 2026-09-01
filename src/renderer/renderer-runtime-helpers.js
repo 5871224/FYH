@@ -7,8 +7,15 @@ function setSaveStatus(message, saving = false) {
   isSaving = saving;
 }
 
+function getLocalizedName(item, chineseFallback = "") {
+  const chineseName = String(chineseFallback || item?.name || "");
+  const vietnameseName = String(item?.nameVi || "").trim();
+  return window.fyhI18n?.isVietnamese?.() && vietnameseName ? vietnameseName : chineseName;
+}
+
 function getDepartmentName(deptId) {
-  return state.departments.find((department) => department.id === deptId)?.name || "未指定單位";
+  const department = state.departments.find((item) => item.id === deptId);
+  return department ? getLocalizedName(department) : "未指定單位";
 }
 
 function getSalaryTypeLabel(member) {
@@ -40,13 +47,13 @@ function getMemberHomeDeptId(member) {
 }
 
 function getMemberScheduleShiftNames(member) {
-  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, shift.name]));
+  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, getLocalizedName(shift)]));
   const names = getMemberScheduleShiftIds(member).map((shiftId) => shiftMap.get(shiftId)).filter(Boolean);
   return names.length ? names.join("、") : "未指定";
 }
 
 function renderMemberScheduleShiftPills(member) {
-  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, shift.name]));
+  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, getLocalizedName(shift)]));
   const names = getMemberScheduleShiftIds(member).map((shiftId) => shiftMap.get(shiftId)).filter(Boolean);
   if (!names.length) {
     return "-";
@@ -97,5 +104,6 @@ function getLeaveLabel(leave) {
   if (!leave) {
     return "";
   }
-  return leave.code ? `${leave.code} ${leave.name}` : leave.name;
+  const name = getLocalizedName(leave);
+  return leave.code ? `${leave.code} ${name}` : name;
 }

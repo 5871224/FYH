@@ -31,6 +31,7 @@ test("人員設定列應直接提供拖曳排序識別值", () => {
     }),
     canEditMemberAccount: () => true,
     escapeHtml: String,
+    getLocalizedName: (item, fallback = "") => String(item?.name || fallback || ""),
     renderMemberScheduleShiftPills: () => "早班",
     getRoleLabel: () => "員工",
     getSalaryTypeLabel: () => "月薪",

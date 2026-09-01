@@ -22,7 +22,7 @@ function renderScheduleShiftSelector(member) {
           <label class="schedule-dept-option" draggable="true" data-schedule-shift-option="${escapeHtml(shift.id)}">
             <input type="checkbox" value="${escapeHtml(shift.id)}" ${checked ? "checked" : ""}>
             <span class="schedule-dept-rank">${checked ? index + 1 : "-"}</span>
-            <span>${escapeHtml(shift.name)}</span>
+            <span>${escapeHtml(getLocalizedName(shift))}</span>
           </label>
         `;
       }).join("")}
@@ -42,7 +42,7 @@ function syncScheduleShiftSummary() {
   if (!summary) {
     return;
   }
-  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, shift.name]));
+  const shiftMap = new Map(state.shifts.map((shift) => [shift.id, getLocalizedName(shift)]));
   const names = readMemberScheduleShiftIds()
     .map((shiftId) => shiftMap.get(shiftId))
     .filter(Boolean);
@@ -133,7 +133,6 @@ function renderMemberSettingsList() {
               ${renderSettingsOrderDragColumn(true)}
               <div>工號</div>
               <div>姓名</div>
-              <div>越文名稱</div>
               <div>排班班別</div>
               <div>權限</div>
               <div>到職日<br>離職日</div>
@@ -147,8 +146,7 @@ function renderMemberSettingsList() {
               <div class="member-table-row sortable-settings-item" data-sort-category="member" data-sort-item="${escapeHtml(member.id)}" data-member-settings-row="${escapeHtml(member.id)}">
                  ${renderSettingsOrderDragColumn()}
                  <div class="member-table-code">${escapeHtml(member.code)}</div>
-                <div class="member-table-name">${escapeHtml(member.name)}</div>
-                <div class="member-table-name-vi">${escapeHtml(member.nameVi || "-")}</div>
+                <div class="member-table-name">${escapeHtml(getLocalizedName(member))}</div>
                 <div class="member-shift-pill-list">${renderMemberScheduleShiftPills(member)}</div>
                 <div>${getRoleLabel(member.roleId)}</div>
                 <div class="member-date-stack"><span>${escapeHtml(member.hireDate || "-")}</span><span>${escapeHtml(member.leaveDate || "-")}</span></div>
@@ -224,7 +222,7 @@ async function openMemberSettings() {
           <label for="memberSettingsDepartmentFilter">單位</label>
           <select id="memberSettingsDepartmentFilter" data-member-settings-filter-field="department">
             <option value="all" ${memberSettingsFilters.department === "all" ? "selected" : ""}>全部</option>
-            ${state.departments.filter((department) => !department.deleted).map((department) => `<option value="${escapeHtml(department.id)}" ${memberSettingsFilters.department === department.id ? "selected" : ""}>${escapeHtml(department.name)}</option>`).join("")}
+            ${state.departments.filter((department) => !department.deleted).map((department) => `<option value="${escapeHtml(department.id)}" ${memberSettingsFilters.department === department.id ? "selected" : ""}>${escapeHtml(getLocalizedName(department))}</option>`).join("")}
             <option value="__none__" ${memberSettingsFilters.department === "__none__" ? "selected" : ""}>未指定</option>
           </select>
         </div>

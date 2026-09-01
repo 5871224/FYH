@@ -23,6 +23,7 @@ test("單位設定最終畫面應直接由正式模組提供七欄", async () =>
     isMemberCurrentlyActive: (member) => member.active,
     getMemberHomeDeptId: (member) => member.deptId,
     escapeHtml: String,
+    getLocalizedName: (item, fallback = "") => String(item?.name || fallback || ""),
     renderActionIconButton: (kind) => kind,
     renderSettingsOrderDragColumn: (isHeader = false) => `<div class="settings-order-drag-col">${isHeader ? "" : '<span class="settings-order-drag-handle" draggable="true">≡</span>'}</div>`,
     openEntityListModal: (config) => { modalConfig = config; }

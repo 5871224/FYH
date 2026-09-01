@@ -19,7 +19,7 @@ function openListSettings(category) {
       return "-";
     }
     return members.map((member) => (
-      `<span class="settings-member-chip" data-shift-schedule-member="${escapeHtml(member.id)}" title="雙擊修改人員">${escapeHtml(member.name)}</span>`
+      `<span class="settings-member-chip" data-shift-schedule-member="${escapeHtml(member.id)}" title="雙擊修改人員">${escapeHtml(getLocalizedName(member))}</span>`
     )).join("");
   };
   const body = list.length
@@ -30,10 +30,8 @@ function openListSettings(category) {
               <div class="settings-table-row settings-table-head settings-table-row-${category}">
                  ${renderSettingsOrderDragColumn(true)}
                  <div>預覽</div>
-                ${category === "shift" ? "<div>越文名稱</div>" : ""}
                 ${category === "leave" ? "<div>假別代碼</div>" : ""}
                 ${category === "shift" ? "" : `<div>${category === "leave" ? "假別" : "加班"}</div>`}
-                ${category === "leave" ? "<div>越文名稱</div>" : ""}
                 <div>${category === "shift" ? "適用單位" : category === "leave" ? "需填時間" : "時段"}</div>
                 ${category === "shift" ? "<div>需求人數</div>" : ""}
                 ${category === "shift" ? "<div>排班人員</div>" : ""}
@@ -47,12 +45,10 @@ function openListSettings(category) {
                 <div class="settings-table-row settings-table-row-${category} sortable-settings-item" data-sort-category="${category}" data-sort-item="${item.id}">
                    ${renderSettingsOrderDragColumn()}
                    <div class="settings-table-color">
-                    <div class="settings-table-preview" style="background:${escapeHtml(item.color)};color:${escapeHtml(getItemTextColor(item, item.color))}">${escapeHtml(item.name || item.code || "名稱")}</div>
+                    <div class="settings-table-preview" style="background:${escapeHtml(item.color)};color:${escapeHtml(getItemTextColor(item, item.color))}">${escapeHtml(getLocalizedName(item, item.name || item.code || "名稱"))}</div>
                   </div>
-                  ${category === "shift" ? `<div class="settings-table-name-vi">${escapeHtml(item.nameVi || "-")}</div>` : ""}
                   ${category === "leave" ? `<div class="settings-table-code">${escapeHtml(item.code || "")}</div>` : ""}
-                  ${category === "shift" ? "" : `<div class="settings-table-name">${escapeHtml(category === "leave" ? getLeaveCatalogDisplayName(item) : item.name)}</div>`}
-                  ${category === "leave" ? `<div class="settings-table-name-vi">${escapeHtml(item.nameVi || "-")}</div>` : ""}
+                  ${category === "shift" ? "" : `<div class="settings-table-name">${escapeHtml(category === "leave" ? getLocalizedName(item, getLeaveCatalogDisplayName(item)) : getLocalizedName(item))}</div>`}
                   <div class="settings-table-meta">${category === "shift"
                     ? escapeHtml(getDepartmentSummary(item.applicableDeptId))
                     : category === "leave"

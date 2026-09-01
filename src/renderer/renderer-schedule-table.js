@@ -23,7 +23,7 @@ function renderTable() {
     } else {
       shifts.forEach((shift) => {
         html += "<tr>";
-        html += `<td class="dept-col">${escapeHtml(shift.name)}</td>`;
+        html += `<td class="dept-col">${escapeHtml(getLocalizedName(shift))}</td>`;
         html += `<td class="person-col demand-col">${escapeHtml(String(shift.requiredStaffCount ?? 0))}</td>`;
         visibleDates.forEach((dateString, index) => {
           const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, index, days);
@@ -52,7 +52,7 @@ function renderTable() {
             ? ` data-table-department-id="${escapeHtml(department.id)}"`
             : "";
           html += `<tr class="empty-department-row" data-table-empty-department-id="${escapeHtml(department.id)}" title="可將人員拖曳到此單位">`;
-          html += `<td class="dept-col${orderDragClass}"${departmentDragAttrs}${departmentEditAttrs}>${escapeHtml(department.name)}</td>`;
+          html += `<td class="dept-col${orderDragClass}"${departmentDragAttrs}${departmentEditAttrs}>${escapeHtml(getLocalizedName(department))}</td>`;
           html += '<td class="person-col empty-department-person-col" aria-label="目前沒有所屬人員"></td>';
           if (state.tableStatsVisible) {
             html += '<td class="stats-col empty-department-stats-col"></td>';
@@ -70,7 +70,7 @@ function renderTable() {
             const departmentEditAttrs = (canEditScheduleOrder || canEditDepartmentSettings)
               ? ` data-table-department-id="${escapeHtml(department.id)}"`
               : "";
-            html += `<td class="dept-col${orderDragClass}"${draggableAttr} rowspan="${members.length}"${departmentEditAttrs}>${escapeHtml(department.name)}</td>`;
+            html += `<td class="dept-col${orderDragClass}"${draggableAttr} rowspan="${members.length}"${departmentEditAttrs}>${escapeHtml(getLocalizedName(department))}</td>`;
           }
           const memberEditAttrs = canEditMemberSettings
             ? ` data-table-member-id="${escapeHtml(member.id)}" data-table-member-department-id="${escapeHtml(getMemberHomeDeptId(member))}"`

@@ -46,7 +46,7 @@ function renderShiftViewCell(members, dateString) {
         const regularHolidayWorkClass = isRegularHolidayWorkSlot(getDisplayedSlot(member.id, dateString))
           ? " regular-holiday-work-member"
           : "";
-        return `<div class="shift-view-member${regularHolidayWorkClass}" data-shift-schedule-member="${escapeHtml(member.id)}">${escapeHtml(member.name)}</div>`;
+        return `<div class="shift-view-member${regularHolidayWorkClass}" data-shift-schedule-member="${escapeHtml(member.id)}">${escapeHtml(getLocalizedName(member))}</div>`;
       }).join("")}
     </div>
   `;
@@ -81,7 +81,7 @@ function renderCellInner(key, memberId = "", day = 0, slotOverride = null, isPre
     if (shift) {
       segments.push({
         category: "shift",
-        name: shift.name,
+        name: getLocalizedName(shift),
         color: shift.color,
         textColor: getItemTextColor(shift, shift.color)
       });

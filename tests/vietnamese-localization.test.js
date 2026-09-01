@@ -47,20 +47,29 @@ test("Vietnamese fixed UI covers settings lists, forms, home and attendance revi
   assert.doesNotMatch(source, /position:fixed;right:10px;bottom:10px/);
 });
 
-test("settings renderers expose Vietnamese columns and edit fields", () => {
+test("settings lists localize the original name column while edit forms retain Vietnamese fields", () => {
   const department = read("src/renderer/renderer-settings-department.js");
   const member = read("src/renderer/renderer-settings-member.js");
   const catalog = read("src/renderer/renderer-settings-catalog.js");
   const permission = read("src/renderer/renderer-groups-permissions-archive.js");
   const mealViews = read("src/renderer/renderer-records-views.js");
-  ["departmentNameVi", "department.nameVi"].forEach((token) => assert.ok(department.includes(token)));
-  ["越文名稱", "member.nameVi"].forEach((token) => assert.ok(member.includes(token)));
-  ["shiftNameVi", "leaveNameVi", "item.nameVi"].forEach((token) => assert.ok(catalog.includes(token)));
-  ["accessRoleNameVi", "memberNameVi", "role.nameVi", "groupNameVi", "group.nameVi"].forEach((token) => assert.ok(permission.includes(token)));
+
+  ["departmentNameVi", "getLocalizedName(department)"].forEach((token) => assert.ok(department.includes(token)));
+  assert.doesNotMatch(department, /department-settings-name-vi/);
+
+  ["getLocalizedName(member)", "memberNameVi"].forEach((token) => assert.ok((member + permission).includes(token)));
+  assert.doesNotMatch(member, /member-table-name-vi/);
+
+  ["shiftNameVi", "leaveNameVi", "getLocalizedName(item"].forEach((token) => assert.ok(catalog.includes(token)));
+  assert.doesNotMatch(catalog, /settings-table-name-vi/);
+
+  ["accessRoleNameVi", "memberNameVi", "groupNameVi"].forEach((token) => assert.ok(permission.includes(token)));
+  assert.ok(permission.includes("getLocalizedName(role)"));
+  assert.doesNotMatch(permission, /permission-role-vi-col/);
+
   assert.ok(mealViews.includes('data-meal-product-field="nameVi"'));
   assert.ok(mealViews.includes("product.nameVi || product.name_vi"));
 });
-
 test("group and meal Vietnamese names use their formal save paths", () => {
   const groupSource = read("src/renderer/renderer-groups-permissions-archive.js");
   const mealActions = read("src/renderer/renderer-records-actions.js");
