@@ -68,7 +68,12 @@ assert(renderer.includes("syncMemberProfile"), "member import should persist mem
 assert(webApi.includes("function normalizeTextArray"), "web api should normalize Postgres text arrays");
 assert(renderer.includes("function getAllRoles()") && renderer.includes("groupFeatureState.bundle?.roles") && renderer.includes("getAllRoles().map((role) =>"), "member settings should render configured access roles instead of fixed legacy role choices");
 assert(!renderer.includes("function renderMemberRoleOptions"), "member settings should not keep the retired duplicate role renderer");
-assert(renderer.includes("function canEditMemberAccount") && renderer.includes('hasPermission("member_settings")'), "member editing capability should derive from member_settings");
+assert(
+  renderer.includes("function canEditMemberAccount")
+    && renderer.includes('hasGroupPermission(member?.groupId || groupFeatureState.currentGroupId, "schedule_manage")'),
+  "member editing capability should derive from schedule_manage on the member group"
+);
+assert(!renderer.includes('hasPermission("member_settings")'), "member settings should not restore retired member_settings permission");
 assert(browserExporter.includes("roleName: roleText") && browserExporter.includes("roleNameById") && !browserExporter.includes("parseRoleLabel"), "member import/export should map configured role names without legacy role values");
 assert(webApi.includes("scheduleShiftIds"), "member schedule shifts should stay on uuid-backed scheduleShiftIds");
 assert(browserExporter.includes('["工號", "姓名", "排班班別", "權限", "到職日", "離職日", "計薪方式", "例假星期", "所屬單位"]'), "member export should place home department after rest weekday");
