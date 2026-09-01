@@ -78,11 +78,15 @@ export async function rpcBoolean(ctx: any, name: string, payload: Record<string,
   return data === true;
 }
 
-export function hasPermission(ctx: any, actorId: string, permission: string) {
-  return rpcBoolean(ctx, "has_access_permission", { p_user_id: actorId, p_permission: permission });
+export function hasCommonPermission(ctx: any, actorId: string, permission: string) {
+  return rpcBoolean(ctx, "has_common_permission", { p_user_id: actorId, p_permission: permission });
 }
 
-export function canAccessGroup(ctx: any, actorId: string, groupId: string, permission: string) {
+export function hasAnyGroupPermission(ctx: any, actorId: string, permission: string) {
+  return rpcBoolean(ctx, "has_any_group_permission", { p_user_id: actorId, p_permission: permission });
+}
+
+export function hasGroupPermission(ctx: any, actorId: string, groupId: string, permission: string) {
   if (!isUuid(groupId)) return Promise.resolve(false);
-  return rpcBoolean(ctx, "can_access_group", { p_user_id: actorId, p_group_id: groupId, p_permission: permission });
+  return rpcBoolean(ctx, "has_group_permission", { p_user_id: actorId, p_group_id: groupId, p_permission: permission });
 }

@@ -1,5 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@^1";
-import { actorIdOf, addDaysToDateString as addDays, hasPermission, isProfileEffective as effective, pageNumber, positiveInteger, taipeiDateString as taipeiDate, validDate } from "../_shared/runtime.ts";
+import { actorIdOf, addDaysToDateString as addDays, hasAnyGroupPermission, isProfileEffective as effective, pageNumber, positiveInteger, taipeiDateString as taipeiDate, validDate } from "../_shared/runtime.ts";
 
 const PAGE_SIZE = 50;
 
@@ -16,13 +16,13 @@ async function getActor(ctx: any) {
     .eq("id", userId).is("deleted_at", null).single();
   if (result.error) throw result.error;
   if (!effective(result.data)) throw new Error("此帳號目前不在有效期間");
-  if (!await hasPermission(ctx, userId, "meal_admin")) throw new Error("沒有訂餐管理權限");
+  if (!await hasAnyGroupPermission(ctx, userId, "meal_admin")) throw new Error("沒有訂餐管理權限");
   return result.data;
 }
 
 async function resolveGroupIds(ctx: any, actor: any, requestedGroupId: string) {
-  const result = await ctx.supabaseAdmin.from("access_role_groups")
-    .select("group_id").eq("role_id", actor.access_role_id);
+  const result = await ctx.supabaseAdmin.from("access_role_group_permissions")
+    .select("group_id,permissions").eq("role_id", actor.access_role_id).contains("permissions", ["meal_admin"]);
   if (result.error) throw result.error;
   const ids = (result.data || []).map((row: any) => row.group_id).filter(Boolean);
   if (requestedGroupId) {

@@ -130,7 +130,7 @@ async function loadRecordsPage(shouldRender = true) {
 }
 
 async function loadAttendanceReview(shouldRender = true) {
-  if (!hasPermission("attendance_review")) return false;
+  if (!hasAnyGroupPermission("attendance_review")) return false;
   const review = ensureAttendanceReviewState();
   const requestId = Number(review.requestId || 0) + 1;
   const requestFilters = { ...review.filters };

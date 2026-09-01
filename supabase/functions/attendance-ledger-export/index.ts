@@ -1,5 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@^1";
-import { actorIdOf, canAccessGroup, hasPermission, taipeiDateString as taipeiDate, validDate } from "../_shared/runtime.ts";
+import { actorIdOf, hasGroupPermission, hasAnyGroupPermission, taipeiDateString as taipeiDate, validDate } from "../_shared/runtime.ts";
 
 function scheduleKey(memberId: string, workDate: string) {
   return memberId + ":" + workDate;
@@ -22,7 +22,7 @@ async function getVisibleMembers(ctx: any, actorId: string, requestedGroupId = "
   const groupIds = [...new Set<string>((data || []).map((row: any) => String(row.group_id || "")).filter(Boolean))];
   const accessPairs = await Promise.all(groupIds.map(async (groupId) => [
     groupId,
-    await canAccessGroup(ctx, actorId, groupId, "attendance_review")
+    await hasGroupPermission(ctx, actorId, groupId, "attendance_review")
   ] as const));
   const allowedGroups = new Set(accessPairs.filter(([, allowed]) => allowed).map(([groupId]) => groupId));
   if (requestedGroupId && !allowedGroups.has(requestedGroupId)) throw new Error("沒有查看此群組簽到資料的權限");
@@ -68,7 +68,7 @@ export default {
     if (req.method !== "POST") return Response.json({ message: "Method Not Allowed" }, { status: 405 });
     try {
       const actorId = actorIdOf(ctx);
-      if (!await hasPermission(ctx, actorId, "attendance_review")) throw new Error("沒有簽到審核權限");
+      if (!await hasAnyGroupPermission(ctx, actorId, "attendance_review")) throw new Error("沒有簽到審核權限");
       const body = await req.json();
       const today = taipeiDate();
       const fromDate = validDate(body?.fromDate, today);

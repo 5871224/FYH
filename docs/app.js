@@ -2233,7 +2233,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       },
       schedule: mapScheduleRows(scheduleEntryRows, members),
       scheduleLoadedRanges: [scheduleRange],
-      accessBundle: bootstrap.accessBundle || { actor: {}, groups: [], roles: [] },
+      accessBundle: await getGroupAccessBundle(),
       archiveRanges: Array.isArray(bootstrap.archiveRanges) ? bootstrap.archiveRanges : []
     };
   }
@@ -2458,7 +2458,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     return { ok: true, row: result.rows?.[0] || null };
   }
 
-  async function getGroupAccessBundle() { return callRpc("get_group_access_bundle_v1", {}) || {}; }
+  async function getGroupAccessBundle() { return requestFunction("access-control", { action: "bundle" }) || {}; }
   async function getScheduleConditions(groupId) { return callRpc("get_schedule_conditions_v1", { p_group_id: groupId }) || []; }
   async function saveScheduleCondition(item) { return callRpc("save_schedule_condition_v1", { p_item: item }); }
   async function deleteScheduleCondition(conditionId) { return callRpc("delete_schedule_condition_v1", { p_condition_id: conditionId }); }
@@ -2471,11 +2471,15 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   async function deleteScheduleGroup(groupId, confirmName) { return callRpc("delete_schedule_group_v1", { p_group_id: groupId, p_confirm_name: confirmName }); }
   async function reorderScheduleGroups(groupIds) { return callRpc("reorder_schedule_groups_v1", { p_group_ids: groupIds }); }
   async function saveAccessRole(role) {
-    const result = await callRpc("save_access_role_v1", { p_role: role });
-    await saveVietnameseLabel("role", result?.role?.id || role?.id, role?.nameVi || "");
-    return result;
+    return requestFunction("access-control", { action: "saveRole", role });
   }
-  async function deleteAccessRole(roleId) { return callRpc("delete_access_role_v1", { p_role_id: roleId }); }
+  async function deleteAccessRole(roleId) {
+    return requestFunction("access-control", { action: "deleteRole", roleId });
+  }
+  async function reorderAccessRoles(roleIds) {
+    return requestFunction("access-control", { action: "reorderRoles", roleIds });
+  }
+
   async function validateMemberGroupChange(employeeCode, groupId) { return callRpc("validate_member_group_change_v1", { p_employee_code: employeeCode, p_new_group_id: groupId }); }
   async function getScheduleArchives(groupId = null) { return callRpc("get_schedule_archives_v1", { p_group_id: groupId }); }
   async function archiveSchedule(groupId, startDate, endDate) { return callRpc("archive_schedule_v1", { p_group_id: groupId, p_start_date: startDate, p_end_date: endDate }); }
@@ -2717,6 +2721,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     reorderScheduleGroups,
     saveAccessRole,
     deleteAccessRole,
+    reorderAccessRoles,
     validateMemberGroupChange,
     getScheduleArchives,
     archiveSchedule,
@@ -7542,7 +7547,7 @@ function refreshMemberSettingsList() {
 }
 
 async function openMemberSettings() {
-  if (!hasPermission("member_settings")) {
+  if (!hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage")) {
     showInfoMessage("沒有權限開啟人員設定");
     return;
   }
@@ -7810,14 +7815,16 @@ async function resetMemberPasswordFromModal(employeeCode) {
  * 權限狀態由 canonical schedulerApi 載入；本模組只負責領域狀態與介面。
  */
 
+const COMMON_PERMISSION_LABELS = {
+  settings: "設定",
+  export: "匯出",
+  leave_settings: "假別設定"
+};
+
 const GROUP_PERMISSION_LABELS = {
   schedule_view: "班表查看",
   schedule_manage: "班表管理",
-  group_settings: "群組設定",
   department_settings: "單位設定",
-  member_settings: "人員設定",
-  leave_settings: "假別設定",
-  permission_settings: "權限設定",
   attendance_review: "簽到審核",
   meal_admin: "訂餐管理"
 };
@@ -7845,23 +7852,33 @@ async function loadGroupAccessData(payload = {}) {
 
 
 function getAccessActor() { return groupFeatureState.bundle?.actor || {}; }
-function getAccessPermissions() { return Array.isArray(getAccessActor().permissions) ? getAccessActor().permissions : []; }
-function hasPermission(permission) { return getAccessPermissions().includes(permission); }
-function getApplicableGroupIds() { return Array.isArray(getAccessActor().applicableGroupIds) ? getAccessActor().applicableGroupIds.filter(Boolean) : []; }
-function roleAppliesToGroup(groupId) { return Boolean(groupId && getApplicableGroupIds().includes(groupId)); }
-function getAllGroups() { return Array.isArray(groupFeatureState.bundle?.groups) ? groupFeatureState.bundle.groups : []; }
-function getSelectableGroups() {
-  const allowed = new Set(getApplicableGroupIds());
-  return getAllGroups().filter((group) => allowed.has(group.id) && group.status === "active");
+function getCommonPermissions() { return Array.isArray(getAccessActor().commonPermissions) ? getAccessActor().commonPermissions : []; }
+function hasCommonPermission(permission) { return getCommonPermissions().includes(permission); }
+function getActorGroupPermissions(groupId) {
+  const map = getAccessActor().groupPermissions;
+  return map && typeof map === "object" && Array.isArray(map[groupId]) ? map[groupId] : [];
 }
+function hasGroupPermission(groupId, permission) { return Boolean(groupId && getActorGroupPermissions(groupId).includes(permission)); }
+function hasAnyGroupPermission(permission) {
+  const map = getAccessActor().groupPermissions;
+  return Boolean(map && typeof map === "object" && Object.values(map).some((permissions) => Array.isArray(permissions) && permissions.includes(permission)));
+}
+function getAllGroups() { return Array.isArray(groupFeatureState.bundle?.groups) ? groupFeatureState.bundle.groups : []; }
+function getSelectableGroups() { return getAllGroups().filter((group) => group.status === "active" && hasGroupPermission(group.id, "schedule_view")); }
 function getCurrentGroup() { return getAllGroups().find((group) => group.id === groupFeatureState.currentGroupId) || null; }
 function getActorGroup() { return getAllGroups().find((group) => group.id === getAccessActor().groupId) || null; }
 function getAllRoles() { return Array.isArray(groupFeatureState.bundle?.roles) ? groupFeatureState.bundle.roles : []; }
 function getRoleById(roleId) { return getAllRoles().find((role) => role.id === roleId) || null; }
+function getRoleGroupPermissions(role, groupId) {
+  const rows = Array.isArray(role?.groupPermissions) ? role.groupPermissions : [];
+  return rows.find((row) => row.groupId === groupId)?.permissions || [];
+}
 function getDefaultAccessRoleId() {
+  const currentGroupId = groupFeatureState.currentGroupId;
   return getAllRoles().find((role) => {
-    const permissions = Array.isArray(role.permissions) ? role.permissions : [];
-    return permissions.length <= 1 && permissions.every((permission) => permission === "schedule_view");
+    const common = Array.isArray(role.commonPermissions) ? role.commonPermissions : [];
+    const groupPermissions = getRoleGroupPermissions(role, currentGroupId);
+    return common.length === 0 && groupPermissions.length === 1 && groupPermissions[0] === "schedule_view";
   })?.id || getAllRoles()[0]?.id || "";
 }
 
@@ -7990,7 +8007,7 @@ function resetGroupInteractionState() {
 }
 
 async function switchScheduleGroup(groupId) {
-  if (!roleAppliesToGroup(groupId)) return;
+  if (!hasGroupPermission(groupId, "schedule_view")) return;
   const group = getAllGroups().find((item) => item.id === groupId && item.status === "active");
   if (!group) return;
   syncCurrentScopeIntoCatalog();
@@ -8070,12 +8087,12 @@ function ensureFunctionMenuButtons() {
   const menu = document.getElementById("coreActionsMenu");
   if (!menu) return;
   const definitions = [
-    ["groupSettingsMenuButton", "群組設定", "group_settings", "group-settings"],
-    ["permissionSettingsMenuButton", "權限設定", "permission_settings", "permission-settings"],
-    ["scheduleConditionsMenuButton", "排班條件", "schedule_manage", "schedule-conditions"],
-    ["scheduleArchiveMenuButton", "班表封存", "schedule_view", "schedule-archive"]
+    ["groupSettingsMenuButton", "群組設定", "group-settings"],
+    ["permissionSettingsMenuButton", "權限設定", "permission-settings"],
+    ["scheduleConditionsMenuButton", "排班條件", "schedule-conditions"],
+    ["scheduleArchiveMenuButton", "班表封存", "schedule-archive"]
   ];
-  definitions.forEach(([id, label, permission, action]) => {
+  definitions.forEach(([id, label, action]) => {
     let button = document.getElementById(id);
     if (!button) {
       button = document.createElement("button");
@@ -8086,11 +8103,11 @@ function ensureFunctionMenuButtons() {
       button.textContent = label;
       menu.prepend(button);
     }
-    const visible = action === "schedule-conditions"
-      ? canEditSchedule()
-      : action === "schedule-archive"
-        ? hasPermission("schedule_view")
-        : hasPermission(permission);
+    const visible = action === "group-settings" || action === "permission-settings"
+      ? hasCommonPermission("settings")
+      : action === "schedule-conditions"
+        ? canEditSchedule()
+        : hasGroupPermission(groupFeatureState.currentGroupId, "schedule_view");
     button.style.display = visible ? "" : "none";
     button.disabled = !visible;
   });
@@ -8100,20 +8117,21 @@ function syncPermissionUi() {
   ensureGroupSelector();
   ensureFunctionMenuButtons();
   markArchivedScheduleCells();
+  const groupId = groupFeatureState.currentGroupId;
   const visibility = {
-    shiftSettingsButton: hasPermission("schedule_manage"),
-    restComplianceButton: hasPermission("schedule_manage"),
-    deptSettingsButton: hasPermission("department_settings"),
-    leaveSettingsButton: hasPermission("leave_settings"),
+    shiftSettingsButton: hasGroupPermission(groupId, "schedule_manage"),
+    restComplianceButton: hasGroupPermission(groupId, "schedule_manage"),
+    deptSettingsButton: hasGroupPermission(groupId, "department_settings"),
+    leaveSettingsButton: hasCommonPermission("leave_settings"),
     overtimeSettingsButton: false,
-    weekStartSettingsButton: hasPermission("schedule_manage"),
-    autoSchedulePreviewButton: hasPermission("schedule_manage"),
-    autoFillSchedulePreviewButton: hasPermission("schedule_manage"),
-    autoScheduleApplyButton: hasPermission("schedule_manage"),
-    autoScheduleCancelButton: hasPermission("schedule_manage"),
-    exportSapButton: hasPermission("schedule_manage"),
-    exportLeaveButton: hasPermission("schedule_manage"),
-    exportOvertimeButton: hasPermission("schedule_manage")
+    weekStartSettingsButton: hasGroupPermission(groupId, "schedule_manage"),
+    autoSchedulePreviewButton: hasGroupPermission(groupId, "schedule_manage"),
+    autoFillSchedulePreviewButton: hasGroupPermission(groupId, "schedule_manage"),
+    autoScheduleApplyButton: hasGroupPermission(groupId, "schedule_manage"),
+    autoScheduleCancelButton: hasGroupPermission(groupId, "schedule_manage"),
+    exportSapButton: hasCommonPermission("export"),
+    exportLeaveButton: hasCommonPermission("export"),
+    exportOvertimeButton: hasCommonPermission("export")
   };
   Object.entries(visibility).forEach(([id, visible]) => {
     const element = document.getElementById(id);
@@ -8121,12 +8139,12 @@ function syncPermissionUi() {
     element.style.display = visible ? "" : "none";
     element.disabled = !visible;
   });
-  document.querySelectorAll("[data-open-department-settings]").forEach((element) => { element.style.display = hasPermission("department_settings") ? "" : "none"; });
-  document.querySelectorAll("[data-open-member-settings]").forEach((element) => { element.style.display = hasPermission("member_settings") ? "" : "none"; });
+  document.querySelectorAll("[data-open-department-settings]").forEach((element) => { element.style.display = hasGroupPermission(groupId, "department_settings") ? "" : "none"; });
+  document.querySelectorAll("[data-open-member-settings]").forEach((element) => { element.style.display = hasGroupPermission(groupId, "schedule_manage") ? "" : "none"; });
   const mealButton = document.querySelector('[data-home-action="meal"]');
   const actorGroup = getActorGroup();
   if (mealButton) mealButton.style.display = actorGroup?.mealEnabled && actorGroup?.status === "active" ? "" : "none";
-  document.querySelectorAll('[data-meal-tab="stats"], [data-meal-tab="settings"]').forEach((tab) => { tab.style.display = hasPermission("meal_admin") ? "" : "none"; });
+  document.querySelectorAll('[data-meal-tab="stats"], [data-meal-tab="settings"]').forEach((tab) => { tab.style.display = hasAnyGroupPermission("meal_admin") ? "" : "none"; });
 }
 
 function groupUnitNames(group) { return Array.isArray(group?.unitNames) && group.unitNames.length ? group.unitNames.join("、") : "-"; }
@@ -8155,7 +8173,7 @@ function renderGroupSettingsRows() {
 }
 
 function openGroupSettings() {
-  if (!hasPermission("group_settings")) return;
+  if (!hasCommonPermission("settings")) return;
   modalContext = { category: "group-settings" };
   openEntityListModal({
     title: "群組設定",
@@ -8235,7 +8253,7 @@ async function savePermissionRoleOrder() {
   if (state && typeof state === "object") state.accessRoles = getAllRoles();
   setSaveStatus("角色排序儲存中...", true);
   try {
-    await window.schedulerApi.reorderSettings("access-role", orderedIds);
+    await window.schedulerApi.reorderAccessRoles(orderedIds);
     await loadGroupAccessData();
     if (state && typeof state === "object") state.accessRoles = getAllRoles();
     setSaveStatus("角色排序已儲存");
@@ -8246,39 +8264,46 @@ async function savePermissionRoleOrder() {
   }
 }
 
-function permissionSummary(role) { return (role.permissions || []).map((permission) => GROUP_PERMISSION_LABELS[permission]).filter(Boolean).join("、") || "-"; }
-function renderPermissionSummaryTags(role) {
-  const labels = (role.permissions || []).map((permission) => GROUP_PERMISSION_LABELS[permission]).filter(Boolean);
+function permissionTagList(labels) {
   if (!labels.length) return '<span class="group-unit-empty">-</span>';
   return `<div class="permission-summary-tags">${labels.map((label) => `<span class="group-unit-tag permission-summary-tag">${escapeHtml(label)}</span>`).join("")}</div>`;
 }
-function roleGroupSummary(role) {
-  const names = (role.groupIds || []).map((groupId) => getAllGroups().find((group) => group.id === groupId)?.name).filter(Boolean);
-  return names.length ? names.join("、") : "未設定";
+function renderCommonPermissionSummary(role) {
+  return permissionTagList((role.commonPermissions || []).map((permission) => COMMON_PERMISSION_LABELS[permission]).filter(Boolean));
+}
+function renderGroupPermissionSummary(role) {
+  const rows = getAllGroups().map((group) => {
+    const labels = getRoleGroupPermissions(role, group.id).map((permission) => GROUP_PERMISSION_LABELS[permission]).filter(Boolean);
+    if (!labels.length) return "";
+    return `<div class="permission-group-summary-row"><strong>${escapeHtml(getLocalizedName(group))}</strong>${permissionTagList(labels)}</div>`;
+  }).filter(Boolean);
+  return rows.join("") || '<span class="group-unit-empty">-</span>';
 }
 
 function openPermissionSettings() {
-  if (!hasPermission("permission_settings")) return;
+  if (!hasCommonPermission("settings")) return;
   modalContext = { category: "permission-settings" };
   openEntityListModal({
     title: "權限設定",
     modalClass: "modal modal-wide permission-settings-modal settings-list-modal",
-    body: `<div class="records-table-wrap"><table class="records-table permission-settings-table"><thead><tr><th class="permission-role-drag-col"></th><th class="permission-role-col">角色名稱</th><th class="permission-group-col">適用群組</th><th class="permission-items-col">權限項目</th><th class="permission-actions-col">操作</th></tr></thead><tbody id="permissionSettingsRows">${getAllRoles().map((role) => `<tr data-permission-role-id="${escapeHtml(role.id)}"><td class="permission-role-drag-col"><span class="settings-order-drag-handle" draggable="true" data-permission-role-drag-handle="${escapeHtml(role.id)}" title="拖曳排序" aria-label="拖曳排序">≡</span></td><td class="permission-role-col">${escapeHtml(getLocalizedName(role))}</td><td class="permission-group-col">${escapeHtml(roleGroupSummary(role))}</td><td class="permission-summary-cell permission-items-col">${renderPermissionSummaryTags(role)}</td><td class="permission-actions-col"><button class="settings-icon-btn" type="button" data-edit-access-role="${escapeHtml(role.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-access-role="${escapeHtml(role.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td></tr>`).join("")}</tbody></table></div>`,
+    body: `<div class="records-table-wrap"><table class="records-table permission-settings-table"><thead><tr><th class="permission-role-drag-col"></th><th class="permission-role-col">角色名稱</th><th>共用權限</th><th class="permission-items-col">群組權限</th><th class="permission-actions-col">操作</th></tr></thead><tbody id="permissionSettingsRows">${getAllRoles().map((role) => `<tr data-permission-role-id="${escapeHtml(role.id)}"><td class="permission-role-drag-col"><span class="settings-order-drag-handle" draggable="true" data-permission-role-drag-handle="${escapeHtml(role.id)}" title="拖曳排序" aria-label="拖曳排序">≡</span></td><td class="permission-role-col">${escapeHtml(getLocalizedName(role))}</td><td>${renderCommonPermissionSummary(role)}</td><td class="permission-summary-cell permission-items-col">${renderGroupPermissionSummary(role)}</td><td class="permission-actions-col"><button class="settings-icon-btn" type="button" data-edit-access-role="${escapeHtml(role.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-access-role="${escapeHtml(role.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td></tr>`).join("")}</tbody></table></div>`,
     headerButtons: '<button class="btn-primary" type="button" data-add-access-role="true">新增</button>',
     hideFooterClose: true
   });
 }
 
-function permissionCheckbox(permission, checked) { return `<label class="permission-check"><input type="checkbox" value="${permission}" data-role-permission="${permission}" ${checked ? "checked" : ""}>${escapeHtml(GROUP_PERMISSION_LABELS[permission])}</label>`; }
+function accessPermissionCheckbox(attributeText, permission, label, checked) {
+  return `<label class="permission-check"><input type="checkbox" ${attributeText}="${permission}" ${checked ? "checked" : ""}>${escapeHtml(label)}</label>`;
+}
 
 function openAccessRoleForm(roleId = "") {
-  const role = getAllRoles().find((item) => item.id === roleId) || { id: "", code: "", name: "", nameVi: "", permissions: ["schedule_view"], groupIds: [groupFeatureState.currentGroupId].filter(Boolean) };
-  const permissions = new Set(role.permissions || []);
+  const role = getAllRoles().find((item) => item.id === roleId) || { id: "", code: "", name: "", nameVi: "", commonPermissions: [], groupPermissions: [] };
+  const common = new Set(role.commonPermissions || []);
   modalContext = { category: "access-role-form", targetId: role.id || "" };
   openEntityListModal({
     title: role.id ? "修改角色" : "新增角色",
     modalClass: "modal modal-wide access-role-form-modal",
-    body: `<div class="form-row"><label for="accessRoleName">角色名稱</label><input id="accessRoleName" type="text" maxlength="30" value="${escapeHtml(role.name)}"></div><div class="form-row"><label for="accessRoleNameVi">越文名稱</label><input id="accessRoleNameVi" type="text" maxlength="60" value="${escapeHtml(role.nameVi || "")}" placeholder="可留空"></div><fieldset class="role-group-fieldset"><legend>適用群組</legend><div class="role-group-grid">${getAllGroups().map((group) => `<label><input type="checkbox" data-role-group="${escapeHtml(group.id)}" ${role.groupIds?.includes(group.id) ? "checked" : ""}>${escapeHtml(group.name)}</label>`).join("")}</div></fieldset><fieldset class="role-permission-fieldset"><legend>權限項目</legend><div class="schedule-permission-row"><span>班表</span><label><input type="checkbox" data-role-permission="schedule_view" ${permissions.has("schedule_view") ? "checked" : ""}>查看</label><label><input type="checkbox" data-role-permission="schedule_manage" ${permissions.has("schedule_manage") ? "checked" : ""}>管理</label></div><div class="role-permission-grid">${["group_settings","department_settings","member_settings","leave_settings","permission_settings","attendance_review","meal_admin"].map((permission) => permissionCheckbox(permission, permissions.has(permission))).join("")}</div></fieldset>`,
+    body: `<div class="form-row"><label for="accessRoleName">角色名稱</label><input id="accessRoleName" type="text" maxlength="30" value="${escapeHtml(role.name)}"></div><div class="form-row"><label for="accessRoleNameVi">越文名稱</label><input id="accessRoleNameVi" type="text" maxlength="60" value="${escapeHtml(role.nameVi || "")}" placeholder="可留空"></div><fieldset class="role-permission-fieldset"><legend>共用權限</legend><div class="role-permission-grid">${Object.entries(COMMON_PERMISSION_LABELS).map(([permission,label]) => accessPermissionCheckbox("data-role-common-permission", permission, label, common.has(permission))).join("")}</div></fieldset><fieldset class="role-group-fieldset"><legend>群組權限</legend><div class="records-table-wrap"><table class="records-table role-group-permission-table"><thead><tr><th>群組</th>${Object.values(GROUP_PERMISSION_LABELS).map((label) => `<th>${escapeHtml(label)}</th>`).join("")}</tr></thead><tbody>${getAllGroups().map((group) => { const selected = new Set(getRoleGroupPermissions(role, group.id)); return `<tr data-role-group-row="${escapeHtml(group.id)}"><td>${escapeHtml(getLocalizedName(group))}</td>${Object.entries(GROUP_PERMISSION_LABELS).map(([permission,label]) => `<td>${accessPermissionCheckbox(`data-role-group-permission="${group.id}" data-role-group-permission-name`, permission, label, selected.has(permission))}</td>`).join("")}</tr>`; }).join("")}</tbody></table></div></fieldset>`,
     headerButtons: `<button class="btn-primary" type="button" data-save-access-role="true">${role.id ? "儲存修改" : "新增"}</button>`,
     hideFooterClose: true
   });
@@ -8289,9 +8314,12 @@ async function saveAccessRoleFromForm() {
   const nameVi = document.getElementById("accessRoleNameVi")?.value.trim() || "";
   if (!name) { reportValidationError("請填寫角色名稱"); return; }
   const existing = getAllRoles().find((role) => role.id === modalContext.targetId) || null;
-  const permissions = Array.from(document.querySelectorAll("[data-role-permission]:checked")).map((input) => input.dataset.rolePermission || "").filter(Boolean);
-  const groupIds = Array.from(document.querySelectorAll("[data-role-group]:checked")).map((input) => input.dataset.roleGroup || "").filter(Boolean);
-  await window.schedulerApi.saveAccessRole({ id: existing?.id || "", code: existing?.code || "", name, nameVi, permissions, groupIds });
+  const commonPermissions = Array.from(document.querySelectorAll("[data-role-common-permission]:checked")).map((input) => input.dataset.roleCommonPermission || "").filter(Boolean);
+  const groupPermissions = getAllGroups().map((group) => ({
+    groupId: group.id,
+    permissions: Array.from(document.querySelectorAll(`[data-role-group-permission="${group.id}"]:checked`)).map((input) => input.dataset.roleGroupPermissionName || "").filter(Boolean)
+  })).filter((row) => row.permissions.length);
+  await window.schedulerApi.saveAccessRole({ id: existing?.id || "", code: existing?.code || "", name, nameVi, commonPermissions, groupPermissions, sortOrder: existing?.sortOrder ?? getAllRoles().length });
   await reloadGroupApplicationState();
   openPermissionSettings();
 }
@@ -8308,7 +8336,7 @@ async function deleteAccessRole(roleId) {
 async function loadArchiveList(groupId = null) { return await window.schedulerApi.getScheduleArchives(groupId); }
 
 async function openScheduleArchive() {
-  if (!hasPermission("schedule_view")) return;
+  if (!hasGroupPermission(groupFeatureState.currentGroupId, "schedule_view")) return;
   const archives = await loadArchiveList(null);
   const currentGroup = getCurrentGroup();
   const visibleDates = typeof getVisibleDates === "function" ? getVisibleDates() : [];
@@ -8318,7 +8346,7 @@ async function openScheduleArchive() {
   openEntityListModal({
     title: "班表封存",
     modalClass: "modal modal-wide schedule-archive-modal settings-list-modal",
-    body: `${hasPermission("schedule_manage") && currentGroup ? `<div class="archive-create-row"><div class="form-row"><label>群組</label><div class="readonly-pill">${escapeHtml(currentGroup.name)}</div></div><div class="form-row"><label for="archiveStartDate">開始日期</label><input id="archiveStartDate" type="date" value="${escapeHtml(startDate)}"></div><div class="form-row"><label for="archiveEndDate">結束日期</label><input id="archiveEndDate" type="date" value="${escapeHtml(endDate)}"></div><button class="btn-primary" type="button" data-create-schedule-archive="true">封存</button></div>` : ""}<div class="records-table-wrap"><table class="records-table archive-list-table"><thead><tr><th>群組</th><th>日期範圍</th><th>封存時間</th><th>封存人員</th><th>人員數</th><th>資料筆數</th><th>操作</th></tr></thead><tbody>${(archives || []).map((archive) => `<tr><td>${escapeHtml(archive.group_name || "")}</td><td>${escapeHtml(archive.start_date)}～${escapeHtml(archive.end_date)}</td><td>${escapeHtml(String(archive.archived_at || "").replace("T", " ").slice(0,16))}</td><td>${escapeHtml(archive.archived_by_name || "")}</td><td>${Number(archive.member_count || 0)}</td><td>${Number(archive.entry_count || 0)}</td><td><button class="ghost-btn compact-btn" type="button" data-view-schedule-archive="${escapeHtml(archive.id)}">查看</button>${hasPermission("schedule_manage") && roleAppliesToGroup(archive.group_id) ? `<button class="ghost-btn compact-btn" type="button" data-unarchive-schedule="${escapeHtml(archive.id)}">解除封存</button>` : ""}</td></tr>`).join("") || '<tr><td colspan="7">尚無封存班表</td></tr>'}</tbody></table></div>`,
+    body: `${hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage") && currentGroup ? `<div class="archive-create-row"><div class="form-row"><label>群組</label><div class="readonly-pill">${escapeHtml(currentGroup.name)}</div></div><div class="form-row"><label for="archiveStartDate">開始日期</label><input id="archiveStartDate" type="date" value="${escapeHtml(startDate)}"></div><div class="form-row"><label for="archiveEndDate">結束日期</label><input id="archiveEndDate" type="date" value="${escapeHtml(endDate)}"></div><button class="btn-primary" type="button" data-create-schedule-archive="true">封存</button></div>` : ""}<div class="records-table-wrap"><table class="records-table archive-list-table"><thead><tr><th>群組</th><th>日期範圍</th><th>封存時間</th><th>封存人員</th><th>人員數</th><th>資料筆數</th><th>操作</th></tr></thead><tbody>${(archives || []).map((archive) => `<tr><td>${escapeHtml(archive.group_name || "")}</td><td>${escapeHtml(archive.start_date)}～${escapeHtml(archive.end_date)}</td><td>${escapeHtml(String(archive.archived_at || "").replace("T", " ").slice(0,16))}</td><td>${escapeHtml(archive.archived_by_name || "")}</td><td>${Number(archive.member_count || 0)}</td><td>${Number(archive.entry_count || 0)}</td><td><button class="ghost-btn compact-btn" type="button" data-view-schedule-archive="${escapeHtml(archive.id)}">查看</button>${hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage") && hasGroupPermission(archive.group_id, "schedule_manage") ? `<button class="ghost-btn compact-btn" type="button" data-unarchive-schedule="${escapeHtml(archive.id)}">解除封存</button>` : ""}</td></tr>`).join("") || '<tr><td colspan="7">尚無封存班表</td></tr>'}</tbody></table></div>`,
     hideFooterClose: true
   });
 }
@@ -8420,7 +8448,7 @@ function openMemberForm(mode, memberId = "") {
   openEntityListModal({
     title: `${mode === "edit" ? "修改" : "新增"}人員`,
     modalClass: "modal modal-member-form",
-    body: `<div class="form-grid two-col"><div class="form-row"><label for="memberCode">工號</label><input id="memberCode" type="text" maxlength="12" value="${escapeHtml(member.code)}"></div><div class="form-row"><label for="memberName">姓名</label><input id="memberName" type="text" maxlength="12" value="${escapeHtml(member.name)}"></div><div class="form-row"><label for="memberNameVi">越文名稱</label><input id="memberNameVi" type="text" maxlength="60" value="${escapeHtml(member.nameVi || "")}" placeholder="可留空"></div><div class="form-row"><label for="memberRole">權限</label><select id="memberRole" ${hasPermission("permission_settings") ? "" : "disabled"}>${renderMemberCustomRoleOptions(member)}</select></div><div class="form-row"><label for="memberSalaryType">計薪方式</label><select id="memberSalaryType"><option value="monthly" ${member.payByDay ? "" : "selected"}>月薪</option><option value="daily" ${member.payByDay ? "selected" : ""}>日薪</option></select></div><div class="form-row"><label for="memberHireDate">到職日</label><input id="memberHireDate" type="date" value="${escapeHtml(member.hireDate)}"></div><div class="form-row"><label for="memberLeaveDate">離職日</label><input id="memberLeaveDate" type="date" value="${escapeHtml(member.leaveDate)}"></div><div class="form-row"><label for="memberFixedRestWeekday">例假星期</label><select id="memberFixedRestWeekday">${REST_WEEKDAY_OPTIONS.map((option) => `<option value="${option.value}" ${normalizeRestWeekday(member.fixedRestWeekday) === option.value ? "selected" : ""}>${option.label}</option>`).join("")}</select></div><div class="form-row"><label for="memberGroup">所屬群組</label><select id="memberGroup">${renderMemberGroupOptions(groupId)}</select></div><div class="form-row"><label for="memberDept">所屬單位</label><select id="memberDept">${renderMemberUnitOptions(groupId, member.deptId || "")}</select></div>${mode === "edit" ? `<div class="form-row"><button class="ghost-btn" type="button" data-reset-member-password="${escapeHtml(member.code)}">重設密碼為 0000</button></div>` : ""}<div class="form-row form-row-wide"><label>排班班別</label><div class="schedule-dept-summary-row"><div class="readonly-pill schedule-shift-summary">${escapeHtml(memberShiftNamesForGroup(groupId, selectedShifts))}</div><button class="ghost-btn compact-btn" type="button" data-toggle-schedule-shifts="true">設定</button></div>${renderMemberGroupShiftSelector(groupId, selectedShifts)}</div></div>`,
+    body: `<div class="form-grid two-col"><div class="form-row"><label for="memberCode">工號</label><input id="memberCode" type="text" maxlength="12" value="${escapeHtml(member.code)}"></div><div class="form-row"><label for="memberName">姓名</label><input id="memberName" type="text" maxlength="12" value="${escapeHtml(member.name)}"></div><div class="form-row"><label for="memberNameVi">越文名稱</label><input id="memberNameVi" type="text" maxlength="60" value="${escapeHtml(member.nameVi || "")}" placeholder="可留空"></div><div class="form-row"><label for="memberRole">權限</label><select id="memberRole" ${hasCommonPermission("settings") ? "" : "disabled"}>${renderMemberCustomRoleOptions(member)}</select></div><div class="form-row"><label for="memberSalaryType">計薪方式</label><select id="memberSalaryType"><option value="monthly" ${member.payByDay ? "" : "selected"}>月薪</option><option value="daily" ${member.payByDay ? "selected" : ""}>日薪</option></select></div><div class="form-row"><label for="memberHireDate">到職日</label><input id="memberHireDate" type="date" value="${escapeHtml(member.hireDate)}"></div><div class="form-row"><label for="memberLeaveDate">離職日</label><input id="memberLeaveDate" type="date" value="${escapeHtml(member.leaveDate)}"></div><div class="form-row"><label for="memberFixedRestWeekday">例假星期</label><select id="memberFixedRestWeekday">${REST_WEEKDAY_OPTIONS.map((option) => `<option value="${option.value}" ${normalizeRestWeekday(member.fixedRestWeekday) === option.value ? "selected" : ""}>${option.label}</option>`).join("")}</select></div><div class="form-row"><label for="memberGroup">所屬群組</label><select id="memberGroup">${renderMemberGroupOptions(groupId)}</select></div><div class="form-row"><label for="memberDept">所屬單位</label><select id="memberDept">${renderMemberUnitOptions(groupId, member.deptId || "")}</select></div>${mode === "edit" ? `<div class="form-row"><button class="ghost-btn" type="button" data-reset-member-password="${escapeHtml(member.code)}">重設密碼為 0000</button></div>` : ""}<div class="form-row form-row-wide"><label>排班班別</label><div class="schedule-dept-summary-row"><div class="readonly-pill schedule-shift-summary">${escapeHtml(memberShiftNamesForGroup(groupId, selectedShifts))}</div><button class="ghost-btn compact-btn" type="button" data-toggle-schedule-shifts="true">設定</button></div>${renderMemberGroupShiftSelector(groupId, selectedShifts)}</div></div>`,
     headerButtons: `<button class="btn-primary" type="button" data-save-member="${mode}">${mode === "edit" ? "儲存修改" : "新增"}</button>`,
     hideFooterClose: true
   });
@@ -8465,7 +8493,7 @@ function syncMemberGroupFields(groupId) {
   if (summary) summary.textContent = "未指定";
 }
 
-function renderAttendanceGroupOptions(selectedValue) { return `<option value="">全部群組</option>${getSelectableGroups().map((group) => `<option value="${escapeHtml(group.id)}" ${group.id === selectedValue ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("")}`; }
+function renderAttendanceGroupOptions(selectedValue) { const reviewGroups = getAllGroups().filter((group) => group.status === "active" && hasGroupPermission(group.id, "attendance_review")); return `<option value="">全部群組</option>${reviewGroups.map((group) => `<option value="${escapeHtml(group.id)}" ${group.id === selectedValue ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("")}`; }
 
 function renderAttendanceReviewSectionWithGroups() {
   const review = ensureAttendanceReviewState();
@@ -8484,13 +8512,15 @@ function bindGroupFeatureEvents() {
     if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
     if (target.id === "scheduleGroupSelect") { void switchScheduleGroup(target.value); return; }
     if (target.id === "memberGroup") { syncMemberGroupFields(target.value); return; }
-    if (target.dataset.rolePermission === "schedule_manage" && target.checked) {
-      const view = document.querySelector('[data-role-permission="schedule_view"]');
+    if (target.dataset.roleGroupPermissionName === "schedule_manage" && target.checked) {
+      const groupId = target.dataset.roleGroupPermission || "";
+      const view = document.querySelector(`[data-role-group-permission="${groupId}"][data-role-group-permission-name="schedule_view"]`);
       if (view) view.checked = true;
       return;
     }
-    if (target.dataset.rolePermission === "schedule_view" && !target.checked) {
-      const manage = document.querySelector('[data-role-permission="schedule_manage"]');
+    if (target.dataset.roleGroupPermissionName === "schedule_view" && !target.checked) {
+      const groupId = target.dataset.roleGroupPermission || "";
+      const manage = document.querySelector(`[data-role-group-permission="${groupId}"][data-role-group-permission-name="schedule_manage"]`);
       if (manage) manage.checked = false;
     }
   });
@@ -8621,30 +8651,29 @@ function resolveCurrentMember() {
 }
 
 function canManagePermissions() {
-  return hasPermission("permission_settings");
+  return hasCommonPermission("settings");
 }
-
 
 function hasManagementAccess() {
-  return getAccessPermissions().some((permission) => permission !== "schedule_view");
+  if (getCommonPermissions().length) return true;
+  const groupMap = getAccessActor().groupPermissions;
+  return Boolean(groupMap && typeof groupMap === "object" && Object.values(groupMap).some((permissions) => Array.isArray(permissions) && permissions.some((permission) => permission !== "schedule_view")));
 }
 
-
 function canEditSchedule() {
-  return hasPermission("schedule_manage") && roleAppliesToGroup(groupFeatureState.currentGroupId);
+  return hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage");
 }
 
 function canManageMembersInCurrentGroup() {
-  return hasPermission("member_settings") && roleAppliesToGroup(groupFeatureState.currentGroupId);
+  return hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage");
 }
 
 function canManageDepartmentsInCurrentGroup() {
-  return hasPermission("department_settings") && roleAppliesToGroup(groupFeatureState.currentGroupId);
+  return hasGroupPermission(groupFeatureState.currentGroupId, "department_settings");
 }
 
-
 async function ensureManagerDirectoryLoaded() {
-  if (!hasManagementAccess() || managerDirectoryLoaded) {
+  if (!hasAnyGroupPermission("schedule_manage") || managerDirectoryLoaded) {
     return;
   }
   if (!managerDirectoryLoading) {
@@ -8674,8 +8703,8 @@ function getRoleLabel(roleId) {
 }
 
 
-function canEditMemberAccount(_member) {
-  return hasPermission("member_settings");
+function canEditMemberAccount(member) {
+  return hasGroupPermission(member?.groupId || groupFeatureState.currentGroupId, "schedule_manage");
 }
 
 
@@ -10214,7 +10243,7 @@ async function loadRecordsPage(shouldRender = true) {
 }
 
 async function loadAttendanceReview(shouldRender = true) {
-  if (!hasPermission("attendance_review")) return false;
+  if (!hasAnyGroupPermission("attendance_review")) return false;
   const review = ensureAttendanceReviewState();
   const requestId = Number(review.requestId || 0) + 1;
   const requestFilters = { ...review.filters };
@@ -11120,7 +11149,7 @@ function openAttendanceReviewPrintPreview(rows, filters) {
 }
 
 async function printAttendanceReview(button) {
-  if (!hasPermission("attendance_review")) {
+  if (!hasAnyGroupPermission("attendance_review")) {
     showInfoMessage("沒有簽到審核權限");
     return;
   }
@@ -12925,7 +12954,7 @@ function bindDelegatedClickEvents() {
     if (target.dataset.recordsTab) {
       const nextTab = target.dataset.recordsTab;
       recordsState.activeTab = nextTab;
-      if (nextTab === "review" && hasPermission("attendance_review") && !ensureAttendanceReviewState().loaded) {
+      if (nextTab === "review" && hasAnyGroupPermission("attendance_review") && !ensureAttendanceReviewState().loaded) {
         await loadAttendanceReview();
       } else {
         renderAll();

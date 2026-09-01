@@ -196,7 +196,7 @@ function refreshMemberSettingsList() {
 }
 
 async function openMemberSettings() {
-  if (!hasPermission("member_settings")) {
+  if (!hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage")) {
     showInfoMessage("沒有權限開啟人員設定");
     return;
   }

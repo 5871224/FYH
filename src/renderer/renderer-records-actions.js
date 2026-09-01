@@ -498,7 +498,7 @@ function openAttendanceReviewPrintPreview(rows, filters) {
 }
 
 async function printAttendanceReview(button) {
-  if (!hasPermission("attendance_review")) {
+  if (!hasAnyGroupPermission("attendance_review")) {
     showInfoMessage("沒有簽到審核權限");
     return;
   }

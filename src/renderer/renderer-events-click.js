@@ -135,7 +135,7 @@ function bindDelegatedClickEvents() {
     if (target.dataset.recordsTab) {
       const nextTab = target.dataset.recordsTab;
       recordsState.activeTab = nextTab;
-      if (nextTab === "review" && hasPermission("attendance_review") && !ensureAttendanceReviewState().loaded) {
+      if (nextTab === "review" && hasAnyGroupPermission("attendance_review") && !ensureAttendanceReviewState().loaded) {
         await loadAttendanceReview();
       } else {
         renderAll();

@@ -26,9 +26,10 @@ assert(renderer.includes("function loadRecordsPage"), "Records loader is missing
 assert(renderer.includes("function loadAttendanceReview"), "Attendance review loader is missing");
 assert(renderer.includes("function canManagePermissions()"), "Permission-management capability helper is missing");
 assert(renderer.includes("function hasManagementAccess()"), "Management capability helper is missing");
-assert(renderer.includes('hasPermission("schedule_manage")'), "Schedule management must derive from permissions");
-assert(renderer.includes('hasPermission("attendance_review")'), "Attendance review UI must derive from permissions");
-assert(renderer.includes('hasPermission("member_settings")'), "Member settings UI must derive from permissions");
+assert(renderer.includes('hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage")'), "Schedule management must derive from current-group permission");
+assert(renderer.includes('hasAnyGroupPermission("attendance_review")'), "Attendance review UI must derive from group permissions");
+assert(renderer.includes('function canManageMembersInCurrentGroup()') && renderer.includes('hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage")'), "Member settings UI must derive from schedule_manage on the current group");
+assert(!renderer.includes("hasPermission(") && !renderer.includes("getAccessPermissions(") && !renderer.includes("roleAppliesToGroup("), "Renderer must not restore retired permission helpers");
 assert(!renderer.includes("function renderTodayOvertimePanel"), "Retired overtime panel must stay removed");
 assert(!renderer.includes("function renderAttendanceAdminSection"), "Retired attendance admin section must stay removed");
 assert(!renderer.includes('data-home-action="clock"'), "Home must not expose retired clock route");
@@ -87,8 +88,8 @@ for (const action of ["review_list", "review_save", "review_set", "history"]) {
   assert(attendanceReview.includes(`body?.action === "${action}"`), `Attendance review endpoint is missing action: ${action}`);
 }
 assert(attendanceReview.includes("attendance_review"), "Attendance review endpoint must validate attendance_review permission");
-assert(attendanceExport.includes('hasPermission(ctx, actorId, "attendance_review")') && attendanceExport.includes('canAccessGroup(ctx, actorId, groupId, "attendance_review")'), "Attendance export must validate permission and group scope through shared runtime helpers");
-assert(memberAdmin.includes("member_settings") && memberAdmin.includes("permission_settings"), "Member admin must validate member and privileged permissions");
+assert(attendanceExport.includes('hasAnyGroupPermission(ctx, actorId, "attendance_review")') && attendanceExport.includes('hasGroupPermission(ctx, actorId, groupId, "attendance_review")'), "Attendance export must validate permission and group scope through shared runtime helpers");
+assert(memberAdmin.includes('SCHEDULE_MANAGE_PERMISSION = "schedule_manage"') && memberAdmin.includes('SETTINGS_PERMISSION = "settings"'), "Member admin must validate schedule_manage and settings permissions");
 assert(!memberAdmin.includes('["manager", "admin"]') && !memberAdmin.includes('["admin", "manager"]'), "Member admin must not authorize from legacy role strings");
 assert(mealOrder.includes("clock_in_location") && mealOrder.includes('rpc("save_meal_order"'), "Meal order must remain tied to clock-in snapshot and transaction RPC");
 

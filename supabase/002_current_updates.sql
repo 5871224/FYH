@@ -20,18 +20,64 @@ create table if not exists public.access_roles (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
   name text not null unique,
-  permissions text[] not null default '{}',
+  name_vi text,
+  common_permissions text[] not null default '{}',
   is_system boolean not null default false,
+  sort_order integer not null default 1000000,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
-create table if not exists public.access_role_groups (
+alter table public.access_roles
+  add column if not exists common_permissions text[] not null default '{}';
+
+create table if not exists public.access_role_group_permissions (
   role_id uuid not null references public.access_roles(id) on delete cascade,
-  group_id uuid not null references public.schedule_groups(id) on delete restrict,
+  group_id uuid not null references public.schedule_groups(id) on delete cascade,
+  permissions text[] not null default '{}',
   created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   primary key (role_id, group_id)
 );
+
+-- 一次性資料轉換：把舊角色權限轉成新版矩陣，轉換完成後立即刪除舊欄位與舊關聯表。
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='access_roles' and column_name='permissions'
+  ) then
+    execute $migrate$
+      update public.access_roles
+      set common_permissions = array_remove(array[
+        case when permissions && array['permission_settings','group_settings']::text[] then 'settings' end,
+        case when 'schedule_manage'=any(permissions) then 'export' end,
+        case when 'leave_settings'=any(permissions) then 'leave_settings' end
+      ], null)
+    $migrate$;
+  end if;
+
+  if to_regclass('public.access_role_groups') is not null then
+    execute $migrate$
+      insert into public.access_role_group_permissions(role_id,group_id,permissions)
+      select legacy.role_id, legacy.group_id,
+        array_remove(array[
+          case when public.role_has_any_group_permission(role.id,'schedule_view') or public.role_has_any_group_permission(role.id,'schedule_manage') or public.role_has_any_group_permission(role.id,'schedule_manage') then 'schedule_view' end,
+          case when public.role_has_any_group_permission(role.id,'schedule_manage') or public.role_has_any_group_permission(role.id,'schedule_manage') then 'schedule_manage' end,
+          case when public.role_has_any_group_permission(role.id,'department_settings') then 'department_settings' end,
+          case when public.role_has_any_group_permission(role.id,'attendance_review') then 'attendance_review' end,
+          case when public.role_has_any_group_permission(role.id,'meal_admin') then 'meal_admin' end
+        ], null)
+      from public.access_role_groups legacy
+      join public.access_roles role on role.id=legacy.role_id
+      on conflict(role_id,group_id) do update
+      set permissions=excluded.permissions,updated_at=now()
+    $migrate$;
+  end if;
+end $$;
+
+alter table public.access_roles drop column if exists permissions;
+drop table if exists public.access_role_groups;
 
 alter table public.set_departments
   add column if not exists group_id uuid,
@@ -133,7 +179,7 @@ begin
 end $$;
 
 create index if not exists idx_schedule_groups_active_sort on public.schedule_groups(deleted_at,status,sort_order,name);
-create index if not exists idx_access_role_groups_group on public.access_role_groups(group_id,role_id);
+create index if not exists idx_access_role_group_permissions_group on public.access_role_group_permissions(group_id,role_id);
 create index if not exists idx_set_departments_group_id on public.set_departments(group_id) where deleted_at is null;
 create index if not exists idx_set_employee_group_id on public.set_employee(group_id) where deleted_at is null;
 create index if not exists idx_set_employee_access_role_id on public.set_employee(access_role_id) where deleted_at is null;
@@ -148,18 +194,22 @@ insert into public.schedule_groups(code,name,meal_enabled,status,sort_order)
 values('STORE','門市',true,'active',0)
 on conflict(code) do nothing;
 
-insert into public.access_roles(code,name,permissions,is_system) values
-('admin','管理員',array['schedule_view','schedule_manage','group_settings','department_settings','member_settings','leave_settings','permission_settings','attendance_review','meal_admin'],true),
-('manager','主管',array['schedule_view','schedule_manage','department_settings','member_settings','leave_settings','attendance_review','meal_admin'],true),
-('employee','員工',array['schedule_view'],true)
-on conflict(code) do nothing;
+insert into public.access_roles(code,name,common_permissions,is_system) values
+('admin','管理員',array['settings','export','leave_settings'],true),
+('manager','主管',array['export','leave_settings'],true),
+('employee','員工','{}'::text[],true)
+on conflict(code) do update set common_permissions=excluded.common_permissions;
 
-insert into public.access_role_groups(role_id,group_id)
-select role.id, grp.id
+insert into public.access_role_group_permissions(role_id,group_id,permissions)
+select role.id,grp.id,
+  case role.code
+    when 'employee' then array['schedule_view']::text[]
+    else array['schedule_view','schedule_manage','department_settings','attendance_review','meal_admin']::text[]
+  end
 from public.access_roles role
 cross join public.schedule_groups grp
 where role.code in ('admin','manager','employee') and grp.code='STORE'
-on conflict do nothing;
+on conflict(role_id,group_id) do update set permissions=excluded.permissions,updated_at=now();
 
 update public.set_departments set group_id=(select id from public.schedule_groups where code='STORE') where group_id is null;
 update public.set_employee set group_id=(select id from public.schedule_groups where code='STORE') where group_id is null and deleted_at is null;
@@ -190,12 +240,12 @@ where meal.user_id=employee.id and (meal.group_id is null or coalesce(meal.group
 
 alter table public.schedule_groups enable row level security;
 alter table public.access_roles enable row level security;
-alter table public.access_role_groups enable row level security;
+alter table public.access_role_group_permissions enable row level security;
 alter table public.schedule_archives enable row level security;
 alter table public.schedule_archive_entries enable row level security;
 
-revoke all on public.schedule_groups,public.access_roles,public.access_role_groups,public.schedule_archives,public.schedule_archive_entries from public,anon,authenticated;
-grant all on public.schedule_groups,public.access_roles,public.access_role_groups,public.schedule_archives,public.schedule_archive_entries to service_role;
+revoke all on public.schedule_groups,public.access_roles,public.access_role_group_permissions,public.schedule_archives,public.schedule_archive_entries from public,anon,authenticated;
+grant all on public.schedule_groups,public.access_roles,public.access_role_group_permissions,public.schedule_archives,public.schedule_archive_entries to service_role;
 
 commit;
 
@@ -204,29 +254,71 @@ returns uuid language sql stable security definer set search_path=public,pg_cata
   select access_role_id from public.set_employee where id=p_user_id and deleted_at is null
 $$;
 
-create or replace function public.has_access_permission(p_user_id uuid,p_permission text)
+create or replace function public.role_has_common_permission(p_role_id uuid,p_permission text)
+returns boolean language sql stable security definer set search_path=public,pg_catalog as $$
+  select exists(
+    select 1 from public.access_roles role
+    where role.id=p_role_id and p_permission=any(coalesce(role.common_permissions,'{}'::text[]))
+  )
+$$;
+
+create or replace function public.role_has_group_permission(p_role_id uuid,p_group_id uuid,p_permission text)
+returns boolean language sql stable security definer set search_path=public,pg_catalog as $$
+  select exists(
+    select 1 from public.access_role_group_permissions item
+    where item.role_id=p_role_id and item.group_id=p_group_id
+      and p_permission=any(coalesce(item.permissions,'{}'::text[]))
+  )
+$$;
+
+create or replace function public.role_has_any_group_permission(p_role_id uuid,p_permission text)
+returns boolean language sql stable security definer set search_path=public,pg_catalog as $$
+  select exists(
+    select 1 from public.access_role_group_permissions item
+    where item.role_id=p_role_id and p_permission=any(coalesce(item.permissions,'{}'::text[]))
+  )
+$$;
+
+create or replace function public.has_common_permission(p_user_id uuid,p_permission text)
 returns boolean language sql stable security definer set search_path=public,pg_catalog as $$
   select exists(
     select 1 from public.set_employee employee
-    join public.access_roles role on role.id=employee.access_role_id
     where employee.id=p_user_id and employee.deleted_at is null
-      and p_permission=any(role.permissions)
+      and public.role_has_common_permission(employee.access_role_id,p_permission)
       and public.is_employee_account_effective(employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date)
   )
 $$;
 
-create or replace function public.role_applies_to_group(p_user_id uuid,p_group_id uuid)
+create or replace function public.has_group_permission(p_user_id uuid,p_group_id uuid,p_permission text)
 returns boolean language sql stable security definer set search_path=public,pg_catalog as $$
   select exists(
     select 1 from public.set_employee employee
-    join public.access_role_groups role_group on role_group.role_id=employee.access_role_id
-    where employee.id=p_user_id and employee.deleted_at is null and role_group.group_id=p_group_id
+    where employee.id=p_user_id and employee.deleted_at is null
+      and public.role_has_group_permission(employee.access_role_id,p_group_id,p_permission)
+      and public.is_employee_account_effective(employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date)
   )
 $$;
 
-create or replace function public.can_access_group(p_user_id uuid,p_group_id uuid,p_permission text)
+create or replace function public.has_any_group_permission(p_user_id uuid,p_permission text)
 returns boolean language sql stable security definer set search_path=public,pg_catalog as $$
-  select public.has_access_permission(p_user_id,p_permission) and public.role_applies_to_group(p_user_id,p_group_id)
+  select exists(
+    select 1 from public.set_employee employee
+    where employee.id=p_user_id and employee.deleted_at is null
+      and public.role_has_any_group_permission(employee.access_role_id,p_permission)
+      and public.is_employee_account_effective(employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date)
+  )
+$$;
+
+create or replace function public.has_group_access(p_user_id uuid,p_group_id uuid)
+returns boolean language sql stable security definer set search_path=public,pg_catalog as $$
+  select exists(
+    select 1 from public.set_employee employee
+    join public.access_role_group_permissions item
+      on item.role_id=employee.access_role_id and item.group_id=p_group_id
+    where employee.id=p_user_id and employee.deleted_at is null
+      and cardinality(coalesce(item.permissions,'{}'::text[]))>0
+      and public.is_employee_account_effective(employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date)
+  )
 $$;
 
 create or replace function public.is_schedule_date_archived(p_group_id uuid,p_work_date date)
@@ -311,11 +403,11 @@ create or replace function public.validate_member_group_change_v1(p_employee_cod
 returns void language plpgsql security definer set search_path=public,pg_catalog as $$
 declare v_member public.set_employee%rowtype; v_count bigint;
 begin
-  if not public.has_access_permission(auth.uid(),'member_settings') then raise exception '沒有人員設定權限' using errcode='42501'; end if;
+  if not public.has_any_group_permission(auth.uid(),'schedule_manage') then raise exception '沒有人員設定權限' using errcode='42501'; end if;
   select * into v_member from public.set_employee where lower(employee_code)=lower(btrim(p_employee_code)) and deleted_at is null;
   if not found then raise exception '找不到人員資料'; end if;
-  if v_member.group_id is not null and not public.role_applies_to_group(auth.uid(),v_member.group_id) then raise exception '此角色不可管理人員原群組' using errcode='42501'; end if;
-  if not exists(select 1 from public.schedule_groups where id=p_new_group_id and deleted_at is null and status='active') or not public.role_applies_to_group(auth.uid(),p_new_group_id) then raise exception '此角色不可管理目標群組' using errcode='42501'; end if;
+  if v_member.group_id is not null and not public.has_group_access(auth.uid(),v_member.group_id) then raise exception '此角色不可管理人員原群組' using errcode='42501'; end if;
+  if not exists(select 1 from public.schedule_groups where id=p_new_group_id and deleted_at is null and status='active') or not public.has_group_access(auth.uid(),p_new_group_id) then raise exception '此角色不可管理目標群組' using errcode='42501'; end if;
   if v_member.group_id is not distinct from p_new_group_id then return; end if;
   select count(*) into v_count from public.schedule_entries where member_id=v_member.id and not public.is_schedule_date_archived(group_id,work_date);
   if v_count>0 then raise exception '此人員在原群組仍有未封存班表，請先處理後再變更所屬群組'; end if;
@@ -325,16 +417,15 @@ create or replace function public.save_schedule_group_v1(p_group jsonb)
 returns jsonb language plpgsql security definer set search_path=public,pg_catalog as $$
 declare v_id uuid; v_code text; v_name text; v_meal boolean; v_status text; v_sort integer; v_actor_role uuid; v_created boolean:=false; v_row public.schedule_groups%rowtype;
 begin
-  if not public.has_access_permission(auth.uid(),'group_settings') then raise exception '沒有群組設定權限' using errcode='42501'; end if;
+  if not public.has_common_permission(auth.uid(),'settings') then raise exception '沒有群組設定權限' using errcode='42501'; end if;
   begin v_id:=nullif(btrim(p_group->>'id'),'')::uuid; exception when invalid_text_representation then raise exception '群組識別碼格式錯誤'; end;
   v_code:=upper(regexp_replace(btrim(coalesce(p_group->>'code','')),'[^A-Za-z0-9_]+','','g')); v_name:=btrim(coalesce(p_group->>'name',''));
   v_meal:=coalesce((p_group->>'mealEnabled')::boolean,false); v_status:=case when p_group->>'status'='inactive' then 'inactive' else 'active' end; v_sort:=greatest(0,coalesce((p_group->>'sortOrder')::integer,0));
   if v_code='' or v_name='' then raise exception '群組代碼與群組名稱不可空白'; end if;
   if v_id is null then v_id:=gen_random_uuid(); v_created:=true;
-  elsif not public.role_applies_to_group(auth.uid(),v_id) and not public.has_access_permission(auth.uid(),'permission_settings') then raise exception '此角色不可管理該群組' using errcode='42501'; end if;
+  elsif not public.has_common_permission(auth.uid(),'settings') then raise exception '沒有設定權限' using errcode='42501'; end if;
   insert into public.schedule_groups(id,code,name,meal_enabled,status,sort_order,deleted_at) values(v_id,v_code,v_name,v_meal,v_status,v_sort,null)
   on conflict(id) do update set code=excluded.code,name=excluded.name,meal_enabled=excluded.meal_enabled,status=excluded.status,sort_order=excluded.sort_order,deleted_at=null,updated_at=now() returning * into v_row;
-  if v_created then select access_role_id into v_actor_role from public.set_employee where id=auth.uid(); insert into public.access_role_groups values(v_actor_role,v_id,now()) on conflict do nothing; end if;
   return jsonb_build_object('ok',true,'group',jsonb_build_object('id',v_row.id,'code',v_row.code,'name',v_row.name,'mealEnabled',v_row.meal_enabled,'status',v_row.status,'sortOrder',v_row.sort_order));
 end $$;
 
@@ -342,9 +433,9 @@ create or replace function public.reorder_schedule_groups_v1(p_group_ids uuid[])
 returns void language plpgsql security definer set search_path=public,pg_catalog as $$
 declare v_id uuid; v_order integer:=0;
 begin
-  if not public.has_access_permission(auth.uid(),'group_settings') then raise exception '沒有群組設定權限' using errcode='42501'; end if;
+  if not public.has_common_permission(auth.uid(),'settings') then raise exception '沒有群組設定權限' using errcode='42501'; end if;
   foreach v_id in array coalesce(p_group_ids,'{}') loop
-    if public.role_applies_to_group(auth.uid(),v_id) or public.has_access_permission(auth.uid(),'permission_settings') then update public.schedule_groups set sort_order=v_order,updated_at=now() where id=v_id and deleted_at is null; v_order:=v_order+1; end if;
+    update public.schedule_groups set sort_order=v_order,updated_at=now() where id=v_id and deleted_at is null; v_order:=v_order+1;
   end loop;
 end $$;
 
@@ -352,7 +443,7 @@ create or replace function public.delete_schedule_group_v1(p_group_id uuid,p_con
 returns jsonb language plpgsql security definer set search_path=public,pg_catalog as $$
 declare v_group public.schedule_groups%rowtype; v_counts jsonb;
 begin
-  if not public.has_access_permission(auth.uid(),'group_settings') or not public.role_applies_to_group(auth.uid(),p_group_id) then raise exception '沒有刪除此群組的權限' using errcode='42501'; end if;
+  if not public.has_common_permission(auth.uid(),'settings') or not public.has_group_access(auth.uid(),p_group_id) then raise exception '沒有刪除此群組的權限' using errcode='42501'; end if;
   select * into v_group from public.schedule_groups where id=p_group_id and deleted_at is null for update; if not found then raise exception '找不到群組'; end if;
   if btrim(coalesce(p_confirm_name,''))<>v_group.name then raise exception '群組名稱確認不符'; end if;
   select jsonb_build_object('departments',(select count(*) from public.set_departments where group_id=p_group_id and deleted_at is null),'shifts',(select count(*) from public.set_shift where group_id=p_group_id and deleted_at is null),'members',(select count(*) from public.set_employee where group_id=p_group_id and deleted_at is null),'unarchivedSchedules',(select count(*) from public.schedule_entries where group_id=p_group_id and not public.is_schedule_date_archived(p_group_id,work_date)),'archives',(select count(*) from public.schedule_archives where group_id=p_group_id)) into v_counts;
@@ -365,20 +456,11 @@ begin
   return jsonb_build_object('ok',true,'counts',v_counts);
 end $$;
 
-create or replace function public.delete_access_role_v1(p_role_id uuid)
-returns void language plpgsql security definer set search_path=public,pg_catalog as $$
-begin
-  if not public.has_access_permission(auth.uid(),'permission_settings') then raise exception '沒有權限設定權限' using errcode='42501'; end if;
-  if exists(select 1 from public.set_employee where access_role_id=p_role_id and deleted_at is null) then raise exception '此角色仍有人員使用，請先改用其他角色'; end if;
-  if exists(select 1 from public.access_roles where id=p_role_id and 'permission_settings'=any(permissions)) and (select count(*) from public.access_roles where id<>p_role_id and 'permission_settings'=any(permissions))=0 then raise exception '系統必須保留至少一個權限設定角色'; end if;
-  delete from public.access_roles where id=p_role_id;
-end $$;
-
 create or replace function public.archive_schedule_v1(p_group_id uuid,p_start_date date,p_end_date date)
 returns jsonb language plpgsql security definer set search_path=public,pg_catalog as $$
 declare v_group public.schedule_groups%rowtype; v_actor_name text; v_archive_id uuid; v_entry_count integer; v_member_count integer;
 begin
-  if not public.can_access_group(auth.uid(),p_group_id,'schedule_manage') then raise exception '沒有班表管理權限' using errcode='42501'; end if;
+  if not public.has_group_permission(auth.uid(),p_group_id,'schedule_manage') then raise exception '沒有班表管理權限' using errcode='42501'; end if;
   if p_start_date is null or p_end_date is null or p_start_date>p_end_date then raise exception '封存日期範圍不正確'; end if;
   if exists(select 1 from public.schedule_archives where group_id=p_group_id and daterange(start_date,end_date,'[]')&&daterange(p_start_date,p_end_date,'[]')) then raise exception '封存日期範圍不可重疊'; end if;
   select * into v_group from public.schedule_groups where id=p_group_id and deleted_at is null; if not found then raise exception '找不到群組'; end if;
@@ -401,7 +483,7 @@ create or replace function public.get_schedule_archives_v1(p_group_id uuid defau
 returns table(id uuid,group_id uuid,group_code text,group_name text,start_date date,end_date date,archived_at timestamptz,archived_by_name text,member_count integer,entry_count integer)
 language sql stable security definer set search_path=public,pg_catalog as $$
  select archive.id,archive.group_id,archive.group_code_snapshot,archive.group_name_snapshot,archive.start_date,archive.end_date,archive.archived_at,archive.archived_by_name_snapshot,archive.member_count,archive.entry_count
- from public.schedule_archives archive where (p_group_id is null or archive.group_id=p_group_id) and public.role_applies_to_group(auth.uid(),archive.group_id) and public.has_access_permission(auth.uid(),'schedule_view') order by archive.start_date desc,archive.archived_at desc
+ from public.schedule_archives archive where (p_group_id is null or archive.group_id=p_group_id) and public.has_group_access(auth.uid(),archive.group_id) and public.has_any_group_permission(auth.uid(),'schedule_view') order by archive.start_date desc,archive.archived_at desc
 $$;
 
 create or replace function public.get_schedule_archive_detail_v1(p_archive_id uuid)
@@ -409,7 +491,7 @@ returns jsonb language plpgsql stable security definer set search_path=public,pg
 declare v_archive public.schedule_archives%rowtype; v_rows jsonb;
 begin
  select * into v_archive from public.schedule_archives where id=p_archive_id;
- if not found or not public.role_applies_to_group(auth.uid(),v_archive.group_id) or not public.has_access_permission(auth.uid(),'schedule_view') then raise exception '沒有查看此封存班表的權限' using errcode='42501'; end if;
+ if not found or not public.has_group_access(auth.uid(),v_archive.group_id) or not public.has_any_group_permission(auth.uid(),'schedule_view') then raise exception '沒有查看此封存班表的權限' using errcode='42501'; end if;
  select coalesce(jsonb_agg(to_jsonb(entry) order by entry.department_sort_order,entry.department_name_snapshot,entry.member_sort_order,entry.employee_name_snapshot,entry.work_date),'[]') into v_rows from public.schedule_archive_entries entry where archive_id=p_archive_id;
  return jsonb_build_object('archive',to_jsonb(v_archive),'entries',v_rows);
 end $$;
@@ -418,12 +500,12 @@ create or replace function public.get_schedule_export_rows_v2(p_start_date date,
 returns table(member_id uuid,employee_code text,employee_name text,home_department_id uuid,department_name text,pay_by_day boolean,work_date date,leave_type_id uuid,leave_code text,leave_name text,leave_all_day boolean,leave_start_time time,leave_end_time time,leave_reason text,overtime_type_id uuid,overtime_name text,overtime_start_time time,overtime_end_time time,overtime_use_rest_1 boolean,overtime_rest_1_start_time time,overtime_rest_1_end_time time,overtime_use_rest_2 boolean,overtime_rest_2_start_time time,overtime_rest_2_end_time time,overtime_reason text)
 language plpgsql stable security definer set search_path=public,pg_catalog as $$
 begin
- if not public.has_access_permission(auth.uid(),'schedule_manage') then raise exception '沒有班表管理權限' using errcode='42501'; end if;
+ if not public.has_common_permission(auth.uid(),'export') then raise exception '沒有匯出權限' using errcode='42501'; end if;
  if p_start_date is null or p_end_date is null or p_start_date>p_end_date then raise exception '匯出日期範圍不正確'; end if;
  if p_end_date-p_start_date>366 then raise exception '單次匯出期間不可超過 366 天'; end if;
  return query select schedule.member_id,employee.employee_code,employee.full_name,employee.home_department_id,department.name,employee.pay_by_day,schedule.work_date,schedule.leave_type_id,leave_type.code,leave_type.name,schedule.leave_all_day,schedule.leave_start_time,schedule.leave_end_time,schedule.leave_reason,schedule.overtime_type_id,overtime_type.name,schedule.overtime_start_time,schedule.overtime_end_time,schedule.overtime_use_rest_1,schedule.overtime_rest_1_start_time,schedule.overtime_rest_1_end_time,schedule.overtime_use_rest_2,schedule.overtime_rest_2_start_time,schedule.overtime_rest_2_end_time,schedule.overtime_reason
  from public.schedule_entries schedule join public.set_employee employee on employee.id=schedule.member_id left join public.set_departments department on department.id=employee.home_department_id left join public.set_leave leave_type on leave_type.id=schedule.leave_type_id left join public.set_overtime overtime_type on overtime_type.id=schedule.overtime_type_id
- where schedule.work_date between p_start_date and p_end_date and public.role_applies_to_group(auth.uid(),schedule.group_id) and (schedule.leave_type_id is not null or schedule.overtime_type_id is not null)
+ where schedule.work_date between p_start_date and p_end_date and public.has_group_access(auth.uid(),schedule.group_id) and (schedule.leave_type_id is not null or schedule.overtime_type_id is not null)
  order by schedule.work_date,employee.sort_order,employee.full_name,employee.id;
 end $$;
 
@@ -477,7 +559,7 @@ begin
     select 1
     from public.access_roles role
     where role.id=v_profile.access_role_id
-      and 'permission_settings'=any(coalesce(role.permissions,'{}'::text[]))
+      and public.role_has_common_permission(role.id,'settings')
   )
   and public.is_employee_account_effective(v_profile.hire_date,v_profile.leave_date,v_today)
   and not exists(
@@ -486,7 +568,7 @@ begin
     join public.access_roles other_role on other_role.id=other_employee.access_role_id
     where other_employee.id<>p_target_id
       and other_employee.deleted_at is null
-      and 'permission_settings'=any(coalesce(other_role.permissions,'{}'::text[]))
+      and public.role_has_common_permission(other_role.id,'settings')
       and public.is_employee_account_effective(other_employee.hire_date,other_employee.leave_date,v_today)
   ) then
     raise exception '系統必須保留至少一個有效的權限管理帳號' using errcode='23514';
@@ -543,7 +625,7 @@ declare
   v_entry_count integer;
   v_member_count integer;
 begin
-  if not public.can_access_group(auth.uid(),p_group_id,'schedule_manage') then
+  if not public.has_group_permission(auth.uid(),p_group_id,'schedule_manage') then
     raise exception '沒有班表管理權限' using errcode='42501';
   end if;
   if p_start_date is null or p_end_date is null or p_start_date>p_end_date then
@@ -629,7 +711,7 @@ begin
   for update;
 
   if not found then raise exception '找不到封存班表'; end if;
-  if not public.can_access_group(auth.uid(),v_archive.group_id,'schedule_manage') then
+  if not public.has_group_permission(auth.uid(),v_archive.group_id,'schedule_manage') then
     raise exception '沒有解除封存權限' using errcode='42501';
   end if;
   if not exists(
@@ -771,14 +853,15 @@ as $$
     join public.access_roles role on role.id=employee.access_role_id
     where employee.id=(select auth.uid())
       and employee.deleted_at is null
-      and 'schedule_view'=any(coalesce(role.permissions,'{}'::text[]))
+      and public.role_has_any_group_permission(role.id,'schedule_view')
       and public.is_employee_account_effective(employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date)
     limit 1
   ),
   allowed_groups as materialized (
     select role_group.group_id
     from actor
-    join public.access_role_groups role_group on role_group.role_id=actor.access_role_id
+    join public.access_role_group_permissions role_group on role_group.role_id=actor.access_role_id
+  where 'schedule_view'=any(coalesce(role_group.permissions,'{}'::text[]))
   )
   select entry.*
   from public.schedule_entries entry
@@ -808,7 +891,7 @@ begin
   join public.access_roles role on role.id=employee.access_role_id
   where employee.id=(select auth.uid())
     and employee.deleted_at is null
-    and 'schedule_manage'=any(coalesce(role.permissions,'{}'::text[]))
+    and public.role_has_any_group_permission(role.id,'schedule_manage')
     and public.is_employee_account_effective(employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date)
   limit 1;
 
@@ -850,8 +933,9 @@ begin
        or member.id is null
        or member.group_id is null
        or not exists(
-         select 1 from public.access_role_groups allowed
+         select 1 from public.access_role_group_permissions allowed
          where allowed.role_id=v_role_id and allowed.group_id=member.group_id
+           and 'schedule_manage'=any(coalesce(allowed.permissions,'{}'::text[]))
        )
        or exists(
          select 1 from public.schedule_archives archive
@@ -943,12 +1027,12 @@ begin
   select d.group_id into v_group_id from public.set_departments d
   where d.id=v_department_id and d.deleted_at is null;
   if v_group_id is null then raise exception '找不到可使用的適用單位'; end if;
-  if not public.can_access_group(auth.uid(),v_group_id,'schedule_manage') then raise exception '沒有管理此群組班別的權限' using errcode='42501'; end if;
+  if not public.has_group_permission(auth.uid(),v_group_id,'schedule_manage') then raise exception '沒有管理此群組班別的權限' using errcode='42501'; end if;
 
   select s.group_id,s.deleted_at into v_old_group_id,v_existing_deleted from public.set_shift s where s.id=v_id;
   if v_existing_deleted is not null then raise exception '已刪除班別不可重新啟用'; end if;
   if v_old_group_id is not null and v_old_group_id is distinct from v_group_id then
-    if not public.can_access_group(auth.uid(),v_old_group_id,'schedule_manage') then raise exception '沒有管理原群組班別的權限' using errcode='42501'; end if;
+    if not public.has_group_permission(auth.uid(),v_old_group_id,'schedule_manage') then raise exception '沒有管理原群組班別的權限' using errcode='42501'; end if;
     if exists(select 1 from public.schedule_entries e where e.shift_type_id=v_id and not public.is_schedule_date_archived(e.group_id,e.work_date)) then
       raise exception '此班別仍有未封存班表，無法跨群組移動';
     end if;
@@ -983,7 +1067,7 @@ declare
   v_input_id_exists boolean:=false;
   v_restored boolean:=false;
 begin
-  if not public.has_access_permission(auth.uid(),'leave_settings') then raise exception '沒有假別設定權限' using errcode='42501'; end if;
+  if not public.has_common_permission(auth.uid(),'leave_settings') then raise exception '沒有假別設定權限' using errcode='42501'; end if;
   begin v_id:=nullif(btrim(p_item->>'id'),'')::uuid; exception when invalid_text_representation then raise exception '設定識別碼格式錯誤'; end;
   if v_id is null then raise exception '缺少設定識別碼'; end if;
   if v_category='leave' then
@@ -1060,7 +1144,7 @@ begin
   if v_category='shift' then
     select group_id,deleted_at into v_group_id,v_deleted from public.set_shift where id=p_item_id;
     if not found or v_deleted is not null then return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'hardDeleted',false); end if;
-    if not public.can_access_group(auth.uid(),v_group_id,'schedule_manage') then raise exception '沒有管理此群組班別的權限' using errcode='42501'; end if;
+    if not public.has_group_permission(auth.uid(),v_group_id,'schedule_manage') then raise exception '沒有管理此群組班別的權限' using errcode='42501'; end if;
 
     select
       count(*),
@@ -1082,7 +1166,7 @@ begin
     end if;
 
   elsif v_category in ('leave','overtime') then
-    if not public.has_access_permission(auth.uid(),'leave_settings') then raise exception '沒有假別設定權限' using errcode='42501'; end if;
+    if not public.has_common_permission(auth.uid(),'leave_settings') then raise exception '沒有假別設定權限' using errcode='42501'; end if;
 
     if v_category='leave' then
       select deleted_at into v_deleted from public.set_leave where id=p_item_id;
@@ -1149,16 +1233,16 @@ begin
   v_name:=btrim(coalesce(p_department->>'name',''));
   if v_id is null or v_group_id is null or v_name='' then raise exception '單位名稱與群組不可空白'; end if;
   if not exists(select 1 from public.schedule_groups g where g.id=v_group_id and g.deleted_at is null and g.status='active') then raise exception '找不到可使用的群組'; end if;
-  if not public.can_access_group(auth.uid(),v_group_id,'department_settings') then raise exception '沒有管理此群組單位的權限' using errcode='42501'; end if;
+  if not public.has_group_permission(auth.uid(),v_group_id,'department_settings') then raise exception '沒有管理此群組單位的權限' using errcode='42501'; end if;
   select * into v_existing from public.set_departments where id=v_id for update;
   v_old_group_id:=v_existing.group_id;
   if found and v_existing.deleted_at is not null then raise exception '已刪除單位不可重新啟用'; end if;
   if v_old_group_id is not null and v_old_group_id is distinct from v_group_id then
-    if not public.can_access_group(auth.uid(),v_old_group_id,'department_settings') then raise exception '沒有管理原群組單位的權限' using errcode='42501'; end if;
+    if not public.has_group_permission(auth.uid(),v_old_group_id,'department_settings') then raise exception '沒有管理原群組單位的權限' using errcode='42501'; end if;
     if exists(select 1 from public.set_employee m where m.home_department_id=v_id and m.deleted_at is null) then raise exception '此單位仍有人員，請先調整人員'; end if;
     if exists(select 1 from public.schedule_entries e left join public.set_employee m on m.id=e.member_id left join public.set_shift s on s.id=e.shift_type_id where (e.support_department_id=v_id or m.home_department_id=v_id or s.applicable_department_id=v_id) and not public.is_schedule_date_archived(e.group_id,e.work_date)) then raise exception '此單位仍有未封存班表，請先完成班表封存或清除相關排班'; end if;
   end if;
-  v_can_admin:=public.has_access_permission(auth.uid(),'permission_settings');
+  v_can_admin:=public.has_common_permission(auth.uid(),'settings');
   insert into public.set_departments(id,name,group_id,start_date,end_date,hidden_from_schedule,sort_order,address,latitude,longitude,public_ip,attendance_enabled)
   values(v_id,v_name,v_group_id,nullif(p_department->>'startDate','')::date,nullif(p_department->>'endDate','')::date,coalesce((p_department->>'hiddenFromSchedule')::boolean,false),greatest(0,coalesce((p_department->>'sortOrder')::integer,0)),case when v_can_admin then nullif(btrim(coalesce(p_department->>'address','')),'') else null end,case when v_can_admin and nullif(p_department->>'latitude','') is not null then (p_department->>'latitude')::double precision else null end,case when v_can_admin and nullif(p_department->>'longitude','') is not null then (p_department->>'longitude')::double precision else null end,case when v_can_admin then nullif(btrim(coalesce(p_department->>'publicIp','')),'') else null end,case when v_can_admin then coalesce((p_department->>'attendanceEnabled')::boolean,false) else false end)
   on conflict(id) do update set name=excluded.name,group_id=excluded.group_id,start_date=excluded.start_date,end_date=excluded.end_date,hidden_from_schedule=excluded.hidden_from_schedule,sort_order=excluded.sort_order,
@@ -1191,7 +1275,7 @@ declare
 begin
   select group_id into v_group_id from public.set_departments where id=p_department_id and deleted_at is null;
   if not found then return jsonb_build_object('ok',true,'deleted',false,'softDeleted',false,'hardDeleted',false); end if;
-  if not public.can_access_group(auth.uid(),v_group_id,'department_settings') then raise exception '沒有刪除此單位的權限' using errcode='42501'; end if;
+  if not public.has_group_permission(auth.uid(),v_group_id,'department_settings') then raise exception '沒有刪除此單位的權限' using errcode='42501'; end if;
   if exists(select 1 from public.set_employee where home_department_id=p_department_id and deleted_at is null) then raise exception '這個單位仍有人員，請先將人員移轉到其他單位'; end if;
   if exists(select 1 from public.set_shift where applicable_department_id=p_department_id and deleted_at is null) then raise exception '這個單位仍有班別使用，請先修改相關班別'; end if;
 
@@ -1242,21 +1326,21 @@ declare v_category text:=lower(btrim(coalesce(p_category,''))); v_id uuid; v_ind
   foreach v_id in array p_ids loop
     if v_category='department' then
       select group_id into v_group_id from public.set_departments where id=v_id and deleted_at is null;
-      if v_group_id is null or not public.can_access_group(auth.uid(),v_group_id,'department_settings') then raise exception '沒有單位排序權限' using errcode='42501'; end if;
+      if v_group_id is null or not public.has_group_permission(auth.uid(),v_group_id,'department_settings') then raise exception '沒有單位排序權限' using errcode='42501'; end if;
       update public.set_departments set sort_order=v_index,updated_at=now() where id=v_id;
     elsif v_category='member' then
       select group_id into v_group_id from public.set_employee where id=v_id and deleted_at is null;
-      if v_group_id is null or not public.can_access_group(auth.uid(),v_group_id,'member_settings') then raise exception '沒有人員排序權限' using errcode='42501'; end if;
+      if v_group_id is null or not public.has_group_permission(auth.uid(),v_group_id,'schedule_manage') then raise exception '沒有人員排序權限' using errcode='42501'; end if;
       update public.set_employee set sort_order=v_index,updated_at=now() where id=v_id;
     elsif v_category='shift' then
       select group_id into v_group_id from public.set_shift where id=v_id and deleted_at is null;
-      if v_group_id is null or not public.can_access_group(auth.uid(),v_group_id,'schedule_manage') then raise exception '沒有班別排序權限' using errcode='42501'; end if;
+      if v_group_id is null or not public.has_group_permission(auth.uid(),v_group_id,'schedule_manage') then raise exception '沒有班別排序權限' using errcode='42501'; end if;
       update public.set_shift set sort_order=v_index,updated_at=now() where id=v_id;
     elsif v_category='leave' then
-      if not public.has_access_permission(auth.uid(),'leave_settings') then raise exception '沒有假別排序權限' using errcode='42501'; end if;
+      if not public.has_common_permission(auth.uid(),'leave_settings') then raise exception '沒有假別排序權限' using errcode='42501'; end if;
       update public.set_leave set sort_order=v_index,updated_at=now() where id=v_id and deleted_at is null;
     elsif v_category='overtime' then
-      if not public.has_access_permission(auth.uid(),'leave_settings') then raise exception '沒有加班設定排序權限' using errcode='42501'; end if;
+      if not public.has_common_permission(auth.uid(),'leave_settings') then raise exception '沒有加班設定排序權限' using errcode='42501'; end if;
       update public.set_overtime set sort_order=v_index,updated_at=now() where id=v_id and deleted_at is null;
     else raise exception '不支援的排序類型'; end if;
     v_index:=v_index+1;
@@ -1272,7 +1356,7 @@ security definer
 set search_path=public,pg_catalog
 as $$
 declare v_id text:=coalesce(nullif(btrim(p_document_id),''),'default'); begin
-  if not public.has_access_permission(auth.uid(),'schedule_manage') then raise exception '沒有班表管理權限' using errcode='42501'; end if;
+  if not public.has_common_permission(auth.uid(),'export') then raise exception '沒有匯出權限' using errcode='42501'; end if;
   insert into public.scheduler_settings(id,current_year,current_month,dept_filter,table_view,table_dept_scope_filter,table_stats_visible,schedule_start_date,week_start,month_start_day,eight_week_start_date,updated_at)
   values(v_id,coalesce((p_settings->>'currentYear')::integer,extract(year from now())::integer),greatest(0,least(11,coalesce((p_settings->>'currentMonth')::integer,0))),coalesce(nullif(p_settings->>'deptFilter',''),'all'),case when p_settings->>'tableView'='shift' then 'shift' else 'member' end,coalesce(nullif(p_settings->>'tableDeptScopeFilter',''),'all'),coalesce((p_settings->>'tableStatsVisible')::boolean,true),nullif(p_settings->>'scheduleStartDate','')::date,greatest(0,least(6,coalesce((p_settings->>'weekStart')::integer,0))),greatest(1,least(31,coalesce((p_settings->>'monthStartDay')::integer,1))),nullif(p_settings->>'eightWeekStartDate','')::date,now())
   on conflict(id) do update set current_year=excluded.current_year,current_month=excluded.current_month,dept_filter=excluded.dept_filter,table_view=excluded.table_view,table_dept_scope_filter=excluded.table_dept_scope_filter,table_stats_visible=excluded.table_stats_visible,schedule_start_date=excluded.schedule_start_date,week_start=excluded.week_start,month_start_day=excluded.month_start_day,eight_week_start_date=excluded.eight_week_start_date,updated_at=now();
@@ -1293,7 +1377,7 @@ declare
   v_actual_id uuid;
   v_count integer:=0;
 begin
-  if not public.has_access_permission(auth.uid(),'schedule_manage') then raise exception '沒有班表管理權限' using errcode='42501'; end if;
+  if not public.has_common_permission(auth.uid(),'export') then raise exception '沒有匯出權限' using errcode='42501'; end if;
   if jsonb_typeof(coalesce(p_holidays,'[]'::jsonb))<>'array' then raise exception '假日資料格式錯誤'; end if;
   if exists(
     select 1 from (
@@ -1338,8 +1422,8 @@ as $$
   select d.id,d.address,d.latitude,d.longitude,d.attendance_enabled,d.public_ip
   from public.set_departments d
   where d.deleted_at is null
-    and public.has_access_permission(auth.uid(),'permission_settings')
-    and public.can_access_group(auth.uid(),d.group_id,'department_settings')
+    and public.has_common_permission(auth.uid(),'settings')
+    and public.has_group_permission(auth.uid(),d.group_id,'department_settings')
   order by d.sort_order,d.name,d.id
 $$;
 
@@ -1353,7 +1437,7 @@ as $$
   select e.*
   from public.set_employee e
   where e.deleted_at is null
-    and public.can_access_group(auth.uid(),e.group_id,'member_settings')
+    and public.has_group_permission(auth.uid(),e.group_id,'schedule_manage')
   order by e.sort_order,e.full_name,e.id
 $$;
 
@@ -1391,7 +1475,7 @@ grant execute on function public.get_employee_admin_directory_v3() to authentica
 -- Browser clients have no direct table privileges. RLS remains enabled as a
 -- second line of defense, but application authorization is enforced by the
 -- named RPC/Edge API layer.
-revoke all privileges on table public.access_role_groups from anon,authenticated;
+revoke all privileges on table public.access_role_group_permissions from anon,authenticated;
 revoke all privileges on table public.access_roles from anon,authenticated;
 revoke all privileges on table public.attendance_audit_logs from anon,authenticated;
 revoke all privileges on table public.attendance_days from anon,authenticated;
@@ -1411,26 +1495,20 @@ revoke all privileges on table public.set_overtime from anon,authenticated;
 revoke all privileges on table public.set_shift from anon,authenticated;
 
 -- Existing purpose-specific RPCs used by the canonical browser API.
-revoke all on function public.get_group_access_bundle_v1() from public,anon;
 revoke all on function public.get_schedule_export_rows_v2(date,date) from public,anon;
 revoke all on function public.save_schedule_group_v1(jsonb) from public,anon;
 revoke all on function public.delete_schedule_group_v1(uuid,text) from public,anon;
 revoke all on function public.reorder_schedule_groups_v1(uuid[]) from public,anon;
-revoke all on function public.save_access_role_v1(jsonb) from public,anon;
-revoke all on function public.delete_access_role_v1(uuid) from public,anon;
 revoke all on function public.validate_member_group_change_v1(text,uuid) from public,anon;
 revoke all on function public.get_schedule_archives_v1(uuid) from public,anon;
 revoke all on function public.archive_schedule_v1(uuid,date,date) from public,anon;
 revoke all on function public.unarchive_schedule_v1(uuid) from public,anon;
 revoke all on function public.get_schedule_archive_detail_v1(uuid) from public,anon;
 
-grant execute on function public.get_group_access_bundle_v1() to authenticated,service_role;
 grant execute on function public.get_schedule_export_rows_v2(date,date) to authenticated,service_role;
 grant execute on function public.save_schedule_group_v1(jsonb) to authenticated,service_role;
 grant execute on function public.delete_schedule_group_v1(uuid,text) to authenticated,service_role;
 grant execute on function public.reorder_schedule_groups_v1(uuid[]) to authenticated,service_role;
-grant execute on function public.save_access_role_v1(jsonb) to authenticated,service_role;
-grant execute on function public.delete_access_role_v1(uuid) to authenticated,service_role;
 grant execute on function public.validate_member_group_change_v1(text,uuid) to authenticated,service_role;
 grant execute on function public.get_schedule_archives_v1(uuid) to authenticated,service_role;
 grant execute on function public.archive_schedule_v1(uuid,date,date) to authenticated,service_role;
@@ -1442,7 +1520,7 @@ grant execute on function public.delete_member_account_v4(uuid) to service_role;
 
 -- ============================================================================
 -- 2026-08-08 全系統權限守門收斂
--- 最終授權只依 access_role_id + permissions + access_role_groups；不保留舊文字角色
+-- 最終授權只依 access_role_id + permissions + access_role_group_permissions；不保留舊文字角色
 -- 相容欄位或相容授權。此區段可重複執行。
 -- ============================================================================
 
@@ -1552,7 +1630,8 @@ as $$
   ), allowed_groups as (
     select role_group.group_id
     from actor
-    join public.access_role_groups role_group on role_group.role_id=actor.access_role_id
+    join public.access_role_group_permissions role_group on role_group.role_id=actor.access_role_id
+  where 'schedule_view'=any(coalesce(role_group.permissions,'{}'::text[]))
   )
   select coalesce(jsonb_agg(jsonb_build_object(
     'groupId',archive.group_id,'startDate',archive.start_date,'endDate',archive.end_date
@@ -1561,139 +1640,72 @@ as $$
   join allowed_groups allowed on allowed.group_id=archive.group_id
 $$;
 
-create or replace function public.get_group_access_bundle_v1()
-returns jsonb language sql stable security definer set search_path=public,pg_catalog as $$
-with actor as(
- select employee.id,employee.group_id,employee.access_role_id,role.name role_name,role.permissions
- from public.set_employee employee join public.access_roles role on role.id=employee.access_role_id
- where employee.id=(select auth.uid()) and employee.deleted_at is null
-   and public.is_employee_account_effective(employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date)
-), actor_groups as(
- select role_group.group_id from actor join public.access_role_groups role_group on role_group.role_id=actor.access_role_id
-), visible_groups as(
- select grp.* from public.schedule_groups grp
- where grp.deleted_at is null and (public.has_access_permission((select auth.uid()),'permission_settings') or grp.id in(select group_id from actor_groups))
-), role_rows as(
- select role.id,role.code,role.name,role.permissions,role.is_system,
-   coalesce(array_agg(role_group.group_id order by grp.sort_order,grp.name) filter(where grp.id is not null),'{}') group_ids
- from public.access_roles role
- left join public.access_role_groups role_group on role_group.role_id=role.id
- left join public.schedule_groups grp on grp.id=role_group.group_id and grp.deleted_at is null
- where exists(select 1 from actor)
-   and (public.has_access_permission((select auth.uid()),'permission_settings')
-     or public.has_access_permission((select auth.uid()),'member_settings')
-     or role.id=(select access_role_id from actor))
- group by role.id
-)
-select jsonb_build_object(
- 'actor',coalesce((select jsonb_build_object(
-   'groupId',group_id,'roleId',access_role_id,'roleName',role_name,'permissions',permissions,
-   'applicableGroupIds',coalesce((select jsonb_agg(group_id) from actor_groups),'[]'::jsonb)
- ) from actor),'{}'::jsonb),
- 'groups',coalesce((select jsonb_agg(jsonb_build_object(
-   'id',grp.id,'code',grp.code,'name',grp.name,'mealEnabled',grp.meal_enabled,'status',grp.status,
-   'sortOrder',grp.sort_order,'unitNames',coalesce((select jsonb_agg(department.name order by department.sort_order,department.name)
-      from public.set_departments department where department.group_id=grp.id and department.deleted_at is null),'[]'::jsonb)
- ) order by grp.sort_order,grp.name) from visible_groups grp),'[]'::jsonb),
- 'roles',coalesce((select jsonb_agg(jsonb_build_object(
-   'id',id,'code',code,'name',name,'permissions',permissions,'isSystem',is_system,'groupIds',group_ids
- ) order by name) from role_rows),'[]'::jsonb)
-)
-$$;
-
-create or replace function public.save_access_role_v1(p_role jsonb)
-returns jsonb language plpgsql security definer set search_path=public,pg_catalog as $$
-declare
-  v_id uuid; v_code text; v_name text; v_permissions text[]; v_group_ids uuid[];
-  v_role public.access_roles%rowtype; v_existing public.access_roles%rowtype;
-  v_was_privileged boolean:=false; v_will_be_privileged boolean:=false;
-  v_today date:=(timezone('Asia/Taipei',now()))::date;
-begin
-  if not public.has_access_permission((select auth.uid()),'permission_settings') then raise exception '沒有權限設定權限' using errcode='42501'; end if;
-  begin v_id:=nullif(btrim(p_role->>'id'),'')::uuid; exception when invalid_text_representation then raise exception '角色識別碼格式錯誤'; end;
-  v_name:=btrim(coalesce(p_role->>'name',''));
-  v_code:=lower(regexp_replace(btrim(coalesce(p_role->>'code','')),'[^A-Za-z0-9_-]+','-','g'));
-  if v_name='' then raise exception '角色名稱不可空白'; end if;
-  if v_id is null then v_id:=gen_random_uuid(); end if;
-  if v_code='' then v_code:='role-'||replace(v_id::text,'-',''); end if;
-  select coalesce(array_agg(distinct value),'{}') into v_permissions
-  from jsonb_array_elements_text(coalesce(p_role->'permissions','[]')) value
-  where value=any(array['schedule_view','schedule_manage','group_settings','department_settings','member_settings','leave_settings','permission_settings','attendance_review','meal_admin']);
-  if 'schedule_manage'=any(v_permissions) and not 'schedule_view'=any(v_permissions) then v_permissions:=array_append(v_permissions,'schedule_view'); end if;
-  select coalesce(array_agg(distinct value::uuid),'{}') into v_group_ids
-  from jsonb_array_elements_text(coalesce(p_role->'groupIds','[]')) value
-  join public.schedule_groups grp on grp.id=value::uuid and grp.deleted_at is null;
-  if v_permissions && array['schedule_view','schedule_manage','group_settings','department_settings','member_settings','attendance_review','meal_admin']::text[]
-     and cardinality(v_group_ids)=0 then raise exception '請至少選擇一個適用群組'; end if;
-  select * into v_existing from public.access_roles where id=v_id for update;
-  if found then v_was_privileged:='permission_settings'=any(coalesce(v_existing.permissions,'{}'::text[])); end if;
-  v_will_be_privileged:='permission_settings'=any(coalesce(v_permissions,'{}'::text[]));
-  if v_was_privileged and not v_will_be_privileged
-     and exists(
-       select 1 from public.set_employee employee
-       where employee.access_role_id=v_id and employee.deleted_at is null
-         and public.is_employee_account_effective(employee.hire_date,employee.leave_date,v_today)
-     )
-     and not exists(
-       select 1 from public.set_employee employee
-       join public.access_roles other_role on other_role.id=employee.access_role_id
-       where employee.access_role_id<>v_id and employee.deleted_at is null
-         and 'permission_settings'=any(coalesce(other_role.permissions,'{}'::text[]))
-         and public.is_employee_account_effective(employee.hire_date,employee.leave_date,v_today)
-     ) then raise exception '系統必須保留至少一個有效的權限管理帳號' using errcode='23514'; end if;
-
-  insert into public.access_roles(id,code,name,permissions,is_system)
-  values(v_id,v_code,v_name,v_permissions,false)
-  on conflict(id) do update set name=excluded.name,permissions=excluded.permissions,updated_at=now()
-  returning * into v_role;
-  delete from public.access_role_groups where role_id=v_id and group_id in(select id from public.schedule_groups where deleted_at is null);
-  insert into public.access_role_groups(role_id,group_id) select v_id,unnest(v_group_ids) on conflict do nothing;
-  return jsonb_build_object('ok',true,'role',jsonb_build_object(
-    'id',v_role.id,'code',v_role.code,'name',v_role.name,'permissions',v_role.permissions,
-    'isSystem',v_role.is_system,'groupIds',v_group_ids));
-end $$;
-
 create or replace function public.protect_employee_role_changes()
 returns trigger language plpgsql security definer set search_path=public,pg_catalog as $$
 declare
   v_new_role public.access_roles%rowtype;
   v_old_role public.access_roles%rowtype;
-  v_actor_can_permissions boolean:=false;
+  v_actor_can_settings boolean:=false;
   v_today date:=(timezone('Asia/Taipei',now()))::date;
   v_old_privileged boolean:=false;
   v_new_privileged boolean:=false;
 begin
   select * into v_new_role from public.access_roles where id=new.access_role_id;
   if not found then raise exception '找不到權限角色'; end if;
+
   if tg_op='UPDATE' then
     select * into v_old_role from public.access_roles where id=old.access_role_id;
     v_old_privileged:=old.deleted_at is null and v_old_role.id is not null
-      and 'permission_settings'=any(coalesce(v_old_role.permissions,'{}'::text[]))
+      and 'settings'=any(coalesce(v_old_role.common_permissions,'{}'::text[]))
       and public.is_employee_account_effective(old.hire_date,old.leave_date,v_today);
     v_new_privileged:=new.deleted_at is null
-      and 'permission_settings'=any(coalesce(v_new_role.permissions,'{}'::text[]))
+      and 'settings'=any(coalesce(v_new_role.common_permissions,'{}'::text[]))
       and public.is_employee_account_effective(new.hire_date,new.leave_date,v_today);
     if v_old_privileged and not v_new_privileged and not exists(
       select 1 from public.set_employee other_employee
       join public.access_roles other_role on other_role.id=other_employee.access_role_id
       where other_employee.id<>old.id and other_employee.deleted_at is null
-        and 'permission_settings'=any(coalesce(other_role.permissions,'{}'::text[]))
+        and 'settings'=any(coalesce(other_role.common_permissions,'{}'::text[]))
         and public.is_employee_account_effective(other_employee.hire_date,other_employee.leave_date,v_today)
     ) then raise exception '系統必須保留至少一個有效的權限管理帳號' using errcode='23514'; end if;
   end if;
-  if (select auth.uid()) is not null and (select auth.role())<>'service_role' and coalesce(current_setting('fyh.group_delete',true),'')<>'on' then
-    if not public.has_access_permission((select auth.uid()),'member_settings') then raise exception '沒有人員設定權限' using errcode='42501'; end if;
-    if tg_op='UPDATE' and old.group_id is not null and not public.role_applies_to_group((select auth.uid()),old.group_id) then raise exception '此角色不可管理人員原群組' using errcode='42501'; end if;
-    if new.group_id is null or not public.role_applies_to_group((select auth.uid()),new.group_id) then raise exception '此角色不可管理人員所屬群組' using errcode='42501'; end if;
-    if new.home_department_id is null or not exists(select 1 from public.set_departments department where department.id=new.home_department_id and department.group_id=new.group_id and department.deleted_at is null) then raise exception '所屬單位不在所選群組'; end if;
-    if exists(select 1 from unnest(coalesce(new.schedule_shift_ids,'{}'::uuid[])) shift_id where not exists(select 1 from public.set_shift shift where shift.id=shift_id and shift.group_id=new.group_id and shift.deleted_at is null)) then raise exception '排班班別不在人員所屬群組'; end if;
-    if tg_op='UPDATE' and new.group_id is distinct from old.group_id then perform public.validate_member_group_change_v1(old.employee_code,new.group_id); end if;
-    v_actor_can_permissions:=public.has_access_permission((select auth.uid()),'permission_settings');
-    if not v_actor_can_permissions then
-      if tg_op='UPDATE' and new.access_role_id is distinct from old.access_role_id then raise exception '沒有變更權限角色的權限' using errcode='42501'; end if;
-      if tg_op='INSERT' and not (coalesce(v_new_role.permissions,'{}'::text[]) <@ array['schedule_view']::text[]) then
-        raise exception '沒有指派管理權限角色的權限' using errcode='42501';
+
+  if (select auth.uid()) is not null and (select auth.role())<>'service_role'
+     and coalesce(current_setting('fyh.group_delete',true),'')<>'on' then
+    if tg_op='UPDATE' and (old.group_id is null or not public.has_group_permission((select auth.uid()),old.group_id,'schedule_manage')) then
+      raise exception '沒有管理人員原群組的權限' using errcode='42501';
+    end if;
+    if new.group_id is null or not public.has_group_permission((select auth.uid()),new.group_id,'schedule_manage') then
+      raise exception '沒有管理人員所屬群組的權限' using errcode='42501';
+    end if;
+    if new.home_department_id is null or not exists(
+      select 1 from public.set_departments department
+      where department.id=new.home_department_id and department.group_id=new.group_id and department.deleted_at is null
+    ) then raise exception '所屬單位不在所選群組'; end if;
+    if exists(
+      select 1 from unnest(coalesce(new.schedule_shift_ids,'{}'::uuid[])) shift_id
+      where not exists(
+        select 1 from public.set_shift shift
+        where shift.id=shift_id and shift.group_id=new.group_id and shift.deleted_at is null
+      )
+    ) then raise exception '排班班別不在人員所屬群組'; end if;
+    if tg_op='UPDATE' and new.group_id is distinct from old.group_id then
+      perform public.validate_member_group_change_v1(old.employee_code,new.group_id);
+    end if;
+
+    v_actor_can_settings:=public.has_common_permission((select auth.uid()),'settings');
+    if not v_actor_can_settings then
+      if tg_op='UPDATE' and new.access_role_id is distinct from old.access_role_id then
+        raise exception '沒有變更權限角色的權限' using errcode='42501';
       end if;
+      if tg_op='INSERT' and (
+        cardinality(coalesce(v_new_role.common_permissions,'{}'::text[]))>0
+        or exists(
+          select 1 from public.access_role_group_permissions role_group
+          where role_group.role_id=v_new_role.id
+            and coalesce(role_group.permissions,'{}'::text[]) && array['schedule_manage','department_settings','attendance_review','meal_admin']::text[]
+        )
+      ) then raise exception '沒有指派管理權限角色的權限' using errcode='42501'; end if;
     end if;
   end if;
   return new;
@@ -1717,8 +1729,8 @@ begin
       or new.attendance_settings_updated_by is distinct from old.attendance_settings_updated_by;
   end if;
   if v_sensitive_changed and (
-    not public.has_access_permission((select auth.uid()),'permission_settings')
-    or not public.can_access_group((select auth.uid()),v_group_id,'department_settings')
+    not public.has_common_permission((select auth.uid()),'settings')
+    or not public.has_group_permission((select auth.uid()),v_group_id,'department_settings')
   ) then raise exception '沒有修改打卡設定的權限' using errcode='42501'; end if;
   return new;
 end $$;
@@ -1734,11 +1746,8 @@ for each row execute function public.protect_department_attendance_fields();
 
 revoke all on function public.get_my_profile_v3() from public,anon;
 revoke all on function public.get_schedule_archive_ranges_v1() from public,anon;
-revoke all on function public.get_group_access_bundle_v1() from public,anon;
-revoke all on function public.save_access_role_v1(jsonb) from public,anon;
 revoke all on function public.protect_employee_role_changes() from public,anon,authenticated;
 revoke all on function public.protect_department_attendance_fields() from public,anon,authenticated;
-grant execute on function public.get_my_profile_v3(),public.get_schedule_archive_ranges_v1(),public.get_group_access_bundle_v1(),public.save_access_role_v1(jsonb) to authenticated,service_role;
 grant execute on function public.protect_employee_role_changes(),public.protect_department_attendance_fields() to service_role;
 commit;
 
@@ -1747,26 +1756,26 @@ begin;
 -- Canonical RLS: browser writes are named RPC/Edge only.
 drop policy if exists write_holidays on public.holidays;
 drop policy if exists read_meal_orders on public.meal_orders;
-create policy read_meal_orders on public.meal_orders for select to authenticated using(public.is_effective_user((select (select auth.uid()))) and (user_id=(select (select auth.uid())) or public.can_access_group((select (select auth.uid())),group_id,'meal_admin')));
+create policy read_meal_orders on public.meal_orders for select to authenticated using(public.is_effective_user((select (select auth.uid()))) and (user_id=(select (select auth.uid())) or public.has_group_permission((select (select auth.uid())),group_id,'meal_admin')));
 drop policy if exists write_meal_products on public.meal_products;
 drop policy if exists write_meal_settings on public.meal_settings;
 drop policy if exists delete_schedule_entries on public.schedule_entries;
 drop policy if exists insert_schedule_entries on public.schedule_entries;
 drop policy if exists read_schedule_entries on public.schedule_entries;
-create policy read_schedule_entries on public.schedule_entries for select to authenticated using(public.can_access_group((select (select auth.uid())),group_id,'schedule_view'));
+create policy read_schedule_entries on public.schedule_entries for select to authenticated using(public.has_group_permission((select (select auth.uid())),group_id,'schedule_view'));
 drop policy if exists update_schedule_entries on public.schedule_entries;
 drop policy if exists write_schedule_entries on public.schedule_entries;
 drop policy if exists write_scheduler_settings on public.scheduler_settings;
 drop policy if exists delete_set_departments_group on public.set_departments;
 drop policy if exists insert_set_departments_group on public.set_departments;
 drop policy if exists read_set_departments on public.set_departments;
-create policy read_set_departments on public.set_departments for select to authenticated using(deleted_at is null and public.role_applies_to_group((select (select auth.uid())),group_id));
+create policy read_set_departments on public.set_departments for select to authenticated using(deleted_at is null and public.has_group_access((select (select auth.uid())),group_id));
 drop policy if exists update_set_departments_group on public.set_departments;
 drop policy if exists write_set_departments on public.set_departments;
 drop policy if exists delete_set_employee on public.set_employee;
 drop policy if exists insert_set_employee on public.set_employee;
 drop policy if exists read_set_employee on public.set_employee;
-create policy read_set_employee on public.set_employee for select to authenticated using(deleted_at is null and (id=(select (select auth.uid())) or public.role_applies_to_group((select (select auth.uid())),group_id)));
+create policy read_set_employee on public.set_employee for select to authenticated using(deleted_at is null and (id=(select (select auth.uid())) or public.has_group_access((select (select auth.uid())),group_id)));
 drop policy if exists update_set_employee on public.set_employee;
 drop policy if exists insert_set_leave on public.set_leave;
 drop policy if exists read_set_leave on public.set_leave;
@@ -1780,7 +1789,7 @@ using(
       select 1 from public.schedule_entries entry
       where entry.leave_type_id=set_leave.id
         and not public.is_schedule_date_archived(entry.group_id,entry.work_date)
-        and public.role_applies_to_group((select (select auth.uid())),entry.group_id)
+        and public.has_group_access((select (select auth.uid())),entry.group_id)
     )
   )
 );
@@ -1798,7 +1807,7 @@ using(
       select 1 from public.schedule_entries entry
       where entry.overtime_type_id=set_overtime.id
         and not public.is_schedule_date_archived(entry.group_id,entry.work_date)
-        and public.role_applies_to_group((select (select auth.uid())),entry.group_id)
+        and public.has_group_access((select (select auth.uid())),entry.group_id)
     )
   )
 );
@@ -1810,14 +1819,14 @@ drop policy if exists read_set_shift on public.set_shift;
 create policy read_set_shift on public.set_shift
 for select to authenticated
 using(
-  public.role_applies_to_group((select (select auth.uid())),group_id)
+  public.has_group_access((select (select auth.uid())),group_id)
   and (
     deleted_at is null
     or exists(
       select 1 from public.schedule_entries entry
       where entry.shift_type_id=set_shift.id
         and not public.is_schedule_date_archived(entry.group_id,entry.work_date)
-        and public.role_applies_to_group((select (select auth.uid())),entry.group_id)
+        and public.has_group_access((select (select auth.uid())),entry.group_id)
     )
   )
 );
@@ -1839,14 +1848,15 @@ with actor as materialized (
   join public.access_roles role on role.id=employee.access_role_id
   where employee.id=(select auth.uid())
     and employee.deleted_at is null
-    and 'schedule_view'=any(coalesce(role.permissions,'{}'::text[]))
+    and public.role_has_any_group_permission(role.id,'schedule_view')
     and public.is_employee_account_effective(employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date)
   limit 1
 ),
 allowed_groups as materialized (
   select role_group.group_id
   from actor
-  join public.access_role_groups role_group on role_group.role_id=actor.access_role_id
+  join public.access_role_group_permissions role_group on role_group.role_id=actor.access_role_id
+where 'schedule_view'=any(coalesce(role_group.permissions,'{}'::text[]))
 ),
 visible_schedule as materialized (
   select entry.*
@@ -1912,9 +1922,7 @@ select case when exists(select 1 from actor) then jsonb_build_object(
   'shifts',coalesce((select jsonb_agg(to_jsonb(shift) order by shift.sort_order,shift.name,shift.id) from visible_shifts shift),'[]'::jsonb),
   'leaves',coalesce((select jsonb_agg(to_jsonb(leave_item) order by leave_item.sort_order,leave_item.code,leave_item.id) from visible_leaves leave_item),'[]'::jsonb),
   'overtime',coalesce((select jsonb_agg(to_jsonb(overtime_item) order by overtime_item.sort_order,overtime_item.name,overtime_item.id) from visible_overtime overtime_item),'[]'::jsonb),
-  'holidays',coalesce((select jsonb_agg(to_jsonb(holiday) order by holiday.sort_order,holiday.holiday_date,holiday.id) from public.holidays holiday),'[]'::jsonb),
-  'accessBundle',public.get_group_access_bundle_v1()
-) else null end
+  'holidays',coalesce((select jsonb_agg(to_jsonb(holiday) order by holiday.sort_order,holiday.holiday_date,holiday.id) from public.holidays holiday),'[]'::jsonb)) else null end
 $$;
 -- 內部群組異動驗證只由 Trigger / 後端呼叫，不作為瀏覽器公開 RPC。
 revoke all on function public.validate_member_group_change_v1(text,uuid) from public,anon,authenticated;
@@ -1950,46 +1958,6 @@ where role.id=ranked.id
 create index if not exists idx_access_roles_sort
   on public.access_roles(sort_order,name,id);
 
-create or replace function public.get_group_access_bundle_v1()
-returns jsonb language sql stable security definer set search_path=public,pg_catalog as $$
-with actor as(
- select employee.id,employee.group_id,employee.access_role_id,role.name role_name,role.permissions
- from public.set_employee employee join public.access_roles role on role.id=employee.access_role_id
- where employee.id=(select auth.uid()) and employee.deleted_at is null
-   and public.is_employee_account_effective(employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date)
-), actor_groups as(
- select role_group.group_id from actor join public.access_role_groups role_group on role_group.role_id=actor.access_role_id
-), visible_groups as(
- select grp.* from public.schedule_groups grp
- where grp.deleted_at is null and (public.has_access_permission((select auth.uid()),'permission_settings') or grp.id in(select group_id from actor_groups))
-), role_rows as(
- select role.id,role.code,role.name,role.permissions,role.is_system,role.sort_order,
-   coalesce(array_agg(role_group.group_id order by grp.sort_order,grp.name) filter(where grp.id is not null),'{}') group_ids
- from public.access_roles role
- left join public.access_role_groups role_group on role_group.role_id=role.id
- left join public.schedule_groups grp on grp.id=role_group.group_id and grp.deleted_at is null
- where exists(select 1 from actor)
-   and (public.has_access_permission((select auth.uid()),'permission_settings')
-     or public.has_access_permission((select auth.uid()),'member_settings')
-     or role.id=(select access_role_id from actor))
- group by role.id
-)
-select jsonb_build_object(
- 'actor',coalesce((select jsonb_build_object(
-   'groupId',group_id,'roleId',access_role_id,'roleName',role_name,'permissions',permissions,
-   'applicableGroupIds',coalesce((select jsonb_agg(group_id) from actor_groups),'[]'::jsonb)
- ) from actor),'{}'::jsonb),
- 'groups',coalesce((select jsonb_agg(jsonb_build_object(
-   'id',grp.id,'code',grp.code,'name',grp.name,'mealEnabled',grp.meal_enabled,'status',grp.status,
-   'sortOrder',grp.sort_order,'unitNames',coalesce((select jsonb_agg(department.name order by department.sort_order,department.name)
-      from public.set_departments department where department.group_id=grp.id and department.deleted_at is null),'[]'::jsonb)
- ) order by grp.sort_order,grp.name) from visible_groups grp),'[]'::jsonb),
- 'roles',coalesce((select jsonb_agg(jsonb_build_object(
-   'id',id,'code',code,'name',name,'permissions',permissions,'isSystem',is_system,'groupIds',group_ids,'sortOrder',sort_order
- ) order by sort_order,name,id) from role_rows),'[]'::jsonb)
-)
-$$;
-
 create or replace function public.reorder_settings_v3(p_category text,p_ids uuid[])
 returns jsonb
 language plpgsql
@@ -2001,26 +1969,22 @@ declare v_category text:=lower(btrim(coalesce(p_category,''))); v_id uuid; v_ind
   foreach v_id in array p_ids loop
     if v_category='department' then
       select group_id into v_group_id from public.set_departments where id=v_id and deleted_at is null;
-      if v_group_id is null or not public.can_access_group(auth.uid(),v_group_id,'department_settings') then raise exception '沒有單位排序權限' using errcode='42501'; end if;
+      if v_group_id is null or not public.has_group_permission(auth.uid(),v_group_id,'department_settings') then raise exception '沒有單位排序權限' using errcode='42501'; end if;
       update public.set_departments set sort_order=v_index,updated_at=now() where id=v_id;
     elsif v_category='member' then
       select group_id into v_group_id from public.set_employee where id=v_id and deleted_at is null;
-      if v_group_id is null or not public.can_access_group(auth.uid(),v_group_id,'member_settings') then raise exception '沒有人員排序權限' using errcode='42501'; end if;
+      if v_group_id is null or not public.has_group_permission(auth.uid(),v_group_id,'schedule_manage') then raise exception '沒有人員排序權限' using errcode='42501'; end if;
       update public.set_employee set sort_order=v_index,updated_at=now() where id=v_id;
     elsif v_category='shift' then
       select group_id into v_group_id from public.set_shift where id=v_id and deleted_at is null;
-      if v_group_id is null or not public.can_access_group(auth.uid(),v_group_id,'schedule_manage') then raise exception '沒有班別排序權限' using errcode='42501'; end if;
+      if v_group_id is null or not public.has_group_permission(auth.uid(),v_group_id,'schedule_manage') then raise exception '沒有班別排序權限' using errcode='42501'; end if;
       update public.set_shift set sort_order=v_index,updated_at=now() where id=v_id;
     elsif v_category='leave' then
-      if not public.has_access_permission(auth.uid(),'leave_settings') then raise exception '沒有假別排序權限' using errcode='42501'; end if;
+      if not public.has_common_permission(auth.uid(),'leave_settings') then raise exception '沒有假別排序權限' using errcode='42501'; end if;
       update public.set_leave set sort_order=v_index,updated_at=now() where id=v_id and deleted_at is null;
     elsif v_category='overtime' then
-      if not public.has_access_permission(auth.uid(),'leave_settings') then raise exception '沒有加班設定排序權限' using errcode='42501'; end if;
+      if not public.has_common_permission(auth.uid(),'leave_settings') then raise exception '沒有加班設定排序權限' using errcode='42501'; end if;
       update public.set_overtime set sort_order=v_index,updated_at=now() where id=v_id and deleted_at is null;
-    elsif v_category='access-role' then
-      if not public.has_access_permission(auth.uid(),'permission_settings') then raise exception '沒有角色排序權限' using errcode='42501'; end if;
-      if not exists(select 1 from public.access_roles where id=v_id) then raise exception '找不到權限角色'; end if;
-      update public.access_roles set sort_order=v_index,updated_at=now() where id=v_id;
     else
       raise exception '不支援的排序類型';
     end if;
@@ -2034,19 +1998,17 @@ create or replace function public.get_schedule_export_rows_v2(p_start_date date,
 returns table(member_id uuid,employee_code text,employee_name text,home_department_id uuid,department_name text,pay_by_day boolean,work_date date,leave_type_id uuid,leave_code text,leave_name text,leave_all_day boolean,leave_start_time time,leave_end_time time,leave_reason text,overtime_type_id uuid,overtime_name text,overtime_start_time time,overtime_end_time time,overtime_use_rest_1 boolean,overtime_rest_1_start_time time,overtime_rest_1_end_time time,overtime_use_rest_2 boolean,overtime_rest_2_start_time time,overtime_rest_2_end_time time,overtime_reason text)
 language plpgsql stable security definer set search_path=public,pg_catalog as $
 begin
- if not public.has_access_permission(auth.uid(),'schedule_manage') then raise exception '沒有班表管理權限' using errcode='42501'; end if;
+ if not public.has_common_permission(auth.uid(),'export') then raise exception '沒有匯出權限' using errcode='42501'; end if;
  if p_start_date is null or p_end_date is null or p_start_date>p_end_date then raise exception '匯出日期範圍不正確'; end if;
  if p_end_date-p_start_date>366 then raise exception '單次匯出期間不可超過 366 天'; end if;
  return query select schedule.member_id,employee.employee_code,employee.full_name,employee.home_department_id,department.name,employee.pay_by_day,schedule.work_date,schedule.leave_type_id,leave_type.code,leave_type.name,schedule.leave_all_day,schedule.leave_start_time,schedule.leave_end_time,schedule.leave_reason,schedule.overtime_type_id,overtime_type.name,schedule.overtime_start_time,schedule.overtime_end_time,schedule.overtime_use_rest_1,schedule.overtime_rest_1_start_time,schedule.overtime_rest_1_end_time,schedule.overtime_use_rest_2,schedule.overtime_rest_2_start_time,schedule.overtime_rest_2_end_time,schedule.overtime_reason
  from public.schedule_entries schedule join public.set_employee employee on employee.id=schedule.member_id left join public.set_departments department on department.id=employee.home_department_id left join public.set_leave leave_type on leave_type.id=schedule.leave_type_id left join public.set_overtime overtime_type on overtime_type.id=schedule.overtime_type_id
- where schedule.work_date between p_start_date and p_end_date and public.role_applies_to_group(auth.uid(),schedule.group_id) and (schedule.leave_type_id is not null or schedule.overtime_type_id is not null)
+ where schedule.work_date between p_start_date and p_end_date and public.has_group_access(auth.uid(),schedule.group_id) and (schedule.leave_type_id is not null or schedule.overtime_type_id is not null)
  order by schedule.work_date,employee.sort_order,employee.full_name,employee.id;
 end $;
 
-revoke all on function public.get_group_access_bundle_v1() from public,anon;
 revoke all on function public.reorder_settings_v3(text,uuid[]) from public,anon;
 revoke all on function public.get_schedule_export_rows_v2(date,date) from public,anon;
-grant execute on function public.get_group_access_bundle_v1() to authenticated,service_role;
 grant execute on function public.reorder_settings_v3(text,uuid[]) to authenticated,service_role;
 grant execute on function public.get_schedule_export_rows_v2(date,date) to authenticated,service_role;
 
@@ -2093,7 +2055,7 @@ security definer
 set search_path=public,pg_catalog
 as $$
 begin
-  if p_group_id is null or not public.can_access_group(auth.uid(),p_group_id,'schedule_manage') then
+  if p_group_id is null or not public.has_group_permission(auth.uid(),p_group_id,'schedule_manage') then
     raise exception '沒有管理此群組排班條件的權限' using errcode='42501';
   end if;
 
@@ -2133,7 +2095,7 @@ begin
   exception when invalid_text_representation then
     raise exception '群組識別碼格式錯誤';
   end;
-  if v_group_id is null or not public.can_access_group(auth.uid(),v_group_id,'schedule_manage') then
+  if v_group_id is null or not public.has_group_permission(auth.uid(),v_group_id,'schedule_manage') then
     raise exception '沒有管理此群組排班條件的權限' using errcode='42501';
   end if;
 
@@ -2209,7 +2171,7 @@ begin
     return jsonb_build_object('ok',true,'deleted',false);
   end if;
 
-  if not public.can_access_group(auth.uid(),v_group_id,'schedule_manage') then
+  if not public.has_group_permission(auth.uid(),v_group_id,'schedule_manage') then
     raise exception '沒有管理此群組排班條件的權限' using errcode='42501';
   end if;
 
@@ -2243,15 +2205,16 @@ set search_path to 'public', 'pg_catalog'
 as $function$
 with actor as materialized (
   select employee.access_role_id,
-         ('permission_settings'=any(coalesce(role.permissions,'{}'::text[]))) as can_manage_permissions
+         (public.role_has_common_permission(role.id,'settings')) as can_manage_permissions
   from public.set_employee employee
   join public.access_roles role on role.id=employee.access_role_id
   where employee.id=(select auth.uid()) and employee.deleted_at is null
-    and 'schedule_view'=any(coalesce(role.permissions,'{}'::text[]))
+    and public.role_has_any_group_permission(role.id,'schedule_view')
     and public.is_employee_account_effective(employee.hire_date,employee.leave_date,(timezone('Asia/Taipei',now()))::date)
   limit 1
 ), allowed_groups as materialized (
-  select role_group.group_id from actor join public.access_role_groups role_group on role_group.role_id=actor.access_role_id
+  select role_group.group_id from actor join public.access_role_group_permissions role_group on role_group.role_id=actor.access_role_id
+where 'schedule_view'=any(coalesce(role_group.permissions,'{}'::text[]))
 ), visible_schedule as materialized (
   select entry.* from public.schedule_entries entry join allowed_groups allowed on allowed.group_id=entry.group_id
   where not exists(select 1 from public.schedule_archives archive where archive.group_id=entry.group_id and entry.work_date between archive.start_date and archive.end_date)
@@ -2290,9 +2253,7 @@ select case when exists(select 1 from actor) then jsonb_build_object(
   'shifts',coalesce((select jsonb_agg(to_jsonb(shift) order by shift.sort_order,shift.name,shift.id) from visible_shifts shift),'[]'::jsonb),
   'leaves',coalesce((select jsonb_agg(to_jsonb(leave_item) order by leave_item.sort_order,leave_item.code,leave_item.id) from visible_leaves leave_item),'[]'::jsonb),
   'overtime',coalesce((select jsonb_agg(to_jsonb(overtime_item) order by overtime_item.sort_order,overtime_item.name,overtime_item.id) from visible_overtime overtime_item),'[]'::jsonb),
-  'holidays',coalesce((select jsonb_agg(to_jsonb(holiday) order by holiday.sort_order,holiday.holiday_date,holiday.id) from public.holidays holiday),'[]'::jsonb),
-  'accessBundle',public.get_group_access_bundle_v1()
-) else null end
+  'holidays',coalesce((select jsonb_agg(to_jsonb(holiday) order by holiday.sort_order,holiday.holiday_date,holiday.id) from public.holidays holiday),'[]'::jsonb)) else null end
 $function$;
 
 commit;
@@ -2340,7 +2301,7 @@ declare
   v_active boolean;
   v_sort integer := 0;
 begin
-  if not public.has_access_permission(p_operator_user_id, 'meal_admin') then
+  if not public.has_any_group_permission(p_operator_user_id,'meal_admin') then
     raise exception '沒有訂餐管理權限' using errcode = '42501';
   end if;
   if p_company_subsidy is null or p_company_subsidy <= 0 then
@@ -2365,28 +2326,28 @@ begin
       select jsonb_agg(jsonb_build_object('id', g.id, 'nameVi', coalesce(g.name_vi, '')) order by g.sort_order, g.name)
       from public.schedule_groups g
       where g.deleted_at is null
-        and public.role_applies_to_group(v_user_id, g.id)
+        and public.has_group_access(v_user_id, g.id)
     ), '[]'::jsonb),
     'departments', coalesce((
       select jsonb_agg(jsonb_build_object('id', d.id, 'nameVi', coalesce(d.name_vi, '')) order by d.sort_order, d.name)
       from public.set_departments d
       where d.deleted_at is null
         and d.group_id is not null
-        and public.role_applies_to_group(v_user_id, d.group_id)
+        and public.has_group_access(v_user_id, d.group_id)
     ), '[]'::jsonb),
     'members', coalesce((
       select jsonb_agg(jsonb_build_object('id', e.id, 'nameVi', coalesce(e.full_name_vi, '')) order by e.sort_order, e.full_name)
       from public.set_employee e
       where e.deleted_at is null
         and e.group_id is not null
-        and public.role_applies_to_group(v_user_id, e.group_id)
+        and public.has_group_access(v_user_id, e.group_id)
     ), '[]'::jsonb),
     'shifts', coalesce((
       select jsonb_agg(jsonb_build_object('id', s.id, 'nameVi', coalesce(s.name_vi, '')) order by s.sort_order, s.name)
       from public.set_shift s
       where s.deleted_at is null
         and s.group_id is not null
-        and public.role_applies_to_group(v_user_id, s.group_id)
+        and public.has_group_access(v_user_id, s.group_id)
     ), '[]'::jsonb),
     'leaves', coalesce((
       select jsonb_agg(jsonb_build_object('id', l.id, 'nameVi', coalesce(l.name_vi, '')) order by l.sort_order, l.name)
@@ -2429,8 +2390,8 @@ begin
 
   case p_entity
     when 'group' then
-      if not public.has_access_permission(v_user_id, 'group_settings')
-         or not public.role_applies_to_group(v_user_id, p_id) then
+      if not public.has_common_permission(v_user_id,'settings')
+         or not public.has_group_access(v_user_id, p_id) then
         raise exception '沒有群組設定權限' using errcode = '42501';
       end if;
       update public.schedule_groups set name_vi = v_value, updated_at = now()
@@ -2439,8 +2400,8 @@ begin
     when 'department' then
       select group_id into v_group_id from public.set_departments where id = p_id and deleted_at is null;
       if v_group_id is null
-         or not public.has_access_permission(v_user_id, 'department_settings')
-         or not public.role_applies_to_group(v_user_id, v_group_id) then
+         or not public.has_any_group_permission(v_user_id,'department_settings')
+         or not public.has_group_access(v_user_id, v_group_id) then
         raise exception '沒有單位設定權限' using errcode = '42501';
       end if;
       update public.set_departments set name_vi = v_value, updated_at = now()
@@ -2449,8 +2410,8 @@ begin
     when 'member' then
       select group_id into v_group_id from public.set_employee where id = p_id and deleted_at is null;
       if v_group_id is null
-         or not public.has_access_permission(v_user_id, 'member_settings')
-         or not public.role_applies_to_group(v_user_id, v_group_id) then
+         or not public.has_any_group_permission(v_user_id,'schedule_manage')
+         or not public.has_group_access(v_user_id, v_group_id) then
         raise exception '沒有人員設定權限' using errcode = '42501';
       end if;
       update public.set_employee set full_name_vi = v_value, updated_at = now()
@@ -2459,29 +2420,29 @@ begin
     when 'shift' then
       select group_id into v_group_id from public.set_shift where id = p_id and deleted_at is null;
       if v_group_id is null
-         or not public.has_access_permission(v_user_id, 'schedule_manage')
-         or not public.role_applies_to_group(v_user_id, v_group_id) then
+         or not public.has_any_group_permission(v_user_id,'schedule_manage')
+         or not public.has_group_access(v_user_id, v_group_id) then
         raise exception '沒有班表管理權限' using errcode = '42501';
       end if;
       update public.set_shift set name_vi = v_value, updated_at = now()
       where id = p_id and deleted_at is null;
 
     when 'leave' then
-      if not public.has_access_permission(v_user_id, 'leave_settings') then
+      if not public.has_common_permission(v_user_id,'leave_settings') then
         raise exception '沒有假別設定權限' using errcode = '42501';
       end if;
       update public.set_leave set name_vi = v_value, updated_at = now()
       where id = p_id and deleted_at is null;
 
     when 'role' then
-      if not public.has_access_permission(v_user_id, 'permission_settings') then
+      if not public.has_common_permission(v_user_id,'settings') then
         raise exception '沒有權限設定權限' using errcode = '42501';
       end if;
       update public.access_roles set name_vi = v_value, updated_at = now()
       where id = p_id;
 
     when 'meal_product' then
-      if not public.has_access_permission(v_user_id, 'meal_admin') then
+      if not public.has_any_group_permission(v_user_id,'meal_admin') then
         raise exception '沒有訂餐管理權限' using errcode = '42501';
       end if;
       update public.meal_products set name_vi = v_value, updated_at = now()
@@ -2567,28 +2528,28 @@ begin
       select jsonb_agg(jsonb_build_object('id', g.id, 'nameVi', coalesce(g.name_vi, '')) order by g.sort_order, g.name)
       from public.schedule_groups g
       where g.deleted_at is null
-        and public.role_applies_to_group(v_user_id, g.id)
+        and public.has_group_access(v_user_id, g.id)
     ), '[]'::jsonb),
     'departments', coalesce((
       select jsonb_agg(jsonb_build_object('id', d.id, 'nameVi', coalesce(d.name_vi, '')) order by d.sort_order, d.name)
       from public.set_departments d
       where d.deleted_at is null
         and d.group_id is not null
-        and public.role_applies_to_group(v_user_id, d.group_id)
+        and public.has_group_access(v_user_id, d.group_id)
     ), '[]'::jsonb),
     'members', coalesce((
       select jsonb_agg(jsonb_build_object('id', e.id, 'nameVi', coalesce(e.full_name_vi, '')) order by e.sort_order, e.full_name)
       from public.set_employee e
       where e.deleted_at is null
         and e.group_id is not null
-        and public.role_applies_to_group(v_user_id, e.group_id)
+        and public.has_group_access(v_user_id, e.group_id)
     ), '[]'::jsonb),
     'shifts', coalesce((
       select jsonb_agg(jsonb_build_object('id', s.id, 'nameVi', coalesce(s.name_vi, '')) order by s.sort_order, s.name)
       from public.set_shift s
       where s.deleted_at is null
         and s.group_id is not null
-        and public.role_applies_to_group(v_user_id, s.group_id)
+        and public.has_group_access(v_user_id, s.group_id)
     ), '[]'::jsonb),
     'leaves', coalesce((
       select jsonb_agg(jsonb_build_object('id', l.id, 'nameVi', coalesce(l.name_vi, '')) order by l.sort_order, l.name)
@@ -2631,8 +2592,8 @@ begin
 
   case p_entity
     when 'group' then
-      if not public.has_access_permission(v_user_id, 'group_settings')
-         or not public.role_applies_to_group(v_user_id, p_id) then
+      if not public.has_common_permission(v_user_id,'settings')
+         or not public.has_group_access(v_user_id, p_id) then
         raise exception '沒有群組設定權限' using errcode = '42501';
       end if;
       update public.schedule_groups set name_vi = v_value, updated_at = now()
@@ -2641,8 +2602,8 @@ begin
     when 'department' then
       select group_id into v_group_id from public.set_departments where id = p_id and deleted_at is null;
       if v_group_id is null
-         or not public.has_access_permission(v_user_id, 'department_settings')
-         or not public.role_applies_to_group(v_user_id, v_group_id) then
+         or not public.has_any_group_permission(v_user_id,'department_settings')
+         or not public.has_group_access(v_user_id, v_group_id) then
         raise exception '沒有單位設定權限' using errcode = '42501';
       end if;
       update public.set_departments set name_vi = v_value, updated_at = now()
@@ -2651,8 +2612,8 @@ begin
     when 'member' then
       select group_id into v_group_id from public.set_employee where id = p_id and deleted_at is null;
       if v_group_id is null
-         or not public.has_access_permission(v_user_id, 'member_settings')
-         or not public.role_applies_to_group(v_user_id, v_group_id) then
+         or not public.has_any_group_permission(v_user_id,'schedule_manage')
+         or not public.has_group_access(v_user_id, v_group_id) then
         raise exception '沒有人員設定權限' using errcode = '42501';
       end if;
       update public.set_employee set full_name_vi = v_value, updated_at = now()
@@ -2661,29 +2622,29 @@ begin
     when 'shift' then
       select group_id into v_group_id from public.set_shift where id = p_id and deleted_at is null;
       if v_group_id is null
-         or not public.has_access_permission(v_user_id, 'schedule_manage')
-         or not public.role_applies_to_group(v_user_id, v_group_id) then
+         or not public.has_any_group_permission(v_user_id,'schedule_manage')
+         or not public.has_group_access(v_user_id, v_group_id) then
         raise exception '沒有班表管理權限' using errcode = '42501';
       end if;
       update public.set_shift set name_vi = v_value, updated_at = now()
       where id = p_id and deleted_at is null;
 
     when 'leave' then
-      if not public.has_access_permission(v_user_id, 'leave_settings') then
+      if not public.has_common_permission(v_user_id,'leave_settings') then
         raise exception '沒有假別設定權限' using errcode = '42501';
       end if;
       update public.set_leave set name_vi = v_value, updated_at = now()
       where id = p_id and deleted_at is null;
 
     when 'role' then
-      if not public.has_access_permission(v_user_id, 'permission_settings') then
+      if not public.has_common_permission(v_user_id,'settings') then
         raise exception '沒有權限設定權限' using errcode = '42501';
       end if;
       update public.access_roles set name_vi = v_value, updated_at = now()
       where id = p_id;
 
     when 'meal_product' then
-      if not public.has_access_permission(v_user_id, 'meal_admin') then
+      if not public.has_any_group_permission(v_user_id,'meal_admin') then
         raise exception '沒有訂餐管理權限' using errcode = '42501';
       end if;
       update public.meal_products set name_vi = v_value, updated_at = now()

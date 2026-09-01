@@ -1,9 +1,0 @@
-631:not ok 105 - 儲存庫只保留單一正式 GitHub Actions workflow
-636:  failureType: 'testCodeFailure'
-637:  error: |-
-639:    + actual - expected
-646:  code: 'ERR_ASSERTION'
-647:  name: 'AssertionError'
-648:  expected:
-650:  actual:
-2765:# fail 1

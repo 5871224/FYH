@@ -1,5 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@^1";
-import { actorIdOf, addDaysToDateString as addDays, datesBetween, hasPermission, isProfileEffective as effective, isProfileEmployedOn as employedOn, pageNumber, taipeiDateString as taipeiDate, validDate } from "../_shared/runtime.ts";
+import { actorIdOf, addDaysToDateString as addDays, datesBetween, hasAnyGroupPermission, isProfileEffective as effective, isProfileEmployedOn as employedOn, pageNumber, taipeiDateString as taipeiDate, validDate, hasGroupPermission } from "../_shared/runtime.ts";
 
 const PAGE_SIZE = 50;
 const DATA_FETCH_PAGE_SIZE = 1000;
@@ -141,13 +141,13 @@ async function getActor(ctx: any) {
     .eq("id", userId).is("deleted_at", null).single();
   if (result.error) throw result.error;
   if (!effective(result.data)) throw new Error("此帳號目前不在有效期間");
-  if (!await hasPermission(ctx, userId, "attendance_review")) throw new Error("沒有簽到審核權限");
+  if (!await hasAnyGroupPermission(ctx, userId, "attendance_review")) throw new Error("沒有簽到審核權限");
   return result.data;
 }
 
 async function applicableGroupIds(ctx: any, actor: any) {
-  const result = await ctx.supabaseAdmin.from("access_role_groups")
-    .select("group_id").eq("role_id", actor.access_role_id);
+  const result = await ctx.supabaseAdmin.from("access_role_group_permissions")
+    .select("group_id,permissions").eq("role_id", actor.access_role_id).contains("permissions", ["attendance_review"]);
   if (result.error) throw result.error;
   return (result.data || []).map((row: any) => row.group_id).filter(Boolean);
 }
@@ -233,11 +233,8 @@ async function ensureTargetAllowed(ctx: any, actor: any, userId: string) {
     .select("id,group_id,home_department_id,deleted_at").eq("id", userId).is("deleted_at", null).maybeSingle();
   if (target.error) throw target.error;
   if (!target.data) throw new Error("找不到人員");
-  const allowed = await ctx.supabaseAdmin.rpc("can_access_group", {
-    p_user_id: actor.id, p_group_id: target.data.group_id, p_permission: "attendance_review"
-  });
-  if (allowed.error) throw allowed.error;
-  if (!allowed.data) throw new Error("此角色不可審核該群組");
+  const allowed = await hasGroupPermission(ctx, actor.id, target.data.group_id, "attendance_review");
+  if (!allowed) throw new Error("此角色不可審核該群組");
   return target.data;
 }
 
