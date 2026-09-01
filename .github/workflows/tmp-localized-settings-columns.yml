@@ -33,11 +33,14 @@ jobs:
       - name: Apply source migration
         run: node scripts/tmp-localized-settings-columns.js
 
+      - name: Update isolated test contracts
+        run: node scripts/tmp-repair-localized-tests.js
+
       - name: Publish static web
         run: npm run web:publish
 
       - name: Remove temporary tooling before validation
-        run: rm -f scripts/tmp-localized-settings-columns.js scripts/tmp-repair-localized-migration.js .github/workflows/tmp-localized-settings-columns.yml
+        run: rm -f scripts/tmp-localized-settings-columns.js scripts/tmp-repair-localized-migration.js scripts/tmp-repair-localized-tests.js .github/workflows/tmp-localized-settings-columns.yml
 
       - name: Validate
         run: |
