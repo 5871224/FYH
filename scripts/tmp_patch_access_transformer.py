@@ -28,11 +28,11 @@ if old not in text:
     raise SystemExit('permission rewrite block not found')
 text = text.replace(old, new)
 
-# Fresh canonical schema and runtime statements should use the new table, but the
-# one-time migration block above deliberately keeps the physical old table name.
+# Formal tests intentionally reject phase/v2 filenames. Keep the architecture
+# regression test, but give it a permanent domain name.
 text = text.replace(
-    "    # Later schema maintenance blocks must use common_permissions.\n",
-    "    # Later schema maintenance blocks must use common_permissions.\n"
+    'write("tests/access-control-v2.test.js", source)',
+    'write("tests/access-control-model.test.js", source)'
 )
 
 path.write_text(text, encoding='utf-8')
