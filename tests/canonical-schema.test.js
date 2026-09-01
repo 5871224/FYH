@@ -50,9 +50,12 @@ test("正式 SQL 必須包含群組、角色共用／群組權限與班表封存
   assert.doesNotMatch(combined, /create policy update_schedule_entries/);
   assert.match(combined, /drop policy if exists update_schedule_entries on public\.schedule_entries/);
   const accessControl = read("supabase/functions/access-control/index.ts");
-  assert.match(accessControl, /save_role/);
-  assert.match(accessControl, /delete_role/);
-  assert.match(accessControl, /reorder_roles/);
+  assert.match(accessControl, /async function saveRole\(/);
+  assert.match(accessControl, /async function deleteRole\(/);
+  assert.match(accessControl, /async function reorderRoles\(/);
+  assert.match(accessControl, /action === "saveRole"/);
+  assert.match(accessControl, /action === "deleteRole"/);
+  assert.match(accessControl, /action === "reorderRoles"/);
 });
 
 test("群組簽到審核 Edge Function 必須列入部署清單與文件", () => {
