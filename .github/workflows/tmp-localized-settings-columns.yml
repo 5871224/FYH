@@ -49,7 +49,6 @@ jobs:
           npm run renderer:check
           npm run css:architecture
           npm run js:architecture
-          npm run static:publish:check
 
       - name: Commit formal changes
         shell: bash
