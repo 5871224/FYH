@@ -5340,9 +5340,31 @@ body:not(.is-authenticated) .toolbar-card {
 
   /* 今天日期沿用全裝置共用的微亮藍色提示，避免手機版另行覆蓋。 */
 
-  /* 假別與加班設定在手機保留可讀欄寬，由既有設定表格容器提供水平捲動。 */
+  /* 手機版設定表格維持可讀欄寬，超出畫面時由表格容器水平捲動，不再硬塞進單一螢幕。 */
+  .department-settings-modal .department-settings-table-wrap,
+  .member-settings-modal .member-table-scroll,
+  .catalog-settings-modal .settings-table-scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .department-settings-modal .department-settings-table-department,
+  .department-settings-modal .department-settings-table-department .department-settings-row {
+    min-width: 900px;
+  }
+
+  .member-settings-modal .member-table,
+  .member-settings-modal .member-table-row {
+    min-width: 980px;
+  }
+
+  .catalog-settings-modal .settings-table-row-shift {
+    min-width: 920px;
+  }
+
   .catalog-settings-modal .settings-table-row-leave {
-    min-width: 720px;
+    min-width: 760px;
   }
 
   .catalog-settings-modal .settings-table-row-overtime {

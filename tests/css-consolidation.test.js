@@ -137,13 +137,16 @@ test("手機主要頁面與表單響應式規格集中於 responsive", () => {
   assert.match(responsive, /\.modal:not\(\.attendance-edit-modal\) :is\(\.form-grid, \.two-col\)[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) !important;/s);
 });
 
-test("手機假別與加班設定表格應使用內部水平捲動", () => {
+test("手機單位、人員、班別與假別設定表格應使用內部水平捲動", () => {
   const foundation = read("src/renderer/css/foundation.css");
   const responsive = read("src/renderer/css/responsive.css");
   assert.match(foundation, /\.member-table-scroll,\s*\.settings-table-scroll\s*\{[^}]*overflow:\s*auto;/s);
-  assert.match(responsive, /\.catalog-settings-modal \.settings-table-row-leave\s*\{\s*min-width:\s*720px;/s);
+  assert.match(responsive, /\.department-settings-modal \.department-settings-table-wrap,[\s\S]*overflow-x:\s*auto;/s);
+  assert.match(responsive, /\.department-settings-modal \.department-settings-table-department,[\s\S]*min-width:\s*900px;/s);
+  assert.match(responsive, /\.member-settings-modal \.member-table,[\s\S]*min-width:\s*980px;/s);
+  assert.match(responsive, /\.catalog-settings-modal \.settings-table-row-shift\s*\{\s*min-width:\s*920px;/s);
+  assert.match(responsive, /\.catalog-settings-modal \.settings-table-row-leave\s*\{\s*min-width:\s*760px;/s);
   assert.match(responsive, /\.catalog-settings-modal \.settings-table-row-overtime\s*\{\s*min-width:\s*840px;/s);
-  assert.doesNotMatch(responsive, /\.catalog-settings-modal \.settings-table-row-shift\s*\{\s*min-width:/s);
 });
 
 test("訂餐與簽到簿使用 Chrome 式共用籤頁", () => {
