@@ -2,7 +2,6 @@ import { withSupabase } from "npm:@supabase/server@^1";
 import { addDaysToDateString, isProfileEffective, taipeiDateString } from "../_shared/runtime.ts";
 
 const MAX_GPS_DISTANCE_METERS = 300;
-const MAX_GPS_ACCURACY_METERS = 300;
 
 
 function getClientIp(req: Request) {
@@ -122,7 +121,7 @@ async function resolveClockLocation(ctx: any, req: Request, body: any, groupId: 
   const accuracy = toNumber(body?.accuracy);
   let gpsFailure = "";
 
-  if (allowGps && latitude !== null && longitude !== null && accuracy !== null && accuracy <= MAX_GPS_ACCURACY_METERS) {
+  if (allowGps && latitude !== null && longitude !== null) {
     const gpsMatch = departments
       .map((department: any) => {
         const departmentLatitude = toNumber(department.latitude);
@@ -150,8 +149,7 @@ async function resolveClockLocation(ctx: any, req: Request, body: any, groupId: 
       : "所屬群組已啟用打卡的單位尚未設定經緯度";
   } else if (allowGps) {
     if (body?.geolocationError) gpsFailure = String(body.geolocationError);
-    else if (latitude === null || longitude === null || accuracy === null) gpsFailure = "手機沒有提供 GPS 定位，請允許瀏覽器定位後再打卡";
-    else if (accuracy > MAX_GPS_ACCURACY_METERS) gpsFailure = `手機 GPS 精度約 ${Math.round(accuracy)} 公尺，需小於 ${MAX_GPS_ACCURACY_METERS} 公尺`;
+    else if (latitude === null || longitude === null) gpsFailure = "手機沒有提供 GPS 定位，請允許瀏覽器定位後再打卡";
   }
 
   const clientIp = getClientIp(req);
