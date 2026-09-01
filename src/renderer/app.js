@@ -7067,6 +7067,10 @@ async function moveMemberToDepartment(memberId, departmentId, targetMemberId = "
   const targetDeptId = targetMemberId
     ? (getMemberHomeDeptId(remaining.find((item) => item.id === targetMemberId)) || departmentId)
     : departmentId;
+  const targetDepartment = state.departments.find((department) => !department.deleted && department.id === targetDeptId);
+  if (!targetDepartment) {
+    return;
+  }
   const grouped = new Map(state.departments.map((department) => [department.id, []]));
   remaining.forEach((item) => {
     const homeDeptId = getMemberHomeDeptId(item);
@@ -7077,7 +7081,11 @@ async function moveMemberToDepartment(memberId, departmentId, targetMemberId = "
   if (!grouped.has(targetDeptId)) {
     return;
   }
-  const movedMember = { ...member, deptId: targetDeptId };
+  const movedMember = {
+    ...member,
+    deptId: targetDeptId,
+    groupId: targetDepartment.groupId || member.groupId || ""
+  };
   const targetList = grouped.get(targetDeptId);
   const targetIndex = targetMemberId ? targetList.findIndex((item) => item.id === targetMemberId) : -1;
   if (targetIndex >= 0) {
@@ -7085,12 +7093,27 @@ async function moveMemberToDepartment(memberId, departmentId, targetMemberId = "
   } else {
     targetList.push(movedMember);
   }
-  state.members = state.departments.flatMap((department) => grouped.get(department.id) || []);
+  const nextMembers = state.departments.flatMap((department) => grouped.get(department.id) || []);
+  const includedIds = new Set(nextMembers.map((item) => item.id));
+  nextMembers.push(...remaining.filter((item) => !includedIds.has(item.id)));
+
+  try {
+    await window.schedulerApi.syncMemberProfile(movedMember, member.code);
+  } catch (error) {
+    const message = formatSchedulerError(error, "人員單位儲存失敗");
+    setSaveStatus(`人員單位儲存失敗：${message}`);
+    showInfoMessage(`人員單位儲存失敗：${message}`);
+    return;
+  }
+
+  state.members = nextMembers;
+  currentMember = resolveCurrentMember();
   renderAll();
   await reopenSettingsModalPreservingScroll(returnTo);
-  queueSave();
+  const orderedIds = nextMembers.filter((item) => !item.deleted).map((item) => item.id);
+  void window.schedulerApi.reorderSettings("member", orderedIds)
+    .catch((error) => setSaveStatus(`人員排序儲存失敗：${error.message}`));
 }
-
 function moveDragPreviewElement(draggedElement, targetElement, clientY) {
   if (!(draggedElement instanceof HTMLElement) || !(targetElement instanceof HTMLElement) || draggedElement === targetElement) {
     return false;

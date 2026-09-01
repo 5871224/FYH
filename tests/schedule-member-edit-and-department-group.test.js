@@ -42,3 +42,18 @@ test("新增單位自動沿用開啟表單時的目前群組", () => {
   assert.match(source, /const payload = \{[^\n]+name, nameVi, groupId, startDate/);
   assert.match(spec, /新增表單不顯示群組欄位；系統自動以開啟時的目前群組作為單位所屬群組/);
 });
+
+
+test("單位設定拖曳人員會正式寫回人員單位", () => {
+  const source = read("src/renderer/renderer-settings-department.js");
+  const start = source.indexOf("async function moveMemberToDepartment");
+  const end = source.indexOf("function moveDragPreviewElement", start);
+  const block = source.slice(start, end);
+
+  assert.ok(start >= 0 && end > start);
+  assert.match(block, /syncMemberProfile\(movedMember, member\.code\)/);
+  assert.match(block, /deptId: targetDeptId/);
+  assert.match(block, /groupId: targetDepartment\.groupId \|\| member\.groupId/);
+  assert.match(block, /reorderSettings\("member", orderedIds\)/);
+  assert.doesNotMatch(block, /queueSave\(\)/);
+});
