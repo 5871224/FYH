@@ -21,7 +21,7 @@ test("簽到簿群組審核 API 由正式 web-api 提供", () => {
   const records = read("src/renderer/renderer-records-page.js");
   const webApi = read("src/renderer/web-api.js");
   const publishedApp = read("docs/app.js");
-  assert.match(records, /hasPermission\("attendance_review"\)/);
+  assert.match(records, /hasAnyGroupPermission\("attendance_review"\)/);
   assert.match(records, /getAttendanceReviewList/);
   assert.match(webApi, /requestFunction\("attendance-review-groups"/);
   assert.match(publishedApp, /attendance-review-groups/);
@@ -62,7 +62,7 @@ test("簽到審核只在讀取清單遇到暫時性閘道錯誤時重試一次",
 test("人員設定先顯示載入畫面，再延遲讀取管理欄位", () => {
   const memberSettings = read("src/renderer/renderer-settings-member.js");
   const block = memberSettings.match(/async function openMemberSettings\(\) \{[\s\S]*?\n\}/)?.[0] || "";
-  assert.match(block, /hasPermission\("member_settings"\)/);
+  assert.match(block, /hasGroupPermission\(groupFeatureState\.currentGroupId, "schedule_manage"\)/);
   assert.match(block, /讀取人員資料中/);
   assert.ok(block.indexOf("openEntityListModal({") < block.indexOf("await ensureManagerDirectoryLoaded()"));
   assert.match(block, /開啟人員設定失敗/);
