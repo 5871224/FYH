@@ -10,7 +10,7 @@
 瀏覽器前端（GitHub Pages）
   ↓ Supabase Auth Token
 Supabase Edge Functions／REST／RPC
-  ↓ 身分、角色、適用群組、伺服器時間、位置與交易驗證
+  ↓ 身分、共用權限、逐群組權限、伺服器時間、位置與交易驗證
 Supabase PostgreSQL
 ```
 
@@ -35,7 +35,7 @@ Supabase PostgreSQL
 - **首頁：** 登入者姓名、角色、簽到簿、班表、依所屬群組開關顯示的訂餐、修改密碼與登出。
 - **簽到簿：**
   - 個人記錄：班表、上下班打卡、上班時數、加班時數、備註與訂餐。
-  - 簽到審核：依角色適用群組篩選、補登／修改、批次審核、批次退回、歷程與正式加班匯出。
+  - 簽到審核：依逐群組 `attendance_review` 篩選、補登／修改、批次審核、批次退回、歷程與正式加班匯出。
   - 今日列直接提供上班及下班打卡。
 - **班表：** 群組切換、八週班表、班別／假別／班表加班、排班工具、群組設定、角色權限與班表封存。
 - **訂餐：** 今日訂餐、訂餐統計與訂餐設定；首頁訂餐入口依人員所屬群組的「可否訂餐」設定顯示。
@@ -78,31 +78,34 @@ FYH/
 
 瀏覽器不直接 CRUD 核心資料表。正式資料流固定為：
 
-`瀏覽器 → 具名 RPC / Edge Function → 權限與適用群組檢查 → 資料表`
+`瀏覽器 → 具名 RPC / Edge Function → 共用權限／逐群組權限檢查 → 資料表`
 
-- 核心班表、人員、單位、班別、假別與設定的讀寫使用具名 `SECURITY DEFINER` RPC。
-- 人員登入帳號的新增、修改、重設密碼與刪除統一由 `member-auth-admin` 處理。
-- 簽到與訂餐使用各自的 Edge Function；Edge Function 以 `access_role_id`、權限項目與適用群組判斷，不以舊 `admin/manager` 文字角色做授權。
-- `anon` / `authenticated` 不具核心資料表直接權限；RLS 保留為第二層防護。
-- RLS、Trigger 與 RPC 必須使用明確的權限項目，例如 `schedule_manage`、`member_settings`、`meal_admin`；不得以 `is_manager`、`is_admin` 或 `legacy_role` 作為實際授權依據。
-- `has_access_permission`、`can_access_group` 等內部權限 helper 不作為瀏覽器公開 RPC，正式執行權只保留給後端／`service_role`；瀏覽器只能呼叫有明確領域用途且自行驗證權限的公開 RPC。
-- 同一資料完整性規則只保留一個正式 Trigger；不得同時保留舊版與新版「最後管理者保護」或重複 `updated_at` Trigger。
+- 人員角色只使用 `set_employee.access_role_id`。
+- 共用權限保存於 `access_roles.common_permissions`：`settings`、`export`、`leave_settings`。
+- 群組權限保存於 `access_role_group_permissions(role_id, group_id, permissions)`：`schedule_view`、`schedule_manage`、`department_settings`、`attendance_review`、`meal_admin`。
+- `schedule_manage` 必須連動 `schedule_view`；其他群組權限互不推導。
+- 群組設定與權限設定使用共用 `settings`；人員設定與帳號管理使用目標群組 `schedule_manage`；單位設定使用 `department_settings`；簽到審核與訂餐管理分別使用 `attendance_review`、`meal_admin`。
+- 正式匯出使用共用 `export`，但資料列仍依後端可存取群組與領域規則限制。
+- 舊 `access_roles.permissions`、`access_role_groups`、`member_settings`、`permission_settings`、`legacy_role` 與 `admin/manager` 文字角色不得作為授權來源。
+- `anon` / `authenticated` 不具核心資料表直接 CRUD 權限；RLS 保留為第二層防護。
+- `access-control` 是前端權限 bundle 與角色權限管理的唯一 Edge Function；舊權限 bundle／角色 CRUD RPC 不與其並存。
 - 已軟刪除人員即使仍持有舊 Session，也不得使用打卡、個人簽到、訂餐或其他受保護功能。
 - 打卡可用單位必須先限制在人員所屬群組，再執行 GPS／IP 比對；不得跨群組使用其他單位的打卡條件。
 - 不使用通用整包 `saveState`、資料表名稱型 REST helper、runtime monkey patch 或舊版相容橋接。
 
 ## Edge Functions
 
-- `member-auth-admin`：人員登入帳號新增、修改、密碼重設與刪除；無需保留歷史時實體刪除，有歷史關聯時保留主檔並標記刪除，並驗證權限角色。
+- `access-control`：登入後權限 bundle、角色共用權限／逐群組權限的新增修改、刪除與排序。
+- `member-auth-admin`：人員登入帳號新增、修改、密碼重設與刪除；以目標群組 `schedule_manage` 驗證管理資格。
 - `attendance-clock`：本人打卡；只允許有效且未刪除帳號，GPS／IP 只比對本人所屬群組的啟用單位。
 - `attendance-ledger`：本人簽到簿資料；已軟刪除帳號不得存取。
-- `attendance-review-groups`：依 `attendance_review` 與適用群組進行簽到審核、編輯與歷程查詢。
-- `attendance-ledger-export`：依 `attendance_review` 與適用群組匯出已審簽到資料。
-- `meal-order`：訂餐與訂餐管理。
-- `meal-report-v2`：訂餐統計報表。
+- `attendance-review-groups`：依逐群組 `attendance_review` 進行簽到審核、編輯、批次操作與歷程查詢。
+- `attendance-ledger-export`：依逐群組 `attendance_review` 匯出已審簽到資料。
+- `meal-order`：本人訂餐與逐群組訂餐管理。
+- `meal-report-v2`：依逐群組 `meal_admin` 產生訂餐統計報表。
 - `meal-cancel-v2`：本人訂餐取消；已軟刪除帳號不得執行。
 
-`supabase/functions/` 是 Edge Function 唯一正式清單。正式上線前，Supabase 遠端已部署函式也必須與此清單一致；不在清單內的歷史端點不得繼續提供舊邏輯，應直接刪除。若部署工具當下無刪除能力，至少先停用舊端點，之後由 Supabase Dashboard 或 CLI 完成實體刪除。
+`supabase/functions/` 是 Edge Function 唯一正式清單，且必須與 `scripts/deploy-edge-functions.ps1` 及正式 CI 的 Deno 檢查清單一致。`_shared/runtime.ts` 修改時，所有依賴它的正式 Edge Function 都要重新部署。正式上線前，Supabase 遠端不得保留仍可執行舊邏輯的歷史端點。
 
 ## 本機執行
 
@@ -147,14 +150,13 @@ npm run ci:check
 
 ## 發布流程
 
-1. 修改正式來源。
-2. 執行 `npm run web:publish`。
-3. 執行 `npm run ci:check`。
-4. 依順序套用 SQL。
-5. 部署正式 Edge Functions，並確認 Supabase 遠端清單沒有仍可執行舊邏輯的歷史端點。
-6. 合併至 `main`。
-7. GitHub Pages 由內建 `pages-build-deployment` 發布 `main/docs`。
-8. 以員工、主管與管理員測試登入、簽到簿、群組班表、封存、訂餐與主要管理入口。
+1. 修改正式來源並執行 `npm run web:publish`、`npm run ci:check`。
+2. 建立以 `main` 為 base 的正式 PR，確認唯一正式 `Validate Web App` workflow 全綠。
+3. PR CI 全綠後依正式程序套用 SQL。
+4. 部署 `scripts/deploy-edge-functions.ps1` 列出的正式 Edge Functions；`_shared` 有修改時重部署所有依賴函式。
+5. 以 Squash merge 合併至 `main`。
+6. 確認 `main` 的 `Validate Web App` 與內建 `pages-build-deployment` 都成功。
+7. 以員工、主管、管理員與自訂角色測試登入、簽到簿、群組班表、封存、訂餐與主要管理入口。
 
 `.github/workflows/deploy-pages.yml` 是唯一正式 GitHub Actions 驗證流程；不得新增重複監聽或自動改寫程式碼的 workflow。
 
@@ -164,7 +166,7 @@ npm run ci:check
 - 個人簽到簿不預載簽到審核；只有切換到「簽到審核」時才第一次讀取。
 - 簽到審核的單筆／批次審核與退回採集合式權限驗證、批次更新及批次稽核寫入；成功後前端局部更新目前清單，不為每次操作重新讀取完整簽到簿。
 - ExcelJS 屬大型非核心相依套件，只在 XLSX 匯入／匯出實際發生時動態載入。
-- 班表高頻 RPC 先一次解析目前使用者的角色與適用群組，再以集合式 JOIN 篩選；禁止在每一列班表上重複呼叫 can_access_group/has_access_permission。
+- 班表高頻 RPC 先一次解析目前使用者的 `access_role_id` 與逐群組權限，再以集合式 JOIN／EXISTS 篩選；禁止在每一列班表上重複查角色或權限。
 - 核心資料表維持 anon/authenticated 無直接 GRANT；因此不建立 authenticated 直接 INSERT/UPDATE/DELETE RLS policy。RLS 只作唯讀防線，正式寫入一律走具名 RPC／Edge Function。
 - 資料庫 DDL 或權限調整後，需重新檢查 Supabase Performance Advisor；auth RLS init-plan 與 multiple permissive policy 警告不可無理由新增。
 
@@ -173,6 +175,6 @@ npm run ci:check
 - 正式狀態只保存目前功能真正需要的欄位；群組／角色／刪除狀態由 canonical API 直接提供，不再透過第二份 entity map 補值。
 - 前端排班人員主鍵一律為 UUID；不得以工號或臨時字串 ID 猜測／二次查詢主鍵。
 - 已刪除的歷史班別、假別、加班由後端明確回傳歷史項目；不存在的 ID 不得自動替換成第一個可用項目。
-- Edge Functions 的台北日期、帳號有效期間、UUID 與權限 helper 統一放在 `supabase/functions/_shared/`。
+- Edge Functions 的台北日期、帳號有效期間、UUID 與共用／群組權限 helper 統一放在 `supabase/functions/_shared/`。
 - XLSX 建立與格式由 `browser-exporter.js` 負責；`web-api.js` 僅處理 transport、RPC／Edge 呼叫與下載協調。
 - SQL 正式來源不保留文字角色相容欄位、動態文字改寫 policy、重複 policy 定義或瀏覽器直接寫入 policy。
