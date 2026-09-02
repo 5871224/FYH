@@ -179,7 +179,7 @@ async function countEffectivePrivilegedAccounts(ctx: any) {
     .select("id,common_permissions");
   if (roleError) throw roleError;
   const privilegedRoleIds = (roles || [])
-    .filter((role: any) => Array.isArray(role.permissions) && role.common_permissions.includes(SETTINGS_PERMISSION))
+    .filter((role: any) => Array.isArray(role.common_permissions) && role.common_permissions.includes(SETTINGS_PERMISSION))
     .map((role: any) => role.id);
   if (!privilegedRoleIds.length) return 0;
   const { data, error } = await ctx.supabaseAdmin
