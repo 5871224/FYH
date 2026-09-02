@@ -1,0 +1,163 @@
+name: Temporary Fix Access Migration
+
+on:
+  push:
+    branches:
+      - feat/access-control-v2-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Repair canonical access migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('supabase/002_current_updates.sql')
+          sql = path.read_text(encoding='utf-8')
+
+          old = '''-- 一次性資料轉換：把舊角色權限轉成新版矩陣，轉換完成後立即刪除舊欄位與舊關聯表。
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='access_roles' and column_name='permissions'
+  ) then
+    execute $migrate$
+      update public.access_roles
+      set common_permissions = array_remove(array[
+        case when permissions && array['permission_settings','group_settings']::text[] then 'settings' end,
+        case when 'schedule_manage'=any(permissions) then 'export' end,
+        case when 'leave_settings'=any(permissions) then 'leave_settings' end
+      ], null)
+    $migrate$;
+  end if;
+
+  if to_regclass('public.access_role_groups') is not null then
+    execute $migrate$
+      insert into public.access_role_group_permissions(role_id,group_id,permissions)
+      select legacy.role_id, legacy.group_id,
+        array_remove(array[
+          case when public.role_has_any_group_permission(role.id,'schedule_view') or public.role_has_any_group_permission(role.id,'schedule_manage') or public.role_has_any_group_permission(role.id,'schedule_manage') then 'schedule_view' end,
+          case when public.role_has_any_group_permission(role.id,'schedule_manage') or public.role_has_any_group_permission(role.id,'schedule_manage') then 'schedule_manage' end,
+          case when public.role_has_any_group_permission(role.id,'department_settings') then 'department_settings' end,
+          case when public.role_has_any_group_permission(role.id,'attendance_review') then 'attendance_review' end,
+          case when public.role_has_any_group_permission(role.id,'meal_admin') then 'meal_admin' end
+        ], null)
+      from public.access_role_groups legacy
+      join public.access_roles role on role.id=legacy.role_id
+      on conflict(role_id,group_id) do update
+      set permissions=excluded.permissions,updated_at=now()
+    $migrate$;
+  end if;
+end $$;
+
+alter table public.access_roles drop column if exists permissions;
+drop table if exists public.access_role_groups;
+'''
+
+          new = '''-- 一次性資料轉換：舊模型仍保留到本檔最後，確保歷史增量中的既有 RPC／RLS 可安全重建。
+-- 轉換只讀 legacy 欄位／關聯表，不依賴稍後才建立的新 helper。
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='access_roles' and column_name='permissions'
+  ) then
+    execute $migrate$
+      update public.access_roles
+      set common_permissions = array_remove(array[
+        case when permissions && array['permission_settings','group_settings']::text[] then 'settings' end,
+        case when 'schedule_manage'=any(permissions) then 'export' end,
+        case when 'leave_settings'=any(permissions) then 'leave_settings' end
+      ], null)
+    $migrate$;
+  end if;
+
+  if to_regclass('public.access_role_groups') is not null and exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='access_roles' and column_name='permissions'
+  ) then
+    execute $migrate$
+      insert into public.access_role_group_permissions(role_id,group_id,permissions)
+      select legacy.role_id, legacy.group_id,
+        array_remove(array[
+          case when role.permissions && array['schedule_view','schedule_manage','member_settings']::text[] then 'schedule_view' end,
+          case when role.permissions && array['schedule_manage','member_settings']::text[] then 'schedule_manage' end,
+          case when 'department_settings'=any(coalesce(role.permissions,'{}'::text[])) then 'department_settings' end,
+          case when 'attendance_review'=any(coalesce(role.permissions,'{}'::text[])) then 'attendance_review' end,
+          case when 'meal_admin'=any(coalesce(role.permissions,'{}'::text[])) then 'meal_admin' end
+        ], null)
+      from public.access_role_groups legacy
+      join public.access_roles role on role.id=legacy.role_id
+      on conflict(role_id,group_id) do update
+      set permissions=excluded.permissions,updated_at=now()
+    $migrate$;
+  end if;
+end $$;
+'''
+
+          if old not in sql:
+              raise SystemExit('expected legacy migration block not found')
+          sql = sql.replace(old, new, 1)
+
+          old_export = "language plpgsql stable security definer set search_path=public,pg_catalog as $\nbegin\n if not public.has_common_permission(auth.uid(),'export')"
+          new_export = "language plpgsql stable security definer set search_path=public,pg_catalog as $$\nbegin\n if not public.has_common_permission(auth.uid(),'export')"
+          if old_export not in sql:
+              raise SystemExit('malformed export function delimiter not found')
+          sql = sql.replace(old_export, new_export, 1)
+
+          old_export_end = " order by schedule.work_date,employee.sort_order,employee.full_name,employee.id;\nend $;\n\nrevoke all on function public.reorder_settings_v3"
+          new_export_end = " order by schedule.work_date,employee.sort_order,employee.full_name,employee.id;\nend $$;\n\nrevoke all on function public.reorder_settings_v3"
+          if old_export_end not in sql:
+              raise SystemExit('malformed export function end delimiter not found')
+          sql = sql.replace(old_export_end, new_export_end, 1)
+
+          cleanup = '''
+
+-- ============================================================================================
+-- 2026-09-02 共用／逐群組權限 canonical cleanup
+-- 所有正式 RPC、RLS、Trigger 已在上方切換至新模型後，最後才移除 legacy 授權入口與資料結構。
+-- ============================================================================================
+begin;
+
+revoke all on function public.get_group_access_bundle_v1() from public,anon,authenticated;
+revoke all on function public.save_access_role_v1(jsonb) from public,anon,authenticated;
+revoke all on function public.delete_access_role_v1(uuid) from public,anon,authenticated;
+
+drop function if exists public.get_group_access_bundle_v1();
+drop function if exists public.save_access_role_v1(jsonb);
+drop function if exists public.delete_access_role_v1(uuid);
+drop function if exists public.can_access_group(uuid,uuid,text);
+drop function if exists public.role_applies_to_group(uuid,uuid);
+drop function if exists public.has_access_permission(uuid,text);
+
+drop table if exists public.access_role_groups;
+alter table public.access_roles drop column if exists permissions;
+
+commit;
+'''
+          marker = '-- 2026-09-02 共用／逐群組權限 canonical cleanup'
+          if marker not in sql:
+              sql = sql.rstrip() + cleanup
+
+          path.write_text(sql, encoding='utf-8', newline='\n')
+          PY
+
+          rm .github/workflows/temp-fix-access-migration.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add supabase/002_current_updates.sql .github/workflows/temp-fix-access-migration.yml
+          git diff --cached --check
+          git commit -m "修正正式權限資料庫升級順序"
+          git push
