@@ -290,11 +290,11 @@ function ensureFunctionMenuButtons() {
       button.textContent = label;
       menu.prepend(button);
     }
-    const visible = action === "group-settings" || action === "permission-settings"
+    const visible = action === "group-settings" || action === "permission-settings" || action === "schedule-archive"
       ? hasCommonPermission("settings")
       : action === "schedule-conditions"
         ? canEditSchedule()
-        : hasGroupPermission(groupFeatureState.currentGroupId, "schedule_view");
+        : false;
     button.style.display = visible ? "" : "none";
     button.disabled = !visible;
   });
@@ -311,11 +311,12 @@ function syncPermissionUi() {
     deptSettingsButton: hasGroupPermission(groupId, "department_settings"),
     leaveSettingsButton: hasCommonPermission("leave_settings"),
     overtimeSettingsButton: false,
-    weekStartSettingsButton: hasGroupPermission(groupId, "schedule_manage"),
+    weekStartSettingsButton: hasCommonPermission("settings"),
     autoSchedulePreviewButton: hasGroupPermission(groupId, "schedule_manage"),
     autoFillSchedulePreviewButton: hasGroupPermission(groupId, "schedule_manage"),
     autoScheduleApplyButton: hasGroupPermission(groupId, "schedule_manage"),
     autoScheduleCancelButton: hasGroupPermission(groupId, "schedule_manage"),
+    exportScheduleButton: hasCommonPermission("export"),
     exportSapButton: hasCommonPermission("export"),
     exportLeaveButton: hasCommonPermission("export"),
     exportOvertimeButton: hasCommonPermission("export")
@@ -523,7 +524,7 @@ async function deleteAccessRole(roleId) {
 async function loadArchiveList(groupId = null) { return await window.schedulerApi.getScheduleArchives(groupId); }
 
 async function openScheduleArchive() {
-  if (!hasGroupPermission(groupFeatureState.currentGroupId, "schedule_view")) return;
+  if (!hasCommonPermission("settings") || !hasGroupPermission(groupFeatureState.currentGroupId, "schedule_view")) return;
   const archives = await loadArchiveList(null);
   const currentGroup = getCurrentGroup();
   const visibleDates = typeof getVisibleDates === "function" ? getVisibleDates() : [];

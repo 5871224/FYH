@@ -31,6 +31,10 @@ function bindStaticToolbarEvents() {
   bindClick("nextPeriodButton", async () => changeSchedulePeriodWeeks(8));
   bindClick("tablePrevWeekButton", () => scrollScheduleByWeeks(-1));
   bindClick("tableNextWeekButton", () => scrollScheduleByWeeks(1));
+  bindClick("exportScheduleButton", () => {
+    closeCoreActionsMenu();
+    openExportPeriodDialog("workday");
+  });
   bindClick("exportSapButton", () => {
     closeCoreActionsMenu();
     openExportPeriodDialog("sap");

@@ -186,8 +186,7 @@ function syncRoleUi() {
     "shiftSettingsButton",
     "restComplianceButton",
     "leaveSettingsButton",
-    "overtimeSettingsButton",
-    "weekStartSettingsButton"
+    "overtimeSettingsButton"
   ];
   managerOnlyIds.forEach((id) => {
     const element = document.getElementById(id);

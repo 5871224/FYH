@@ -232,7 +232,7 @@
                 <div class="core-actions-submenu" role="menu" aria-label="設定">
                   <button class="ghost-btn ops-btn group-feature-action" id="permissionSettingsMenuButton" type="button" data-group-feature-action="permission-settings">權限設定</button>
                   <button class="ghost-btn ops-btn group-feature-action" id="groupSettingsMenuButton" type="button" data-group-feature-action="group-settings">群組設定</button>
-                  <button class="ghost-btn ops-btn manager-action" id="weekStartSettingsButton" type="button">週期設定</button>
+                  <button class="ghost-btn ops-btn" id="weekStartSettingsButton" type="button">週期設定</button>
                   <button class="ghost-btn ops-btn group-feature-action" id="scheduleArchiveMenuButton" type="button" data-group-feature-action="schedule-archive">班表封存</button>
                 </div>
               </div>
@@ -249,10 +249,10 @@
               <div class="core-actions-menu-category" role="none">
                 <div class="core-actions-menu-trigger" tabindex="0" role="menuitem" aria-haspopup="menu"><span>匯出</span><span class="core-actions-menu-arrow" aria-hidden="true">‹</span></div>
                 <div class="core-actions-submenu" role="menu" aria-label="匯出">
-                  <button class="ghost-btn ops-btn manager-action" id="exportScheduleButton" type="button">匯出上班日</button>
-                  <button class="ghost-btn ops-btn manager-action" id="exportSapButton" type="button">匯出休例假</button>
-                  <button class="ghost-btn ops-btn manager-action" id="exportLeaveButton" type="button">匯出請假</button>
-                  <button class="ghost-btn ops-btn manager-action" id="exportOvertimeButton" type="button" hidden>匯出加班</button>
+                  <button class="ghost-btn ops-btn" id="exportScheduleButton" type="button">匯出上班日</button>
+                  <button class="ghost-btn ops-btn" id="exportSapButton" type="button">匯出休例假</button>
+                  <button class="ghost-btn ops-btn" id="exportLeaveButton" type="button">匯出請假</button>
+                  <button class="ghost-btn ops-btn" id="exportOvertimeButton" type="button">匯出加班</button>
                 </div>
               </div>
             </div>
@@ -397,7 +397,7 @@
       });
     })();
   </script>
-  <script src="./app.js?v=9600d807b341"></script>
+  <script src="./app.js?v=66197016020f"></script>
   <script>
     (() => {
       const exporter = window.schedulerBrowserExporter;
