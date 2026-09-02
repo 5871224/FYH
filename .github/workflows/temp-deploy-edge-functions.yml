@@ -1,0 +1,40 @@
+name: Temporary Edge Functions Deploy
+
+on:
+  push:
+    branches:
+      - feat/access-control-v2-20260901
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Deploy Edge Functions
+        shell: bash
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_ACCESS_TOKEN"
+          functions=(
+            access-control
+            member-auth-admin
+            attendance-clock
+            attendance-ledger
+            attendance-ledger-export
+            attendance-review-groups
+            meal-order
+            meal-report-v2
+            meal-cancel-v2
+          )
+          for fn in "${functions[@]}"; do
+            echo "Deploying ${fn}"
+            npx --yes supabase@latest functions deploy "$fn" --project-ref crxxkazdgsaqwqrppbhy --use-api
+          done
