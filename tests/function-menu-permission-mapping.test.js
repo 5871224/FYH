@@ -33,3 +33,11 @@ test("匯出上班日正式綁定期間匯出並限制目前群組", () => {
   assert.ok(exportsSource.includes('filterExportRowsToCurrentGroup(await window.schedulerApi.loadScheduleExportRows(startDate, endDate))'));
   assert.ok(exportsSource.includes("const members = getCurrentGroupExportMembers();"));
 });
+
+
+test("功能選單父分類只在至少一個子功能可見時顯示", () => {
+  assert.ok(groups.includes("function syncFunctionMenuCategoryVisibility()"));
+  assert.ok(groups.includes('category.querySelectorAll(":scope > .core-actions-submenu > button")'));
+  assert.ok(groups.includes('button.style.display !== "none"'));
+  assert.ok(groups.includes("syncFunctionMenuCategoryVisibility();"));
+});

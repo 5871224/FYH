@@ -300,6 +300,16 @@ function ensureFunctionMenuButtons() {
   });
 }
 
+function syncFunctionMenuCategoryVisibility() {
+  document.querySelectorAll("#coreActionsMenu .core-actions-menu-category").forEach((category) => {
+    const submenuButtons = Array.from(category.querySelectorAll(":scope > .core-actions-submenu > button"));
+    const visible = submenuButtons.some((button) => !button.hidden && button.style.display !== "none");
+    category.style.display = visible ? "" : "none";
+    const trigger = category.querySelector(":scope > .core-actions-menu-trigger");
+    if (trigger) trigger.tabIndex = visible ? 0 : -1;
+  });
+}
+
 function syncPermissionUi() {
   ensureGroupSelector();
   ensureFunctionMenuButtons();
@@ -327,6 +337,7 @@ function syncPermissionUi() {
     element.style.display = visible ? "" : "none";
     element.disabled = !visible;
   });
+  syncFunctionMenuCategoryVisibility();
   document.querySelectorAll("[data-open-department-settings]").forEach((element) => { element.style.display = hasGroupPermission(groupId, "department_settings") ? "" : "none"; });
   document.querySelectorAll("[data-open-member-settings]").forEach((element) => { element.style.display = hasGroupPermission(groupId, "schedule_manage") ? "" : "none"; });
   const mealButton = document.querySelector('[data-home-action="meal"]');
