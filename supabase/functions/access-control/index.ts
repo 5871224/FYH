@@ -173,14 +173,11 @@ async function saveRole(ctx: any, actor: any, body: any) {
   }).select("id,code,name,name_vi,common_permissions,is_system,sort_order").single();
   if (upsertResult.error) throw upsertResult.error;
 
-  const deleteResult = await ctx.supabaseAdmin.from("access_role_group_permissions").delete().eq("role_id", id);
-  if (deleteResult.error) throw deleteResult.error;
-  if (groupPermissions.length) {
-    const insertResult = await ctx.supabaseAdmin.from("access_role_group_permissions").insert(
-      groupPermissions.map((row) => ({ role_id: id, group_id: row.groupId, permissions: row.permissions }))
-    );
-    if (insertResult.error) throw insertResult.error;
-  }
+  const replaceResult = await ctx.supabaseAdmin.rpc("replace_access_role_group_permissions_v1", {
+    p_role_id: id,
+    p_rows: groupPermissions
+  });
+  if (replaceResult.error) throw replaceResult.error;
   const rows = await getGroupPermissionRows(ctx, [id]);
   return { ok: true, role: roleDto(upsertResult.data, rows) };
 }

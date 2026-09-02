@@ -8543,7 +8543,14 @@ function bindGroupFeatureEvents() {
     if (button.dataset.deleteScheduleGroup) { void deleteScheduleGroup(button.dataset.deleteScheduleGroup).catch((error) => showInfoMessage(error.message)); return; }
     if (button.dataset.addAccessRole !== undefined) { openAccessRoleForm(); return; }
     if (button.dataset.editAccessRole) { openAccessRoleForm(button.dataset.editAccessRole); return; }
-    if (button.dataset.saveAccessRole !== undefined) { void saveAccessRoleFromForm().catch((error) => reportValidationError(error.message)); return; }
+    if (button.dataset.saveAccessRole !== undefined) {
+    if (button.disabled) return;
+    button.disabled = true;
+    void saveAccessRoleFromForm()
+      .catch((error) => reportValidationError(error.message))
+      .finally(() => { if (button.isConnected) button.disabled = false; });
+    return;
+  }
     if (button.dataset.deleteAccessRole) { void deleteAccessRole(button.dataset.deleteAccessRole).catch((error) => showInfoMessage(error.message)); return; }
     if (button.dataset.createScheduleArchive !== undefined) { void createScheduleArchive().catch((error) => reportValidationError(error.message)); return; }
     if (button.dataset.viewScheduleArchive) { void viewScheduleArchive(button.dataset.viewScheduleArchive).catch((error) => showInfoMessage(error.message)); return; }
