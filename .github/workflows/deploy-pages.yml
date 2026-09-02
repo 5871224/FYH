@@ -70,8 +70,7 @@ jobs:
             fi
           done
 
-          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT
-"
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
 
       - name: Setup Deno
         if: steps.changes.outputs.docs_only != 'true'
