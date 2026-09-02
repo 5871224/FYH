@@ -51,3 +51,12 @@ new = '    requireCurrentGroupUiPermission: () => true,\n'
 if old not in text:
     raise SystemExit('auto fill old permission stub not found')
 write(path, text.replace(old, new, 1))
+
+# Expansion acceptance must validate the exact schedule-toolbar capability rather
+# than the removed generic management capability.
+replace_once(
+    'scripts/check-expansion-acceptance.js',
+    'assert(renderer.includes("const showToolbar = showSchedule && hasManagementAccess()"), "schedule floating toolbar should respect derived management capability");',
+    'assert(renderer.includes("const showToolbar = showSchedule && canUseScheduleToolbar()"), "schedule floating toolbar should respect its exact schedule/leave capability");\nassert(!renderer.includes("hasManagementAccess") && !renderer.includes("promptManagerAccess"), "UI must not restore generic management capability guards");',
+    'expansion acceptance exact toolbar capability'
+)
