@@ -134,15 +134,6 @@ jobs:
             exit "$test_status"
           fi
 
-      - name: Upload unit test log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-test-log
-          path: /tmp/npm-test.log
-          if-no-files-found: ignore
-          retention-days: 1
-
       - name: Check Edge TypeScript
         if: steps.changes.outputs.docs_only != 'true'
         run: |
