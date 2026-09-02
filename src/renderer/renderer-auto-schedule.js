@@ -95,7 +95,7 @@ function getMissingAutoScheduleLeaveLabels() {
 }
 
 async function previewAutoSchedule() {
-  if (!promptManagerAccess("自動排班需先登入主管帳號")) {
+  if (!requireCurrentGroupUiPermission("schedule_manage", "自動排班")) {
     return;
   }
   const { startDate, endDate } = getVisibleDateRange();
@@ -155,7 +155,7 @@ async function applyAutoSchedulePreview() {
     await applyAutoFillSchedulePreview();
     return;
   }
-  if (!promptManagerAccess("套用自動排班需先登入主管帳號")) {
+  if (!requireCurrentGroupUiPermission("schedule_manage", "套用自動排班")) {
     return;
   }
   if (!autoSchedulePreview) {

@@ -82,7 +82,7 @@ function buildRestComplianceCalendars(weeks) {
 }
 
 function openWeekStartSettingModal() {
-  if (!promptManagerAccess("設定週期規則前請先登入主管帳號")) {
+  if (!requireCommonUiPermission("settings", "週期設定")) {
     return;
   }
   openEntityListModal({
@@ -133,7 +133,7 @@ async function saveWeekStartSettingFromModal() {
 }
 
 function openRestComplianceModal() {
-  if (!promptManagerAccess("執行例休檢查前請先登入主管帳號")) {
+  if (!requireCurrentGroupUiPermission("schedule_manage", "例休檢查")) {
     return;
   }
   const checker = window.restCompliance;

@@ -46,10 +46,10 @@ function renderStickyHeaderTitleCells() {
   if (!deptCell || !personCell) {
     return;
   }
-  const renderCell = (label, dataAttr = "") => `
+  const renderCell = (label, allowed = false, dataAttr = "") => `
     <div class="table-sticky-cell-title">
       <span class="table-sticky-cell-label">${label}</span>
-      ${hasManagementAccess() && dataAttr ? renderActionIconButton("edit", `${dataAttr}=\"true\"`, "table-header-settings-btn") : ""}
+      ${allowed && dataAttr ? renderActionIconButton("edit", `${dataAttr}=\"true\"`, "table-header-settings-btn") : ""}
     </div>
   `;
   if (state.tableView === "shift") {
@@ -61,8 +61,8 @@ function renderStickyHeaderTitleCells() {
     }
     return;
   }
-  deptCell.innerHTML = renderCell("單位", "data-open-department-settings");
-  personCell.innerHTML = renderCell("人員", "data-open-member-settings");
+  deptCell.innerHTML = renderCell("單位", canManageDepartmentsInCurrentGroup(), "data-open-department-settings");
+  personCell.innerHTML = renderCell("人員", canManageMembersInCurrentGroup(), "data-open-member-settings");
   if (statsCell) {
     statsCell.innerHTML = renderCell("統計");
     statsCell.hidden = !state.tableStatsVisible;
@@ -233,7 +233,8 @@ function syncScheduleColumnWidths() {
   const deptStyle = getComputedStyle(deptSample);
   const personStyle = getComputedStyle(personSample);
   const headerStyle = getComputedStyle(document.querySelector(".table-sticky-cell") || deptSample);
-  const managerButtonAllowance = hasManagementAccess() && state.tableView !== "shift" ? 28 : 0;
+  const departmentButtonAllowance = canManageDepartmentsInCurrentGroup() && state.tableView !== "shift" ? 28 : 0;
+  const memberButtonAllowance = canManageMembersInCurrentGroup() && state.tableView !== "shift" ? 28 : 0;
   let deptWidth = 72;
   let personWidth = 92;
   const statsWidth = state.tableView === "member" && state.tableStatsVisible ? 86 : 0;
@@ -254,8 +255,8 @@ function syncScheduleColumnWidths() {
     ));
     const deptContentWidth = visibleDepartments.reduce((max, text) => Math.max(max, measureTextWidth(text, deptStyle)), 0);
     const personContentWidth = visibleMembers.reduce((max, text) => Math.max(max, measureTextWidth(text, personStyle)), 0);
-    const deptHeaderWidth = measureTextWidth("單位", headerStyle) + managerButtonAllowance;
-    const personHeaderWidth = measureTextWidth("人員", headerStyle) + managerButtonAllowance;
+    const deptHeaderWidth = measureTextWidth("單位", headerStyle) + departmentButtonAllowance;
+    const personHeaderWidth = measureTextWidth("人員", headerStyle) + memberButtonAllowance;
     deptWidth = clamp(Math.ceil(Math.max(deptContentWidth, deptHeaderWidth) + 18), 52, 88);
     personWidth = Math.max(Math.ceil(Math.max(personContentWidth, personHeaderWidth) + 18), 64);
   }

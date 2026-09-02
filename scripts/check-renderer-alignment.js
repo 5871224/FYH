@@ -25,7 +25,9 @@ assert(renderer.includes("function renderRecordsPage"), "Records page renderer i
 assert(renderer.includes("function loadRecordsPage"), "Records loader is missing");
 assert(renderer.includes("function loadAttendanceReview"), "Attendance review loader is missing");
 assert(renderer.includes("function canManagePermissions()"), "Permission-management capability helper is missing");
-assert(renderer.includes("function hasManagementAccess()"), "Management capability helper is missing");
+assert(renderer.includes("function canUseScheduleToolbar()"), "Schedule-toolbar capability helper is missing");
+assert(renderer.includes("function hasFunctionMenuAccess()"), "Function-menu capability helper is missing");
+assert(!renderer.includes("hasManagementAccess") && !renderer.includes("promptManagerAccess"), "Generic management capability guards must stay removed");
 assert(renderer.includes('hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage")'), "Schedule management must derive from current-group permission");
 assert(renderer.includes('hasAnyGroupPermission("attendance_review")'), "Attendance review UI must derive from group permissions");
 assert(renderer.includes('function canManageMembersInCurrentGroup()') && renderer.includes('hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage")'), "Member settings UI must derive from schedule_manage on the current group");

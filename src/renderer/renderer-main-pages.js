@@ -9,6 +9,8 @@ function renderHomeDashboard() {
     homeCard.innerHTML = "";
     return;
   }
+  const actorGroup = getActorGroup();
+  const showMeal = actorGroup?.mealEnabled && actorGroup?.status === "active";
   homeCard.innerHTML = `
     <div class="clock-page-header">
       <div>
@@ -24,9 +26,9 @@ function renderHomeDashboard() {
       <button class="home-action-card" type="button" data-home-action="schedule">
         <span class="home-action-title">班表</span>
       </button>
-      <button class="home-action-card" type="button" data-home-action="meal">
+      ${showMeal ? `<button class="home-action-card" type="button" data-home-action="meal">
         <span class="home-action-title">訂餐</span>
-      </button>
+      </button>` : ""}
       <button class="home-action-card" type="button" data-home-action="records">
         <span class="home-action-title">簽到簿</span>
       </button>

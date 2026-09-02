@@ -9,7 +9,7 @@ let toolbarRapidEditOpenedAt = 0;
 function openToolbarChipEditor(type, id) {
   if (!id || (type !== "shift" && type !== "leave")) return false;
   if (!canEditSchedule()) {
-    promptManagerAccess(`修改${type === "shift" ? "班別" : "假別"}需先登入主管帳號`);
+    requireCurrentGroupUiPermission("schedule_manage", `修改${type === "shift" ? "班別" : "假別"}`);
     return true;
   }
   toolbarRapidEditOpenedAt = Date.now();
@@ -40,6 +40,57 @@ async function openScheduleMemberEditor(memberId) {
   }
   await ensureManagerDirectoryLoaded();
   openMemberForm("edit", memberId);
+}
+
+function getUiActionPermissionRequirement(target) {
+  const departmentAction = target.dataset.openDepartmentSettings
+    || target.dataset.openAddDepartment
+    || target.dataset.editDepartment
+    || target.dataset.saveDepartment
+    || target.dataset.deleteDepartment
+    || target.dataset.exportDepartments
+    || target.dataset.importDepartments;
+  if (departmentAction) return { scope: "group", permission: "department_settings", label: "單位設定" };
+
+  const memberAction = target.dataset.openMemberSettings
+    || target.dataset.openAddMember
+    || target.dataset.toggleScheduleShifts
+    || target.dataset.editMember
+    || target.dataset.saveMember
+    || target.dataset.deleteMember
+    || target.dataset.resetMemberPassword
+    || target.dataset.exportMembers
+    || target.dataset.importMembers;
+  if (memberAction) return { scope: "group", permission: "schedule_manage", label: "人員管理" };
+
+  if (target.dataset.editLeaveAssignment || target.dataset.editOvertimeAssignment
+      || target.dataset.saveLeaveAssignment || target.dataset.saveOvertimeAssignment
+      || target.dataset.generateAutoSchedule) {
+    return { scope: "group", permission: "schedule_manage", label: "班表管理" };
+  }
+
+  if (target.dataset.saveWeekStart) return { scope: "common", permission: "settings", label: "週期設定" };
+
+  const catalogCategory = target.dataset.deleteCategory
+    || target.dataset.openAdd
+    || target.dataset.editItem
+    || target.dataset.exportSettings
+    || target.dataset.importSettings
+    || (target.dataset.saveNamedItem ? target.dataset.saveNamedItem.split(":")[0] : "")
+    || (target.dataset.saveShift ? "shift" : "");
+  if (catalogCategory === "shift") return { scope: "group", permission: "schedule_manage", label: "班別設定" };
+  if (catalogCategory === "leave" || catalogCategory === "overtime") {
+    return { scope: "common", permission: "leave_settings", label: "假別設定" };
+  }
+  return null;
+}
+
+function allowUiActionByPermission(target) {
+  const requirement = getUiActionPermissionRequirement(target);
+  if (!requirement) return true;
+  return requirement.scope === "common"
+    ? requireCommonUiPermission(requirement.permission, requirement.label)
+    : requireCurrentGroupUiPermission(requirement.permission, requirement.label);
 }
 
 function bindDelegatedClickEvents() {
@@ -221,41 +272,7 @@ function bindDelegatedClickEvents() {
       await applySelectionToCell(memberId, dateString);
       return;
     }
-    const managerOnlyAction = Boolean(
-      target.dataset.openDepartmentSettings ||
-      target.dataset.openMemberSettings ||
-      target.dataset.deleteCategory ||
-      target.dataset.editLeaveAssignment ||
-      target.dataset.openAdd ||
-      target.dataset.editItem ||
-      target.dataset.saveShift ||
-      target.dataset.saveNamedItem ||
-      target.id === "autoSchedulePreviewButton" ||
-      target.id === "autoScheduleApplyButton" ||
-      target.id === "autoScheduleCancelButton" ||
-      target.dataset.generateAutoSchedule ||
-      target.dataset.saveOvertimeAssignment ||
-      target.dataset.openAddDepartment ||
-      target.dataset.toggleScheduleShifts ||
-      target.dataset.editDepartment ||
-      target.dataset.saveDepartment ||
-      target.dataset.deleteDepartment ||
-      target.dataset.openAddMember ||
-      target.dataset.exportMembers ||
-      target.dataset.importMembers ||
-      target.dataset.exportSettings ||
-      target.dataset.importSettings ||
-      target.dataset.exportDepartments ||
-      target.dataset.importDepartments ||
-      target.dataset.editMember ||
-      target.dataset.saveMember ||
-      target.dataset.deleteMember ||
-      target.dataset.resetMemberPassword
-    );
-    if (managerOnlyAction && !hasManagementAccess()) {
-      promptManagerAccess("此功能需先登入主管帳號");
-      return;
-    }
+    if (!allowUiActionByPermission(target)) return;
     if (target.dataset.openDepartmentSettings) {
       await openDepartmentSettings();
       return;

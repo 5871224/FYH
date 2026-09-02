@@ -39,17 +39,36 @@ function canManagePermissions() {
   return hasCommonPermission("settings");
 }
 
-function hasManagementAccess() {
-  const commonPermissions = getCommonPermissions();
-  if (commonPermissions.some((permission) => ["settings", "export", "leave_settings"].includes(permission))) return true;
-  const groupMap = getAccessActor().groupPermissions;
-  return Boolean(groupMap && typeof groupMap === "object" && Object.values(groupMap).some((permissions) =>
-    Array.isArray(permissions) && permissions.some((permission) => permission === "schedule_manage" || permission === "department_settings")
-  ));
-}
-
 function canEditSchedule() {
   return hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage");
+}
+
+function canUseScheduleToolbar() {
+  return canEditSchedule() || hasCommonPermission("leave_settings");
+}
+
+function requireCommonUiPermission(permission, label = "此功能") {
+  if (!isLoggedIn()) {
+    openSignInDialog(`${label}前請先登入`);
+    return false;
+  }
+  if (!hasCommonPermission(permission)) {
+    showInfoMessage(`沒有${label}權限`);
+    return false;
+  }
+  return true;
+}
+
+function requireCurrentGroupUiPermission(permission, label = "此功能") {
+  if (!isLoggedIn()) {
+    openSignInDialog(`${label}前請先登入`);
+    return false;
+  }
+  if (!hasGroupPermission(groupFeatureState.currentGroupId, permission)) {
+    showInfoMessage(`沒有${label}權限`);
+    return false;
+  }
+  return true;
 }
 
 function canManageMembersInCurrentGroup() {
@@ -110,18 +129,6 @@ function closeSignInDialog() {
   renderAuthGate();
 }
 
-function promptManagerAccess(message) {
-  if (!isLoggedIn()) {
-    openSignInDialog(message || "此功能需先登入主管帳號");
-    return false;
-  }
-  if (!hasManagementAccess()) {
-    showInfoMessage("此功能限主管使用");
-    return false;
-  }
-  return true;
-}
-
 function shouldDefaultCollapseToolbar() {
   return window.innerWidth <= 960;
 }
@@ -164,39 +171,12 @@ function toggleToolbarCollapse() {
 
 function syncRoleUi() {
   const toolbarCard = document.querySelector(".toolbar-floating-card");
-  initializeToolbarCollapse();
   const toolbarGrid = document.getElementById("toolbarGrid");
-  if (toolbarGrid) {
-    toolbarGrid.style.display = hasManagementAccess() ? "grid" : "none";
-  }
-  if (toolbarCard) {
-    toolbarCard.classList.toggle("toolbar-floating-card-compact", !hasManagementAccess());
-  }
+  const toolbarEnabled = canUseScheduleToolbar();
+  initializeToolbarCollapse();
+  if (toolbarGrid) toolbarGrid.hidden = !toolbarEnabled;
+  if (toolbarCard) toolbarCard.classList.toggle("toolbar-floating-card-compact", !toolbarEnabled);
   syncToolbarCollapseUi();
-  const coreActionsShell = document.getElementById("coreActionsShell");
-  if (coreActionsShell) {
-    coreActionsShell.style.display = hasManagementAccess() ? "" : "none";
-  }
-  document.querySelectorAll(".manager-action").forEach((element) => {
-    element.style.display = hasManagementAccess() ? "" : "none";
-    element.disabled = !hasManagementAccess();
-  });
-  const managerOnlyIds = [
-    "deptSettingsButton",
-    "shiftSettingsButton",
-    "restComplianceButton",
-    "leaveSettingsButton",
-    "overtimeSettingsButton"
-  ];
-  managerOnlyIds.forEach((id) => {
-    const element = document.getElementById(id);
-    if (!element) {
-      return;
-    }
-    element.style.display = hasManagementAccess() ? "" : "none";
-    element.disabled = !hasManagementAccess();
-  });
-
   ["shiftChips", "leaveChips", "overtimeChips"].forEach((id) => {
     const element = document.getElementById(id);
     if (!element) return;
@@ -208,38 +188,17 @@ function syncRoleUi() {
 function renderAuthBar() {
   const toggle = document.getElementById("coreActionsToggle");
   const menu = document.getElementById("coreActionsMenu");
+  const shell = document.getElementById("coreActionsShell");
   const homeButton = document.getElementById("coreHomeButton");
-  if (!toggle || !menu) {
-    return;
-  }
+  if (!toggle || !menu) return;
   const loggedIn = isLoggedIn();
-  const manager = loggedIn && hasManagementAccess();
-  const hasProfile = Boolean(currentProfile);
+  const hasFunctions = loggedIn && hasFunctionMenuAccess();
   toggle.textContent = "功能";
   toggle.title = "開啟功能";
-  toggle.style.display = manager ? "" : "none";
-  if (homeButton) {
-    homeButton.style.display = loggedIn ? "" : "none";
-  }
-  menu.querySelectorAll(".user-menu-login").forEach((element) => {
-    element.style.display = loggedIn ? "none" : "";
-  });
-  menu.querySelectorAll(".user-menu-auth").forEach((element) => {
-    element.style.display = loggedIn ? "" : "none";
-  });
-  const changePasswordButton = menu.querySelector("[data-open-change-password]");
-  if (changePasswordButton) {
-    changePasswordButton.style.display = loggedIn && hasProfile ? "" : "none";
-  }
-  menu.querySelectorAll(".manager-action").forEach((element) => {
-    element.style.display = manager ? "" : "none";
-    element.disabled = !manager;
-  });
-  if (!loggedIn) {
-    closeCoreActionsMenu();
-  } else if (!manager) {
-    closeCoreActionsMenu();
-  }
+  toggle.hidden = !hasFunctions;
+  if (shell) shell.hidden = !hasFunctions;
+  if (homeButton) homeButton.hidden = !loggedIn;
+  if (!hasFunctions) closeCoreActionsMenu();
 }
 
 function renderAuthGate() {

@@ -76,10 +76,6 @@
       text-align: left;
     }
 
-    .core-actions-menu-category:not(:has(.ops-btn:not([hidden]):not([style*="display: none"]))) {
-      display: none;
-    }
-
     @media (min-width: 981px) {
       #coreActionsMenu {
         width: 136px;
@@ -226,36 +222,7 @@
           <button class="nav-btn" id="nextPeriodButton" type="button">後八週</button>
           <div class="core-actions-shell" id="coreActionsShell">
             <button class="ghost-btn core-actions-toggle" id="coreActionsToggle" type="button" aria-expanded="false">登入</button>
-            <div class="core-actions-menu" id="coreActionsMenu" aria-hidden="true" role="menu">
-              <div class="core-actions-menu-category" role="none">
-                <div class="core-actions-menu-trigger" tabindex="0" role="menuitem" aria-haspopup="menu"><span>設定</span><span class="core-actions-menu-arrow" aria-hidden="true">‹</span></div>
-                <div class="core-actions-submenu" role="menu" aria-label="設定">
-                  <button class="ghost-btn ops-btn group-feature-action" id="permissionSettingsMenuButton" type="button" data-group-feature-action="permission-settings">權限設定</button>
-                  <button class="ghost-btn ops-btn group-feature-action" id="groupSettingsMenuButton" type="button" data-group-feature-action="group-settings">群組設定</button>
-                  <button class="ghost-btn ops-btn" id="weekStartSettingsButton" type="button">週期設定</button>
-                  <button class="ghost-btn ops-btn group-feature-action" id="scheduleArchiveMenuButton" type="button" data-group-feature-action="schedule-archive">班表封存</button>
-                </div>
-              </div>
-              <div class="core-actions-menu-category" role="none">
-                <div class="core-actions-menu-trigger" tabindex="0" role="menuitem" aria-haspopup="menu"><span>排班</span><span class="core-actions-menu-arrow" aria-hidden="true">‹</span></div>
-                <div class="core-actions-submenu" role="menu" aria-label="排班">
-                  <button class="ghost-btn ops-btn group-feature-action" id="scheduleConditionsMenuButton" type="button" data-group-feature-action="schedule-conditions">排班條件</button>
-                  <button class="ghost-btn ops-btn manager-action" id="autoSchedulePreviewButton" type="button">自動排班預覽</button>
-                  <button class="ghost-btn ops-btn manager-action" id="autoFillSchedulePreviewButton" type="button">自動補班預覽</button>
-                  <button class="ghost-btn ops-btn manager-action" id="autoScheduleApplyButton" type="button">套用預覽</button>
-                  <button class="ghost-btn ops-btn manager-action" id="autoScheduleCancelButton" type="button">取消預覽</button>
-                </div>
-              </div>
-              <div class="core-actions-menu-category" role="none">
-                <div class="core-actions-menu-trigger" tabindex="0" role="menuitem" aria-haspopup="menu"><span>匯出</span><span class="core-actions-menu-arrow" aria-hidden="true">‹</span></div>
-                <div class="core-actions-submenu" role="menu" aria-label="匯出">
-                  <button class="ghost-btn ops-btn" id="exportScheduleButton" type="button">匯出上班日</button>
-                  <button class="ghost-btn ops-btn" id="exportSapButton" type="button">匯出休例假</button>
-                  <button class="ghost-btn ops-btn" id="exportLeaveButton" type="button">匯出請假</button>
-                  <button class="ghost-btn ops-btn" id="exportOvertimeButton" type="button">匯出加班</button>
-                </div>
-              </div>
-            </div>
+            <div class="core-actions-menu" id="coreActionsMenu" aria-hidden="true" role="menu"></div>
           </div>
           <button class="ghost-btn compact-btn user-menu-auth" id="coreHomeButton" type="button" data-home-action="home" aria-label="返回首頁" title="返回首頁"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg></button>
         </div>
@@ -397,7 +364,7 @@
       });
     })();
   </script>
-  <script src="./app.js?v=bf966d04f505"></script>
+  <script src="./app.js?v=a6b0cf9ae721"></script>
   <script>
     (() => {
       const exporter = window.schedulerBrowserExporter;
@@ -644,52 +611,6 @@
       });
     })();
   </script>
-  <script>
-    (() => {
-      const menu = document.getElementById("coreActionsMenu");
-      if (!menu) return;
-      const touchLikePointer = window.matchMedia("(hover: none), (pointer: coarse)");
-      const categories = [...menu.querySelectorAll(".core-actions-menu-category")];
 
-      const closeTouchSubmenus = (except = null) => {
-        categories.forEach((category) => {
-          if (category === except) return;
-          category.classList.remove("touch-open");
-          category.querySelector(":scope > .core-actions-menu-trigger")?.setAttribute("aria-expanded", "false");
-        });
-      };
-
-      categories.forEach((category) => {
-        const trigger = category.querySelector(":scope > .core-actions-menu-trigger");
-        trigger?.setAttribute("aria-expanded", "false");
-        trigger?.addEventListener("click", (event) => {
-          if (!touchLikePointer.matches) return;
-          event.preventDefault();
-          event.stopPropagation();
-          const opening = !category.classList.contains("touch-open");
-          closeTouchSubmenus(category);
-          category.classList.toggle("touch-open", opening);
-          trigger.setAttribute("aria-expanded", opening ? "true" : "false");
-          if (opening) trigger.focus({ preventScroll: true });
-        });
-        category.addEventListener("pointerenter", (event) => {
-          if (touchLikePointer.matches || (event.pointerType && event.pointerType !== "mouse")) return;
-          const active = document.activeElement;
-          const pinnedCategory = typeof active?.closest === "function"
-            ? active.closest(".core-actions-menu-category")
-            : null;
-          if (pinnedCategory && pinnedCategory !== category && menu.contains(pinnedCategory)) {
-            active.blur?.();
-          }
-        });
-      });
-
-      new MutationObserver(() => {
-        if (menu.getAttribute("aria-hidden") === "true") {
-          closeTouchSubmenus();
-        }
-      }).observe(menu, { attributes: true, attributeFilter: ["aria-hidden"] });
-    })();
-  </script>
 </body>
 </html>

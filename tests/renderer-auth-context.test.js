@@ -26,7 +26,7 @@ test("目前人員應優先依 profile id，再依工號解析", () => {
   assert.equal(api.resolveCurrentMember().id, "M1");
 });
 
-test("管理能力應完全由共用權限與群組權限決定", () => {
+test("各管理介面應由自己的共用或群組權限決定", () => {
   const start = authContext.indexOf("function canManagePermissions");
   const end = authContext.indexOf("async function ensureManagerDirectoryLoaded", start);
   let commonPermissions = [];
@@ -35,19 +35,28 @@ test("管理能力應完全由共用權限與群組權限決定", () => {
     authenticated: true,
     currentUser: { id: "U1" },
     groupFeatureState: { currentGroupId: "G1" },
-    getCommonPermissions: () => commonPermissions,
-    getAccessActor: () => actor,
     hasCommonPermission: (permission) => commonPermissions.includes(permission),
     hasGroupPermission: (groupId, permission) => (actor.groupPermissions[groupId] || []).includes(permission)
   };
-  const api = vm.runInNewContext(authContext.slice(start, end) + "\n;({ canManagePermissions, hasManagementAccess, canEditSchedule })", context);
-  assert.equal(api.hasManagementAccess(), false);
-  actor.groupPermissions.G1 = ["schedule_view", "schedule_manage"];
-  assert.equal(api.hasManagementAccess(), true);
+  const api = vm.runInNewContext(authContext.slice(start, end) + "\n;({ canManagePermissions, canEditSchedule, canUseScheduleToolbar })", context);
   assert.equal(api.canManagePermissions(), false);
+  assert.equal(api.canEditSchedule(), false);
+  assert.equal(api.canUseScheduleToolbar(), false);
+
+  actor.groupPermissions.G1 = ["schedule_view", "schedule_manage"];
   assert.equal(api.canEditSchedule(), true);
-  commonPermissions.push("settings");
+  assert.equal(api.canUseScheduleToolbar(), true);
+
+  actor.groupPermissions.G1 = ["schedule_view"];
+  commonPermissions = ["export"];
+  assert.equal(api.canUseScheduleToolbar(), false, "匯出權限不可開啟排班工具列");
+
+  commonPermissions = ["settings"];
   assert.equal(api.canManagePermissions(), true);
+  assert.equal(api.canUseScheduleToolbar(), false, "設定權限不可開啟排班工具列");
+
+  commonPermissions = ["leave_settings"];
+  assert.equal(api.canUseScheduleToolbar(), true, "假別設定需能使用對應工具列");
 });
 
 test("假別明細與設定輔助應位於對應責任模組", () => {

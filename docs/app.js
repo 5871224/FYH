@@ -3068,10 +3068,10 @@ function renderStickyHeaderTitleCells() {
   if (!deptCell || !personCell) {
     return;
   }
-  const renderCell = (label, dataAttr = "") => `
+  const renderCell = (label, allowed = false, dataAttr = "") => `
     <div class="table-sticky-cell-title">
       <span class="table-sticky-cell-label">${label}</span>
-      ${hasManagementAccess() && dataAttr ? renderActionIconButton("edit", `${dataAttr}=\"true\"`, "table-header-settings-btn") : ""}
+      ${allowed && dataAttr ? renderActionIconButton("edit", `${dataAttr}=\"true\"`, "table-header-settings-btn") : ""}
     </div>
   `;
   if (state.tableView === "shift") {
@@ -3083,8 +3083,8 @@ function renderStickyHeaderTitleCells() {
     }
     return;
   }
-  deptCell.innerHTML = renderCell("單位", "data-open-department-settings");
-  personCell.innerHTML = renderCell("人員", "data-open-member-settings");
+  deptCell.innerHTML = renderCell("單位", canManageDepartmentsInCurrentGroup(), "data-open-department-settings");
+  personCell.innerHTML = renderCell("人員", canManageMembersInCurrentGroup(), "data-open-member-settings");
   if (statsCell) {
     statsCell.innerHTML = renderCell("統計");
     statsCell.hidden = !state.tableStatsVisible;
@@ -3255,7 +3255,8 @@ function syncScheduleColumnWidths() {
   const deptStyle = getComputedStyle(deptSample);
   const personStyle = getComputedStyle(personSample);
   const headerStyle = getComputedStyle(document.querySelector(".table-sticky-cell") || deptSample);
-  const managerButtonAllowance = hasManagementAccess() && state.tableView !== "shift" ? 28 : 0;
+  const departmentButtonAllowance = canManageDepartmentsInCurrentGroup() && state.tableView !== "shift" ? 28 : 0;
+  const memberButtonAllowance = canManageMembersInCurrentGroup() && state.tableView !== "shift" ? 28 : 0;
   let deptWidth = 72;
   let personWidth = 92;
   const statsWidth = state.tableView === "member" && state.tableStatsVisible ? 86 : 0;
@@ -3276,8 +3277,8 @@ function syncScheduleColumnWidths() {
     ));
     const deptContentWidth = visibleDepartments.reduce((max, text) => Math.max(max, measureTextWidth(text, deptStyle)), 0);
     const personContentWidth = visibleMembers.reduce((max, text) => Math.max(max, measureTextWidth(text, personStyle)), 0);
-    const deptHeaderWidth = measureTextWidth("單位", headerStyle) + managerButtonAllowance;
-    const personHeaderWidth = measureTextWidth("人員", headerStyle) + managerButtonAllowance;
+    const deptHeaderWidth = measureTextWidth("單位", headerStyle) + departmentButtonAllowance;
+    const personHeaderWidth = measureTextWidth("人員", headerStyle) + memberButtonAllowance;
     deptWidth = clamp(Math.ceil(Math.max(deptContentWidth, deptHeaderWidth) + 18), 52, 88);
     personWidth = Math.max(Math.ceil(Math.max(personContentWidth, personHeaderWidth) + 18), 64);
   }
@@ -5408,7 +5409,7 @@ function buildAutoFillSchedulePreview(dates) {
 }
 
 function openAutoFillSchedulePeriodModal() {
-  if (!promptManagerAccess("自動補班需先登入主管帳號")) {
+  if (!requireCurrentGroupUiPermission("schedule_manage", "自動補班")) {
     return;
   }
   closeCoreActionsMenu();
@@ -5475,7 +5476,7 @@ async function generateAutoFillSchedulePreviewFromModal(button) {
 }
 
 async function applyAutoFillSchedulePreview() {
-  if (!promptManagerAccess("套用自動補班需先登入主管帳號")) {
+  if (!requireCurrentGroupUiPermission("schedule_manage", "套用自動補班")) {
     return;
   }
   if (!await confirmAction("確定要套用目前綠色自動補班預覽嗎？套用後才會正式寫入班表。")) {
@@ -5496,12 +5497,6 @@ function cancelAutoFillSchedulePreview() {
 }
 
 function bindAutoFillScheduleControls() {
-  document.getElementById("autoFillSchedulePreviewButton")?.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    openAutoFillSchedulePeriodModal();
-  });
-
   document.body.addEventListener("click", async (event) => {
     const button = event.target instanceof Element
       ? event.target.closest("[data-generate-auto-fill-schedule]")
@@ -5613,7 +5608,7 @@ function getMissingAutoScheduleLeaveLabels() {
 }
 
 async function previewAutoSchedule() {
-  if (!promptManagerAccess("自動排班需先登入主管帳號")) {
+  if (!requireCurrentGroupUiPermission("schedule_manage", "自動排班")) {
     return;
   }
   const { startDate, endDate } = getVisibleDateRange();
@@ -5673,7 +5668,7 @@ async function applyAutoSchedulePreview() {
     await applyAutoFillSchedulePreview();
     return;
   }
-  if (!promptManagerAccess("套用自動排班需先登入主管帳號")) {
+  if (!requireCurrentGroupUiPermission("schedule_manage", "套用自動排班")) {
     return;
   }
   if (!autoSchedulePreview) {
@@ -8083,80 +8078,90 @@ function ensureGroupSelector() {
   selector.disabled = options.length <= 1;
 }
 
-function ensureFunctionMenuButtons() {
+function getFunctionMenuSections() {
+  const groupId = groupFeatureState.currentGroupId;
+  const sections = [];
+  if (hasCommonPermission("settings")) {
+    sections.push({
+      id: "settings",
+      label: "設定",
+      items: [
+        { id: "permissionSettingsMenuButton", label: "權限設定", groupAction: "permission-settings" },
+        { id: "groupSettingsMenuButton", label: "群組設定", groupAction: "group-settings" },
+        { id: "weekStartSettingsButton", label: "週期設定", action: "week-start-settings" },
+        { id: "scheduleArchiveMenuButton", label: "班表封存", groupAction: "schedule-archive" }
+      ]
+    });
+  }
+  if (hasGroupPermission(groupId, "schedule_manage")) {
+    sections.push({
+      id: "schedule",
+      label: "排班",
+      items: [
+        { id: "scheduleConditionsMenuButton", label: "排班條件", groupAction: "schedule-conditions" },
+        { id: "autoSchedulePreviewButton", label: "自動排班預覽", action: "auto-schedule-preview" },
+        { id: "autoFillSchedulePreviewButton", label: "自動補班預覽", action: "auto-fill-schedule-preview" },
+        { id: "autoScheduleApplyButton", label: "套用預覽", action: "auto-schedule-apply" },
+        { id: "autoScheduleCancelButton", label: "取消預覽", action: "auto-schedule-cancel" }
+      ]
+    });
+  }
+  if (hasCommonPermission("export")) {
+    sections.push({
+      id: "export",
+      label: "匯出",
+      items: [
+        { id: "exportScheduleButton", label: "匯出上班日", action: "export-workday" },
+        { id: "exportSapButton", label: "匯出休例假", action: "export-sap" },
+        { id: "exportLeaveButton", label: "匯出請假", action: "export-leave" },
+        { id: "exportOvertimeButton", label: "匯出加班", action: "export-overtime" }
+      ]
+    });
+  }
+  return sections;
+}
+
+function hasFunctionMenuAccess() {
+  return getFunctionMenuSections().length > 0;
+}
+
+function renderFunctionMenu() {
   const menu = document.getElementById("coreActionsMenu");
   if (!menu) return;
-  const definitions = [
-    ["groupSettingsMenuButton", "群組設定", "group-settings"],
-    ["permissionSettingsMenuButton", "權限設定", "permission-settings"],
-    ["scheduleConditionsMenuButton", "排班條件", "schedule-conditions"],
-    ["scheduleArchiveMenuButton", "班表封存", "schedule-archive"]
-  ];
-  definitions.forEach(([id, label, action]) => {
-    let button = document.getElementById(id);
-    if (!button) {
-      button = document.createElement("button");
-      button.id = id;
-      button.type = "button";
-      button.className = "ghost-btn ops-btn group-feature-action";
-      button.dataset.groupFeatureAction = action;
-      button.textContent = label;
-      menu.prepend(button);
-    }
-    const visible = action === "group-settings" || action === "permission-settings" || action === "schedule-archive"
-      ? hasCommonPermission("settings")
-      : action === "schedule-conditions"
-        ? canEditSchedule()
-        : false;
-    button.style.display = visible ? "" : "none";
-    button.disabled = !visible;
-  });
+  menu.innerHTML = getFunctionMenuSections().map((section) => `
+    <div class="core-actions-menu-category" role="none" data-function-menu-section="${section.id}">
+      <div class="core-actions-menu-trigger" tabindex="0" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+        <span>${section.label}</span><span class="core-actions-menu-arrow" aria-hidden="true">‹</span>
+      </div>
+      <div class="core-actions-submenu" role="menu" aria-label="${section.label}">
+        ${section.items.map((item) => `<button class="ghost-btn ops-btn${item.groupAction ? " group-feature-action" : ""}" id="${item.id}" type="button"${item.groupAction ? ` data-group-feature-action="${item.groupAction}"` : ` data-function-menu-action="${item.action}"`}>${item.label}</button>`).join("")}
+      </div>
+    </div>
+  `).join("");
 }
 
-function syncFunctionMenuCategoryVisibility() {
-  document.querySelectorAll("#coreActionsMenu .core-actions-menu-category").forEach((category) => {
-    const submenuButtons = Array.from(category.querySelectorAll(":scope > .core-actions-submenu > button"));
-    const visible = submenuButtons.some((button) => !button.hidden && button.style.display !== "none");
-    category.style.display = visible ? "" : "none";
-    const trigger = category.querySelector(":scope > .core-actions-menu-trigger");
-    if (trigger) trigger.tabIndex = visible ? 0 : -1;
-  });
-}
-
-function syncPermissionUi() {
-  ensureGroupSelector();
-  ensureFunctionMenuButtons();
-  markArchivedScheduleCells();
+function renderToolbarPermissionControls() {
   const groupId = groupFeatureState.currentGroupId;
   const visibility = {
     shiftSettingsButton: hasGroupPermission(groupId, "schedule_manage"),
     restComplianceButton: hasGroupPermission(groupId, "schedule_manage"),
     deptSettingsButton: hasGroupPermission(groupId, "department_settings"),
     leaveSettingsButton: hasCommonPermission("leave_settings"),
-    overtimeSettingsButton: false,
-    weekStartSettingsButton: hasCommonPermission("settings"),
-    autoSchedulePreviewButton: hasGroupPermission(groupId, "schedule_manage"),
-    autoFillSchedulePreviewButton: hasGroupPermission(groupId, "schedule_manage"),
-    autoScheduleApplyButton: hasGroupPermission(groupId, "schedule_manage"),
-    autoScheduleCancelButton: hasGroupPermission(groupId, "schedule_manage"),
-    exportScheduleButton: hasCommonPermission("export"),
-    exportSapButton: hasCommonPermission("export"),
-    exportLeaveButton: hasCommonPermission("export"),
-    exportOvertimeButton: hasCommonPermission("export")
+    overtimeSettingsButton: false
   };
   Object.entries(visibility).forEach(([id, visible]) => {
     const element = document.getElementById(id);
     if (!element) return;
-    element.style.display = visible ? "" : "none";
+    element.hidden = !visible;
     element.disabled = !visible;
   });
-  syncFunctionMenuCategoryVisibility();
-  document.querySelectorAll("[data-open-department-settings]").forEach((element) => { element.style.display = hasGroupPermission(groupId, "department_settings") ? "" : "none"; });
-  document.querySelectorAll("[data-open-member-settings]").forEach((element) => { element.style.display = hasGroupPermission(groupId, "schedule_manage") ? "" : "none"; });
-  const mealButton = document.querySelector('[data-home-action="meal"]');
-  const actorGroup = getActorGroup();
-  if (mealButton) mealButton.style.display = actorGroup?.mealEnabled && actorGroup?.status === "active" ? "" : "none";
-  document.querySelectorAll('[data-meal-tab="stats"], [data-meal-tab="settings"]').forEach((tab) => { tab.style.display = hasAnyGroupPermission("meal_admin") ? "" : "none"; });
+}
+
+function syncPermissionUi() {
+  ensureGroupSelector();
+  markArchivedScheduleCells();
+  renderFunctionMenu();
+  renderToolbarPermissionControls();
 }
 
 function groupUnitNames(group) { return Array.isArray(group?.unitNames) && group.unitNames.length ? group.unitNames.join("、") : "-"; }
@@ -8673,17 +8678,36 @@ function canManagePermissions() {
   return hasCommonPermission("settings");
 }
 
-function hasManagementAccess() {
-  const commonPermissions = getCommonPermissions();
-  if (commonPermissions.some((permission) => ["settings", "export", "leave_settings"].includes(permission))) return true;
-  const groupMap = getAccessActor().groupPermissions;
-  return Boolean(groupMap && typeof groupMap === "object" && Object.values(groupMap).some((permissions) =>
-    Array.isArray(permissions) && permissions.some((permission) => permission === "schedule_manage" || permission === "department_settings")
-  ));
-}
-
 function canEditSchedule() {
   return hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage");
+}
+
+function canUseScheduleToolbar() {
+  return canEditSchedule() || hasCommonPermission("leave_settings");
+}
+
+function requireCommonUiPermission(permission, label = "此功能") {
+  if (!isLoggedIn()) {
+    openSignInDialog(`${label}前請先登入`);
+    return false;
+  }
+  if (!hasCommonPermission(permission)) {
+    showInfoMessage(`沒有${label}權限`);
+    return false;
+  }
+  return true;
+}
+
+function requireCurrentGroupUiPermission(permission, label = "此功能") {
+  if (!isLoggedIn()) {
+    openSignInDialog(`${label}前請先登入`);
+    return false;
+  }
+  if (!hasGroupPermission(groupFeatureState.currentGroupId, permission)) {
+    showInfoMessage(`沒有${label}權限`);
+    return false;
+  }
+  return true;
 }
 
 function canManageMembersInCurrentGroup() {
@@ -8744,18 +8768,6 @@ function closeSignInDialog() {
   renderAuthGate();
 }
 
-function promptManagerAccess(message) {
-  if (!isLoggedIn()) {
-    openSignInDialog(message || "此功能需先登入主管帳號");
-    return false;
-  }
-  if (!hasManagementAccess()) {
-    showInfoMessage("此功能限主管使用");
-    return false;
-  }
-  return true;
-}
-
 function shouldDefaultCollapseToolbar() {
   return window.innerWidth <= 960;
 }
@@ -8798,39 +8810,12 @@ function toggleToolbarCollapse() {
 
 function syncRoleUi() {
   const toolbarCard = document.querySelector(".toolbar-floating-card");
-  initializeToolbarCollapse();
   const toolbarGrid = document.getElementById("toolbarGrid");
-  if (toolbarGrid) {
-    toolbarGrid.style.display = hasManagementAccess() ? "grid" : "none";
-  }
-  if (toolbarCard) {
-    toolbarCard.classList.toggle("toolbar-floating-card-compact", !hasManagementAccess());
-  }
+  const toolbarEnabled = canUseScheduleToolbar();
+  initializeToolbarCollapse();
+  if (toolbarGrid) toolbarGrid.hidden = !toolbarEnabled;
+  if (toolbarCard) toolbarCard.classList.toggle("toolbar-floating-card-compact", !toolbarEnabled);
   syncToolbarCollapseUi();
-  const coreActionsShell = document.getElementById("coreActionsShell");
-  if (coreActionsShell) {
-    coreActionsShell.style.display = hasManagementAccess() ? "" : "none";
-  }
-  document.querySelectorAll(".manager-action").forEach((element) => {
-    element.style.display = hasManagementAccess() ? "" : "none";
-    element.disabled = !hasManagementAccess();
-  });
-  const managerOnlyIds = [
-    "deptSettingsButton",
-    "shiftSettingsButton",
-    "restComplianceButton",
-    "leaveSettingsButton",
-    "overtimeSettingsButton"
-  ];
-  managerOnlyIds.forEach((id) => {
-    const element = document.getElementById(id);
-    if (!element) {
-      return;
-    }
-    element.style.display = hasManagementAccess() ? "" : "none";
-    element.disabled = !hasManagementAccess();
-  });
-
   ["shiftChips", "leaveChips", "overtimeChips"].forEach((id) => {
     const element = document.getElementById(id);
     if (!element) return;
@@ -8842,38 +8827,17 @@ function syncRoleUi() {
 function renderAuthBar() {
   const toggle = document.getElementById("coreActionsToggle");
   const menu = document.getElementById("coreActionsMenu");
+  const shell = document.getElementById("coreActionsShell");
   const homeButton = document.getElementById("coreHomeButton");
-  if (!toggle || !menu) {
-    return;
-  }
+  if (!toggle || !menu) return;
   const loggedIn = isLoggedIn();
-  const manager = loggedIn && hasManagementAccess();
-  const hasProfile = Boolean(currentProfile);
+  const hasFunctions = loggedIn && hasFunctionMenuAccess();
   toggle.textContent = "功能";
   toggle.title = "開啟功能";
-  toggle.style.display = manager ? "" : "none";
-  if (homeButton) {
-    homeButton.style.display = loggedIn ? "" : "none";
-  }
-  menu.querySelectorAll(".user-menu-login").forEach((element) => {
-    element.style.display = loggedIn ? "none" : "";
-  });
-  menu.querySelectorAll(".user-menu-auth").forEach((element) => {
-    element.style.display = loggedIn ? "" : "none";
-  });
-  const changePasswordButton = menu.querySelector("[data-open-change-password]");
-  if (changePasswordButton) {
-    changePasswordButton.style.display = loggedIn && hasProfile ? "" : "none";
-  }
-  menu.querySelectorAll(".manager-action").forEach((element) => {
-    element.style.display = manager ? "" : "none";
-    element.disabled = !manager;
-  });
-  if (!loggedIn) {
-    closeCoreActionsMenu();
-  } else if (!manager) {
-    closeCoreActionsMenu();
-  }
+  toggle.hidden = !hasFunctions;
+  if (shell) shell.hidden = !hasFunctions;
+  if (homeButton) homeButton.hidden = !loggedIn;
+  if (!hasFunctions) closeCoreActionsMenu();
 }
 
 function renderAuthGate() {
@@ -9047,7 +9011,7 @@ function showScheduleTooltip(memberId, day, category, anchorRect) {
           ? `${item?.code || ""} ${meta?.displayName || item?.name || ""}`.trim()
           : (meta?.displayName || item?.name || "加班")
       )}</div>
-      ${hasManagementAccess()
+      ${canEditSchedule()
         ? (isLeave
           ? renderActionIconButton("edit", `data-edit-leave-assignment="${memberId}:${day}"`, "leave-tooltip-btn")
           : renderActionIconButton("edit", `data-edit-overtime-assignment="${memberId}:${day}"`, "leave-tooltip-btn"))
@@ -9078,6 +9042,8 @@ function renderHomeDashboard() {
     homeCard.innerHTML = "";
     return;
   }
+  const actorGroup = getActorGroup();
+  const showMeal = actorGroup?.mealEnabled && actorGroup?.status === "active";
   homeCard.innerHTML = `
     <div class="clock-page-header">
       <div>
@@ -9093,9 +9059,9 @@ function renderHomeDashboard() {
       <button class="home-action-card" type="button" data-home-action="schedule">
         <span class="home-action-title">班表</span>
       </button>
-      <button class="home-action-card" type="button" data-home-action="meal">
+      ${showMeal ? `<button class="home-action-card" type="button" data-home-action="meal">
         <span class="home-action-title">訂餐</span>
-      </button>
+      </button>` : ""}
       <button class="home-action-card" type="button" data-home-action="records">
         <span class="home-action-title">簽到簿</span>
       </button>
@@ -11240,7 +11206,7 @@ function syncAppView() {
   const scheduleCard = document.getElementById("scheduleCard");
   const toolbarCard = document.querySelector(".toolbar-card");
   const showSchedule = loggedIn && appView === "schedule";
-  const showToolbar = showSchedule && hasManagementAccess();
+  const showToolbar = showSchedule && canUseScheduleToolbar();
   if (homeCard) homeCard.hidden = !loggedIn || appView !== "home";
   if (mealCard) mealCard.hidden = !loggedIn || appView !== "meal";
   if (recordsCard) recordsCard.hidden = !loggedIn || appView !== "records";
@@ -11932,7 +11898,7 @@ function buildRestComplianceCalendars(weeks) {
 }
 
 function openWeekStartSettingModal() {
-  if (!promptManagerAccess("設定週期規則前請先登入主管帳號")) {
+  if (!requireCommonUiPermission("settings", "週期設定")) {
     return;
   }
   openEntityListModal({
@@ -11983,7 +11949,7 @@ async function saveWeekStartSettingFromModal() {
 }
 
 function openRestComplianceModal() {
-  if (!promptManagerAccess("執行例休檢查前請先登入主管帳號")) {
+  if (!requireCurrentGroupUiPermission("schedule_manage", "例休檢查")) {
     return;
   }
   const checker = window.restCompliance;
@@ -12797,6 +12763,58 @@ async function runPeriodExport(type) {
  * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
  */
 
+function closeFunctionMenuTouchSections(menu, except = null) {
+  menu.querySelectorAll(".core-actions-menu-category.touch-open").forEach((category) => {
+    if (category === except) return;
+    category.classList.remove("touch-open");
+    category.querySelector(":scope > .core-actions-menu-trigger")?.setAttribute("aria-expanded", "false");
+  });
+}
+
+async function runFunctionMenuAction(action) {
+  if (action === "week-start-settings") return openWeekStartSettingModal();
+  if (action === "auto-schedule-preview") return previewAutoSchedule();
+  if (action === "auto-fill-schedule-preview") return openAutoFillSchedulePeriodModal();
+  if (action === "auto-schedule-apply") return applyAutoSchedulePreview();
+  if (action === "auto-schedule-cancel") return cancelAutoSchedulePreview();
+  if (action === "export-workday") return openExportPeriodDialog("workday");
+  if (action === "export-sap") return openExportPeriodDialog("sap");
+  if (action === "export-leave") return openExportPeriodDialog("leave");
+  if (action === "export-overtime") return openExportPeriodDialog("overtime");
+}
+
+function bindCoreActionsMenuEvents() {
+  const menu = document.getElementById("coreActionsMenu");
+  if (!menu) return;
+  const touchLikePointer = window.matchMedia("(hover: none), (pointer: coarse)");
+  menu.addEventListener("click", (event) => {
+    const trigger = event.target instanceof Element ? event.target.closest(".core-actions-menu-trigger") : null;
+    if (trigger && touchLikePointer.matches) {
+      event.preventDefault();
+      event.stopPropagation();
+      const category = trigger.closest(".core-actions-menu-category");
+      if (!category) return;
+      const opening = !category.classList.contains("touch-open");
+      closeFunctionMenuTouchSections(menu, category);
+      category.classList.toggle("touch-open", opening);
+      trigger.setAttribute("aria-expanded", opening ? "true" : "false");
+      if (opening) trigger.focus({ preventScroll: true });
+      return;
+    }
+    const button = event.target instanceof Element ? event.target.closest("button[data-function-menu-action]") : null;
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const action = button.dataset.functionMenuAction || "";
+    closeCoreActionsMenu();
+    void runFunctionMenuAction(action);
+  });
+  document.addEventListener("click", (event) => {
+    if (event.target instanceof Node && menu.contains(event.target)) return;
+    closeFunctionMenuTouchSections(menu);
+  });
+}
+
 function bindStaticToolbarEvents() {
   const bindClick = (id, handler) => {
     const element = document.getElementById(id);
@@ -12807,6 +12825,7 @@ function bindStaticToolbarEvents() {
 
   bindScheduleHistoryControls();
   bindAutoFillScheduleControls();
+  bindCoreActionsMenuEvents();
 
   bindClick("coreActionsToggle", (event) => {
     event.stopPropagation();
@@ -12826,42 +12845,10 @@ function bindStaticToolbarEvents() {
   bindClick("nextPeriodButton", async () => changeSchedulePeriodWeeks(8));
   bindClick("tablePrevWeekButton", () => scrollScheduleByWeeks(-1));
   bindClick("tableNextWeekButton", () => scrollScheduleByWeeks(1));
-  bindClick("exportScheduleButton", () => {
-    closeCoreActionsMenu();
-    openExportPeriodDialog("workday");
-  });
-  bindClick("exportSapButton", () => {
-    closeCoreActionsMenu();
-    openExportPeriodDialog("sap");
-  });
-  bindClick("exportOvertimeButton", () => {
-    closeCoreActionsMenu();
-    openExportPeriodDialog("overtime");
-  });
-  bindClick("exportLeaveButton", () => {
-    closeCoreActionsMenu();
-    openExportPeriodDialog("leave");
-  });
   bindClick("deptSettingsButton", openDepartmentSettings);
   bindClick("shiftSettingsButton", () => openListSettings("shift"));
   bindClick("leaveSettingsButton", () => openListSettings("leave"));
   bindClick("overtimeSettingsButton", () => openListSettings("overtime"));
-  bindClick("weekStartSettingsButton", () => {
-    closeCoreActionsMenu();
-    openWeekStartSettingModal();
-  });
-  bindClick("autoSchedulePreviewButton", async () => {
-    closeCoreActionsMenu();
-    await previewAutoSchedule();
-  });
-  bindClick("autoScheduleApplyButton", async () => {
-    closeCoreActionsMenu();
-    await applyAutoSchedulePreview();
-  });
-  bindClick("autoScheduleCancelButton", () => {
-    closeCoreActionsMenu();
-    cancelAutoSchedulePreview();
-  });
   bindClick("restComplianceButton", () => {
     closeCoreActionsMenu();
     openRestComplianceModal();
@@ -12977,7 +12964,7 @@ let toolbarRapidEditOpenedAt = 0;
 function openToolbarChipEditor(type, id) {
   if (!id || (type !== "shift" && type !== "leave")) return false;
   if (!canEditSchedule()) {
-    promptManagerAccess(`修改${type === "shift" ? "班別" : "假別"}需先登入主管帳號`);
+    requireCurrentGroupUiPermission("schedule_manage", `修改${type === "shift" ? "班別" : "假別"}`);
     return true;
   }
   toolbarRapidEditOpenedAt = Date.now();
@@ -13008,6 +12995,57 @@ async function openScheduleMemberEditor(memberId) {
   }
   await ensureManagerDirectoryLoaded();
   openMemberForm("edit", memberId);
+}
+
+function getUiActionPermissionRequirement(target) {
+  const departmentAction = target.dataset.openDepartmentSettings
+    || target.dataset.openAddDepartment
+    || target.dataset.editDepartment
+    || target.dataset.saveDepartment
+    || target.dataset.deleteDepartment
+    || target.dataset.exportDepartments
+    || target.dataset.importDepartments;
+  if (departmentAction) return { scope: "group", permission: "department_settings", label: "單位設定" };
+
+  const memberAction = target.dataset.openMemberSettings
+    || target.dataset.openAddMember
+    || target.dataset.toggleScheduleShifts
+    || target.dataset.editMember
+    || target.dataset.saveMember
+    || target.dataset.deleteMember
+    || target.dataset.resetMemberPassword
+    || target.dataset.exportMembers
+    || target.dataset.importMembers;
+  if (memberAction) return { scope: "group", permission: "schedule_manage", label: "人員管理" };
+
+  if (target.dataset.editLeaveAssignment || target.dataset.editOvertimeAssignment
+      || target.dataset.saveLeaveAssignment || target.dataset.saveOvertimeAssignment
+      || target.dataset.generateAutoSchedule) {
+    return { scope: "group", permission: "schedule_manage", label: "班表管理" };
+  }
+
+  if (target.dataset.saveWeekStart) return { scope: "common", permission: "settings", label: "週期設定" };
+
+  const catalogCategory = target.dataset.deleteCategory
+    || target.dataset.openAdd
+    || target.dataset.editItem
+    || target.dataset.exportSettings
+    || target.dataset.importSettings
+    || (target.dataset.saveNamedItem ? target.dataset.saveNamedItem.split(":")[0] : "")
+    || (target.dataset.saveShift ? "shift" : "");
+  if (catalogCategory === "shift") return { scope: "group", permission: "schedule_manage", label: "班別設定" };
+  if (catalogCategory === "leave" || catalogCategory === "overtime") {
+    return { scope: "common", permission: "leave_settings", label: "假別設定" };
+  }
+  return null;
+}
+
+function allowUiActionByPermission(target) {
+  const requirement = getUiActionPermissionRequirement(target);
+  if (!requirement) return true;
+  return requirement.scope === "common"
+    ? requireCommonUiPermission(requirement.permission, requirement.label)
+    : requireCurrentGroupUiPermission(requirement.permission, requirement.label);
 }
 
 function bindDelegatedClickEvents() {
@@ -13189,41 +13227,7 @@ function bindDelegatedClickEvents() {
       await applySelectionToCell(memberId, dateString);
       return;
     }
-    const managerOnlyAction = Boolean(
-      target.dataset.openDepartmentSettings ||
-      target.dataset.openMemberSettings ||
-      target.dataset.deleteCategory ||
-      target.dataset.editLeaveAssignment ||
-      target.dataset.openAdd ||
-      target.dataset.editItem ||
-      target.dataset.saveShift ||
-      target.dataset.saveNamedItem ||
-      target.id === "autoSchedulePreviewButton" ||
-      target.id === "autoScheduleApplyButton" ||
-      target.id === "autoScheduleCancelButton" ||
-      target.dataset.generateAutoSchedule ||
-      target.dataset.saveOvertimeAssignment ||
-      target.dataset.openAddDepartment ||
-      target.dataset.toggleScheduleShifts ||
-      target.dataset.editDepartment ||
-      target.dataset.saveDepartment ||
-      target.dataset.deleteDepartment ||
-      target.dataset.openAddMember ||
-      target.dataset.exportMembers ||
-      target.dataset.importMembers ||
-      target.dataset.exportSettings ||
-      target.dataset.importSettings ||
-      target.dataset.exportDepartments ||
-      target.dataset.importDepartments ||
-      target.dataset.editMember ||
-      target.dataset.saveMember ||
-      target.dataset.deleteMember ||
-      target.dataset.resetMemberPassword
-    );
-    if (managerOnlyAction && !hasManagementAccess()) {
-      promptManagerAccess("此功能需先登入主管帳號");
-      return;
-    }
+    if (!allowUiActionByPermission(target)) return;
     if (target.dataset.openDepartmentSettings) {
       await openDepartmentSettings();
       return;

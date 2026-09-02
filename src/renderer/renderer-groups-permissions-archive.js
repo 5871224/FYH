@@ -270,80 +270,90 @@ function ensureGroupSelector() {
   selector.disabled = options.length <= 1;
 }
 
-function ensureFunctionMenuButtons() {
+function getFunctionMenuSections() {
+  const groupId = groupFeatureState.currentGroupId;
+  const sections = [];
+  if (hasCommonPermission("settings")) {
+    sections.push({
+      id: "settings",
+      label: "設定",
+      items: [
+        { id: "permissionSettingsMenuButton", label: "權限設定", groupAction: "permission-settings" },
+        { id: "groupSettingsMenuButton", label: "群組設定", groupAction: "group-settings" },
+        { id: "weekStartSettingsButton", label: "週期設定", action: "week-start-settings" },
+        { id: "scheduleArchiveMenuButton", label: "班表封存", groupAction: "schedule-archive" }
+      ]
+    });
+  }
+  if (hasGroupPermission(groupId, "schedule_manage")) {
+    sections.push({
+      id: "schedule",
+      label: "排班",
+      items: [
+        { id: "scheduleConditionsMenuButton", label: "排班條件", groupAction: "schedule-conditions" },
+        { id: "autoSchedulePreviewButton", label: "自動排班預覽", action: "auto-schedule-preview" },
+        { id: "autoFillSchedulePreviewButton", label: "自動補班預覽", action: "auto-fill-schedule-preview" },
+        { id: "autoScheduleApplyButton", label: "套用預覽", action: "auto-schedule-apply" },
+        { id: "autoScheduleCancelButton", label: "取消預覽", action: "auto-schedule-cancel" }
+      ]
+    });
+  }
+  if (hasCommonPermission("export")) {
+    sections.push({
+      id: "export",
+      label: "匯出",
+      items: [
+        { id: "exportScheduleButton", label: "匯出上班日", action: "export-workday" },
+        { id: "exportSapButton", label: "匯出休例假", action: "export-sap" },
+        { id: "exportLeaveButton", label: "匯出請假", action: "export-leave" },
+        { id: "exportOvertimeButton", label: "匯出加班", action: "export-overtime" }
+      ]
+    });
+  }
+  return sections;
+}
+
+function hasFunctionMenuAccess() {
+  return getFunctionMenuSections().length > 0;
+}
+
+function renderFunctionMenu() {
   const menu = document.getElementById("coreActionsMenu");
   if (!menu) return;
-  const definitions = [
-    ["groupSettingsMenuButton", "群組設定", "group-settings"],
-    ["permissionSettingsMenuButton", "權限設定", "permission-settings"],
-    ["scheduleConditionsMenuButton", "排班條件", "schedule-conditions"],
-    ["scheduleArchiveMenuButton", "班表封存", "schedule-archive"]
-  ];
-  definitions.forEach(([id, label, action]) => {
-    let button = document.getElementById(id);
-    if (!button) {
-      button = document.createElement("button");
-      button.id = id;
-      button.type = "button";
-      button.className = "ghost-btn ops-btn group-feature-action";
-      button.dataset.groupFeatureAction = action;
-      button.textContent = label;
-      menu.prepend(button);
-    }
-    const visible = action === "group-settings" || action === "permission-settings" || action === "schedule-archive"
-      ? hasCommonPermission("settings")
-      : action === "schedule-conditions"
-        ? canEditSchedule()
-        : false;
-    button.style.display = visible ? "" : "none";
-    button.disabled = !visible;
-  });
+  menu.innerHTML = getFunctionMenuSections().map((section) => `
+    <div class="core-actions-menu-category" role="none" data-function-menu-section="${section.id}">
+      <div class="core-actions-menu-trigger" tabindex="0" role="menuitem" aria-haspopup="menu" aria-expanded="false">
+        <span>${section.label}</span><span class="core-actions-menu-arrow" aria-hidden="true">‹</span>
+      </div>
+      <div class="core-actions-submenu" role="menu" aria-label="${section.label}">
+        ${section.items.map((item) => `<button class="ghost-btn ops-btn${item.groupAction ? " group-feature-action" : ""}" id="${item.id}" type="button"${item.groupAction ? ` data-group-feature-action="${item.groupAction}"` : ` data-function-menu-action="${item.action}"`}>${item.label}</button>`).join("")}
+      </div>
+    </div>
+  `).join("");
 }
 
-function syncFunctionMenuCategoryVisibility() {
-  document.querySelectorAll("#coreActionsMenu .core-actions-menu-category").forEach((category) => {
-    const submenuButtons = Array.from(category.querySelectorAll(":scope > .core-actions-submenu > button"));
-    const visible = submenuButtons.some((button) => !button.hidden && button.style.display !== "none");
-    category.style.display = visible ? "" : "none";
-    const trigger = category.querySelector(":scope > .core-actions-menu-trigger");
-    if (trigger) trigger.tabIndex = visible ? 0 : -1;
-  });
-}
-
-function syncPermissionUi() {
-  ensureGroupSelector();
-  ensureFunctionMenuButtons();
-  markArchivedScheduleCells();
+function renderToolbarPermissionControls() {
   const groupId = groupFeatureState.currentGroupId;
   const visibility = {
     shiftSettingsButton: hasGroupPermission(groupId, "schedule_manage"),
     restComplianceButton: hasGroupPermission(groupId, "schedule_manage"),
     deptSettingsButton: hasGroupPermission(groupId, "department_settings"),
     leaveSettingsButton: hasCommonPermission("leave_settings"),
-    overtimeSettingsButton: false,
-    weekStartSettingsButton: hasCommonPermission("settings"),
-    autoSchedulePreviewButton: hasGroupPermission(groupId, "schedule_manage"),
-    autoFillSchedulePreviewButton: hasGroupPermission(groupId, "schedule_manage"),
-    autoScheduleApplyButton: hasGroupPermission(groupId, "schedule_manage"),
-    autoScheduleCancelButton: hasGroupPermission(groupId, "schedule_manage"),
-    exportScheduleButton: hasCommonPermission("export"),
-    exportSapButton: hasCommonPermission("export"),
-    exportLeaveButton: hasCommonPermission("export"),
-    exportOvertimeButton: hasCommonPermission("export")
+    overtimeSettingsButton: false
   };
   Object.entries(visibility).forEach(([id, visible]) => {
     const element = document.getElementById(id);
     if (!element) return;
-    element.style.display = visible ? "" : "none";
+    element.hidden = !visible;
     element.disabled = !visible;
   });
-  syncFunctionMenuCategoryVisibility();
-  document.querySelectorAll("[data-open-department-settings]").forEach((element) => { element.style.display = hasGroupPermission(groupId, "department_settings") ? "" : "none"; });
-  document.querySelectorAll("[data-open-member-settings]").forEach((element) => { element.style.display = hasGroupPermission(groupId, "schedule_manage") ? "" : "none"; });
-  const mealButton = document.querySelector('[data-home-action="meal"]');
-  const actorGroup = getActorGroup();
-  if (mealButton) mealButton.style.display = actorGroup?.mealEnabled && actorGroup?.status === "active" ? "" : "none";
-  document.querySelectorAll('[data-meal-tab="stats"], [data-meal-tab="settings"]').forEach((tab) => { tab.style.display = hasAnyGroupPermission("meal_admin") ? "" : "none"; });
+}
+
+function syncPermissionUi() {
+  ensureGroupSelector();
+  markArchivedScheduleCells();
+  renderFunctionMenu();
+  renderToolbarPermissionControls();
 }
 
 function groupUnitNames(group) { return Array.isArray(group?.unitNames) && group.unitNames.length ? group.unitNames.join("、") : "-"; }

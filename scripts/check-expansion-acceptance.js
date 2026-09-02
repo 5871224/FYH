@@ -43,7 +43,8 @@ assert(styles.includes("@media (max-width: 640px)") && styles.includes(".calenda
 assert(renderer.includes('toggle.textContent = "功能"'), "schedule top-right menu should be labelled function");
 assert(index.includes('id="coreHomeButton"') && !index.includes('data-home-action="home">首頁</button>\n              <button'), "schedule home button should sit outside the function menu");
 assert(renderer.includes("home-password-btn") && !index.includes('data-open-change-password="true">修改密碼</button>'), "change password should live on the home dashboard");
-assert(renderer.includes("const showToolbar = showSchedule && hasManagementAccess()"), "schedule floating toolbar should respect derived management capability");
+assert(renderer.includes("const showToolbar = showSchedule && canUseScheduleToolbar()"), "schedule floating toolbar should respect its exact schedule/leave capability");
+assert(!renderer.includes("hasManagementAccess") && !renderer.includes("promptManagerAccess"), "UI must not restore generic management capability guards");
 
 assert(!index.includes('id="clockCard"'), "standalone clock page should be removed");
 assert(!renderer.includes('data-home-action="clock"'), "home dashboard should not expose a clock page button");

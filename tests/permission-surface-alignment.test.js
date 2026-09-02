@@ -3,17 +3,20 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const auth = fs.readFileSync("src/renderer/renderer-auth-context.js", "utf8");
+const groups = fs.readFileSync("src/renderer/renderer-groups-permissions-archive.js", "utf8");
 const recordsViews = fs.readFileSync("src/renderer/renderer-records-views.js", "utf8");
 const recordsPage = fs.readFileSync("src/renderer/renderer-records-page.js", "utf8");
 const mealPage = fs.readFileSync("src/renderer/renderer-main-pages.js", "utf8");
 
 test("簽到審核與訂餐管理不會被視為班表管理功能", () => {
-  const helper = auth.match(/function hasManagementAccess\(\) \{[\s\S]*?\n\}/)?.[0] || "";
-  assert.ok(helper.includes('permission === "schedule_manage"'));
-  assert.ok(helper.includes('permission === "department_settings"'));
-  assert.ok(!helper.includes('permission !== "schedule_view"'));
-  assert.ok(!helper.includes('attendance_review'));
-  assert.ok(!helper.includes('meal_admin'));
+  const menuModel = groups.match(/function getFunctionMenuSections\(\) \{[\s\S]*?(?=function hasFunctionMenuAccess)/)?.[0] || "";
+  assert.ok(menuModel.includes('hasGroupPermission(groupId, "schedule_manage")'));
+  assert.ok(menuModel.includes('hasCommonPermission("settings")'));
+  assert.ok(menuModel.includes('hasCommonPermission("export")'));
+  assert.ok(!menuModel.includes('attendance_review'));
+  assert.ok(!menuModel.includes('meal_admin'));
+  assert.ok(!auth.includes('hasManagementAccess'));
+  assert.ok(!auth.includes('promptManagerAccess'));
 });
 
 test("簽到審核頁籤只看 attendance_review 群組權限", () => {

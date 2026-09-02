@@ -100,7 +100,7 @@ function buildAutoFillSchedulePreview(dates) {
 }
 
 function openAutoFillSchedulePeriodModal() {
-  if (!promptManagerAccess("自動補班需先登入主管帳號")) {
+  if (!requireCurrentGroupUiPermission("schedule_manage", "自動補班")) {
     return;
   }
   closeCoreActionsMenu();
@@ -167,7 +167,7 @@ async function generateAutoFillSchedulePreviewFromModal(button) {
 }
 
 async function applyAutoFillSchedulePreview() {
-  if (!promptManagerAccess("套用自動補班需先登入主管帳號")) {
+  if (!requireCurrentGroupUiPermission("schedule_manage", "套用自動補班")) {
     return;
   }
   if (!await confirmAction("確定要套用目前綠色自動補班預覽嗎？套用後才會正式寫入班表。")) {
@@ -188,12 +188,6 @@ function cancelAutoFillSchedulePreview() {
 }
 
 function bindAutoFillScheduleControls() {
-  document.getElementById("autoFillSchedulePreviewButton")?.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    openAutoFillSchedulePeriodModal();
-  });
-
   document.body.addEventListener("click", async (event) => {
     const button = event.target instanceof Element
       ? event.target.closest("[data-generate-auto-fill-schedule]")
