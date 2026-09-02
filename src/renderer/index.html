@@ -118,6 +118,38 @@
         width: 112px;
       }
     }
+
+    .permission-settings-table th:nth-child(3),
+    .permission-settings-table td:nth-child(3) {
+      width: 12rem;
+    }
+
+    .permission-settings-table th:nth-child(4),
+    .permission-settings-table td:nth-child(4) {
+      width: auto;
+    }
+
+    .permission-group-summary-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.45rem;
+      min-width: 0;
+    }
+
+    .permission-group-summary-row + .permission-group-summary-row {
+      margin-top: 0.3rem;
+    }
+
+    .permission-group-summary-row > strong {
+      flex: 0 0 auto;
+      white-space: nowrap;
+      line-height: 1.7;
+    }
+
+    .permission-group-summary-row > .permission-summary-tags {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
   </style>
 </head>
 <body>
