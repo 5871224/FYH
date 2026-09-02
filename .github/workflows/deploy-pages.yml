@@ -70,7 +70,8 @@ jobs:
             fi
           done
 
-          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT
+"
 
       - name: Setup Deno
         if: steps.changes.outputs.docs_only != 'true'
@@ -133,6 +134,15 @@ jobs:
             echo "::error title=Unit tests failed::$failure_message"
             exit "$test_status"
           fi
+
+      - name: Upload unit test log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-test-log
+          path: /tmp/npm-test.log
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Check Edge TypeScript
         if: steps.changes.outputs.docs_only != 'true'
