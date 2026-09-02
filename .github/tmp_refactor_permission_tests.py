@@ -60,3 +60,11 @@ replace_once(
     'assert(renderer.includes("const showToolbar = showSchedule && canUseScheduleToolbar()"), "schedule floating toolbar should respect its exact schedule/leave capability");\nassert(!renderer.includes("hasManagementAccess") && !renderer.includes("promptManagerAccess"), "UI must not restore generic management capability guards");',
     'expansion acceptance exact toolbar capability'
 )
+
+# Renderer alignment must also enforce the new exact capability architecture.
+replace_once(
+    'scripts/check-renderer-alignment.js',
+    'assert(renderer.includes("function hasManagementAccess()"), "Management capability helper is missing");',
+    'assert(renderer.includes("function canUseScheduleToolbar()"), "Schedule-toolbar capability helper is missing");\nassert(renderer.includes("function hasFunctionMenuAccess()"), "Function-menu capability helper is missing");\nassert(!renderer.includes("hasManagementAccess") && !renderer.includes("promptManagerAccess"), "Generic management capability guards must stay removed");',
+    'renderer alignment exact capability checks'
+)
