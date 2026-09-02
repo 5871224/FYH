@@ -137,6 +137,7 @@ jobs:
       - name: Check Edge TypeScript
         if: steps.changes.outputs.docs_only != 'true'
         run: |
+          deno check --node-modules-dir=auto supabase/functions/access-control/index.ts
           deno check --node-modules-dir=auto supabase/functions/attendance-clock/index.ts
           deno check --node-modules-dir=auto supabase/functions/attendance-ledger/index.ts
           deno check --node-modules-dir=auto supabase/functions/attendance-review-groups/index.ts
