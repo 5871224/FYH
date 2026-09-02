@@ -40,9 +40,12 @@ function canManagePermissions() {
 }
 
 function hasManagementAccess() {
-  if (getCommonPermissions().length) return true;
+  const commonPermissions = getCommonPermissions();
+  if (commonPermissions.some((permission) => ["settings", "export", "leave_settings"].includes(permission))) return true;
   const groupMap = getAccessActor().groupPermissions;
-  return Boolean(groupMap && typeof groupMap === "object" && Object.values(groupMap).some((permissions) => Array.isArray(permissions) && permissions.some((permission) => permission !== "schedule_view")));
+  return Boolean(groupMap && typeof groupMap === "object" && Object.values(groupMap).some((permissions) =>
+    Array.isArray(permissions) && permissions.some((permission) => permission === "schedule_manage" || permission === "department_settings")
+  ));
 }
 
 function canEditSchedule() {

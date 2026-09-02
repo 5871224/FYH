@@ -8662,9 +8662,12 @@ function canManagePermissions() {
 }
 
 function hasManagementAccess() {
-  if (getCommonPermissions().length) return true;
+  const commonPermissions = getCommonPermissions();
+  if (commonPermissions.some((permission) => ["settings", "export", "leave_settings"].includes(permission))) return true;
   const groupMap = getAccessActor().groupPermissions;
-  return Boolean(groupMap && typeof groupMap === "object" && Object.values(groupMap).some((permissions) => Array.isArray(permissions) && permissions.some((permission) => permission !== "schedule_view")));
+  return Boolean(groupMap && typeof groupMap === "object" && Object.values(groupMap).some((permissions) =>
+    Array.isArray(permissions) && permissions.some((permission) => permission === "schedule_manage" || permission === "department_settings")
+  ));
 }
 
 function canEditSchedule() {
@@ -9098,6 +9101,7 @@ function renderMealPage() {
     mealCard.innerHTML = "";
     return;
   }
+  const canAdminMeal = hasAnyGroupPermission("meal_admin");
   const status = mealOrderState.status;
   const products = status?.products || [];
   const showEmptyProducts = Boolean(status) && !mealOrderState.loading && products.length === 0;
@@ -9128,14 +9132,14 @@ function renderMealPage() {
       </div>
       ${renderHomeIconButton()}
     </div>
-    ${hasManagementAccess() ? `
+    ${canAdminMeal ? `
       <div class="meal-tabs" role="tablist" aria-label="訂餐頁分頁">
         <button class="ghost-btn page-tab-btn ${mealPageTab === "order" ? "active" : ""}" type="button" role="tab" aria-selected="${mealPageTab === "order" ? "true" : "false"}" data-meal-tab="order">今日訂餐</button>
         <button class="ghost-btn page-tab-btn ${mealPageTab === "stats" ? "active" : ""}" type="button" role="tab" aria-selected="${mealPageTab === "stats" ? "true" : "false"}" data-meal-tab="stats">訂餐統計</button>
         <button class="ghost-btn page-tab-btn ${mealPageTab === "settings" ? "active" : ""}" type="button" role="tab" aria-selected="${mealPageTab === "settings" ? "true" : "false"}" data-meal-tab="settings">訂餐設定</button>
       </div>
     ` : ""}
-    ${hasManagementAccess() && mealPageTab === "settings" ? renderMealSettingsSection() : hasManagementAccess() && mealPageTab === "stats" ? renderMealReportSection() : `
+    ${canAdminMeal && mealPageTab === "settings" ? renderMealSettingsSection() : canAdminMeal && mealPageTab === "stats" ? renderMealReportSection() : `
     <section class="records-section meal-order-section">
       ${mealOrderState.error ? `<div class="auth-error clock-error">${escapeHtml(mealOrderState.error)}</div>` : ""}
     ${unavailableReason ? `<div class="auth-error clock-error">${escapeHtml(unavailableReason)}</div>` : ""}
@@ -9183,7 +9187,7 @@ function renderHomeIconButton() {
 function renderRecordsTabs() {
   const tabs = [
     ["personal", "個人記錄", true],
-    ["review", "簽到審核", canManagePermissions()]
+    ["review", "簽到審核", hasAnyGroupPermission("attendance_review")]
   ].filter((tab) => tab[2]);
   if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
   return `<div class="record-tabs" role="tablist" aria-label="簽到簿分頁">${tabs.map(([id, label]) => `<button class="ghost-btn page-tab-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" role="tab" aria-selected="${recordsState.activeTab === id ? "true" : "false"}" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
@@ -10301,7 +10305,7 @@ async function loadAttendanceReview(shouldRender = true) {
 }
 
 async function loadMealReport(shouldRender = true) {
-  if (!hasManagementAccess()) return;
+  if (!hasAnyGroupPermission("meal_admin")) return;
   ensureRecordsState();
   recordsState = { ...recordsState, mealStats: { ...(recordsState.mealStats || {}), loading: true, error: "" } };
   if (shouldRender) renderAll();
@@ -10318,7 +10322,7 @@ async function loadMealReport(shouldRender = true) {
 }
 
 async function loadMealAdminSettings(shouldRender = true) {
-  if (!hasManagementAccess()) return;
+  if (!hasAnyGroupPermission("meal_admin")) return;
   recordsState = {
     ...recordsState,
     mealAdmin: { ...recordsState.mealAdmin, loading: true, error: "" }
