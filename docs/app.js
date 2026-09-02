@@ -8111,6 +8111,7 @@ function getFunctionMenuSections() {
       id: "export",
       label: "匯出",
       items: [
+        { id: "schedulePrintMenuButton", label: "列印班表", action: "print-schedule" },
         { id: "exportScheduleButton", label: "匯出上班日", action: "export-workday" },
         { id: "exportSapButton", label: "匯出休例假", action: "export-sap" },
         { id: "exportLeaveButton", label: "匯出請假", action: "export-leave" },
@@ -12777,6 +12778,7 @@ async function runFunctionMenuAction(action) {
   if (action === "auto-fill-schedule-preview") return openAutoFillSchedulePeriodModal();
   if (action === "auto-schedule-apply") return applyAutoSchedulePreview();
   if (action === "auto-schedule-cancel") return cancelAutoSchedulePreview();
+  if (action === "print-schedule") return window.openSchedulePrintRangeDialog?.();
   if (action === "export-workday") return openExportPeriodDialog("workday");
   if (action === "export-sap") return openExportPeriodDialog("sap");
   if (action === "export-leave") return openExportPeriodDialog("leave");

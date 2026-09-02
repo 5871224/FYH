@@ -62,7 +62,6 @@ window.SCHEDULER_CONFIG = {
 (function installSchedulePrintFeature() {
   if (typeof document === "undefined") return;
 
-  const BUTTON_ID = "schedulePrintMenuButton";
   const PREVIEW_ID = "schedulePrintPreview";
   const STYLE_ID = "schedulePrintStyles";
   const PAGE_STYLE_ID = "schedulePrintPageStyle";
@@ -73,7 +72,7 @@ window.SCHEDULER_CONFIG = {
   function canPrint() {
     try {
       if (typeof appView === "undefined" || appView !== "schedule") return false;
-      return Boolean(typeof canEditSchedule === "function" && canEditSchedule());
+      return Boolean(typeof hasCommonPermission === "function" && hasCommonPermission("export"));
     } catch { return false; }
   }
 
@@ -102,33 +101,6 @@ window.SCHEDULER_CONFIG = {
       @media print{html,body{background:#fff!important}body.schedule-printing>*:not(#${PREVIEW_ID}){display:none!important}body.schedule-printing #${PREVIEW_ID}{position:static;overflow:visible;background:#fff}body.schedule-printing .schedule-print-preview-toolbar{display:none!important}body.schedule-printing .schedule-print-pages{padding:0}body.schedule-printing .schedule-print-page{margin:0;box-shadow:none;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}body.schedule-printing .schedule-print-page:last-child{break-after:auto;page-break-after:auto}}
     `;
     document.head.appendChild(style);
-  }
-
-  function ensureMenuButton() {
-    const menu = document.getElementById("coreActionsMenu");
-    if (!menu) return;
-    let button = document.getElementById(BUTTON_ID);
-    if (!button) {
-      button = document.createElement("button");
-      button.id = BUTTON_ID;
-      button.type = "button";
-      button.className = "ghost-btn ops-btn";
-      button.textContent = "列印班表";
-    }
-    const exportSubmenu = menu.querySelector('.core-actions-submenu[aria-label="匯出"]');
-    if (exportSubmenu && button.parentElement !== exportSubmenu) {
-      const overtimeButton = document.getElementById("exportOvertimeButton");
-      if (overtimeButton?.parentElement === exportSubmenu) {
-        overtimeButton.insertAdjacentElement("beforebegin", button);
-      } else {
-        exportSubmenu.appendChild(button);
-      }
-    } else if (!exportSubmenu && !button.isConnected) {
-      menu.prepend(button);
-    }
-    const visible = canPrint();
-    button.style.display = visible ? "" : "none";
-    button.disabled = !visible;
   }
 
   function overlap(item, startDate, endDate) {
@@ -291,17 +263,20 @@ window.SCHEDULER_CONFIG = {
     requestAnimationFrame(() => window.print());
   }
 
+  function openFromFunctionMenu() {
+    if (!canPrint()) return;
+    openRangeDialog();
+  }
+
   function install() {
-    if (installed) { ensureMenuButton(); return; }
+    if (installed) return;
     if (!window.schedulerApi || typeof setModal !== "function" || typeof renderCellInner !== "function") { setTimeout(install, 50); return; }
-    installed = true; ensureStyles(); ensureMenuButton();
-    const menu = document.getElementById("coreActionsMenu");
-    if (menu) new MutationObserver(ensureMenuButton).observe(menu, { childList: true });
+    installed = true;
+    ensureStyles();
+    window.openSchedulePrintRangeDialog = openFromFunctionMenu;
     document.addEventListener("click", (event) => {
       const target = event.target instanceof Element ? event.target : null;
       if (!target) return;
-      if (target.closest(`#${BUTTON_ID}`)) { event.preventDefault(); openRangeDialog(); return; }
-      if (target.closest("#coreActionsToggle")) { queueMicrotask(ensureMenuButton); return; }
       if (target.closest("[data-print-range-cancel]")) { closeModal(); return; }
       const confirm = target.closest("[data-print-range-confirm]");
       if (confirm instanceof HTMLButtonElement) { void confirmRange(confirm); return; }
