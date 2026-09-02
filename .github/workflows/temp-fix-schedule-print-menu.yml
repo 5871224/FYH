@@ -1,0 +1,131 @@
+name: Temp fix schedule print menu
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Refactor schedule print menu integration
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new, label):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 occurrence, got {count}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # Canonical function-menu model: schedule print belongs to Export and is
+          # created only when the common export permission exists.
+          replace_once(
+              'src/renderer/renderer-groups-permissions-archive.js',
+              '''      items: [\n        { id: "exportScheduleButton", label: "匯出上班日", action: "export-workday" },''',
+              '''      items: [\n        { id: "schedulePrintMenuButton", label: "列印班表", action: "print-schedule" },\n        { id: "exportScheduleButton", label: "匯出上班日", action: "export-workday" },''',
+              'add schedule print to export section'
+          )
+
+          replace_once(
+              'src/renderer/renderer-events-toolbar.js',
+              '''  if (action === "auto-schedule-cancel") return cancelAutoSchedulePreview();\n  if (action === "export-workday") return openExportPeriodDialog("workday");''',
+              '''  if (action === "auto-schedule-cancel") return cancelAutoSchedulePreview();\n  if (action === "print-schedule") return window.openSchedulePrintRangeDialog?.();\n  if (action === "export-workday") return openExportPeriodDialog("workday");''',
+              'route print schedule action'
+          )
+
+          # Remove the old compatibility DOM patch. The print feature exposes one
+          # callable action; menu placement and permission are owned by the canonical
+          # function-menu renderer above.
+          p = Path('src/renderer/app-config.js')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace('  const BUTTON_ID = "schedulePrintMenuButton";\n', '', 1)
+
+          old_can_print = '''  function canPrint() {\n    try {\n      if (typeof appView === "undefined" || appView !== "schedule") return false;\n      return Boolean(typeof canEditSchedule === "function" && canEditSchedule());\n    } catch { return false; }\n  }'''
+          new_can_print = '''  function canPrint() {\n    try {\n      if (typeof appView === "undefined" || appView !== "schedule") return false;\n      return Boolean(typeof hasCommonPermission === "function" && hasCommonPermission("export"));\n    } catch { return false; }\n  }'''
+          if text.count(old_can_print) != 1:
+              raise SystemExit('schedule print canPrint block not found exactly once')
+          text = text.replace(old_can_print, new_can_print, 1)
+
+          start = text.find('  function ensureMenuButton() {')
+          end = text.find('  function overlap(', start)
+          if start < 0 or end < 0:
+              raise SystemExit('schedule print legacy menu injection block not found')
+          text = text[:start] + text[end:]
+
+          old_install = '''  function install() {\n    if (installed) { ensureMenuButton(); return; }\n    if (!window.schedulerApi || typeof setModal !== "function" || typeof renderCellInner !== "function") { setTimeout(install, 50); return; }\n    installed = true; ensureStyles(); ensureMenuButton();\n    const menu = document.getElementById("coreActionsMenu");\n    if (menu) new MutationObserver(ensureMenuButton).observe(menu, { childList: true });\n    document.addEventListener("click", (event) => {'''
+          new_install = '''  function openFromFunctionMenu() {\n    if (!canPrint()) return;\n    openRangeDialog();\n  }\n\n  function install() {\n    if (installed) return;\n    if (!window.schedulerApi || typeof setModal !== "function" || typeof renderCellInner !== "function") { setTimeout(install, 50); return; }\n    installed = true;\n    ensureStyles();\n    window.openSchedulePrintRangeDialog = openFromFunctionMenu;\n    document.addEventListener("click", (event) => {'''
+          if text.count(old_install) != 1:
+              raise SystemExit('schedule print install block not found exactly once')
+          text = text.replace(old_install, new_install, 1)
+
+          for legacy_line in [
+              '      if (target.closest(`#${BUTTON_ID}`)) { event.preventDefault(); openRangeDialog(); return; }\n',
+              '      if (target.closest("#coreActionsToggle")) { queueMicrotask(ensureMenuButton); return; }\n'
+          ]:
+              if text.count(legacy_line) != 1:
+                  raise SystemExit(f'legacy schedule print click hook not found: {legacy_line.strip()}')
+              text = text.replace(legacy_line, '', 1)
+
+          if 'ensureMenuButton' in text or 'BUTTON_ID' in text or 'MutationObserver(ensureMenuButton)' in text:
+              raise SystemExit('legacy schedule print menu injection still exists')
+          p.write_text(text, encoding='utf-8')
+
+          Path('tests/schedule-print-menu-placement.test.js').write_text(r'''const fs = require("node:fs");
+          const test = require("node:test");
+          const assert = require("node:assert/strict");
+
+          const groups = fs.readFileSync("src/renderer/renderer-groups-permissions-archive.js", "utf8");
+          const toolbar = fs.readFileSync("src/renderer/renderer-events-toolbar.js", "utf8");
+          const config = fs.readFileSync("src/renderer/app-config.js", "utf8");
+
+          test("列印班表固定屬於匯出分類並由 export 權限建立", () => {
+            const start = groups.indexOf('id: "export"');
+            const end = groups.indexOf('return sections;', start);
+            const exportSection = groups.slice(start, end);
+            assert.ok(exportSection.includes('hasCommonPermission("export")') || groups.slice(Math.max(0, start - 120), end).includes('hasCommonPermission("export")'));
+            assert.ok(exportSection.includes('{ id: "schedulePrintMenuButton", label: "列印班表", action: "print-schedule" }'));
+          });
+
+          test("班表列印不得再用 DOM fallback 塞到功能選單外層", () => {
+            assert.ok(!config.includes("ensureMenuButton"));
+            assert.ok(!config.includes("menu.prepend(button)"));
+            assert.ok(!config.includes("MutationObserver(ensureMenuButton)"));
+            assert.ok(config.includes('hasCommonPermission("export")'));
+            assert.ok(config.includes("window.openSchedulePrintRangeDialog = openFromFunctionMenu"));
+          });
+
+          test("功能選單 print-schedule action 只呼叫正式列印入口", () => {
+            assert.ok(toolbar.includes('if (action === "print-schedule") return window.openSchedulePrintRangeDialog?.();'));
+          });
+          ''', encoding='utf-8')
+          PY
+      - name: Remove temporary workflow before verification
+        run: rm .github/workflows/temp-fix-schedule-print-menu.yml
+      - name: Build and verify
+        run: |
+          npm run web:publish
+          npm run ci:check
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "修正列印班表回到匯出選單"
+          git push origin HEAD:main
