@@ -1028,7 +1028,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       },
       schedule: mapScheduleRows(scheduleEntryRows, members),
       scheduleLoadedRanges: [scheduleRange],
-      accessBundle: bootstrap.accessBundle || { actor: {}, groups: [], roles: [] },
+      accessBundle: await getGroupAccessBundle(),
       archiveRanges: Array.isArray(bootstrap.archiveRanges) ? bootstrap.archiveRanges : []
     };
   }
@@ -1253,7 +1253,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     return { ok: true, row: result.rows?.[0] || null };
   }
 
-  async function getGroupAccessBundle() { return callRpc("get_group_access_bundle_v1", {}) || {}; }
+  async function getGroupAccessBundle() { return requestFunction("access-control", { action: "bundle" }) || {}; }
   async function getScheduleConditions(groupId) { return callRpc("get_schedule_conditions_v1", { p_group_id: groupId }) || []; }
   async function saveScheduleCondition(item) { return callRpc("save_schedule_condition_v1", { p_item: item }); }
   async function deleteScheduleCondition(conditionId) { return callRpc("delete_schedule_condition_v1", { p_condition_id: conditionId }); }
@@ -1266,11 +1266,15 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   async function deleteScheduleGroup(groupId, confirmName) { return callRpc("delete_schedule_group_v1", { p_group_id: groupId, p_confirm_name: confirmName }); }
   async function reorderScheduleGroups(groupIds) { return callRpc("reorder_schedule_groups_v1", { p_group_ids: groupIds }); }
   async function saveAccessRole(role) {
-    const result = await callRpc("save_access_role_v1", { p_role: role });
-    await saveVietnameseLabel("role", result?.role?.id || role?.id, role?.nameVi || "");
-    return result;
+    return requestFunction("access-control", { action: "saveRole", role });
   }
-  async function deleteAccessRole(roleId) { return callRpc("delete_access_role_v1", { p_role_id: roleId }); }
+  async function deleteAccessRole(roleId) {
+    return requestFunction("access-control", { action: "deleteRole", roleId });
+  }
+  async function reorderAccessRoles(roleIds) {
+    return requestFunction("access-control", { action: "reorderRoles", roleIds });
+  }
+
   async function validateMemberGroupChange(employeeCode, groupId) { return callRpc("validate_member_group_change_v1", { p_employee_code: employeeCode, p_new_group_id: groupId }); }
   async function getScheduleArchives(groupId = null) { return callRpc("get_schedule_archives_v1", { p_group_id: groupId }); }
   async function archiveSchedule(groupId, startDate, endDate) { return callRpc("archive_schedule_v1", { p_group_id: groupId, p_start_date: startDate, p_end_date: endDate }); }
@@ -1512,6 +1516,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     reorderScheduleGroups,
     saveAccessRole,
     deleteAccessRole,
+    reorderAccessRoles,
     validateMemberGroupChange,
     getScheduleArchives,
     archiveSchedule,

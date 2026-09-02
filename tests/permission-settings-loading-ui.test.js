@@ -6,15 +6,17 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("權限設定的權限項目使用可換行膠囊標籤並取得主要寬度", () => {
+test("權限設定的共用與群組權限使用可換行膠囊標籤並取得主要寬度", () => {
   const renderer = read("src/renderer/renderer-groups-permissions-archive.js");
   const css = read("src/renderer/css/pages.css");
   const spec = read("規格書.md");
 
-  assert.match(renderer, /function renderPermissionSummaryTags\(role\)/);
+  assert.match(renderer, /function permissionTagList\(labels\)/);
+  assert.match(renderer, /function renderCommonPermissionSummary\(role\)/);
+  assert.match(renderer, /function renderGroupPermissionSummary\(role\)/);
   assert.match(renderer, /class="permission-summary-tags"/);
   assert.match(renderer, /class="group-unit-tag permission-summary-tag"/);
-  assert.match(renderer, /class="permission-summary-cell permission-items-col">\$\{renderPermissionSummaryTags\(role\)\}/);
+  assert.match(renderer, /class="permission-summary-cell permission-items-col">\$\{renderGroupPermissionSummary\(role\)\}/);
   assert.match(css, /\.permission-settings-table \{[^}]*table-layout:\s*fixed/);
   assert.match(css, /\.permission-settings-table \.permission-items-col \{\s*width:\s*auto/);
   assert.match(css, /\.permission-summary-tags \{[^}]*flex-wrap:\s*wrap/);

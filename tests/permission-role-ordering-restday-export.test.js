@@ -12,7 +12,7 @@ test("權限角色拖曳由正式 renderer 立即持久化，並共用人員權�
   assert.match(permissions, /dragRoleStartOrder = getPermissionRoleOrderFromDom\(\)/);
   assert.match(permissions, /previewPermissionRoleOrder\(roleRow, event\.clientY\)/);
   assert.match(permissions, /document\.addEventListener\("dragend"/);
-  assert.match(permissions, /reorderSettings\("access-role", orderedIds\)/);
+  assert.match(permissions, /reorderAccessRoles\(orderedIds\)/);
   assert.match(permissions, /state\.accessRoles = getAllRoles\(\)/);
   assert.match(permissions, /function renderMemberCustomRoleOptions\(member\)[\s\S]*const roles = getAllRoles\(\)/);
 });
@@ -29,9 +29,10 @@ test("班別與假別區塊底部不保留多餘間距", () => {
 
 test("班表頁匯出加班維持只匯出明確加班設定", () => {
   const migration = read("supabase/002_current_updates.sql");
-  const section = migration.slice(migration.lastIndexOf("-- 2026-08-10 權限角色排序"));
-  const match = section.match(/create or replace function public\.get_schedule_export_rows_v2[\s\S]*?(?=\nrevoke all on function public\.get_group_access_bundle_v1)/);
-  const exportFunction = match?.[0] || "";
+  const start = migration.lastIndexOf("create or replace function public.get_schedule_export_rows_v2");
+  const end = migration.indexOf("\nrevoke all on function public.get_schedule_export_rows_v2", start);
+  assert.ok(start >= 0, "找不到 get_schedule_export_rows_v2");
+  const exportFunction = migration.slice(start, end > start ? end : undefined);
   assert.match(exportFunction, /schedule\.overtime_type_id/);
   assert.match(exportFunction, /schedule\.overtime_start_time/);
   assert.match(exportFunction, /schedule\.overtime_end_time/);

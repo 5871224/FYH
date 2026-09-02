@@ -6,7 +6,7 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("班表姓名雙擊依人員設定權限開啟並延遲載入管理欄位", () => {
+test("班表姓名雙擊依班表管理群組權限開啟並延遲載入管理欄位", () => {
   const auth = read("src/renderer/renderer-auth-context.js");
   const table = read("src/renderer/renderer-schedule-table.js");
   const cells = read("src/renderer/renderer-schedule-cells.js");
@@ -15,7 +15,7 @@ test("班表姓名雙擊依人員設定權限開啟並延遲載入管理欄位",
   const published = read("docs/app.js");
 
   assert.match(auth, /function canManageMembersInCurrentGroup\(\)/);
-  assert.match(auth, /hasPermission\("member_settings"\) && roleAppliesToGroup\(groupFeatureState\.currentGroupId\)/);
+  assert.match(auth, /hasGroupPermission\(groupFeatureState\.currentGroupId, "schedule_manage"\)/);
   assert.match(table, /const memberEditAttrs = canEditMemberSettings/);
   assert.match(cells, /data-shift-schedule-member=/);
   assert.match(events, /async function openScheduleMemberEditor\(memberId\)/);

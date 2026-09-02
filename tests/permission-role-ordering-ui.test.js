@@ -16,7 +16,7 @@ test("權限設定角色表格第一欄由正式 renderer 提供拖曳排序並�
   assert.match(permissions, /settings-order-drag-handle/);
   assert.match(permissions, /data-permission-role-id/);
   assert.match(permissions, /getPermissionRoleOrderFromDom/);
-  assert.match(permissions, /reorderSettings\("access-role", orderedIds\)/);
+  assert.match(permissions, /reorderAccessRoles\(orderedIds\)/);
   assert.match(permissions, /document\.addEventListener\("dragend"/);
   assert.match(css, /\.permission-settings-table \.permission-role-drag-col/);
   assert.match(css, /tr\.permission-role-dragging/);

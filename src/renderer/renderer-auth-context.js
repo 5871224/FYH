@@ -36,30 +36,29 @@ function resolveCurrentMember() {
 }
 
 function canManagePermissions() {
-  return hasPermission("permission_settings");
+  return hasCommonPermission("settings");
 }
-
 
 function hasManagementAccess() {
-  return getAccessPermissions().some((permission) => permission !== "schedule_view");
+  if (getCommonPermissions().length) return true;
+  const groupMap = getAccessActor().groupPermissions;
+  return Boolean(groupMap && typeof groupMap === "object" && Object.values(groupMap).some((permissions) => Array.isArray(permissions) && permissions.some((permission) => permission !== "schedule_view")));
 }
 
-
 function canEditSchedule() {
-  return hasPermission("schedule_manage") && roleAppliesToGroup(groupFeatureState.currentGroupId);
+  return hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage");
 }
 
 function canManageMembersInCurrentGroup() {
-  return hasPermission("member_settings") && roleAppliesToGroup(groupFeatureState.currentGroupId);
+  return hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage");
 }
 
 function canManageDepartmentsInCurrentGroup() {
-  return hasPermission("department_settings") && roleAppliesToGroup(groupFeatureState.currentGroupId);
+  return hasGroupPermission(groupFeatureState.currentGroupId, "department_settings");
 }
 
-
 async function ensureManagerDirectoryLoaded() {
-  if (!hasManagementAccess() || managerDirectoryLoaded) {
+  if (!hasAnyGroupPermission("schedule_manage") || managerDirectoryLoaded) {
     return;
   }
   if (!managerDirectoryLoading) {
@@ -89,8 +88,8 @@ function getRoleLabel(roleId) {
 }
 
 
-function canEditMemberAccount(_member) {
-  return hasPermission("member_settings");
+function canEditMemberAccount(member) {
+  return hasGroupPermission(member?.groupId || groupFeatureState.currentGroupId, "schedule_manage");
 }
 
 

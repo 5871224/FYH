@@ -22,11 +22,12 @@ test("group state keeps canonical metadata directly and archive ranges separatel
   assert.match(groups, /getDefaultAccessRoleId/);
 });
 
-test("Edge Functions share Taipei/effective-account and permission primitives", () => {
+test("Edge Functions share Taipei/effective-account and common/group permission primitives", () => {
   const shared = read("supabase/functions/_shared/runtime.ts");
-  for (const token of ["taipeiDateString", "isProfileEffective", "actorIdOf", "hasPermission", "canAccessGroup"]) {
+  for (const token of ["taipeiDateString", "isProfileEffective", "actorIdOf", "hasCommonPermission", "hasGroupPermission", "hasAnyGroupPermission"]) {
     assert.match(shared, new RegExp(`function ${token}|export function ${token}`));
   }
+  assert.doesNotMatch(shared, /function hasPermission|function canAccessGroup/);
   for (const path of [
     "supabase/functions/attendance-clock/index.ts",
     "supabase/functions/attendance-ledger/index.ts",

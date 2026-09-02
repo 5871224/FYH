@@ -73,7 +73,7 @@ window.SCHEDULER_CONFIG = {
   function canPrint() {
     try {
       if (typeof appView === "undefined" || appView !== "schedule") return false;
-      return Boolean(hasPermission("schedule_manage") && roleAppliesToGroup(groupFeatureState.currentGroupId));
+      return Boolean(typeof canEditSchedule === "function" && canEditSchedule());
     } catch { return false; }
   }
 

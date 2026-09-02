@@ -14,7 +14,7 @@ const rendererSource = fs.readdirSync(rendererDir)
 const coreTables = [
   "set_employee", "set_departments", "set_shift", "set_leave", "set_overtime",
   "schedule_entries", "scheduler_settings", "holidays", "schedule_groups",
-  "access_roles", "access_role_groups", "schedule_archives", "schedule_archive_entries"
+  "access_roles", "access_role_group_permissions", "schedule_archives", "schedule_archive_entries"
 ];
 
 test("瀏覽器不得直接 CRUD 核心資料表", () => {
@@ -72,13 +72,17 @@ test("打卡地點只能使用本人所屬群組的有效單位", () => {
 
 test("正式 SQL 只保留 canonical 權限模型", () => {
   const sql = read("supabase/002_current_updates.sql");
-  assert.match(sql, /has_access_permission/);
-  assert.match(sql, /'permission_settings'/);
+  assert.match(sql, /has_common_permission/);
+  assert.match(sql, /has_group_permission/);
+  assert.match(sql, /access_role_group_permissions/);
+  assert.match(sql, /'settings'/);
   assert.match(sql, /'meal_admin'/);
   assert.match(sql, /'leave_settings'/);
   assert.match(sql, /系統必須保留至少一個有效的權限管理帳號/);
   assert.doesNotMatch(sql, /role\.legacy_role\s+in\s*\('admin','manager'\)/);
   assert.doesNotMatch(sql, /employee\.role\s*=\s*'admin'/);
+  assert.doesNotMatch(sql, /create table if not exists public\.access_role_groups/);
+  assert.doesNotMatch(sql, /function public\.(?:has_access_permission|can_access_group|role_applies_to_group)/);
 });
 
 test("前端角色只使用 access_role_id 與權限資料，不保留文字角色相容層", () => {
@@ -98,4 +102,5 @@ test("前端角色只使用 access_role_id 與權限資料，不保留文字角�
   assert.doesNotMatch(exporter, /parseRoleLabel/);
   assert.match(members, /member\.roleId/);
   assert.match(webApi, /accessRoleId: member\?\.roleId/);
+  assert.match(webApi, /requestFunction\("access-control"/);
 });

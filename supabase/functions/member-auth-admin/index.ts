@@ -1,5 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@^1";
-import { actorIdOf, canAccessGroup, hasPermission, isProfileEffective, isUuid, rpcBoolean, taipeiDateString } from "../_shared/runtime.ts";
+import { actorIdOf, hasAnyGroupPermission, hasCommonPermission, hasGroupPermission, isProfileEffective, isUuid, rpcBoolean, taipeiDateString } from "../_shared/runtime.ts";
 
 type MemberPayload = {
   employeeCode?: string;
@@ -20,12 +20,12 @@ type AccessRole = {
   id: string;
   code: string;
   name: string;
-  permissions: string[];
+  common_permissions: string[];
 };
 
 const DEFAULT_PASSWORD = "0000";
-const MEMBER_PERMISSION = "member_settings";
-const PRIVILEGED_PERMISSION = "permission_settings";
+const SCHEDULE_MANAGE_PERMISSION = "schedule_manage";
+const SETTINGS_PERMISSION = "settings";
 
 
 
@@ -51,12 +51,12 @@ function buildLoginEmail(employeeCode: string) {
 
 async function requireMemberManager(ctx: any) {
   const actorId = actorIdOf(ctx);
-  if (!await hasPermission(ctx, actorId, MEMBER_PERMISSION)) {
+  if (!await hasAnyGroupPermission(ctx, actorId, SCHEDULE_MANAGE_PERMISSION)) {
     throw new Error("沒有管理人員的權限");
   }
   return {
     actorId,
-    canManagePermissions: await hasPermission(ctx, actorId, PRIVILEGED_PERMISSION)
+    canManagePermissions: await hasCommonPermission(ctx, actorId, SETTINGS_PERMISSION)
   };
 }
 
@@ -107,23 +107,24 @@ async function findProfileByCode(ctx: any, employeeCode: string) {
 async function getAccessRole(ctx: any, roleId: string): Promise<AccessRole> {
   const { data, error } = await ctx.supabaseAdmin
     .from("access_roles")
-    .select("id,code,name,permissions")
+    .select("id,code,name,common_permissions")
     .eq("id", roleId)
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("找不到權限角色");
   return {
     ...data,
-    permissions: Array.isArray(data.permissions) ? data.permissions : []
+    common_permissions: Array.isArray(data.common_permissions) ? data.common_permissions : []
   } as AccessRole;
 }
 
 async function roleAppliesToGroup(ctx: any, roleId: string, groupId: string) {
   const { data, error } = await ctx.supabaseAdmin
-    .from("access_role_groups")
-    .select("group_id")
+    .from("access_role_group_permissions")
+    .select("group_id,permissions")
     .eq("role_id", roleId)
     .eq("group_id", groupId)
+    .contains("permissions", ["schedule_view"])
     .maybeSingle();
   if (error) throw error;
   return Boolean(data?.group_id);
@@ -169,16 +170,16 @@ async function validateScheduleShifts(ctx: any, shiftIds: string[], groupId: str
 async function roleHasPrivilegedPermission(ctx: any, roleId: string | null | undefined) {
   if (!roleId || !isUuid(roleId)) return false;
   const role = await getAccessRole(ctx, roleId);
-  return role.permissions.includes(PRIVILEGED_PERMISSION);
+  return role.common_permissions.includes(SETTINGS_PERMISSION);
 }
 
 async function countEffectivePrivilegedAccounts(ctx: any) {
   const { data: roles, error: roleError } = await ctx.supabaseAdmin
     .from("access_roles")
-    .select("id,permissions");
+    .select("id,common_permissions");
   if (roleError) throw roleError;
   const privilegedRoleIds = (roles || [])
-    .filter((role: any) => Array.isArray(role.permissions) && role.permissions.includes(PRIVILEGED_PERMISSION))
+    .filter((role: any) => Array.isArray(role.common_permissions) && role.common_permissions.includes(SETTINGS_PERMISSION))
     .map((role: any) => role.id);
   if (!privilegedRoleIds.length) return 0;
   const { data, error } = await ctx.supabaseAdmin
@@ -192,7 +193,7 @@ async function countEffectivePrivilegedAccounts(ctx: any) {
 async function assertLastPrivilegedAccountProtected(ctx: any, existingProfile: any, nextRole: AccessRole, nextMember: any) {
   const wasPrivileged = await roleHasPrivilegedPermission(ctx, existingProfile?.access_role_id);
   if (!wasPrivileged) return;
-  const remainsPrivileged = nextRole.permissions.includes(PRIVILEGED_PERMISSION)
+  const remainsPrivileged = nextRole.common_permissions.includes(SETTINGS_PERMISSION)
     && isProfileEffective({
       ...existingProfile,
       deleted_at: null,
@@ -206,7 +207,7 @@ async function assertLastPrivilegedAccountProtected(ctx: any, existingProfile: a
 
 async function assertActorMayManageTarget(ctx: any, actor: { actorId: string; canManagePermissions: boolean }, profile: any) {
   if (!profile) return;
-  if (!profile.group_id || !await canAccessGroup(ctx, actor.actorId, profile.group_id, MEMBER_PERMISSION)) {
+  if (!profile.group_id || !await hasGroupPermission(ctx, actor.actorId, profile.group_id, SCHEDULE_MANAGE_PERMISSION)) {
     throw new Error("沒有管理此人員所屬群組的權限");
   }
   if (await roleHasPrivilegedPermission(ctx, profile.access_role_id) && !actor.canManagePermissions) {
@@ -221,7 +222,7 @@ async function upsertMember(ctx: any, body: any) {
   const targetProfile = await findProfileByCode(ctx, member.employeeCode);
   let profile = null;
 
-  if (!await canAccessGroup(ctx, actor.actorId, member.groupId, MEMBER_PERMISSION)) {
+  if (!await hasGroupPermission(ctx, actor.actorId, member.groupId, SCHEDULE_MANAGE_PERMISSION)) {
     throw new Error("沒有管理指定群組人員的權限");
   }
   await validateGroup(ctx, member.groupId);
@@ -239,7 +240,7 @@ async function upsertMember(ctx: any, body: any) {
   if (!await roleAppliesToGroup(ctx, accessRole.id, member.groupId)) {
     throw new Error("此權限角色不適用指定群組");
   }
-  if (accessRole.permissions.includes(PRIVILEGED_PERMISSION) && !actor.canManagePermissions) {
+  if (accessRole.common_permissions.includes(SETTINGS_PERMISSION) && !actor.canManagePermissions) {
     throw new Error("只有權限管理者可以指定此權限角色");
   }
   if (profile) await assertLastPrivilegedAccountProtected(ctx, profile, accessRole, member);

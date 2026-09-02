@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $functions = @(
+  "access-control",
   "member-auth-admin",
   "attendance-clock",
   "attendance-ledger",

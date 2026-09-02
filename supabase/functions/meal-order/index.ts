@@ -1,5 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@^1";
-import { hasPermission, isProfileEffective, positiveInteger, taipeiDateString, taipeiTimeString } from "../_shared/runtime.ts";
+import { hasAnyGroupPermission, isProfileEffective, positiveInteger, taipeiDateString, taipeiTimeString } from "../_shared/runtime.ts";
 
 
 
@@ -34,7 +34,7 @@ async function getGroup(ctx: any, groupId: string) {
 }
 
 async function requireMealAdmin(ctx: any, profile: any) {
-  if (!await hasPermission(ctx, profile.id, "meal_admin")) {
+  if (!await hasAnyGroupPermission(ctx, profile.id, "meal_admin")) {
     throw new Error("沒有訂餐管理權限");
   }
 }

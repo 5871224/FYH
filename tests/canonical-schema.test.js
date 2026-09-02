@@ -19,20 +19,25 @@ test("全新資料庫只保留兩個正式 SQL 檔與每日簽到模型", () => 
   }
 });
 
-test("正式 SQL 必須包含群組、角色權限與班表封存模型", () => {
+test("正式 SQL 必須包含群組、角色共用／群組權限與班表封存模型", () => {
   const combined = read("supabase/001_current_schema.sql") + read("supabase/002_current_updates.sql");
   for (const pattern of [
     /create table if not exists public\.schedule_groups/,
     /create table if not exists public\.access_roles/,
-    /create table if not exists public\.access_role_groups/,
+    /common_permissions text\[\]/,
+    /create table if not exists public\.access_role_group_permissions/,
+    /permissions text\[\]/,
     /create table if not exists public\.schedule_archives/,
     /create table if not exists public\.schedule_archive_entries/,
     /create table if not exists public\.schedule_conditions/,
+    /create or replace function public\.role_has_common_permission/,
+    /create or replace function public\.role_has_group_permission/,
+    /create or replace function public\.has_common_permission/,
+    /create or replace function public\.has_group_permission/,
     /create or replace function public\.get_schedule_conditions_v1/,
     /create or replace function public\.save_schedule_condition_v1/,
     /create or replace function public\.delete_schedule_condition_v1/,
     /create or replace function public\.save_schedule_group_v1/,
-    /create or replace function public\.save_access_role_v1/,
     /create or replace function public\.archive_schedule_v1/,
     /create or replace function public\.protect_archived_schedule_v1/,
     /create policy read_schedule_entries[\s\S]*schedule_view/,
@@ -40,8 +45,17 @@ test("正式 SQL 必須包含群組、角色權限與班表封存模型", () => 
   ]) {
     assert.match(combined, pattern);
   }
+  assert.doesNotMatch(combined, /create or replace function public\.save_access_role_v1/);
+  assert.doesNotMatch(combined, /create or replace function public\.has_access_permission/);
   assert.doesNotMatch(combined, /create policy update_schedule_entries/);
   assert.match(combined, /drop policy if exists update_schedule_entries on public\.schedule_entries/);
+  const accessControl = read("supabase/functions/access-control/index.ts");
+  assert.match(accessControl, /async function saveRole\(/);
+  assert.match(accessControl, /async function deleteRole\(/);
+  assert.match(accessControl, /async function reorderRoles\(/);
+  assert.match(accessControl, /action === "saveRole"/);
+  assert.match(accessControl, /action === "deleteRole"/);
+  assert.match(accessControl, /action === "reorderRoles"/);
 });
 
 test("群組簽到審核 Edge Function 必須列入部署清單與文件", () => {

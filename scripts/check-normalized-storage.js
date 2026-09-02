@@ -64,6 +64,7 @@ assert(webApi.includes('callRpc("get_scheduler_bootstrap_v3"'), "browser bootstr
 assert(webApi.includes('callRpc("save_schedule_entries_v3"'), "schedule writes must use named v3 RPC");
 assert(webApi.includes('callRpc("save_department_v3"'), "department writes must use named v3 RPC");
 assert(webApi.includes('requestFunction("member-auth-admin"'), "member account mutations must use the canonical member-auth-admin Edge Function");
+assert(webApi.includes('requestFunction("access-control"'), "access role operations must use the canonical access-control Edge Function");
 
 for (const removedEdge of ["catalog-admin", "member-delete-v2", "member-order-v2", "department-attendance-v2"]) {
   assert(!fs.existsSync(path.join(rootDir, "supabase", "functions", removedEdge)), `${removedEdge} obsolete Edge Function must be removed`);
