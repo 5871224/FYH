@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/temp-refactor-permission-ui.yml'
       - '.github/tmp_refactor_permission_ui.py'
+      - '.github/tmp_refactor_permission_tests.py'
 
 permissions:
   contents: write
@@ -20,9 +21,11 @@ jobs:
         with:
           node-version: '22'
       - name: Apply canonical permission UI refactor
-        run: python .github/tmp_refactor_permission_ui.py
+        run: |
+          python .github/tmp_refactor_permission_ui.py
+          python .github/tmp_refactor_permission_tests.py
       - name: Remove temporary orchestration files
-        run: rm -f .github/tmp_refactor_permission_ui.py .github/workflows/temp-refactor-permission-ui.yml
+        run: rm -f .github/tmp_refactor_permission_ui.py .github/tmp_refactor_permission_tests.py .github/workflows/temp-refactor-permission-ui.yml
       - name: Build and verify
         run: |
           npm run web:publish
