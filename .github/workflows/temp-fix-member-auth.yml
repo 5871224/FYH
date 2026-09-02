@@ -1,0 +1,29 @@
+name: Temporary Fix Member Auth
+
+on:
+  push:
+    branches:
+      - feat/access-control-v2-20260901
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Fix privileged role count
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -c "from pathlib import Path; p=Path('supabase/functions/member-auth-admin/index.ts'); s=p.read_text(); old='Array.isArray(role.permissions) && role.common_permissions.includes(SETTINGS_PERMISSION)'; new='Array.isArray(role.common_permissions) && role.common_permissions.includes(SETTINGS_PERMISSION)'; assert old in s; p.write_text(s.replace(old,new,1))"
+          rm .github/workflows/temp-fix-member-auth.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add supabase/functions/member-auth-admin/index.ts .github/workflows/temp-fix-member-auth.yml
+          git diff --cached --check
+          git commit -m "修正最後管理員權限計數"
+          git push
