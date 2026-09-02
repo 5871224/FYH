@@ -1,0 +1,39 @@
+name: Temp fix function menu categories
+
+on:
+  push:
+    paths:
+      - '.github/workflows/temp-fix-function-menu-categories.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Apply fix
+        run: python scripts/temp-fix-function-menu-categories.py
+      - name: Remove temporary files
+        run: rm -f .github/workflows/temp-fix-function-menu-categories.yml scripts/temp-fix-function-menu-categories.py
+      - name: Build and verify
+        run: |
+          npm run web:publish
+          npm test
+          npm run web:check
+          npm run renderer:check
+          npm run css:architecture
+          npm run js:architecture
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m '修正功能選單父分類權限顯示'
+          git push origin HEAD:main
