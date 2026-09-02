@@ -23,34 +23,33 @@ jobs:
         run: |
           from pathlib import Path
 
-          def replace(path, old, new):
+          def replace(path, old, new, count=None):
               p = Path(path)
               text = p.read_text(encoding='utf-8')
               if old not in text:
-                  raise SystemExit(f'pattern not found: {path}')
-              p.write_text(text.replace(old, new), encoding='utf-8')
+                  raise SystemExit(f'pattern not found: {path}: {old[:80]}')
+              text = text.replace(old, new, count if count is not None else -1)
+              p.write_text(text, encoding='utf-8')
+
+          # Remove this temporary workflow before the repository hygiene tests run.
+          Path('.github/workflows/temp-fix-permission-surface.yml').unlink()
 
           replace(
               'src/renderer/renderer-auth-context.js',
               '''function hasManagementAccess() {\n  if (getCommonPermissions().length) return true;\n  const groupMap = getAccessActor().groupPermissions;\n  return Boolean(groupMap && typeof groupMap === "object" && Object.values(groupMap).some((permissions) => Array.isArray(permissions) && permissions.some((permission) => permission !== "schedule_view")));\n}\n''',
-              '''function hasManagementAccess() {\n  return hasCommonPermission("settings")\n    || hasCommonPermission("export")\n    || hasCommonPermission("leave_settings")\n    || hasAnyGroupPermission("schedule_manage")\n    || hasAnyGroupPermission("department_settings");\n}\n\nfunction canReviewAttendance() {\n  return hasAnyGroupPermission("attendance_review");\n}\n\nfunction canManageMeal() {\n  return hasAnyGroupPermission("meal_admin");\n}\n'''
+              '''function hasManagementAccess() {\n  const commonPermissions = getCommonPermissions();\n  if (commonPermissions.some((permission) => ["settings", "export", "leave_settings"].includes(permission))) return true;\n  const groupMap = getAccessActor().groupPermissions;\n  return Boolean(groupMap && typeof groupMap === "object" && Object.values(groupMap).some((permissions) =>\n    Array.isArray(permissions) && permissions.some((permission) => permission === "schedule_manage" || permission === "department_settings")\n  ));\n}\n'''
           )
 
           replace(
               'src/renderer/renderer-records-views.js',
               '["review", "簽到審核", canManagePermissions()]',
-              '["review", "簽到審核", canReviewAttendance()]'
+              '["review", "簽到審核", hasAnyGroupPermission("attendance_review")]'
           )
 
           replace(
               'src/renderer/renderer-records-page.js',
-              'if (!hasAnyGroupPermission("attendance_review")) return false;',
-              'if (!canReviewAttendance()) return false;'
-          )
-          replace(
-              'src/renderer/renderer-records-page.js',
               'if (!hasManagementAccess()) return;',
-              'if (!canManageMeal()) return;'
+              'if (!hasAnyGroupPermission("meal_admin")) return;'
           )
 
           p = Path('src/renderer/renderer-main-pages.js')
@@ -58,37 +57,26 @@ jobs:
           marker = '  const status = mealOrderState.status;\n'
           if marker not in text:
               raise SystemExit('meal page marker not found')
-          text = text.replace(marker, '  const canAdminMeal = canManageMeal();\n' + marker, 1)
+          text = text.replace(marker, '  const canAdminMeal = hasAnyGroupPermission("meal_admin");\n' + marker, 1)
+          if '${hasManagementAccess() ? `' not in text:
+              raise SystemExit('meal tabs management pattern not found')
           text = text.replace('${hasManagementAccess() ? `', '${canAdminMeal ? `', 1)
-          text = text.replace('${hasManagementAccess() && mealPageTab === "settings" ? renderMealSettingsSection() : hasManagementAccess() && mealPageTab === "stats" ? renderMealReportSection() : `', '${canAdminMeal && mealPageTab === "settings" ? renderMealSettingsSection() : canAdminMeal && mealPageTab === "stats" ? renderMealReportSection() : `', 1)
+          old_section = '${hasManagementAccess() && mealPageTab === "settings" ? renderMealSettingsSection() : hasManagementAccess() && mealPageTab === "stats" ? renderMealReportSection() : `'
+          new_section = '${canAdminMeal && mealPageTab === "settings" ? renderMealSettingsSection() : canAdminMeal && mealPageTab === "stats" ? renderMealReportSection() : `'
+          if old_section not in text:
+              raise SystemExit('meal admin section pattern not found')
+          text = text.replace(old_section, new_section, 1)
           p.write_text(text, encoding='utf-8')
 
-          replace(
-              'src/renderer/renderer-groups-permissions-archive.js',
-              'document.querySelectorAll(\'[data-meal-tab="stats"], [data-meal-tab="settings"]\').forEach((tab) => { tab.style.display = hasAnyGroupPermission("meal_admin") ? "" : "none"; });',
-              'document.querySelectorAll(\'[data-meal-tab="stats"], [data-meal-tab="settings"]\').forEach((tab) => { tab.style.display = canManageMeal() ? "" : "none"; });'
-          )
-
-          Path('tests/permission-surface-alignment.test.js').write_text('''const fs = require("node:fs");\nconst test = require("node:test");\nconst assert = require("node:assert/strict");\n\nconst auth = fs.readFileSync("src/renderer/renderer-auth-context.js", "utf8");\nconst recordsViews = fs.readFileSync("src/renderer/renderer-records-views.js", "utf8");\nconst recordsPage = fs.readFileSync("src/renderer/renderer-records-page.js", "utf8");\nconst mealPage = fs.readFileSync("src/renderer/renderer-main-pages.js", "utf8");\n\ntest("attendance review permission does not become schedule management access", () => {\n  const helper = auth.match(/function hasManagementAccess\\(\\) \\{[\\s\\S]*?\\n\\}/)?.[0] || "";\n  assert.ok(helper.includes('hasAnyGroupPermission("schedule_manage")'));\n  assert.ok(helper.includes('hasAnyGroupPermission("department_settings")'));\n  assert.ok(!helper.includes('permission !== "schedule_view"'));\n  assert.ok(!helper.includes('attendance_review'));\n  assert.ok(!helper.includes('meal_admin'));\n});\n\ntest("attendance review tab follows attendance_review permission", () => {\n  assert.ok(recordsViews.includes('["review", "簽到審核", canReviewAttendance()]'));\n  assert.ok(recordsPage.includes('if (!canReviewAttendance()) return false;'));\n});\n\ntest("meal admin surfaces follow meal_admin permission", () => {\n  assert.ok(auth.includes('function canManageMeal()'));\n  assert.ok(mealPage.includes('const canAdminMeal = canManageMeal();'));\n  assert.ok(recordsPage.includes('if (!canManageMeal()) return;'));\n});\n''', encoding='utf-8')
-      - name: Build and test
+          Path('tests/permission-surface-alignment.test.js').write_text('''const fs = require("node:fs");\nconst test = require("node:test");\nconst assert = require("node:assert/strict");\n\nconst auth = fs.readFileSync("src/renderer/renderer-auth-context.js", "utf8");\nconst recordsViews = fs.readFileSync("src/renderer/renderer-records-views.js", "utf8");\nconst recordsPage = fs.readFileSync("src/renderer/renderer-records-page.js", "utf8");\nconst mealPage = fs.readFileSync("src/renderer/renderer-main-pages.js", "utf8");\n\ntest("簽到審核與訂餐管理不會被視為班表管理功能", () => {\n  const helper = auth.match(/function hasManagementAccess\\(\\) \\{[\\s\\S]*?\\n\\}/)?.[0] || "";\n  assert.ok(helper.includes('permission === "schedule_manage"'));\n  assert.ok(helper.includes('permission === "department_settings"'));\n  assert.ok(!helper.includes('permission !== "schedule_view"'));\n  assert.ok(!helper.includes('attendance_review'));\n  assert.ok(!helper.includes('meal_admin'));\n});\n\ntest("簽到審核頁籤只看 attendance_review 群組權限", () => {\n  assert.ok(recordsViews.includes('["review", "簽到審核", hasAnyGroupPermission("attendance_review")]'));\n  assert.ok(recordsPage.includes('if (!hasAnyGroupPermission("attendance_review")) return false;'));\n});\n\ntest("訂餐管理畫面與資料只看 meal_admin 群組權限", () => {\n  assert.ok(mealPage.includes('const canAdminMeal = hasAnyGroupPermission("meal_admin");'));\n  assert.equal((recordsPage.match(/if \\(!hasAnyGroupPermission\\("meal_admin"\\)\\) return;/g) || []).length, 2);\n});\n''', encoding='utf-8')
+      - name: Build and verify
         run: |
           npm run web:publish
-          npm test
-          npm run renderer:check
-      - name: Commit fix
+          npm run ci:check
+      - name: Commit fix and remove temporary workflow
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/renderer docs tests/permission-surface-alignment.test.js
+          git add -A
           git commit -m '修正簽到審核與管理功能權限顯示'
-          git pull --rebase origin main
           git push origin main
-      - name: Remove temporary workflow
-        if: always()
-        run: |
-          git pull --rebase origin main || true
-          git rm -f .github/workflows/temp-fix-permission-surface.yml || true
-          if ! git diff --cached --quiet; then
-            git commit -m '移除暫時權限修正流程'
-            git push origin main
-          fi
