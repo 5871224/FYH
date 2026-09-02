@@ -20,8 +20,8 @@ jobs:
         with:
           node-version: '22'
       - name: Update canonical permission and function-menu spec
-        shell: python
         run: |
+          python - <<'PY'
           from pathlib import Path
 
           path = Path('規格書.md')
@@ -127,6 +127,7 @@ jobs:
           'shared UI no-patch architecture rule')
 
           path.write_text(text, encoding='utf-8')
+          PY
       - name: Remove temporary workflow before validation
         run: rm .github/workflows/temp-update-spec-permission-menu.yml
       - name: Run documentation and repository checks
