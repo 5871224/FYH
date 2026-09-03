@@ -8049,29 +8049,17 @@ function markArchivedScheduleCells() {
   });
   const dates = typeof getVisibleDates === "function" ? getVisibleDates() : [];
   const archivedVisible = dates.some((date) => isArchivedDate(date));
-  const card = document.getElementById("scheduleCard");
-  let banner = document.getElementById("scheduleArchiveBanner");
-  if (!archivedVisible) { banner?.remove(); return; }
-  if (!banner && card) {
-    banner = document.createElement("div");
-    banner.id = "scheduleArchiveBanner";
-    banner.className = "schedule-archive-banner";
-    const nav = card.querySelector(".calendar-nav");
-    nav?.insertAdjacentElement("afterend", banner);
-  }
-  if (banner) banner.textContent = "顯示範圍包含已封存班表；封存日期不可變動。";
+  const banner = document.getElementById("scheduleArchiveBanner");
+  if (!banner) return;
+  banner.hidden = !archivedVisible;
+  banner.textContent = archivedVisible
+    ? "顯示範圍包含已封存班表；封存日期不可變動。"
+    : "";
 }
 
-function ensureGroupSelector() {
-  const tableViewSelect = document.getElementById("tableViewSelect");
-  if (!tableViewSelect) return;
-  let selector = document.getElementById("scheduleGroupSelect");
-  if (!selector) {
-    selector = document.createElement("select");
-    selector.id = "scheduleGroupSelect";
-    selector.setAttribute("aria-label", "群組");
-    tableViewSelect.insertAdjacentElement("beforebegin", selector);
-  }
+function renderGroupSelector() {
+  const selector = document.getElementById("scheduleGroupSelect");
+  if (!selector) return;
   const options = getSelectableGroups();
   selector.innerHTML = options.map((group) => `<option value="${escapeHtml(group.id)}" ${group.id === groupFeatureState.currentGroupId ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("");
   selector.hidden = options.length === 0;
@@ -8159,7 +8147,7 @@ function renderToolbarPermissionControls() {
 }
 
 function syncPermissionUi() {
-  ensureGroupSelector();
+  renderGroupSelector();
   markArchivedScheduleCells();
   renderFunctionMenu();
   renderToolbarPermissionControls();
@@ -12965,8 +12953,12 @@ let toolbarRapidEditOpenedAt = 0;
 
 function openToolbarChipEditor(type, id) {
   if (!id || (type !== "shift" && type !== "leave")) return false;
-  if (!canEditSchedule()) {
-    requireCurrentGroupUiPermission("schedule_manage", `修改${type === "shift" ? "班別" : "假別"}`);
+  if (type === "shift" && !canEditSchedule()) {
+    requireCurrentGroupUiPermission("schedule_manage", "修改班別");
+    return true;
+  }
+  if (type === "leave" && !hasCommonPermission("leave_settings")) {
+    requireCommonUiPermission("leave_settings", "修改假別");
     return true;
   }
   toolbarRapidEditOpenedAt = Date.now();
