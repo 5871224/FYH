@@ -2,7 +2,7 @@
 
 福圓號排班系統（FYH）是手機優先的瀏覽器應用程式，涵蓋多群組班表、簽到簿、訂餐、個人記錄、簽到審核、角色權限、匯出與班表封存。前端由 GitHub Pages 發布；登入、資料庫、RPC 與伺服器端 API 由 Supabase 提供。
 
-功能、資料、安全、介面與驗收標準以 [`規格書.md`](規格書.md) 為唯一正式依據；AI／開發代理人必須同時遵守 [`AGENTS.md`](AGENTS.md)。
+功能、資料、安全、介面與驗收標準以 [`規格書.md`](規格書.md) 為唯一正式依據；開發與架構規則以 [`AGENTS.md`](AGENTS.md) 為準。
 
 ## 現行架構
 
@@ -20,19 +20,15 @@ Supabase PostgreSQL
 - PostgreSQL、RLS、Trigger、RPC 與 Edge Function 共同負責正式資料與安全邊界。
 - 瀏覽器不直接 CRUD 核心資料表。
 
-## 單一正式版本與禁止補丁原則
+## 單一正式版本原則
 
-本系統尚未正式上線，只維護目前唯一正式架構：
+本系統只維護目前唯一正式架構：
 
 - 不保留舊資料表、舊欄位、舊端點、舊 payload、雙軌讀寫或文字角色授權。
-- 不以 `try/catch` 靜默退回舊流程；正式入口不可用時應直接修正正式入口。
+- 不以 `try/catch` 靜默退回舊流程；正式入口不可用時直接修正正式入口。
 - 不新增 `fix`、`patch`、`override`、compatibility bridge 或後載入覆寫模組。
-- 不以 runtime monkey patch、重複 event listener、DOM 掃描、`MutationObserver`、`prepend`／`appendChild` fallback 修正正式 UI。
-- 權限控制的 UI 必須在 canonical render 階段決定是否建立；不得先建立無權限項目再以 `hidden`、`style.display` 或 CSS 補隱藏。
-- CSS 只負責外觀與響應式，不作為授權機制。
-- 發現舊程式與正式規格衝突時，直接修改正式 Renderer / API / SQL，並移除舊路徑。
-
-詳細禁止事項見 `AGENTS.md`。
+- 權限 UI 必須在 canonical render 階段決定是否建立，不以 DOM 掃描、`MutationObserver`、CSS 隱藏或載入後搬移修補。
+- 詳細禁止補丁規則與 CSS 模組分工統一記錄於 `AGENTS.md`。
 
 ## 主要頁面
 
@@ -46,7 +42,6 @@ Supabase PostgreSQL
 ```text
 FYH/
 ├─ .github/
-│  ├─ pull_request_template.md
 │  └─ workflows/deploy-pages.yml     # 唯一正式 GitHub Actions 驗證流程
 ├─ docs/                              # GitHub Pages 發布成品，由建置產生
 ├─ scripts/                           # 建置、檢查、稽核與部署工具
@@ -57,7 +52,7 @@ FYH/
 ├─ supabase/
 │  ├─ 001_current_schema.sql          # 全新環境完整正式結構
 │  ├─ 002_current_updates.sql         # 仍有效且可重複執行的正式更新
-│  ├─ migrations/                     # 正式環境增量部署 migration 紀錄
+│  ├─ migrations/                     # 正式環境增量部署 migration
 │  └─ functions/                      # 正式 Edge Function 原始碼
 ├─ tests/
 ├─ AGENTS.md
@@ -66,6 +61,8 @@ FYH/
 ├─ 規格書.md
 └─ 啟動網頁版.bat
 ```
+
+專案只維護三份正式 Markdown：`規格書.md`、`AGENTS.md`、`README.md`。不另設 PR 模板或子目錄 README 保存開發規則，避免規則分散與不同步。
 
 ## 資料庫建置與 migration
 
@@ -76,9 +73,7 @@ FYH/
 2. supabase/002_current_updates.sql
 ```
 
-`001_current_schema.sql` 必須直接建立目前正式資料表、索引、RLS、限制、Trigger 與核心 RPC；不得先建立淘汰架構再靠更新檔清掉。
-
-`supabase/migrations/` 用於正式環境需要的增量部署紀錄，不是另一套 fresh-install 規格。任何 migration 完成後，最終正式狀態也必須反映在 `001_current_schema.sql`／`002_current_updates.sql`，避免新環境重建時依賴歷史補丁。
+`supabase/migrations/` 用於正式環境增量部署，不是第二套 fresh-install 規格；任何 migration 完成後，最終正式狀態也必須反映回 canonical SQL。
 
 ## Canonical 權限模型
 
@@ -102,13 +97,9 @@ FYH/
 - `attendance_review`
 - `meal_admin`
 
-`schedule_manage` 必須連動 `schedule_view`；其他權限互不推導。
-
-不得以 `access_roles.permissions`、`access_role_groups`、`member_settings`、`permission_settings`、`legacy_role`、`set_employee.role` 或 `admin/manager` 文字角色授權。
+`schedule_manage` 必須連動 `schedule_view`；其他權限互不推導。不得以 `access_roles.permissions`、`access_role_groups`、`member_settings`、`permission_settings`、`legacy_role`、`set_employee.role` 或 `admin/manager` 文字角色授權。
 
 ## 班表「功能」選單權限對應
-
-班表頁的功能分類由 canonical 選單模型直接產生：
 
 | 分類 | 權限 | 固定項目 |
 |---|---|---|
@@ -116,16 +107,11 @@ FYH/
 | 排班 | 目前群組 `schedule_manage` | 排班條件、自動排班預覽、自動補班預覽、套用預覽、取消預覽 |
 | 匯出 | 共用 `export` | 列印班表、匯出上班日、匯出休例假、匯出請假、匯出加班 |
 
-規則：
-
-- 只有 `schedule_manage` 時只出現「排班」，不得連帶出現「設定」或「匯出」。
-- `列印班表` 固定位於「功能 → 匯出」，使用共用 `export`，不使用 `schedule_manage`。
-- `attendance_review` 只控制簽到審核；`meal_admin` 只控制訂餐管理；`department_settings` 只控制單位設定，不得被視為泛用主管能力。
-- 沒有某分類權限時，該分類與項目不建立，不能靠 render 後隱藏處理。
+只有 `schedule_manage` 時只出現「排班」；`列印班表` 固定位於「功能 → 匯出」，使用共用 `export`。
 
 ## 權限與資料存取
 
-正式資料流固定為：
+正式資料流：
 
 ```text
 瀏覽器
@@ -139,26 +125,38 @@ FYH/
 - 單位設定：目標群組 `department_settings`。
 - 簽到審核：目標群組 `attendance_review`。
 - 訂餐統計與設定：目標群組 `meal_admin`。
-- 班表列印與正式班表匯出：共用 `export`，實際資料列仍受可查看群組與後端資料範圍限制。
+- 班表列印與班表匯出：共用 `export`。
 - 假別設定：共用 `leave_settings`。
 
 前端可見性不是安全邊界；RPC、RLS、Trigger 與 Edge Function 必須再次驗證相同正式權限。
 
-## Edge Functions
+## 正式 Edge Functions
 
-目前正式功能包含：
+`scripts/deploy-edge-functions.ps1` 與 `supabase/functions/` 必須維持相同正式清單：
 
-- `access-control`：登入後權限 bundle、角色共用權限／逐群組權限管理。
+- `access-control`：登入後權限 bundle、角色共用／逐群組權限管理。
 - `member-auth-admin`：人員登入帳號管理，以目標群組 `schedule_manage` 驗證。
 - `attendance-clock`：本人打卡。
 - `attendance-ledger`：本人簽到簿資料。
 - `attendance-ledger-export`：簽到資料正式匯出。
-- `attendance-review-groups`：逐群組簽到審核。
+- `attendance-review-groups`：依逐群組 `attendance_review` 進行簽到審核。
 - `meal-order`：本人訂餐與訂餐管理操作。
-- `meal-report-v2`：逐群組訂餐報表。
+- `meal-report-v2`：依逐群組 `meal_admin` 產生訂餐報表。
 - `meal-cancel-v2`：本人取消訂餐。
 
-`supabase/functions/` 與 `scripts/deploy-edge-functions.ps1` 必須保持一致；`_shared` 有變更時，重新部署所有依賴它的正式函式。正式環境不得保留仍可執行淘汰邏輯的舊端點。
+`_shared` 有變更時，需重新部署所有依賴它的正式 Edge Function；正式環境不得保留仍可執行淘汰邏輯的歷史端點。
+
+## CSS 模組
+
+CSS 詳細維護規則已合併至 `AGENTS.md`。正式模組為：
+
+- `foundation.css`：全域基礎與主要頁面既有結構。
+- `schedule.css`：班表專屬布局。
+- `components.css`：共用元件與設計變數。
+- `responsive.css`：跨頁響應式規則。
+- `pages.css`：頁面專屬差異。
+
+不直接修改產生的 `app.css`，也不建立 `fix.css`、`patch.css` 等補丁檔。
 
 ## 本機執行與檢查
 
@@ -199,38 +197,16 @@ npm run ci:check
 | 建置與驗證 | `scripts/` |
 | 測試 | `tests/` |
 | 正式功能規格 | `規格書.md` |
-| 開發規則 | `AGENTS.md` |
+| 開發與架構規則 | `AGENTS.md` |
 | 發布成品 | `docs/`，由 `npm run web:publish` 產生 |
 
 ## 發布流程
 
 本專案預設直接提交 `main`，不以 PR 作為必要流程：
 
-1. 先修改正式來源；不要建立補丁檔或一次性 workflow。
+1. 修改正式來源，不建立補丁檔或一次性 workflow。
 2. 前端有變更時執行 `npm run web:publish`；重要變更執行 `npm run ci:check`。
 3. 同一需求的多檔案以單一完整 commit 提交到 `main`。
-4. 若有 SQL / Edge Function 變更，依正式部署程序套用 migration／部署 Edge Function，並確認 canonical SQL 與部署腳本已同步。
-5. 確認 `main` 的正式驗證 workflow 與 GitHub Pages `pages-build-deployment` 成功。
-6. 權限變更至少用代表性角色驗證重新登入、切換群組、離開再進頁面、重新整理後仍顯示相同正確功能。
-
-只有使用者明確要求 PR 時才使用 `.github/pull_request_template.md`。
-
-## 效能與載入原則
-
-- 首頁只載入登入身分與必要權限摘要；班表、人員管理、簽到審核依使用時機 lazy load。
-- 個人記錄不順帶預載簽到審核。
-- ExcelJS 等大型套件只在實際匯入／匯出時載入。
-- 班表高頻 RPC 先解析 actor 與 allowed groups，再集合式篩選，禁止 row-by-row 權限 helper。
-- 核心資料表不恢復 anon/authenticated 直接寫入 GRANT；正式寫入走具名 RPC／Edge Function。
-
-## 文件同步規則
-
-本儲存庫的 Markdown 文件各有單一責任：
-
-- `規格書.md`：功能／資料／權限／驗收唯一正式規格。
-- `AGENTS.md`：長期開發與架構守門規則。
-- `README.md`：專案結構、操作、建置與部署。
-- `src/renderer/css/README.md`：CSS 模組與 CSS 禁止事項。
-- `.github/pull_request_template.md`：只有使用 PR 時的檢查清單。
-
-權限、架構、端點、資料欄位、功能位置或正式流程改名時，必須搜尋並同步全部 Markdown；不得只更新 `規格書.md` 而留下其他文件繼續指導舊架構。
+4. 若有 SQL / Edge Function 變更，依正式部署程序套用 migration／部署 Edge Function，並同步 canonical SQL 與部署腳本。
+5. 確認 `main` 正式驗證 workflow 與 GitHub Pages 部署成功。
+6. 權限變更需驗證重新登入、切換群組、離開再進頁面與重新整理後仍顯示相同正確功能。
