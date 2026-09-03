@@ -8,6 +8,7 @@ const { createBackendProviderFromEnv } = require("./backend/providers");
 
 const PORT = Number(process.env.PORT || 3010);
 const rendererDir = path.join(__dirname, "renderer");
+const rendererRoot = path.resolve(rendererDir);
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -23,11 +24,19 @@ function send(response, statusCode, body, contentType = "text/plain; charset=utf
   response.end(body);
 }
 
-async function serveStaticFile(requestPath, response) {
+function resolveStaticPath(requestPath) {
   const normalized = requestPath === "/" ? "/index.html" : requestPath;
-  const filePath = path.join(rendererDir, normalized.replace(/^\/+/, ""));
-  const resolved = path.resolve(filePath);
-  if (!resolved.startsWith(path.resolve(rendererDir))) {
+  const resolved = path.resolve(rendererRoot, normalized.replace(/^\/+/, ""));
+  const relative = path.relative(rendererRoot, resolved);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return null;
+  }
+  return resolved;
+}
+
+async function serveStaticFile(requestPath, response) {
+  const resolved = resolveStaticPath(requestPath);
+  if (!resolved) {
     send(response, 403, "Forbidden");
     return;
   }
@@ -68,7 +77,7 @@ function createRequestHandler(options = {}) {
       await serveStaticFile(url.pathname, response);
     } catch (error) {
       console.error(error);
-      send(response, 500, JSON.stringify({ error: error.message || "Server error" }), "application/json; charset=utf-8");
+      send(response, 500, JSON.stringify({ error: "Server error" }), "application/json; charset=utf-8");
     }
   };
 }
@@ -93,5 +102,6 @@ if (require.main === module) {
 
 module.exports = {
   createRequestHandler,
+  resolveStaticPath,
   startServer
 };

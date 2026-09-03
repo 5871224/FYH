@@ -15,7 +15,11 @@ function parseCookies(headerValue) {
       if (separator <= 0) return result;
       const key = part.slice(0, separator).trim();
       const value = part.slice(separator + 1).trim();
-      result[key] = decodeURIComponent(value);
+      try {
+        result[key] = decodeURIComponent(value);
+      } catch {
+        // Ignore malformed cookie values instead of turning an unauthenticated request into HTTP 500.
+      }
       return result;
     }, {});
 }

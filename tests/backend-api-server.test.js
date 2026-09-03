@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { once } = require("node:events");
-const { createRequestHandler, startServer } = require("../src/web-server");
+const { createRequestHandler, resolveStaticPath, startServer } = require("../src/web-server");
 const { createMemorySessionStore } = require("../src/backend/session-store");
 const { createUnconfiguredProvider } = require("../src/backend/providers/unconfigured-provider");
 
@@ -138,6 +138,23 @@ test("沒有後端 Session 時受保護 API 一律回 401", async () => {
       error: { code: "AUTH_REQUIRED", message: "請先登入" }
     });
   });
+});
+
+test("畸形 Cookie 不得讓未登入請求變成 500", async () => {
+  const { provider } = createMockProvider();
+  await withServer({ provider }, async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/v1/auth/context`, {
+      headers: { Cookie: "fyh_session=%ZZ; other=ok" }
+    });
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).error.code, "AUTH_REQUIRED");
+  });
+});
+
+test("靜態檔只能解析在 renderer 根目錄內", () => {
+  assert.match(resolveStaticPath("/index.html"), /renderer[\\/]index\.html$/);
+  assert.equal(resolveStaticPath("../renderer-private/secret.txt"), null);
+  assert.equal(resolveStaticPath("../../package.json"), null);
 });
 
 test("未設定 Provider 時健康檢查仍可用，登入明確回 503", async () => {
