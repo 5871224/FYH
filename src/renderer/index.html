@@ -203,6 +203,7 @@
     <section class="calendar-card" id="scheduleCard" hidden>
       <div class="calendar-nav">
         <div class="calendar-nav-left">
+          <select id="scheduleGroupSelect" aria-label="群組" hidden></select>
           <select id="tableViewSelect" aria-label="班表檢視"><option value="member">人員檢視</option><option value="member-stats">人員檢視-統計欄</option><option value="shift">班別檢視</option></select>
           <select id="tableDeptScopeFilter" aria-label="班表顯示範圍"></select>
           <div class="toolbar-history-actions schedule-nav-history-actions" aria-label="班表操作歷程">
@@ -227,6 +228,7 @@
           <button class="ghost-btn compact-btn user-menu-auth" id="coreHomeButton" type="button" data-home-action="home" aria-label="返回首頁" title="返回首頁"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg></button>
         </div>
       </div>
+      <div class="schedule-archive-banner" id="scheduleArchiveBanner" role="status" hidden></div>
 
       <div class="table-top-scrollbar" id="tableTopScrollbar" aria-hidden="true"><div class="table-top-scrollbar-content" id="tableTopScrollbarContent"></div></div>
       <div class="table-sticky-header" id="tableStickyHeader">
@@ -364,7 +366,7 @@
       });
     })();
   </script>
-  <script src="./app.js?v=31d6573d6dc7"></script>
+  <script src="./app.js?v=d5c715ceaa1b"></script>
   <script>
     (() => {
       const exporter = window.schedulerBrowserExporter;

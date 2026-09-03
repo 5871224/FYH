@@ -8,8 +8,12 @@ let toolbarRapidEditOpenedAt = 0;
 
 function openToolbarChipEditor(type, id) {
   if (!id || (type !== "shift" && type !== "leave")) return false;
-  if (!canEditSchedule()) {
-    requireCurrentGroupUiPermission("schedule_manage", `修改${type === "shift" ? "班別" : "假別"}`);
+  if (type === "shift" && !canEditSchedule()) {
+    requireCurrentGroupUiPermission("schedule_manage", "修改班別");
+    return true;
+  }
+  if (type === "leave" && !hasCommonPermission("leave_settings")) {
+    requireCommonUiPermission("leave_settings", "修改假別");
     return true;
   }
   toolbarRapidEditOpenedAt = Date.now();
