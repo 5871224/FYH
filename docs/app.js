@@ -6747,9 +6747,9 @@ async function deleteListItem(category, id) {
 let departmentAttendanceSettingsUserId = "";
 
 async function ensureDepartmentAttendanceSettingsLoaded() {
-  if (!canManagePermissions()) return;
   const userId = currentProfile?.id || "";
-  if (userId && departmentAttendanceSettingsUserId === userId) return;
+  const scopeKey = `${userId}:${groupFeatureState.currentGroupId || ""}`;
+  if (scopeKey && departmentAttendanceSettingsUserId === scopeKey) return;
   const settings = await window.schedulerApi.getDepartmentAttendanceSettings();
   const byDepartment = new Map((settings || []).map((row) => [row.departmentId, row]));
   state.departments = state.departments.map((department) => {
@@ -6763,7 +6763,7 @@ async function ensureDepartmentAttendanceSettingsLoaded() {
       attendanceEnabled: Boolean(attendance.attendanceEnabled)
     } : department;
   });
-  departmentAttendanceSettingsUserId = userId;
+  departmentAttendanceSettingsUserId = scopeKey;
 }
 
 async function openDepartmentSettings() {
@@ -6864,7 +6864,6 @@ function renderDepartmentAttendanceFields(department, disabledAttr) {
           是否啟用打卡
         </label>
       </div>
-      ${canManagePermissions() ? "" : '<p class="modal-description">打卡地址、座標、固定 IP 與是否啟用打卡只有管理員可以修改。</p>'}
   `;
 }
 
@@ -6908,7 +6907,7 @@ function openDepartmentForm(mode, departmentId = "") {
   if (!department) {
     return;
   }
-  const attendanceFieldsDisabled = canManagePermissions() ? "" : "disabled";
+  const attendanceFieldsDisabled = "";
   const groupId = department.groupId || groupFeatureState.currentGroupId || "";
   modalContext = { mode, category: "department", targetId: departmentId, groupId, returnTo };
   openEntityListModal({
@@ -6969,29 +6968,21 @@ async function saveDepartment(mode) {
     reportValidationError("開始日期必須早於結束日期");
     return;
   }
-  if (canManagePermissions() && latitude !== "" && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) {
+  if (latitude !== "" && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) {
     reportValidationError("緯度必須介於 -90 到 90");
     return;
   }
-  if (canManagePermissions() && longitude !== "" && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) {
+  if (longitude !== "" && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) {
     reportValidationError("經度必須介於 -180 到 180");
     return;
   }
-  const attendancePayload = canManagePermissions()
-    ? {
-      address: document.getElementById("departmentAddress")?.value.trim() || "",
-      latitude,
-      longitude,
-      publicIp: document.getElementById("departmentPublicIp")?.value.trim() || "",
-      attendanceEnabled: Boolean(document.getElementById("departmentAttendanceEnabled")?.checked)
-    }
-    : {
-      address: previousDepartment?.address || "",
-      latitude: previousDepartment?.latitude ?? "",
-      longitude: previousDepartment?.longitude ?? "",
-      publicIp: previousDepartment?.publicIp || "",
-      attendanceEnabled: Boolean(previousDepartment?.attendanceEnabled)
-    };
+  const attendancePayload = {
+    address: document.getElementById("departmentAddress")?.value.trim() || "",
+    latitude,
+    longitude,
+    publicIp: document.getElementById("departmentPublicIp")?.value.trim() || "",
+    attendanceEnabled: Boolean(document.getElementById("departmentAttendanceEnabled")?.checked)
+  };
   const payload = { id: mode === "edit" ? modalContext.targetId : uid("d"), name, nameVi, groupId, startDate, endDate, hiddenFromSchedule, ...attendancePayload };
   const sortOrder = mode === "edit"
     ? state.departments.findIndex((department) => department.id === payload.id)
