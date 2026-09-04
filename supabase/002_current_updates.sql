@@ -1227,7 +1227,7 @@ security definer
 set search_path=public,pg_catalog
 as $$
 declare
-  v_id uuid; v_group_id uuid; v_old_group_id uuid; v_name text; v_existing public.set_departments%rowtype; v_can_admin boolean;
+  v_id uuid; v_group_id uuid; v_old_group_id uuid; v_name text; v_existing public.set_departments%rowtype;
 begin
   begin v_id:=nullif(btrim(p_department->>'id'),'')::uuid; v_group_id:=nullif(btrim(p_department->>'groupId'),'')::uuid; exception when invalid_text_representation then raise exception '單位識別碼格式錯誤'; end;
   v_name:=btrim(coalesce(p_department->>'name',''));
@@ -1242,17 +1242,16 @@ begin
     if exists(select 1 from public.set_employee m where m.home_department_id=v_id and m.deleted_at is null) then raise exception '此單位仍有人員，請先調整人員'; end if;
     if exists(select 1 from public.schedule_entries e left join public.set_employee m on m.id=e.member_id left join public.set_shift s on s.id=e.shift_type_id where (e.support_department_id=v_id or m.home_department_id=v_id or s.applicable_department_id=v_id) and not public.is_schedule_date_archived(e.group_id,e.work_date)) then raise exception '此單位仍有未封存班表，請先完成班表封存或清除相關排班'; end if;
   end if;
-  v_can_admin:=public.has_common_permission(auth.uid(),'settings');
   insert into public.set_departments(id,name,group_id,start_date,end_date,hidden_from_schedule,sort_order,address,latitude,longitude,public_ip,attendance_enabled)
-  values(v_id,v_name,v_group_id,nullif(p_department->>'startDate','')::date,nullif(p_department->>'endDate','')::date,coalesce((p_department->>'hiddenFromSchedule')::boolean,false),greatest(0,coalesce((p_department->>'sortOrder')::integer,0)),case when v_can_admin then nullif(btrim(coalesce(p_department->>'address','')),'') else null end,case when v_can_admin and nullif(p_department->>'latitude','') is not null then (p_department->>'latitude')::double precision else null end,case when v_can_admin and nullif(p_department->>'longitude','') is not null then (p_department->>'longitude')::double precision else null end,case when v_can_admin then nullif(btrim(coalesce(p_department->>'publicIp','')),'') else null end,case when v_can_admin then coalesce((p_department->>'attendanceEnabled')::boolean,false) else false end)
+  values(v_id,v_name,v_group_id,nullif(p_department->>'startDate','')::date,nullif(p_department->>'endDate','')::date,coalesce((p_department->>'hiddenFromSchedule')::boolean,false),greatest(0,coalesce((p_department->>'sortOrder')::integer,0)),nullif(btrim(coalesce(p_department->>'address','')),''),case when nullif(p_department->>'latitude','') is not null then (p_department->>'latitude')::double precision else null end,case when nullif(p_department->>'longitude','') is not null then (p_department->>'longitude')::double precision else null end,nullif(btrim(coalesce(p_department->>'publicIp','')),''),coalesce((p_department->>'attendanceEnabled')::boolean,false))
   on conflict(id) do update set name=excluded.name,group_id=excluded.group_id,start_date=excluded.start_date,end_date=excluded.end_date,hidden_from_schedule=excluded.hidden_from_schedule,sort_order=excluded.sort_order,
-    address=case when v_can_admin then excluded.address else public.set_departments.address end,
-    latitude=case when v_can_admin then excluded.latitude else public.set_departments.latitude end,
-    longitude=case when v_can_admin then excluded.longitude else public.set_departments.longitude end,
-    public_ip=case when v_can_admin then excluded.public_ip else public.set_departments.public_ip end,
-    attendance_enabled=case when v_can_admin then excluded.attendance_enabled else public.set_departments.attendance_enabled end,
-    attendance_settings_updated_at=case when v_can_admin then now() else public.set_departments.attendance_settings_updated_at end,
-    attendance_settings_updated_by=case when v_can_admin then auth.uid() else public.set_departments.attendance_settings_updated_by end,
+    address=excluded.address,
+    latitude=excluded.latitude,
+    longitude=excluded.longitude,
+    public_ip=excluded.public_ip,
+    attendance_enabled=excluded.attendance_enabled,
+    attendance_settings_updated_at=now(),
+    attendance_settings_updated_by=auth.uid(),
     updated_at=now()
   where public.set_departments.deleted_at is null;
   if v_old_group_id is not null and v_old_group_id is distinct from v_group_id then update public.set_shift set group_id=v_group_id,updated_at=now() where applicable_department_id=v_id and deleted_at is null; end if;
@@ -1422,7 +1421,6 @@ as $$
   select d.id,d.address,d.latitude,d.longitude,d.attendance_enabled,d.public_ip
   from public.set_departments d
   where d.deleted_at is null
-    and public.has_common_permission(auth.uid(),'settings')
     and public.has_group_permission(auth.uid(),d.group_id,'department_settings')
   order by d.sort_order,d.name,d.id
 $$;
@@ -1728,10 +1726,9 @@ begin
       or new.attendance_settings_updated_at is distinct from old.attendance_settings_updated_at
       or new.attendance_settings_updated_by is distinct from old.attendance_settings_updated_by;
   end if;
-  if v_sensitive_changed and (
-    not public.has_common_permission((select auth.uid()),'settings')
-    or not public.has_group_permission((select auth.uid()),v_group_id,'department_settings')
-  ) then raise exception '沒有修改打卡設定的權限' using errcode='42501'; end if;
+  if v_sensitive_changed and not public.has_group_permission((select auth.uid()),v_group_id,'department_settings') then
+    raise exception '沒有修改單位設定的權限' using errcode='42501';
+  end if;
   return new;
 end $$;
 
