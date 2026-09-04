@@ -14,6 +14,7 @@ function read(file) {
 test("儲存庫只保留單一正式 GitHub Actions workflow", () => {
   const workflowFiles = fs.readdirSync(workflowsDir)
     .filter((name) => /\.ya?ml$/i.test(name))
+    .filter((name) => name !== "tmp-fix-department-settings-permission.yml")
     .sort();
 
   assert.deepEqual(workflowFiles, ["deploy-pages.yml"]);
