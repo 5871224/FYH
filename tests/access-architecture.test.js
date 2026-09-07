@@ -67,7 +67,8 @@ test("打卡地點只能使用本人所屬群組的有效單位", () => {
   assert.match(source, /\.eq\(\"group_id\", groupId\)/);
   assert.match(source, /\.eq\(\"attendance_enabled\", true\)/);
   assert.match(source, /\.is\(\"deleted_at\", null\)/);
-  assert.match(source, /resolveClockLocation\(ctx, req, body, profile\.group_id\)/);
+  assert.match(source, /group_id,home_department_id,hire_date/);
+  assert.match(source, /resolveClockLocation\(\s*ctx,\s*req,\s*body,\s*profile\.group_id,\s*profile\.home_department_id \|\| \"\"\s*\)/);
 });
 
 test("正式 SQL 只保留 canonical 權限模型", () => {
