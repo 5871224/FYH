@@ -80,7 +80,7 @@ async function getProfile(ctx: any) {
   if (!userId) throw new Error("請先登入");
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id,employee_code,full_name,group_id,hire_date,leave_date,deleted_at")
+    .select("id,employee_code,full_name,group_id,home_department_id,hire_date,leave_date,deleted_at")
     .eq("id", userId)
     .is("deleted_at", null)
     .single();
@@ -111,9 +111,42 @@ async function getEnabledDepartments(ctx: any, groupId: string) {
   return data || [];
 }
 
-async function resolveClockLocation(ctx: any, req: Request, body: any, groupId: string) {
+function splitDepartmentsByHome(departments: any[], homeDepartmentId: string) {
+  const homeDepartment = homeDepartmentId
+    ? departments.find((department: any) => department.id === homeDepartmentId) || null
+    : null;
+  const otherDepartments = homeDepartment
+    ? departments.filter((department: any) => department.id !== homeDepartment.id)
+    : departments;
+  return { homeDepartment, otherDepartments };
+}
+
+function getClosestGpsMatch(departments: any[], latitude: number, longitude: number) {
+  return departments
+    .map((department: any) => {
+      const departmentLatitude = toNumber(department.latitude);
+      const departmentLongitude = toNumber(department.longitude);
+      if (departmentLatitude === null || departmentLongitude === null) return null;
+      return { department, distance: distanceMeters(latitude, longitude, departmentLatitude, departmentLongitude) };
+    })
+    .filter(Boolean)
+    .sort((a: any, b: any) => a.distance - b.distance)[0] || null;
+}
+
+function getIpMatch(departments: any[], clientIp: string) {
+  return departments.find((department: any) => ipMatches(String(department.public_ip || ""), clientIp)) || null;
+}
+
+async function resolveClockLocation(
+  ctx: any,
+  req: Request,
+  body: any,
+  groupId: string,
+  homeDepartmentId: string
+) {
   const departments = await getEnabledDepartments(ctx, groupId);
   if (!departments.length) throw new Error("所屬群組目前沒有啟用打卡的單位，請洽管理員確認打卡設定");
+  const { homeDepartment, otherDepartments } = splitDepartmentsByHome(departments, homeDepartmentId);
 
   const allowGps = isPhoneRequest(req, body?.deviceType);
   const latitude = toNumber(body?.latitude);
@@ -122,15 +155,13 @@ async function resolveClockLocation(ctx: any, req: Request, body: any, groupId: 
   let gpsFailure = "";
 
   if (allowGps && latitude !== null && longitude !== null) {
-    const gpsMatch = departments
-      .map((department: any) => {
-        const departmentLatitude = toNumber(department.latitude);
-        const departmentLongitude = toNumber(department.longitude);
-        if (departmentLatitude === null || departmentLongitude === null) return null;
-        return { department, distance: distanceMeters(latitude, longitude, departmentLatitude, departmentLongitude) };
-      })
-      .filter(Boolean)
-      .sort((a: any, b: any) => a.distance - b.distance)[0];
+    const homeGpsMatch = homeDepartment
+      ? getClosestGpsMatch([homeDepartment], latitude, longitude)
+      : null;
+    const otherGpsMatch = getClosestGpsMatch(otherDepartments, latitude, longitude);
+    const gpsMatch = homeGpsMatch && homeGpsMatch.distance <= MAX_GPS_DISTANCE_METERS
+      ? homeGpsMatch
+      : otherGpsMatch;
     if (gpsMatch && gpsMatch.distance <= MAX_GPS_DISTANCE_METERS) {
       return {
         departmentId: gpsMatch.department.id,
@@ -144,8 +175,11 @@ async function resolveClockLocation(ctx: any, req: Request, body: any, groupId: 
         ip: getClientIp(req)
       };
     }
-    gpsFailure = gpsMatch
-      ? `目前距離最近可打卡單位約 ${Math.round(gpsMatch.distance)} 公尺，需在 ${MAX_GPS_DISTANCE_METERS} 公尺內`
+    const nearestGpsMatch = [homeGpsMatch, otherGpsMatch]
+      .filter(Boolean)
+      .sort((a: any, b: any) => a.distance - b.distance)[0] || null;
+    gpsFailure = nearestGpsMatch
+      ? `目前距離最近可打卡單位約 ${Math.round(nearestGpsMatch.distance)} 公尺，需在 ${MAX_GPS_DISTANCE_METERS} 公尺內`
       : "所屬群組已啟用打卡的單位尚未設定經緯度";
   } else if (allowGps) {
     if (body?.geolocationError) gpsFailure = String(body.geolocationError);
@@ -153,7 +187,10 @@ async function resolveClockLocation(ctx: any, req: Request, body: any, groupId: 
   }
 
   const clientIp = getClientIp(req);
-  const ipDepartment = departments.find((department: any) => ipMatches(String(department.public_ip || ""), clientIp));
+  const homeIpDepartment = homeDepartment && ipMatches(String(homeDepartment.public_ip || ""), clientIp)
+    ? homeDepartment
+    : null;
+  const ipDepartment = homeIpDepartment || getIpMatch(otherDepartments, clientIp);
   if (ipDepartment) {
     return {
       departmentId: ipDepartment.id,
@@ -179,7 +216,13 @@ async function resolveClockLocation(ctx: any, req: Request, body: any, groupId: 
 async function clock(ctx: any, req: Request, body: any, kind: "clock_in" | "clock_out") {
   const profile = await getProfile(ctx);
   const workDate = taipeiDateString();
-  const location = await resolveClockLocation(ctx, req, body, profile.group_id);
+  const location = await resolveClockLocation(
+    ctx,
+    req,
+    body,
+    profile.group_id,
+    profile.home_department_id || ""
+  );
   const { data, error } = await ctx.supabaseAdmin.rpc("save_attendance_clock", {
     p_user_id: profile.id,
     p_work_date: workDate,
