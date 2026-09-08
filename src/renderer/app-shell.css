@@ -1,5 +1,6 @@
 /* Static renderer-shell styles extracted from index.html.
  * Keep shell/component rules here instead of embedding CSS in HTML.
+ * The static publisher copies this file to docs/app-shell.css.
  */
 
 .core-actions-menu-category {
