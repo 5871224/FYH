@@ -8,145 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./app.css?v=62666a3afc6a">
-  <style>
-    .core-actions-menu-category {
-      position: relative;
-    }
-
-    .core-actions-menu-trigger {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      width: 100%;
-      padding: 9px 12px;
-      border: 1px solid #d8c7aa;
-      border-radius: 999px;
-      background: #f1e4cf;
-      color: var(--text);
-      font-size: 15px;
-      font-weight: 800;
-      line-height: 1.35;
-      cursor: default;
-      outline: none;
-      user-select: none;
-    }
-
-    .core-actions-menu-trigger:hover,
-    .core-actions-menu-trigger:focus-visible,
-    .core-actions-menu-category:focus-within > .core-actions-menu-trigger {
-      background: #e7d6ba;
-    }
-
-    .core-actions-menu-arrow {
-      color: var(--accent-strong);
-      font-size: 18px;
-      line-height: 1;
-    }
-
-    .core-actions-submenu {
-      display: none;
-      position: absolute;
-      top: -8px;
-      right: calc(100% - 6px);
-      z-index: 31;
-      min-width: 190px;
-      padding: 8px;
-      gap: 6px;
-      border: 1px solid rgba(166, 143, 111, 0.22);
-      border-radius: 16px;
-      background: #fffdf8;
-      box-shadow: 0 18px 34px rgba(72, 52, 31, 0.16);
-    }
-
-    .core-actions-menu-category.touch-open > .core-actions-submenu {
-      display: grid;
-    }
-
-    @media (hover: hover) and (pointer: fine) {
-      .core-actions-menu-category:hover > .core-actions-submenu,
-      .core-actions-menu-category:focus-within > .core-actions-submenu {
-        display: grid;
-      }
-    }
-
-    .core-actions-submenu .ops-btn {
-      width: 100%;
-      white-space: nowrap;
-      text-align: left;
-    }
-
-    @media (min-width: 981px) {
-      #coreActionsMenu {
-        width: 136px;
-        min-width: 136px;
-      }
-    }
-
-    @media (max-width: 980px) {
-      .core-actions-menu-trigger {
-        cursor: pointer;
-        touch-action: manipulation;
-      }
-
-      .core-actions-submenu {
-        position: static;
-        width: 100%;
-        min-width: 0;
-        margin-top: 4px;
-        padding: 4px 0 0 12px;
-        border: 0;
-        box-shadow: none;
-        background: transparent;
-      }
-
-      .core-actions-submenu .ops-btn {
-        min-height: 44px;
-      }
-    }
-
-    @media (min-width: 981px) {
-      .attendance-review-filters {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-      }
-
-      .attendance-review-table .attendance-review-employee-col {
-        width: 112px;
-      }
-    }
-
-    .permission-settings-table th:nth-child(3),
-    .permission-settings-table td:nth-child(3) {
-      width: 12rem;
-    }
-
-    .permission-settings-table th:nth-child(4),
-    .permission-settings-table td:nth-child(4) {
-      width: auto;
-    }
-
-    .permission-group-summary-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.45rem;
-      min-width: 0;
-    }
-
-    .permission-group-summary-row + .permission-group-summary-row {
-      margin-top: 0.3rem;
-    }
-
-    .permission-group-summary-row > strong {
-      flex: 0 0 auto;
-      white-space: nowrap;
-      line-height: 1.7;
-    }
-
-    .permission-group-summary-row > .permission-summary-tags {
-      flex: 1 1 auto;
-      min-width: 0;
-    }
-  </style>
+  <link rel="stylesheet" href="./app-shell.css?v=20260908-css-centralized">
 </head>
 <body>
   <div class="app-shell">
@@ -167,7 +29,7 @@
           </button>
         </div>
       </div>
-      <div class="toolbar-grid" id="toolbarGrid" style="display:none">
+      <div class="toolbar-grid" id="toolbarGrid" hidden>
         <div class="toolbar-category-group">
           <div class="toolbar-section toolbar-section-combined">
             <div class="toolbar-title-row toolbar-title-row-combined">
@@ -366,7 +228,7 @@
       });
     })();
   </script>
-  <script src="./app.js?v=197c4635fe7e"></script>
+  <script src="./app.js?v=d5c715ceaa1b"></script>
   <script>
     (() => {
       const exporter = window.schedulerBrowserExporter;
@@ -377,7 +239,8 @@
         exporter.buildSapLeaveCsvContent = (payload) => {
           const content = originalBuildSapLeaveCsvContent(payload);
           const body = content.startsWith("\uFEFF") ? content.slice(1) : content;
-          return `\uFEFF人員,工號,日期,日期,代號\r\n${body}`;
+          return `\uFEFF人員,工號,日期,日期,代號\r\
+${body}`;
         };
       }
 
