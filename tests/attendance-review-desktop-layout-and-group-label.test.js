@@ -7,8 +7,8 @@ const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 test("簽到審核桌面版六個篩選欄位同列且清單員工名稱帶群組前綴", () => {
-  // 版面 CSS 已由 index.html 抽離，測試正式樣式來源而不是依賴內嵌 <style>。
-  const shellCss = read("src/renderer/app-shell.css");
+  // 版面 CSS 已由 index.html 抽離，測試正式模組來源而不是依賴內嵌 <style>。
+  const shellCss = read("src/renderer/css/app-shell.css");
   const edge = read("supabase/functions/attendance-review-groups/index.ts");
 
   assert.match(shellCss, /@media \(min-width: 981px\)[\s\S]*?\.attendance-review-filters\s*\{[\s\S]*?grid-template-columns:\s*repeat\(6, minmax\(0, 1fr\)\)/);

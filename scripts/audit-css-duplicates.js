@@ -3,7 +3,7 @@ const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
 const cssDir = path.join(root, "src", "renderer", "css");
-const files = ["foundation.css", "schedule.css", "components.css", "responsive.css", "pages.css"];
+const files = ["foundation.css", "schedule.css", "components.css", "responsive.css", "pages.css", "app-shell.css"];
 
 function stripComments(source) {
   return source.replace(/\/\*[\s\S]*?\*\//g, "");
