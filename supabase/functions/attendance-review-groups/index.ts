@@ -250,7 +250,7 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
   const sortDirection = body?.sortDirection === "asc" ? "asc" : "desc";
   const page = pageNumber(body?.page);
   const commonNotes = await getCommonNotes(ctx);
-  if (!groupIds.length) return { ok: true, members: [], departments: [], issueTypes: ISSUE_TYPES, commonNotes, rows: [], total: 0, page, pageSize: PAGE_SIZE };
+  if (!groupIds.length) return { ok: true, members: [], departments: [], issueTypes: [], commonNotes, rows: [], total: 0, page, pageSize: PAGE_SIZE };
 
   const [memberResult, groupResult, departmentResult] = await Promise.all([
     ctx.supabaseAdmin.from("set_employee")
@@ -271,11 +271,33 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
   const attendance = new Map(attendanceRows.map((row: any) => [rowKey(row.user_id, row.work_date), row]));
   const groupNames = new Map((groupResult.data || []).map((row: any) => [row.id, row.name]));
   const departmentNames = new Map((departmentResult.data || []).map((row: any) => [row.id, row.name]));
+  const availableMemberIds = new Set<string>();
+  const availableIssueTypeSet = new Set<string>();
+
+  for (const date of datesBetween(fromDate, toDate)) {
+    for (const member of members) {
+      if (!employedOn(member, date)) continue;
+      const current: any = attendance.get(rowKey(member.id, date)) || null;
+      const schedule = scheduleDisplay(scheduleContext, member.id, date);
+      if (!current && !schedule.schedule) continue;
+      availableMemberIds.add(String(member.id));
+      for (const currentIssue of attendanceIssues(current || { work_date: date }, schedule.shift, date, today)) {
+        if (ISSUE_TYPES.includes(currentIssue)) availableIssueTypeSet.add(currentIssue);
+      }
+    }
+  }
+
+  const availableMembers = members.filter((member: any) => availableMemberIds.has(String(member.id)));
+  const availableIssueTypes = ISSUE_TYPES.filter((type) => availableIssueTypeSet.has(type));
+  const effectiveMemberId = memberId && availableMemberIds.has(memberId) ? memberId : "";
+  const effectiveIssueType = issueType === "__all__"
+    ? issueType
+    : (issueType && availableIssueTypeSet.has(issueType) ? issueType : "");
   const rows: any[] = [];
 
   for (const date of datesBetween(fromDate, toDate)) {
     for (const member of members) {
-      if (memberId && member.id !== memberId) continue;
+      if (effectiveMemberId && member.id !== effectiveMemberId) continue;
       if (!employedOn(member, date)) continue;
       const current: any = attendance.get(rowKey(member.id, date)) || null;
       const reviewed = Boolean(current?.reviewed_at);
@@ -283,7 +305,7 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
       if (status === "unreviewed" && reviewed) continue;
       const schedule = scheduleDisplay(scheduleContext, member.id, date);
       const currentIssues = attendanceIssues(current || { work_date: date }, schedule.shift, date, today);
-      if (issueType && issueType !== "__all__" && !currentIssues.includes(issueType)) continue;
+      if (effectiveIssueType && effectiveIssueType !== "__all__" && !currentIssues.includes(effectiveIssueType)) continue;
       const departmentId = schedule.schedule?.support_department_id || member.home_department_id || "";
       const groupName = current?.group_name_snapshot || groupNames.get(member.group_id) || "";
       rows.push({
@@ -313,10 +335,10 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
   const offset = exportOnly ? 0 : (page - 1) * PAGE_SIZE;
   return {
     ok: true,
-    members: members.map((member: any) => ({ id: member.id, employee_code: member.employee_code, full_name: member.full_name, group_id: member.group_id })),
+    members: availableMembers.map((member: any) => ({ id: member.id, employee_code: member.employee_code, full_name: member.full_name, group_id: member.group_id })),
     departments: (departmentResult.data || [])
       .map((department: any) => ({ id: department.id, name: department.name || "", group_id: department.group_id })),
-    issueTypes: ISSUE_TYPES,
+    issueTypes: availableIssueTypes,
     commonNotes,
     rows: exportOnly ? rows : rows.slice(offset, offset + PAGE_SIZE),
     total: rows.length, page, pageSize: exportOnly ? rows.length : PAGE_SIZE
