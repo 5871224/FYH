@@ -1,6 +1,6 @@
-/* Static renderer-shell styles extracted from index.html.
- * Keep shell/component rules here instead of embedding CSS in HTML.
- * The static publisher copies this file to docs/app-shell.css.
+/* Renderer shell styles extracted from index.html.
+ * This is a development source module bundled into app.css.
+ * Do not load this file directly from index.html.
  */
 
 .core-actions-menu-category {
