@@ -239,8 +239,7 @@
         exporter.buildSapLeaveCsvContent = (payload) => {
           const content = originalBuildSapLeaveCsvContent(payload);
           const body = content.startsWith("\uFEFF") ? content.slice(1) : content;
-          return `\uFEFF人員,工號,日期,日期,代號\r\
-${body}`;
+          return `\uFEFF人員,工號,日期,日期,代號\r\n${body}`;
         };
       }
 
