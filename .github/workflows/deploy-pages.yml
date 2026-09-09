@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: web-validate-${{ github.event.pull_request.number || github.ref }}
@@ -92,20 +92,6 @@ jobs:
       - name: Build static web
         if: steps.changes.outputs.docs_only != 'true'
         run: npm run web:publish
-
-      - name: Sync generated CSS artifacts
-        if: github.event_name == 'pull_request' && github.head_ref == 'refactor/css-single-bundle-20260909'
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- src/renderer/app.css src/renderer/index.html docs/app.css docs/index.html; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/renderer/app.css src/renderer/index.html docs/app.css docs/index.html
-          git commit -m "build(css): sync single app.css bundle"
-          git push origin HEAD:${{ github.head_ref }}
 
       - name: Check reproducible static publish
         if: steps.changes.outputs.docs_only != 'true'
