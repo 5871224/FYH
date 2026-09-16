@@ -424,7 +424,10 @@ window.SCHEDULER_CONFIG = {
     "週四": "Thứ năm",
     "週五": "Thứ sáu",
     "週六": "Thứ bảy",
-    "重設密碼為 0000": "Đặt lại mật khẩu thành 0000",
+    "重設密碼為 000000": "Đặt lại mật khẩu thành 000000",
+    "密碼至少需要 6 個字元。": "Mật khẩu phải có ít nhất 6 ký tự.",
+    "同步人員資料失敗：密碼至少需要 6 個字元。": "Đồng bộ dữ liệu nhân viên thất bại: Mật khẩu phải có ít nhất 6 ký tự.",
+    "重設密碼失敗：密碼至少需要 6 個字元。": "Đặt lại mật khẩu thất bại: Mật khẩu phải có ít nhất 6 ký tự.",
     "自動排班預覽": "Xem trước xếp ca tự động",
     "自動補班預覽": "Xem trước bổ sung ca",
     "套用預覽": "Áp dụng bản xem trước",
@@ -707,7 +710,19 @@ window.SCHEDULER_CONFIG = {
     return map;
   }
 
+  function normalizePasswordUiText(text) {
+    return String(text || "")
+      .replace(/Password should be at least 6 characters\.?/gi, "密碼至少需要 6 個字元。")
+      .replace(/重設密碼為 0000/g, "重設密碼為 000000")
+      .replace(/密碼已重設為 0000/g, "密碼已重設為 000000")
+      .replace(/密碼重設為 0000/g, "密碼重設為 000000");
+  }
+
   function translateDynamic(text, entityMap) {
+    const resetConfirm = text.match(/^確定要將 (.+) 的密碼重設為 000000 嗎？$/);
+    if (resetConfirm) return `Bạn có chắc muốn đặt lại mật khẩu của ${resetConfirm[1]} thành 000000 không?`;
+    const resetSuccess = text.match(/^(.+) 的密碼已重設為 000000$/);
+    if (resetSuccess) return `Mật khẩu của ${resetSuccess[1]} đã được đặt lại thành 000000`;
     const conditionTitle = text.match(/^排班條件－(.+)$/);
     if (conditionTitle) return `Điều kiện xếp ca－${entityMap.get(conditionTitle[1]) || conditionTitle[1]}`;
     const archiveTitle = text.match(/^(.+)封存班表$/);
@@ -724,17 +739,19 @@ window.SCHEDULER_CONFIG = {
   }
 
   function translateText(text, entityMap) {
-    const trimmed = String(text || "").trim();
-    if (!trimmed) return text;
+    const normalizedText = normalizePasswordUiText(text);
+    const trimmed = normalizedText.trim();
+    if (!trimmed) return normalizedText;
+    if (language !== VI) return normalizedText;
     const translated = fixedVi.get(trimmed) || entityMap.get(trimmed) || translateDynamic(trimmed, entityMap);
-    if (!translated) return text;
-    const leading = text.match(/^\s*/)?.[0] || "";
-    const trailing = text.match(/\s*$/)?.[0] || "";
+    if (!translated) return normalizedText;
+    const leading = normalizedText.match(/^\s*/)?.[0] || "";
+    const trailing = normalizedText.match(/\s*$/)?.[0] || "";
     return `${leading}${translated}${trailing}`;
   }
 
   function translateDom(root = document.body) {
-    if (language !== VI || !root || applying) return;
+    if (!root || applying) return;
     applying = true;
     try {
       const entities = entityTranslationMap();
@@ -751,8 +768,8 @@ window.SCHEDULER_CONFIG = {
         const next = translateText(before, entities);
         if (next !== before) {
           node.nodeValue = next;
-          parent.classList.add("fyh-vi-text");
-        } else if (viTextValues.has(String(before).trim())) {
+          if (language === VI) parent.classList.add("fyh-vi-text");
+        } else if (language === VI && viTextValues.has(String(before).trim())) {
           parent.classList.add("fyh-vi-text");
         }
       });
@@ -763,11 +780,11 @@ window.SCHEDULER_CONFIG = {
           const next = translateText(value, entities).trim();
           if (next !== value) {
             element.setAttribute(attribute, next);
-            if (attribute === "placeholder") element.classList.add("fyh-vi-placeholder");
+            if (language === VI && attribute === "placeholder") element.classList.add("fyh-vi-placeholder");
           }
         });
       });
-      document.documentElement.lang = "vi";
+      document.documentElement.lang = language === VI ? "vi" : "zh-TW";
     } finally {
       applying = false;
     }

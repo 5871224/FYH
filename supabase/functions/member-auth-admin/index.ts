@@ -23,13 +23,17 @@ type AccessRole = {
   common_permissions: string[];
 };
 
-const DEFAULT_PASSWORD = "0000";
+const DEFAULT_PASSWORD = "000000";
 const SCHEDULE_MANAGE_PERMISSION = "schedule_manage";
 const SETTINGS_PERMISSION = "settings";
 
-
-
-
+function normalizeAuthError(error: unknown) {
+  const message = String((error as { message?: unknown })?.message || error || "").trim();
+  if (/password should be at least 6 characters/i.test(message)) {
+    return new Error("密碼至少需要 6 個字元。");
+  }
+  return error instanceof Error ? error : new Error(message || "登入帳號操作失敗");
+}
 
 function normalizeCodeKey(value: unknown) {
   return String(value || "").trim().toLocaleLowerCase("en-US");
@@ -44,10 +48,6 @@ function buildLoginEmail(employeeCode: string) {
   if (!normalized) throw new Error("工號無法建立登入帳號");
   return `${normalized}@local.invalid`;
 }
-
-
-
-
 
 async function requireMemberManager(ctx: any) {
   const actorId = actorIdOf(ctx);
@@ -271,7 +271,7 @@ async function upsertMember(ctx: any, body: any) {
       email_confirm: true,
       user_metadata: { employee_code: member.employeeCode, full_name: member.fullName }
     });
-    if (error) throw error;
+    if (error) throw normalizeAuthError(error);
     const userId = data.user?.id;
     if (!userId) throw new Error("建立登入帳號失敗");
 
@@ -315,9 +315,8 @@ async function upsertMember(ctx: any, body: any) {
 async function resetPassword(ctx: any, body: any) {
   const actor = await requireMemberManager(ctx);
   const employeeCode = String(body?.employeeCode || "").trim();
-  const password = String(body?.password || DEFAULT_PASSWORD);
+  const password = DEFAULT_PASSWORD;
   if (!employeeCode) throw new Error("缺少工號");
-  if (!password) throw new Error("密碼不可空白");
   const profile = await findProfileByCode(ctx, employeeCode);
   if (!profile?.id || profile.deleted_at) {
     return new Response(JSON.stringify({ message: "找不到這位人員的登入帳號" }), {
@@ -327,7 +326,7 @@ async function resetPassword(ctx: any, body: any) {
   }
   await assertActorMayManageTarget(ctx, actor, profile);
   const { error } = await ctx.supabaseAdmin.auth.admin.updateUserById(profile.id, { password });
-  if (error) throw error;
+  if (error) throw normalizeAuthError(error);
   return { ok: true, employeeCode };
 }
 
