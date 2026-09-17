@@ -448,13 +448,13 @@ async function resetMemberPasswordFromModal(employeeCode) {
     showInfoMessage("只有管理員可以重設管理員密碼");
     return;
   }
-  const confirmed = await confirmAction(`確定要將 ${code} 的密碼重設為 0000 嗎？`);
+  const confirmed = await confirmAction(`確定要將 ${code} 的密碼重設為 000000 嗎？`);
   if (!confirmed) {
     return;
   }
   try {
     await window.schedulerApi.resetMemberPassword(code);
-    showInfoMessage(`${code} 的密碼已重設為 0000`);
+    showInfoMessage(`${code} 的密碼已重設為 000000`);
   } catch (error) {
     setSaveStatus(`重設密碼失敗：${error.message}`);
   }

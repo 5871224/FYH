@@ -710,12 +710,9 @@ window.SCHEDULER_CONFIG = {
     return map;
   }
 
-  function normalizePasswordUiText(text) {
+  function normalizeAuthErrorText(text) {
     return String(text || "")
-      .replace(/Password should be at least 6 characters\.?/gi, "密碼至少需要 6 個字元。")
-      .replace(/重設密碼為 0000/g, "重設密碼為 000000")
-      .replace(/密碼已重設為 0000/g, "密碼已重設為 000000")
-      .replace(/密碼重設為 0000/g, "密碼重設為 000000");
+      .replace(/Password should be at least 6 characters\.?/gi, "密碼至少需要 6 個字元。");
   }
 
   function translateDynamic(text, entityMap) {
@@ -739,7 +736,7 @@ window.SCHEDULER_CONFIG = {
   }
 
   function translateText(text, entityMap) {
-    const normalizedText = normalizePasswordUiText(text);
+    const normalizedText = normalizeAuthErrorText(text);
     const trimmed = normalizedText.trim();
     if (!trimmed) return normalizedText;
     if (language !== VI) return normalizedText;
