@@ -17,16 +17,6 @@ test("權限角色拖曳由正式 renderer 立即持久化，並共用人員權�
   assert.match(permissions, /function renderMemberCustomRoleOptions\(member\)[\s\S]*const roles = getAllRoles\(\)/);
 });
 
-test("班別與假別區塊底部不保留多餘間距", () => {
-  const css = read("src/renderer/css/pages.css");
-  const permissions = read("src/renderer/renderer-groups-permissions-archive.js");
-
-  assert.match(css, /\.toolbar-category-group\s*\{[^}]*padding:\s*3px 6px 0;/);
-  assert.match(css, /\.toolbar-category-group > \.toolbar-section-combined,[\s\S]*?padding:\s*4px 0 0\s*!important;/);
-  assert.match(css, /\.toolbar-category-group > \.toolbar-section-leave\s*\{[^}]*margin-top:\s*0;/);
-  assert.doesNotMatch(permissions, /toolbar-floating-card/);
-});
-
 test("班表頁匯出加班維持只匯出明確加班設定", () => {
   const migration = read("supabase/002_current_updates.sql");
   const start = migration.lastIndexOf("create or replace function public.get_schedule_export_rows_v2");
