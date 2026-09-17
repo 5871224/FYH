@@ -6457,7 +6457,7 @@ async function saveShiftFromModal(mode) {
   }
   closeModal();
   renderAll();
-  await reopenSettingsModalPreservingScroll(returnTo || { category: "list-settings", listCategory: "shift", scrollTop: 0 });
+  await reopenSettingsModalPreservingScroll(returnTo);
 }
 
 function openNamedColorFormModal(category, mode, targetId = "") {
@@ -6632,7 +6632,7 @@ async function persistNamedCatalogItem(category, mode, payload, returnTo) {
   if (category === "overtime") state.overtime = nextList;
   closeModal();
   renderAll();
-  await reopenSettingsModalPreservingScroll(returnTo || { category: "list-settings", listCategory: category, scrollTop: 0 });
+  await reopenSettingsModalPreservingScroll(returnTo);
   return true;
 }
 
@@ -7002,7 +7002,7 @@ async function saveDepartment(mode) {
   }
   closeModal();
   renderAll();
-  await reopenSettingsModalPreservingScroll(returnTo || { category: "department-settings", view: departmentSettingsView, scrollTop: 0 });
+  await reopenSettingsModalPreservingScroll(returnTo);
 }
 
 function removeScheduleByMember(memberId) {
@@ -8477,7 +8477,7 @@ async function saveMember(mode) {
     await window.fyhI18n?.refreshLabels?.();
     window.fyhI18n?.refresh?.();
     closeModal();
-    await reopenSettingsModalPreservingScroll(returnTo || { category: "member-settings", scrollTop: 0 });
+    await reopenSettingsModalPreservingScroll(returnTo);
   } catch (error) { reportValidationError(`同步人員資料失敗：${error.message}`); }
 }
 

@@ -256,7 +256,7 @@ async function saveDepartment(mode) {
   }
   closeModal();
   renderAll();
-  await reopenSettingsModalPreservingScroll(returnTo || { category: "department-settings", view: departmentSettingsView, scrollTop: 0 });
+  await reopenSettingsModalPreservingScroll(returnTo);
 }
 
 function removeScheduleByMember(memberId) {

@@ -678,7 +678,7 @@ async function saveMember(mode) {
     await window.fyhI18n?.refreshLabels?.();
     window.fyhI18n?.refresh?.();
     closeModal();
-    await reopenSettingsModalPreservingScroll(returnTo || { category: "member-settings", scrollTop: 0 });
+    await reopenSettingsModalPreservingScroll(returnTo);
   } catch (error) { reportValidationError(`同步人員資料失敗：${error.message}`); }
 }
 

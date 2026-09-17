@@ -304,7 +304,7 @@ async function saveShiftFromModal(mode) {
   }
   closeModal();
   renderAll();
-  await reopenSettingsModalPreservingScroll(returnTo || { category: "list-settings", listCategory: "shift", scrollTop: 0 });
+  await reopenSettingsModalPreservingScroll(returnTo);
 }
 
 function openNamedColorFormModal(category, mode, targetId = "") {
@@ -479,7 +479,7 @@ async function persistNamedCatalogItem(category, mode, payload, returnTo) {
   if (category === "overtime") state.overtime = nextList;
   closeModal();
   renderAll();
-  await reopenSettingsModalPreservingScroll(returnTo || { category: "list-settings", listCategory: category, scrollTop: 0 });
+  await reopenSettingsModalPreservingScroll(returnTo);
   return true;
 }
 
