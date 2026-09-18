@@ -76,7 +76,8 @@ test("手動更新班表儲存格時應同步更新同一人員的統計欄", ()
       },
       getScheduleKeyForDateString: () => "M_2026_6_12",
       renderCellInner: () => "新班表",
-      renderMemberStats: () => "新統計"
+      renderMemberStats: () => "新統計",
+      refreshLocalization: () => {}
     }
   );
 

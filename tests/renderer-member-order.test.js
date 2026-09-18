@@ -73,7 +73,8 @@ test("重新渲染人員清單應保留捲動位置與輸入游標", () => {
   };
   const context = {
     document: { getElementById: () => list, activeElement },
-    renderMemberSettingsList: () => "<div></div>"
+    renderMemberSettingsList: () => "<div></div>",
+    refreshLocalization: () => {}
   };
   const api = vm.runInNewContext(refreshSource + "\n;({ refreshMemberSettingsList })", context);
   api.refreshMemberSettingsList();
