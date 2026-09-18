@@ -9689,7 +9689,14 @@ const schedulePrintFeature = (() => {
     if (!canPrint()) { showInfoMessage("沒有班表管理權限"); return; }
     closeCoreActionsMenu();
     const range = getVisibleDateRange();
-    setModal(`<div class="modal-overlay"><section class="modal schedule-print-range-card" role="dialog" aria-modal="true"><h2>列印班表</h2><p class="schedule-print-range-help">請先選擇要列印的日期區間。</p><div class="schedule-print-range-fields"><div class="schedule-print-range-field"><label for="schedulePrintStartDate">開始日期</label><input id="schedulePrintStartDate" type="date" value="${escapeHtml(range.startDate)}"></div><div class="schedule-print-range-field"><label for="schedulePrintEndDate">結束日期</label><input id="schedulePrintEndDate" type="date" value="${escapeHtml(range.endDate)}"></div></div><div class="schedule-print-range-actions"><button class="ghost-btn" type="button" data-print-range-cancel>取消</button><button class="primary-btn" type="button" data-print-range-confirm>預覽列印</button></div></section></div>`);
+    openDateRangeActionModal({
+      title: "列印班表",
+      startDate: range.startDate,
+      endDate: range.endDate,
+      startId: "schedulePrintStartDate",
+      endId: "schedulePrintEndDate",
+      actionButton: '<button class="btn-primary" type="button" data-print-range-confirm>預覽列印</button>'
+    });
   }
 
   async function confirmRange(button) {
@@ -9719,7 +9726,6 @@ const schedulePrintFeature = (() => {
     document.addEventListener("click", (event) => {
       const target = event.target instanceof Element ? event.target : null;
       if (!target) return;
-      if (target.closest("[data-print-range-cancel]")) { closeModal(); return; }
       const confirm = target.closest("[data-print-range-confirm]");
       if (confirm instanceof HTMLButtonElement) { void confirmRange(confirm); return; }
       if (target.closest("[data-print-close]")) { document.getElementById(PREVIEW_ID)?.remove(); preview = null; return; }
@@ -12217,6 +12223,26 @@ function openEntityListModal(config) {
   `);
 }
 
+function openDateRangeActionModal({
+  title,
+  startDate,
+  endDate,
+  startId,
+  endId,
+  actionButton
+}) {
+  openEntityListModal({
+    title,
+    modalClass: "modal modal-member-form",
+    body: `<div class="form-grid">
+      <div class="form-row"><label for="${escapeHtml(startId)}">開始日期</label><input id="${escapeHtml(startId)}" type="date" value="${escapeHtml(startDate)}"></div>
+      <div class="form-row"><label for="${escapeHtml(endId)}">結束日期</label><input id="${escapeHtml(endId)}" type="date" value="${escapeHtml(endDate)}"></div>
+    </div>`,
+    footerButtons: actionButton,
+    hideFooterClose: true
+  });
+}
+
 function syncLeaveAssignmentModalUi() {
   const allDay = document.getElementById("leaveAssignmentAllDay")?.checked;
   const reasonEnabled = document.getElementById("leaveAssignmentReasonEnabled")?.checked;
@@ -13425,15 +13451,13 @@ function openExportPeriodDialog(type) {
   };
   const label = labels[type];
   if (!label) return;
-  openEntityListModal({
+  openDateRangeActionModal({
     title: label.title,
-    modalClass: "modal modal-member-form",
-    body: `<div class="form-grid">
-      <div class="form-row"><label for="exportPeriodStart">開始日期</label><input id="exportPeriodStart" type="date" value="${defaults.startDate}"></div>
-      <div class="form-row"><label for="exportPeriodEnd">結束日期</label><input id="exportPeriodEnd" type="date" value="${defaults.endDate}"></div>
-    </div>`,
-    footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-run-period-export="${type}">${label.action}</button>`,
-    hideFooterClose: true
+    startDate: defaults.startDate,
+    endDate: defaults.endDate,
+    startId: "exportPeriodStart",
+    endId: "exportPeriodEnd",
+    actionButton: `<button class="btn-primary" type="button" data-run-period-export="${type}">${label.action}</button>`
   });
 }
 

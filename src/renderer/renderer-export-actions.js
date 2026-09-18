@@ -570,15 +570,13 @@ function openExportPeriodDialog(type) {
   };
   const label = labels[type];
   if (!label) return;
-  openEntityListModal({
+  openDateRangeActionModal({
     title: label.title,
-    modalClass: "modal modal-member-form",
-    body: `<div class="form-grid">
-      <div class="form-row"><label for="exportPeriodStart">開始日期</label><input id="exportPeriodStart" type="date" value="${defaults.startDate}"></div>
-      <div class="form-row"><label for="exportPeriodEnd">結束日期</label><input id="exportPeriodEnd" type="date" value="${defaults.endDate}"></div>
-    </div>`,
-    footerButtons: `<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-run-period-export="${type}">${label.action}</button>`,
-    hideFooterClose: true
+    startDate: defaults.startDate,
+    endDate: defaults.endDate,
+    startId: "exportPeriodStart",
+    endId: "exportPeriodEnd",
+    actionButton: `<button class="btn-primary" type="button" data-run-period-export="${type}">${label.action}</button>`
   });
 }
 

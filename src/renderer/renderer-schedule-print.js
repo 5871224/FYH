@@ -150,7 +150,14 @@ const schedulePrintFeature = (() => {
     if (!canPrint()) { showInfoMessage("沒有班表管理權限"); return; }
     closeCoreActionsMenu();
     const range = getVisibleDateRange();
-    setModal(`<div class="modal-overlay"><section class="modal schedule-print-range-card" role="dialog" aria-modal="true"><h2>列印班表</h2><p class="schedule-print-range-help">請先選擇要列印的日期區間。</p><div class="schedule-print-range-fields"><div class="schedule-print-range-field"><label for="schedulePrintStartDate">開始日期</label><input id="schedulePrintStartDate" type="date" value="${escapeHtml(range.startDate)}"></div><div class="schedule-print-range-field"><label for="schedulePrintEndDate">結束日期</label><input id="schedulePrintEndDate" type="date" value="${escapeHtml(range.endDate)}"></div></div><div class="schedule-print-range-actions"><button class="ghost-btn" type="button" data-print-range-cancel>取消</button><button class="primary-btn" type="button" data-print-range-confirm>預覽列印</button></div></section></div>`);
+    openDateRangeActionModal({
+      title: "列印班表",
+      startDate: range.startDate,
+      endDate: range.endDate,
+      startId: "schedulePrintStartDate",
+      endId: "schedulePrintEndDate",
+      actionButton: '<button class="btn-primary" type="button" data-print-range-confirm>預覽列印</button>'
+    });
   }
 
   async function confirmRange(button) {
@@ -180,7 +187,6 @@ const schedulePrintFeature = (() => {
     document.addEventListener("click", (event) => {
       const target = event.target instanceof Element ? event.target : null;
       if (!target) return;
-      if (target.closest("[data-print-range-cancel]")) { closeModal(); return; }
       const confirm = target.closest("[data-print-range-confirm]");
       if (confirm instanceof HTMLButtonElement) { void confirmRange(confirm); return; }
       if (target.closest("[data-print-close]")) { document.getElementById(PREVIEW_ID)?.remove(); preview = null; return; }

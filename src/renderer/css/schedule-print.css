@@ -1,8 +1,3 @@
-.schedule-print-range-card{width:min(430px,calc(100vw - 32px));padding:20px;border-radius:22px;overflow:auto}
-.schedule-print-range-card h2{margin:0;font-size:22px}.schedule-print-range-help{margin:7px 0 18px;color:var(--muted);font-size:13px}
-.schedule-print-range-fields{display:grid;gap:14px}.schedule-print-range-field{display:grid;gap:6px}.schedule-print-range-field label{font-weight:800;font-size:13px}
-.schedule-print-range-field input{width:100%;min-height:42px;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--text)}
-.schedule-print-range-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
 #schedulePrintPreview{position:fixed;inset:0;z-index:1200;overflow:auto;background:#e9e5dd;color:var(--text)}
 .schedule-print-preview-toolbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px;padding:10px 16px;border-bottom:1px solid var(--line);background:#fffdf8;box-sizing:border-box}
 .schedule-print-preview-toolbar>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.schedule-print-preview-toolbar select{min-height:38px;padding:6px 10px;border:1px solid var(--line);border-radius:12px;background:#fff}

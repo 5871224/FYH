@@ -43,6 +43,26 @@ function openEntityListModal(config) {
   `);
 }
 
+function openDateRangeActionModal({
+  title,
+  startDate,
+  endDate,
+  startId,
+  endId,
+  actionButton
+}) {
+  openEntityListModal({
+    title,
+    modalClass: "modal modal-member-form",
+    body: `<div class="form-grid">
+      <div class="form-row"><label for="${escapeHtml(startId)}">開始日期</label><input id="${escapeHtml(startId)}" type="date" value="${escapeHtml(startDate)}"></div>
+      <div class="form-row"><label for="${escapeHtml(endId)}">結束日期</label><input id="${escapeHtml(endId)}" type="date" value="${escapeHtml(endDate)}"></div>
+    </div>`,
+    footerButtons: actionButton,
+    hideFooterClose: true
+  });
+}
+
 function syncLeaveAssignmentModalUi() {
   const allDay = document.getElementById("leaveAssignmentAllDay")?.checked;
   const reasonEnabled = document.getElementById("leaveAssignmentReasonEnabled")?.checked;
