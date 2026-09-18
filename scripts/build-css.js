@@ -12,6 +12,7 @@ const checkOnly = process.argv.includes("--check");
 const modules = [
   ["foundation.css", "Foundation and structural layout"],
   ["schedule.css", "Schedule-specific layout"],
+  ["schedule-print.css", "Schedule print layout"],
   ["components.css", "Shared design system and components"],
   ["responsive.css", "Cross-page responsive rules"],
   ["pages.css", "Final page-specific rules"],

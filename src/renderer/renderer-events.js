@@ -28,6 +28,7 @@ function bindEvents() {
   bindStaticToolbarEvents();
   bindScheduleViewportEvents();
   bindScheduleFilterEvents();
+  bindSchedulePrintEvents();
   bindScheduleSessionEvents();
   bindDelegatedClickEvents();
   bindDelegatedFormEvents();

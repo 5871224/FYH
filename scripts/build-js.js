@@ -38,6 +38,7 @@ const modules = [
   "renderer-groups-permissions-archive.js",
   "renderer-auth-context.js",
   "renderer-schedule-tooltip.js",
+  "renderer-schedule-print.js",
   "renderer-main-pages.js",
   "renderer-records-views.js",
   "renderer-modal-navigation.js",
