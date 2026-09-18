@@ -241,48 +241,6 @@ window.SCHEDULER_CONFIG = {
   else window.addEventListener("load", install, { once: true });
 })();
 
-// 匯出請假 Excel：第一欄加入姓名，原有欄位依序向後移。
-(function installLeaveExportNameColumn() {
-  if (typeof document === "undefined") return;
-
-  function install() {
-    const exporter = window.schedulerBrowserExporter;
-    if (!exporter?.createLeaveWorkbook || exporter.createLeaveWorkbook.__fyhIncludesEmployeeName) {
-      return;
-    }
-
-    const originalCreateLeaveWorkbook = exporter.createLeaveWorkbook.bind(exporter);
-    const wrapped = async (payload) => {
-      const workbook = await originalCreateLeaveWorkbook(payload);
-      const sheet = workbook.getWorksheet("匯出請假") || workbook.worksheets?.[0];
-      if (!sheet) return workbook;
-
-      const nameByEmployeeCode = new Map(
-        (Array.isArray(payload?.exportRows) ? payload.exportRows : []).map((row) => [
-          String(row.employee_code || ""),
-          String(row.employee_name || "")
-        ])
-      );
-
-      sheet.eachRow((row, rowNumber) => {
-        const employeeCode = rowNumber === 1 ? "" : String(row.getCell(1).value || "");
-        row.splice(1, 0, rowNumber === 1 ? "姓名" : (nameByEmployeeCode.get(employeeCode) || ""));
-        row.getCell(1).style = { ...row.getCell(2).style };
-      });
-
-      [14, 14, 14, 14, 14, 14, 12, 28].forEach((width, index) => {
-        sheet.getColumn(index + 1).width = width;
-      });
-      return workbook;
-    };
-    wrapped.__fyhIncludesEmployeeName = true;
-    exporter.createLeaveWorkbook = wrapped;
-  }
-
-  if (document.readyState === "complete") install();
-  else window.addEventListener("load", install, { once: true });
-})();
-
 // 繁中／越文語系層。
 // 固定介面文字由本層翻譯；群組、單位、人員、班別、假別、餐點則讀取資料庫越文欄位，空白時維持中文。
 (function installVietnameseLocalization() {

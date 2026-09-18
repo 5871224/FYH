@@ -420,6 +420,7 @@
     const sheet = workbook.addWorksheet("匯出請假");
     const headers = [
       "員工編號",
+      "姓名",
       "請假日期(起)",
       "請假日期(迄)",
       "請假時間(起)",
@@ -427,13 +428,27 @@
       "假別",
       "說明"
     ];
+    const nameByEmployeeCode = new Map(
+      (Array.isArray(payload?.exportRows) ? payload.exportRows : []).map((row) => [
+        String(row.employee_code || ""),
+        String(row.employee_name || "")
+      ])
+    );
 
     sheet.addRow(headers);
-    getLeaveExportRows(payload).forEach((row) => sheet.addRow(row));
+    getLeaveExportRows(payload).forEach((row) => {
+      const [employeeCode, ...leaveValues] = row;
+      sheet.addRow([
+        employeeCode,
+        nameByEmployeeCode.get(String(employeeCode || "")) || "",
+        ...leaveValues
+      ]);
+    });
     sheet.getRow(1).font = { bold: true };
     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EBD8" } };
     sheet.columns = [
+      { width: 14 },
       { width: 14 },
       { width: 14 },
       { width: 14 },
