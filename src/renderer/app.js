@@ -8124,8 +8124,6 @@ async function openMemberSettings() {
 }
 
 
-
-
 async function exportMembersFromSettings() {
   try {
     await window.schedulerApi.exportMembers({
