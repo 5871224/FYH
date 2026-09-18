@@ -231,6 +231,7 @@ function renderAuthGate() {
         </div>
       </div>
     `;
+    refreshLocalization(root);
     return;
   }
   root.innerHTML = "";

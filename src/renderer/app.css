@@ -6653,3 +6653,8 @@ html[lang="vi"] .attendance-ledger-table .attendance-clock-buttons [data-persona
   flex: 1 1 auto;
   min-width: 0;
 }
+
+/* ===== Localization styles: localization.css ===== */
+.fyh-language-switch{display:inline-flex;align-items:center}
+.fyh-language-switch select{min-height:40px;padding:0 34px 0 12px;border:1px solid rgba(166,143,111,.35);border-radius:12px;background:#fffdf8;color:var(--text,#2b241c);font-weight:700;outline:none}
+.fyh-localized-name-field input{width:100%}

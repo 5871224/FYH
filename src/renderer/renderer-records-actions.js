@@ -482,6 +482,7 @@ function openAttendanceReviewPrintPreview(rows, filters) {
     <div><span style="font-weight:800">A4 直式</span><button class="ghost-btn" type="button" data-attendance-review-print-close>返回</button><button class="primary-btn" type="button" data-attendance-review-print-now>列印</button></div>
   </div><div class="attendance-review-print-pages">${pages.map((pageRows) => `<section class="attendance-review-print-page">${renderAttendanceReviewPrintTable(pageRows)}</section>`).join("")}</div>`;
   document.body.appendChild(root);
+  refreshLocalization(root);
   root.querySelector("[data-attendance-review-print-close]")?.addEventListener("click", closeAttendanceReviewPrintPreview);
   root.querySelector("[data-attendance-review-print-now]")?.addEventListener("click", () => {
     let pageStyle = document.getElementById(ATTENDANCE_REVIEW_PRINT_PAGE_STYLE_ID);

@@ -54,5 +54,7 @@ function reopenModalFromContext(context) {
 }
 
 function setModal(content) {
-  document.getElementById("modalRoot").innerHTML = content;
+  const root = document.getElementById("modalRoot");
+  root.innerHTML = content;
+  refreshLocalization(root);
 }

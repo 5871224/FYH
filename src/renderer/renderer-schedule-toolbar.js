@@ -101,6 +101,7 @@ function renderToolbar() {
   renderChips("overtimeChips", "overtime", state.overtime.filter((item) => !item.hiddenFromToolbar));
   syncRoleUi();
   syncSelectedToolbarPreview();
+  refreshLocalization(document.querySelector(".toolbar-card"));
 }
 
 function memberMatchesSelectedShift(member) {

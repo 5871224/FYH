@@ -121,6 +121,7 @@ const schedulePrintFeature = (() => {
     const datePages = chunks(preview.dates, mode === "portrait" ? 14 : 31);
     const rowPages = splitRows(preview.groups, mode === "portrait" ? 32 : 22);
     root.innerHTML = datePages.flatMap((datePage) => rowPages.map((rowPage) => `<section class="schedule-print-page" data-orientation="${mode}">${renderTable(datePage, rowPage)}</section>`)).join("");
+    refreshLocalization(document.getElementById(PREVIEW_ID));
   }
 
   async function loadRange(startDate, endDate) {

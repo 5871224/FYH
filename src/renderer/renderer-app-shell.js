@@ -47,6 +47,7 @@ function syncAppView() {
 }
 
 function renderAll() {
+  prepareLocalizationData();
   renderHeader();
   renderToolbar();
   renderHomeDashboard();
@@ -56,4 +57,5 @@ function renderAll() {
   syncPermissionUi();
   syncAppView();
   renderAuthGate();
+  refreshLocalization(document.body);
 }

@@ -256,6 +256,7 @@ function renderGroupSelector() {
   selector.innerHTML = options.map((group) => `<option value="${escapeHtml(group.id)}" ${group.id === groupFeatureState.currentGroupId ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("");
   selector.hidden = options.length === 0;
   selector.disabled = options.length <= 1;
+  refreshLocalization(selector);
 }
 
 function getFunctionMenuSections() {
@@ -319,6 +320,7 @@ function renderFunctionMenu() {
       </div>
     </div>
   `).join("");
+  refreshLocalization(menu);
 }
 
 function renderToolbarPermissionControls() {
@@ -689,6 +691,7 @@ function syncMemberGroupFields(groupId) {
   if (shiftList) shiftList.outerHTML = renderMemberGroupShiftSelector(groupId, []);
   const summary = document.querySelector(".schedule-shift-summary");
   if (summary) summary.textContent = "未指定";
+  refreshLocalization(document.getElementById("modalRoot"));
 }
 
 function renderAttendanceGroupOptions(selectedValue) { const reviewGroups = getAllGroups().filter((group) => group.status === "active" && hasGroupPermission(group.id, "attendance_review")); return `<option value="">全部群組</option>${reviewGroups.map((group) => `<option value="${escapeHtml(group.id)}" ${group.id === selectedValue ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("")}`; }

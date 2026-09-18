@@ -105,4 +105,5 @@ function showScheduleTooltip(memberId, day, category, anchorRect) {
   });
   root.addEventListener("mouseleave", scheduleHideLeaveTooltip);
   document.body.appendChild(root);
+  refreshLocalization(root);
 }

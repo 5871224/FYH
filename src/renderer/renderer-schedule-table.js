@@ -105,6 +105,8 @@ function renderTable() {
   syncScheduleColumnWidths();
   renderStickyTableHeader(visibleDates);
   syncScheduleRangeSelectionUi();
+  refreshLocalization(table);
+  refreshLocalization(document.getElementById("tableStickyHeader"));
   requestAnimationFrame(syncScheduleWeekNavigationButtons);
 }
 

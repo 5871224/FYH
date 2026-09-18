@@ -117,7 +117,7 @@ function normalizeWindow(lines) {
 }
 
 const sources = new Map(files.map((file) => [file, fs.readFileSync(path.join(rendererDir, file), "utf8")]));
-const isolatedModules = new Set(["browser-exporter.js", "rest-compliance.js", "web-api.js", "renderer-period-exports.js", "renderer-schedule-print.js"]);
+const isolatedModules = new Set(["browser-exporter.js", "rest-compliance.js", "web-api.js", "renderer-period-exports.js", "renderer-schedule-print.js", "renderer-i18n.js"]);
 const sharedFiles = files.filter((file) => !isolatedModules.has(file));
 const functions = files.flatMap((file) => extractFunctions(sources.get(file), file));
 const sharedFunctions = functions.filter((fn) => !isolatedModules.has(fn.file));

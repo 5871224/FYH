@@ -18,6 +18,7 @@ function renderHomeDashboard() {
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
       </div>
       <div class="home-header-actions">
+        ${renderLanguageControl()}
         <button class="ghost-btn home-password-btn" type="button" data-open-change-password="true">修改密碼</button>
         <button class="ghost-btn home-signout-btn" type="button" id="homeSignOutButton">登出</button>
       </div>

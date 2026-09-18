@@ -376,6 +376,7 @@ function renderScheduleCell(memberId, dateString) {
       statsCell.innerHTML = renderMemberStats(member);
     }
   }
+  refreshLocalization(cell.closest("tr") || cell);
 }
 
 async function persistScheduleCell(memberId, dateString) {

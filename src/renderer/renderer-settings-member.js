@@ -183,6 +183,7 @@ function refreshMemberSettingsList() {
   const selectionEnd = active?.selectionEnd;
 
   list.innerHTML = renderMemberSettingsList();
+  refreshLocalization(list);
 
   const nextScroll = list.querySelector(".member-table-scroll");
   if (nextScroll) nextScroll.scrollTop = scrollTop;

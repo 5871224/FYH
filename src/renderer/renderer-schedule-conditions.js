@@ -135,6 +135,7 @@ function refreshScheduleConditionMemberSelects() {
   const container = document.querySelector("[data-schedule-condition-member-selects]");
   if (!container) return;
   container.innerHTML = renderScheduleConditionMemberSelects(getSelectedScheduleConditionMemberIds());
+  refreshLocalization(container);
 }
 
 function openScheduleConditionForm(conditionId = "") {

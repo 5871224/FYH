@@ -111,7 +111,8 @@ function updateMealOrderLiveSummary() {
   const summaryElement = document.querySelector("[data-meal-live-summary]");
   if (!summaryElement) return;
   const summary = getMealOrderLiveSummary();
-  summaryElement.textContent = `目前合計 ${summary.quantity} 份，$${summary.amount.toFixed(0)}`;
+  summaryElement.textContent = `目前合計 ${summary.quantity} 份，${summary.amount.toFixed(0)}`;
+  refreshLocalization(summaryElement);
 }
 
 async function saveTodayMealOrder() {

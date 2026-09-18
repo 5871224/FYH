@@ -65,6 +65,10 @@ function bindDelegatedFormEvents() {
 
   document.body.addEventListener("change", (event) => {
     const target = event.target;
+    if (target instanceof HTMLSelectElement && target.id === "fyhLanguageSelect") {
+      setApplicationLanguage(target.value);
+      return;
+    }
     if (target instanceof HTMLSelectElement && target.matches("[data-schedule-condition-member-select]")) {
       refreshScheduleConditionMemberSelects();
       return;

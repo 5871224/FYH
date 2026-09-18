@@ -16,7 +16,8 @@ const modules = [
   ["components.css", "Shared design system and components"],
   ["responsive.css", "Cross-page responsive rules"],
   ["pages.css", "Final page-specific rules"],
-  ["app-shell.css", "Renderer shell styles"]
+  ["app-shell.css", "Renderer shell styles"],
+  ["localization.css", "Localization styles"]
 ];
 
 function normalizeText(text) {

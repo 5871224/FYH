@@ -8,22 +8,21 @@ const root = path.resolve(__dirname, "..");
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
 test("Vietnamese localization uses the formal scheduler API and no runtime field patching", () => {
-  const config = read("src/renderer/app-config.js");
+  const config = read("src/renderer/renderer-i18n.js");
   const webApi = read("src/renderer/web-api.js");
-  assert.doesNotThrow(() => new vm.Script(config, { filename: "app-config.js" }));
+  assert.doesNotThrow(() => new vm.Script(config, { filename: "renderer-i18n.js" }));
   ["fyh.language", "zh-TW", "vi-VN", "roles: normalizeLabelRows"].forEach((token) => assert.ok(config.includes(token), 'missing localization token: ' + token));
   assert.ok(webApi.includes("async function getVietnameseLabels()"));
   assert.ok(webApi.includes("async function saveVietnameseLabel(entity, id, value)"));
   assert.ok(config.includes("window.schedulerApi.getVietnameseLabels()"));
-  assert.ok(config.includes("function installApiIntegration()"), "missing installApiIntegration runtime definition");
   assert.ok(config.includes("async function saveLabel("), "missing saveLabel runtime definition");
-  assert.doesNotMatch(config.slice(config.indexOf("function installVietnameseLocalization")), /session\.access_token/);
-  assert.doesNotMatch(config.slice(config.indexOf("function installVietnameseLocalization")), /api\[name\]\s*=\s*wrapped/);
+  assert.doesNotMatch(config, /session\.access_token/);
+  assert.doesNotMatch(config, /api\[name\]\s*=\s*wrapped/);
   assert.doesNotMatch(config, /function\s+(?:addLocalizedField|ensureLocalizedFormFields|ensureMealLocalizedColumn)\b/);
 });
 
 test("Vietnamese fixed UI covers settings lists, forms, home and attendance review", () => {
-  const source = read("src/renderer/app-config.js");
+  const source = read("src/renderer/renderer-i18n.js");
   [
     '"修改密碼": "Đổi mật khẩu"',
     '"單位設定": "Cài đặt bộ phận"',
@@ -49,8 +48,6 @@ test("Vietnamese fixed UI covers settings lists, forms, home and attendance revi
     '"修改排班條件": "Sửa điều kiện xếp ca"',
     '"新增排班條件": "Thêm điều kiện xếp ca"'
   ].forEach((token) => assert.ok(source.includes(token), 'missing Vietnamese fixed label: ' + token));
-  assert.match(source, /actions\.insertBefore\(shell, passwordButton\)/);
-  assert.doesNotMatch(source, /position:fixed;right:10px;bottom:10px/);
   assert.ok(source.includes("text.match(/^排班條件－(.+)$/)"));
   assert.ok(source.includes("text.match(/^(.+)封存班表$/)"));
 });
@@ -128,7 +125,7 @@ test("member save persists Vietnamese full name through the member Edge function
 
 
 test("function menu tables and action controls have Vietnamese labels", () => {
-  const source = read("src/renderer/app-config.js");
+  const source = read("src/renderer/renderer-i18n.js");
   const required = [
     ["自動排班期間", "Khoảng thời gian xếp ca tự động"],
     ["自動補班期間", "Khoảng thời gian bổ sung ca tự động"],
