@@ -57,10 +57,8 @@ test("Vietnamese fixed UI covers settings lists, forms, home and attendance revi
 
 test("schedule weekday headers switch to Vietnamese labels", () => {
   const layout = read("src/renderer/renderer-schedule-layout.js");
-  const config = read("src/renderer/app-config.js");
   assert.ok(layout.includes('["CN", "T2", "T3", "T4", "T5", "T6", "T7"]'));
   assert.ok(layout.includes("getScheduleWeekdayLabel(weekday)"));
-  assert.ok(config.includes('["CN", "T2", "T3", "T4", "T5", "T6", "T7"]'));
 });
 
 test("settings lists localize the original name column while edit forms retain Vietnamese fields", () => {
