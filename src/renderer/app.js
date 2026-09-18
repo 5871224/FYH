@@ -2941,6 +2941,8 @@ const fyhLocalization = (() => {
     "角色名稱": "Tên vai trò",
     "適用群組": "Nhóm áp dụng",
     "權限項目": "Quyền hạn",
+    "共用權限": "Quyền dùng chung",
+    "群組權限": "Quyền theo nhóm",
     "權限": "Quyền",
     "在職": "Đang làm việc",
     "離職": "Đã nghỉ việc",
