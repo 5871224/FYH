@@ -9664,6 +9664,12 @@ const schedulePrintFeature = (() => {
     ].join(";");
   }
 
+  function tableWidthMm(mode, datesPerPage, actualDates) {
+    const contentWidth = PRINT_DEFAULTS[mode].contentWidthMm;
+    const dateWidth = (contentWidth - PRINT_LEFT_COLUMNS_MM) / datesPerPage;
+    return Math.min(contentWidth, PRINT_LEFT_COLUMNS_MM + dateWidth * actualDates);
+  }
+
   function syncPreviewControls(settings) {
     const orientationSelect = document.getElementById("schedulePrintOrientation");
     const rowsInput = document.getElementById("schedulePrintRowsPerPage");
@@ -9679,8 +9685,8 @@ const schedulePrintFeature = (() => {
     return `${date.getMonth() + 1}/${date.getDate()}<span>${weekdayLabels[date.getDay()]}</span>`;
   }
 
-  function renderTable(dates, groups) {
-    let html = '<table class="schedule-print-table"><colgroup><col><col>' + dates.map(() => '<col>').join("") + '</colgroup><thead><tr><th>單位</th><th>姓名</th>';
+  function renderTable(dates, groups, tableWidth) {
+    let html = `<table class="schedule-print-table" style="width:${tableWidth.toFixed(2)}mm"><colgroup><col><col>` + dates.map(() => '<col>').join("") + '</colgroup><thead><tr><th>單位</th><th>姓名</th>';
     html += dates.map((dateString) => {
       const date = toDateObject(dateString);
       const special = state.holidays.some((holiday) => holiday.date === dateString) || date.getDay() === 0 || date.getDay() === 6;
@@ -9715,7 +9721,10 @@ const schedulePrintFeature = (() => {
     const datePages = chunks(preview.dates, settings.datesPerPage);
     const rowPages = splitRows(preview.groups, settings.rowsPerPage);
     const style = pageStyle(mode, settings);
-    root.innerHTML = datePages.flatMap((datePage) => rowPages.map((rowPage) => `<section class="schedule-print-page" data-orientation="${mode}" style="${style}">${renderTable(datePage, rowPage)}</section>`)).join("");
+    root.innerHTML = datePages.flatMap((datePage) => {
+      const tableWidth = tableWidthMm(mode, settings.datesPerPage, datePage.length);
+      return rowPages.map((rowPage) => `<section class="schedule-print-page" data-orientation="${mode}" style="${style}">${renderTable(datePage, rowPage, tableWidth)}</section>`);
+    }).join("");
     syncPreviewControls(settings);
     refreshLocalization(document.getElementById(PREVIEW_ID));
   }
