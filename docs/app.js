@@ -2876,6 +2876,7 @@ const fyhLocalization = (() => {
     "方向": "Hướng",
     "每頁人數": "Số người mỗi trang",
     "每頁日數": "Số ngày mỗi trang",
+    "每頁筆數": "Số bản ghi mỗi trang",
     "自動": "Tự động",
     "直式": "Dọc",
     "橫式": "Ngang",
@@ -11807,16 +11808,49 @@ async function saveMealSettingsFromPage() {
     }
   }
 
-/* 簽到審核列印：依目前篩選條件載入全部結果，A4 直式每頁 40 筆。 */
-const ATTENDANCE_REVIEW_PRINT_PAGE_SIZE = 40;
+/* 簽到審核列印：依目前篩選條件載入全部結果，A4 直式，預設每頁 40 筆。 */
+const ATTENDANCE_REVIEW_PRINT_DEFAULT_PAGE_SIZE = 40;
+const ATTENDANCE_REVIEW_PRINT_PAGE_SIZE_LIMITS = [1, 60];
+const ATTENDANCE_REVIEW_PRINT_CONTENT_HEIGHT_MM = 289;
+const ATTENDANCE_REVIEW_PRINT_HEADER_HEIGHT_MM = 6;
+const ATTENDANCE_REVIEW_PRINT_BASE_ROW_HEIGHT_MM = 7;
 const ATTENDANCE_REVIEW_PRINT_PREVIEW_ID = "attendanceReviewPrintPreview";
 const ATTENDANCE_REVIEW_PRINT_STYLE_ID = "attendanceReviewPrintStyles";
 const ATTENDANCE_REVIEW_PRINT_PAGE_STYLE_ID = "attendanceReviewPrintPageStyle";
 
-function attendanceReviewPrintChunks(rows, size = ATTENDANCE_REVIEW_PRINT_PAGE_SIZE) {
+function normalizeAttendanceReviewPrintPageSize(value) {
+  const [min, max] = ATTENDANCE_REVIEW_PRINT_PAGE_SIZE_LIMITS;
+  const size = Number.parseInt(value, 10);
+  if (!Number.isFinite(size)) return ATTENDANCE_REVIEW_PRINT_DEFAULT_PAGE_SIZE;
+  return Math.min(max, Math.max(min, size));
+}
+
+function attendanceReviewPrintChunks(rows, size = ATTENDANCE_REVIEW_PRINT_DEFAULT_PAGE_SIZE) {
   const pages = [];
   for (let index = 0; index < rows.length; index += size) pages.push(rows.slice(index, index + size));
   return pages;
+}
+
+function attendanceReviewPrintPageStyle(pageSize) {
+  const rowHeight = Math.min(
+    ATTENDANCE_REVIEW_PRINT_BASE_ROW_HEIGHT_MM,
+    (ATTENDANCE_REVIEW_PRINT_CONTENT_HEIGHT_MM - ATTENDANCE_REVIEW_PRINT_HEADER_HEIGHT_MM) / pageSize
+  );
+  const scale = Math.max(0.65, Math.min(1, rowHeight / ATTENDANCE_REVIEW_PRINT_BASE_ROW_HEIGHT_MM));
+  const cellMaxHeight = Math.max(3.1, rowHeight - 0.8);
+  return [
+    `--attendance-review-print-row-height:${rowHeight.toFixed(2)}mm`,
+    `--attendance-review-print-cell-max-height:${cellMaxHeight.toFixed(2)}mm`,
+    `--attendance-review-print-font-size:${(8.3 * scale).toFixed(2)}px`,
+    `--attendance-review-print-small-font-size:${(6.5 * scale).toFixed(2)}px`,
+    `--attendance-review-print-punch-font-size:${(7 * scale).toFixed(2)}px`,
+    `--attendance-review-print-punch-small-font-size:${(6 * scale).toFixed(2)}px`,
+    `--attendance-review-print-status-font-size:${(6.5 * scale).toFixed(2)}px`,
+    `--attendance-review-print-icon-height:${Math.max(2.8, 4 * scale).toFixed(2)}mm`,
+    `--attendance-review-print-seg-font-size:${Math.max(4.2, 5.5 * scale).toFixed(2)}px`,
+    `--attendance-review-print-pad-y:${Math.max(0.12, 0.25 * scale).toFixed(2)}mm`,
+    `--attendance-review-print-pad-x:${Math.max(0.25, 0.5 * scale).toFixed(2)}mm`
+  ].join(";");
 }
 
 function attendanceReviewPrintLocation(location) {
@@ -11865,6 +11899,8 @@ function ensureAttendanceReviewPrintStyles() {
     #${ATTENDANCE_REVIEW_PRINT_PREVIEW_ID}{position:fixed;inset:0;z-index:1300;overflow:auto;background:#e9e5dd;color:#2f2923}
     .attendance-review-print-toolbar{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:58px;padding:10px 16px;border-bottom:1px solid #ddd4c7;background:#fffdf8;box-sizing:border-box}
     .attendance-review-print-toolbar>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .attendance-review-print-toolbar label{display:flex;align-items:center;gap:5px;white-space:nowrap}
+    .attendance-review-print-toolbar input{width:72px;min-height:38px;padding:6px 10px;border:1px solid #ddd4c7;border-radius:12px;background:#fff;box-sizing:border-box}
     .attendance-review-print-pages{padding:16px}
     .attendance-review-print-page{width:210mm;height:297mm;margin:0 auto 16px;padding:4mm;background:#fff;box-sizing:border-box;overflow:hidden;box-shadow:0 8px 26px #0002}
     .attendance-review-print-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:7px;line-height:1.05}
@@ -11879,19 +11915,19 @@ function ensureAttendanceReviewPrintStyles() {
     .attendance-review-print-center{text-align:center;-webkit-line-clamp:1;white-space:nowrap}
     .attendance-review-print-clock span{display:block;white-space:nowrap}.attendance-review-print-clock small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .attendance-review-print-icon{padding:.15mm!important}
-    .attendance-review-print-icon .personal-record-schedule-cell{height:4mm!important;min-height:0!important;border-radius:.7mm!important;overflow:hidden}
-    .attendance-review-print-icon .seg{min-height:0!important}.attendance-review-print-icon .seg-label{font-size:5.5px!important;line-height:1!important}
-    /* 列印版沿用簽到審核頁的表格、色彩與狀態視覺，只壓縮尺寸以維持每頁 40 筆。 */
+    .attendance-review-print-icon .personal-record-schedule-cell{height:var(--attendance-review-print-icon-height,4mm)!important;min-height:0!important;border-radius:.7mm!important;overflow:hidden}
+    .attendance-review-print-icon .seg{min-height:0!important}.attendance-review-print-icon .seg-label{font-size:var(--attendance-review-print-seg-font-size,5.5px)!important;line-height:1!important}
+    /* 列印版沿用簽到審核頁的表格、色彩與狀態視覺；每頁超過 40 筆時依設定自動壓縮尺寸。 */
     .attendance-review-print-page{background:var(--panel);color:var(--text);font-family:"Microsoft JhengHei UI","PingFang TC",sans-serif}
-    .attendance-review-print-table{width:100%;min-width:0!important;border-collapse:collapse;table-layout:fixed;color:var(--text);font-size:8.3px;line-height:1.12;background:transparent}
-    .attendance-review-print-table th,.attendance-review-print-table td{height:7mm;max-height:7mm;padding:.25mm .5mm;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:center;vertical-align:middle;font-size:8.3px}
+    .attendance-review-print-table{width:100%;min-width:0!important;border-collapse:collapse;table-layout:fixed;color:var(--text);font-size:var(--attendance-review-print-font-size,8.3px);line-height:1.12;background:transparent}
+    .attendance-review-print-table th,.attendance-review-print-table td{height:var(--attendance-review-print-row-height,7mm);max-height:var(--attendance-review-print-row-height,7mm);padding:var(--attendance-review-print-pad-y,.25mm) var(--attendance-review-print-pad-x,.5mm);border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:center;vertical-align:middle;font-size:var(--attendance-review-print-font-size,8.3px)}
     .attendance-review-print-table th{height:6mm;max-height:6mm;color:var(--muted);font-weight:800;background:rgba(248,243,231,.72);white-space:nowrap}
-    .attendance-review-print-table .attendance-review-print-cell{max-height:6.2mm;line-height:1.12}
-    .attendance-review-print-table .attendance-review-print-cell small{color:var(--muted);font-size:6.5px}
-    .attendance-review-print-table .attendance-review-print-clock{display:flex;flex-direction:column;justify-content:center;gap:0;max-height:6.2mm;overflow:hidden;line-height:1.08}
-    .attendance-review-print-table .attendance-punch-line{display:flex;align-items:center;justify-content:center;gap:1mm;min-width:0;white-space:nowrap;font-size:7px;line-height:1.02}
-    .attendance-review-print-table .attendance-punch-line small{display:block;max-width:23mm;overflow:hidden;color:var(--muted);font-size:6px;line-height:1.02;text-overflow:ellipsis;white-space:nowrap}
-    .attendance-review-print-table .attendance-review-status{min-width:10mm;padding:.15mm 1mm;border-radius:999px;font-size:6.5px;line-height:1.15;font-weight:700}
+    .attendance-review-print-table .attendance-review-print-cell{max-height:var(--attendance-review-print-cell-max-height,6.2mm);line-height:1.12}
+    .attendance-review-print-table .attendance-review-print-cell small{color:var(--muted);font-size:var(--attendance-review-print-small-font-size,6.5px)}
+    .attendance-review-print-table .attendance-review-print-clock{display:flex;flex-direction:column;justify-content:center;gap:0;max-height:var(--attendance-review-print-cell-max-height,6.2mm);overflow:hidden;line-height:1.08}
+    .attendance-review-print-table .attendance-punch-line{display:flex;align-items:center;justify-content:center;gap:1mm;min-width:0;white-space:nowrap;font-size:var(--attendance-review-print-punch-font-size,7px);line-height:1.02}
+    .attendance-review-print-table .attendance-punch-line small{display:block;max-width:23mm;overflow:hidden;color:var(--muted);font-size:var(--attendance-review-print-punch-small-font-size,6px);line-height:1.02;text-overflow:ellipsis;white-space:nowrap}
+    .attendance-review-print-table .attendance-review-status{min-width:10mm;padding:.15mm 1mm;border-radius:999px;font-size:var(--attendance-review-print-status-font-size,6.5px);line-height:1.15;font-weight:700}
     .attendance-review-print-table .attendance-review-status.is-unreviewed{background:#fff4d6;color:#8a5a00;border:1px solid #efc66a}
     .attendance-review-print-table .attendance-review-status.is-reviewed{background:#e8f7ef;color:#176b45;border:1px solid #8bc9aa}
     .attendance-review-print-table .attendance-review-status-col{text-align:center}
@@ -11927,18 +11963,33 @@ function closeAttendanceReviewPrintPreview() {
   document.body.classList.remove("attendance-review-printing");
 }
 
+function renderAttendanceReviewPrintPages(root, rows, pageSize) {
+  const normalizedSize = normalizeAttendanceReviewPrintPageSize(pageSize);
+  const pagesRoot = root.querySelector(".attendance-review-print-pages");
+  if (!pagesRoot) return;
+  const style = attendanceReviewPrintPageStyle(normalizedSize);
+  const pages = attendanceReviewPrintChunks(rows, normalizedSize);
+  pagesRoot.innerHTML = pages.map((pageRows) => `<section class="attendance-review-print-page" style="${style}">${renderAttendanceReviewPrintTable(pageRows)}</section>`).join("");
+  const input = root.querySelector("[data-attendance-review-print-page-size]");
+  if (input instanceof HTMLInputElement) input.value = String(normalizedSize);
+  refreshLocalization(pagesRoot);
+}
+
 function openAttendanceReviewPrintPreview(rows, filters) {
   ensureAttendanceReviewPrintStyles();
   closeAttendanceReviewPrintPreview();
   const root = document.createElement("section");
   root.id = ATTENDANCE_REVIEW_PRINT_PREVIEW_ID;
-  const pages = attendanceReviewPrintChunks(rows);
   root.innerHTML = `<div class="attendance-review-print-toolbar">
     <div><strong>簽到審核列印預覽</strong><span>${escapeHtml(filters.fromDate || "")} ～ ${escapeHtml(filters.toDate || "")}</span><span>共 ${rows.length} 筆</span></div>
-    <div><span style="font-weight:800">A4 直式</span><button class="ghost-btn" type="button" data-attendance-review-print-close>返回</button><button class="primary-btn" type="button" data-attendance-review-print-now>列印</button></div>
-  </div><div class="attendance-review-print-pages">${pages.map((pageRows) => `<section class="attendance-review-print-page">${renderAttendanceReviewPrintTable(pageRows)}</section>`).join("")}</div>`;
+    <div><span style="font-weight:800">A4 直式</span><label>每頁筆數 <input type="number" min="1" max="60" step="1" inputmode="numeric" value="${ATTENDANCE_REVIEW_PRINT_DEFAULT_PAGE_SIZE}" data-attendance-review-print-page-size></label><button class="ghost-btn" type="button" data-attendance-review-print-close>返回</button><button class="primary-btn" type="button" data-attendance-review-print-now>列印</button></div>
+  </div><div class="attendance-review-print-pages"></div>`;
   document.body.appendChild(root);
+  renderAttendanceReviewPrintPages(root, rows, ATTENDANCE_REVIEW_PRINT_DEFAULT_PAGE_SIZE);
   refreshLocalization(root);
+  root.querySelector("[data-attendance-review-print-page-size]")?.addEventListener("change", (event) => {
+    renderAttendanceReviewPrintPages(root, rows, event.currentTarget?.value);
+  });
   root.querySelector("[data-attendance-review-print-close]")?.addEventListener("click", closeAttendanceReviewPrintPreview);
   root.querySelector("[data-attendance-review-print-now]")?.addEventListener("click", () => {
     let pageStyle = document.getElementById(ATTENDANCE_REVIEW_PRINT_PAGE_STYLE_ID);

@@ -101,6 +101,7 @@ const fyhLocalization = (() => {
     "方向": "Hướng",
     "每頁人數": "Số người mỗi trang",
     "每頁日數": "Số ngày mỗi trang",
+    "每頁筆數": "Số bản ghi mỗi trang",
     "自動": "Tự động",
     "直式": "Dọc",
     "橫式": "Ngang",
