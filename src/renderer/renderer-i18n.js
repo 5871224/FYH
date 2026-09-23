@@ -99,6 +99,8 @@ const fyhLocalization = (() => {
     "列印": "In",
     "返回": "Quay lại",
     "方向": "Hướng",
+    "每頁人數": "Số người mỗi trang",
+    "每頁日期數": "Số ngày mỗi trang",
     "自動": "Tự động",
     "直式": "Dọc",
     "橫式": "Ngang",

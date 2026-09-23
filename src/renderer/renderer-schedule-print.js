@@ -6,6 +6,14 @@ const schedulePrintFeature = (() => {
   const PREVIEW_ID = "schedulePrintPreview";
   const PAGE_STYLE_ID = "schedulePrintPageStyle";
   const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+  const PRINT_DEFAULTS = {
+    portrait: { datesPerPage: 15, rowsPerPage: 48, contentWidthMm: 202, contentHeightMm: 289 },
+    landscape: { datesPerPage: 32, rowsPerPage: 33, contentWidthMm: 289, contentHeightMm: 202 }
+  };
+  const PRINT_LIMITS = { datesPerPage: [1, 62], rowsPerPage: [1, 60] };
+  const PRINT_LEFT_COLUMNS_MM = 25;
+  const PRINT_HEADER_HEIGHT_MM = 7.5;
+  const PRINT_BASE_ROW_HEIGHT_MM = 5.7;
   let preview = null;
 
   function canPrint() {
@@ -75,9 +83,53 @@ const schedulePrintFeature = (() => {
     return result.length ? result : [[]];
   }
 
+  function clampInteger(value, fallback, [min, max]) {
+    const number = Number.parseInt(value, 10);
+    if (!Number.isFinite(number)) return fallback;
+    return Math.min(max, Math.max(min, number));
+  }
+
   function orientation() {
     if (preview.orientationMode !== "auto") return preview.orientationMode;
-    return preview.dates.length <= 14 ? "portrait" : "landscape";
+    const datesPerPage = Number.isFinite(preview.datesPerPage) ? preview.datesPerPage : preview.dates.length;
+    return datesPerPage <= PRINT_DEFAULTS.portrait.datesPerPage ? "portrait" : "landscape";
+  }
+
+  function pageSettings(mode) {
+    const defaults = PRINT_DEFAULTS[mode];
+    return {
+      datesPerPage: clampInteger(preview.datesPerPage, defaults.datesPerPage, PRINT_LIMITS.datesPerPage),
+      rowsPerPage: clampInteger(preview.rowsPerPage, defaults.rowsPerPage, PRINT_LIMITS.rowsPerPage)
+    };
+  }
+
+  function pageStyle(mode, { datesPerPage, rowsPerPage }) {
+    const defaults = PRINT_DEFAULTS[mode];
+    const rowHeight = Math.min(PRINT_BASE_ROW_HEIGHT_MM, (defaults.contentHeightMm - PRINT_HEADER_HEIGHT_MM) / rowsPerPage);
+    const innerHeight = Math.max(2.1, rowHeight - 0.6);
+    const dateWidth = Math.max(1, (defaults.contentWidthMm - PRINT_LEFT_COLUMNS_MM) / datesPerPage);
+    const defaultDateWidth = (defaults.contentWidthMm - PRINT_LEFT_COLUMNS_MM) / defaults.datesPerPage;
+    const dateScale = dateWidth / defaultDateWidth;
+    const rowScale = rowHeight / PRINT_BASE_ROW_HEIGHT_MM;
+    const fontScale = Math.max(0.5, Math.min(1, dateScale, rowScale));
+    const headerHeight = Math.max(4.8, PRINT_HEADER_HEIGHT_MM * Math.max(0.7, Math.min(1, dateScale)));
+    const cellPadding = Math.max(0.12, 0.3 * fontScale);
+    return [
+      `--schedule-print-font-scale:${fontScale.toFixed(3)}`,
+      `--schedule-print-row-height:${rowHeight.toFixed(2)}mm`,
+      `--schedule-print-inner-height:${innerHeight.toFixed(2)}mm`,
+      `--schedule-print-header-height:${headerHeight.toFixed(2)}mm`,
+      `--schedule-print-cell-padding:${cellPadding.toFixed(2)}mm`
+    ].join(";");
+  }
+
+  function syncPreviewControls(settings) {
+    const orientationSelect = document.getElementById("schedulePrintOrientation");
+    const rowsInput = document.getElementById("schedulePrintRowsPerPage");
+    const datesInput = document.getElementById("schedulePrintDatesPerPage");
+    if (orientationSelect instanceof HTMLSelectElement) orientationSelect.value = preview.orientationMode;
+    if (rowsInput instanceof HTMLInputElement) rowsInput.value = String(settings.rowsPerPage);
+    if (datesInput instanceof HTMLInputElement) datesInput.value = String(settings.datesPerPage);
   }
 
   function dateHeader(dateString) {
@@ -118,9 +170,12 @@ const schedulePrintFeature = (() => {
     const root = document.querySelector(`#${PREVIEW_ID} .schedule-print-pages`);
     if (!root || !preview) return;
     const mode = orientation();
-    const datePages = chunks(preview.dates, mode === "portrait" ? 14 : 31);
-    const rowPages = splitRows(preview.groups, mode === "portrait" ? 48 : 33);
-    root.innerHTML = datePages.flatMap((datePage) => rowPages.map((rowPage) => `<section class="schedule-print-page" data-orientation="${mode}">${renderTable(datePage, rowPage)}</section>`)).join("");
+    const settings = pageSettings(mode);
+    const datePages = chunks(preview.dates, settings.datesPerPage);
+    const rowPages = splitRows(preview.groups, settings.rowsPerPage);
+    const style = pageStyle(mode, settings);
+    root.innerHTML = datePages.flatMap((datePage) => rowPages.map((rowPage) => `<section class="schedule-print-page" data-orientation="${mode}" style="${style}">${renderTable(datePage, rowPage)}</section>`)).join("");
+    syncPreviewControls(settings);
     refreshLocalization(document.getElementById(PREVIEW_ID));
   }
 
@@ -136,12 +191,20 @@ const schedulePrintFeature = (() => {
   function openPreview(startDate, endDate, groups, schedule) {
     const dates = enumerateDateRange(startDate, endDate);
     const group = getCurrentGroup();
-    preview = { dates, groups: scopeGroups(groups, dates, schedule), schedule, groupName: group?.name || "福圓號", orientationMode: "auto" };
+    preview = {
+      dates,
+      groups: scopeGroups(groups, dates, schedule),
+      schedule,
+      groupName: group?.name || "福圓號",
+      orientationMode: "auto",
+      rowsPerPage: null,
+      datesPerPage: null
+    };
     closeModal();
     document.getElementById(PREVIEW_ID)?.remove();
     const root = document.createElement("section");
     root.id = PREVIEW_ID;
-    root.innerHTML = `<div class="schedule-print-preview-toolbar"><div><strong>班表列印預覽</strong><span>${startDate} ～ ${endDate}</span></div><div><span class="schedule-print-paper-size">A4</span><label>方向 <select id="schedulePrintOrientation"><option value="auto">自動</option><option value="portrait">直式</option><option value="landscape">橫式</option></select></label><button class="ghost-btn" type="button" data-print-close>返回</button><button class="primary-btn" type="button" data-print-now>列印</button></div></div><div class="schedule-print-pages"></div>`;
+    root.innerHTML = `<div class="schedule-print-preview-toolbar"><div><strong>班表列印預覽</strong><span>${startDate} ～ ${endDate}</span></div><div><span class="schedule-print-paper-size">A4</span><label>方向 <select id="schedulePrintOrientation"><option value="auto">自動</option><option value="portrait">直式</option><option value="landscape">橫式</option></select></label><label>每頁人數 <input id="schedulePrintRowsPerPage" type="number" min="1" max="60" step="1" inputmode="numeric"></label><label>每頁日期數 <input id="schedulePrintDatesPerPage" type="number" min="1" max="62" step="1" inputmode="numeric"></label><button class="ghost-btn" type="button" data-print-close>返回</button><button class="primary-btn" type="button" data-print-now>列印</button></div></div><div class="schedule-print-pages"></div>`;
     document.body.appendChild(root);
     renderPages();
   }
@@ -193,9 +256,24 @@ const schedulePrintFeature = (() => {
       if (target.closest("[data-print-now]")) doPrint();
     }, true);
     document.addEventListener("change", (event) => {
-      if (!(event.target instanceof HTMLSelectElement) || event.target.id !== "schedulePrintOrientation" || !preview) return;
-      preview.orientationMode = event.target.value;
-      renderPages();
+      if (!preview) return;
+      const target = event.target;
+      if (target instanceof HTMLSelectElement && target.id === "schedulePrintOrientation") {
+        preview.orientationMode = target.value;
+        renderPages();
+        return;
+      }
+      if (!(target instanceof HTMLInputElement)) return;
+      if (target.id === "schedulePrintRowsPerPage") {
+        preview.rowsPerPage = clampInteger(target.value, pageSettings(orientation()).rowsPerPage, PRINT_LIMITS.rowsPerPage);
+        renderPages();
+        return;
+      }
+      if (target.id === "schedulePrintDatesPerPage") {
+        const fallback = pageSettings(orientation()).datesPerPage;
+        preview.datesPerPage = clampInteger(target.value, fallback, PRINT_LIMITS.datesPerPage);
+        renderPages();
+      }
     });
     window.addEventListener("afterprint", () => document.body.classList.remove("schedule-printing"));
   }
