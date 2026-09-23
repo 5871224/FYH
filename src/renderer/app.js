@@ -9658,7 +9658,7 @@ const schedulePrintFeature = (() => {
     if (!root || !preview) return;
     const mode = orientation();
     const datePages = chunks(preview.dates, mode === "portrait" ? 14 : 31);
-    const rowPages = splitRows(preview.groups, mode === "portrait" ? 32 : 22);
+    const rowPages = splitRows(preview.groups, mode === "portrait" ? 48 : 33);
     root.innerHTML = datePages.flatMap((datePage) => rowPages.map((rowPage) => `<section class="schedule-print-page" data-orientation="${mode}">${renderTable(datePage, rowPage)}</section>`)).join("");
     refreshLocalization(document.getElementById(PREVIEW_ID));
   }
