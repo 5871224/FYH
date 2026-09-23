@@ -2875,7 +2875,7 @@ const fyhLocalization = (() => {
     "返回": "Quay lại",
     "方向": "Hướng",
     "每頁人數": "Số người mỗi trang",
-    "每頁日期數": "Số ngày mỗi trang",
+    "每頁日數": "Số ngày mỗi trang",
     "自動": "Tự động",
     "直式": "Dọc",
     "橫式": "Ngang",
@@ -9754,7 +9754,7 @@ const schedulePrintFeature = (() => {
     document.getElementById(PREVIEW_ID)?.remove();
     const root = document.createElement("section");
     root.id = PREVIEW_ID;
-    root.innerHTML = `<div class="schedule-print-preview-toolbar"><div><strong>班表列印預覽</strong><span>${startDate} ～ ${endDate}</span></div><div><span class="schedule-print-paper-size">A4</span><label>方向 <select id="schedulePrintOrientation"><option value="auto">自動</option><option value="portrait">直式</option><option value="landscape">橫式</option></select></label><label>每頁人數 <input id="schedulePrintRowsPerPage" type="number" min="1" max="60" step="1" inputmode="numeric"></label><label>每頁日期數 <input id="schedulePrintDatesPerPage" type="number" min="1" max="62" step="1" inputmode="numeric"></label><button class="ghost-btn" type="button" data-print-close>返回</button><button class="primary-btn" type="button" data-print-now>列印</button></div></div><div class="schedule-print-pages"></div>`;
+    root.innerHTML = `<div class="schedule-print-preview-toolbar"><div><strong>班表列印預覽</strong><span>${startDate} ～ ${endDate}</span></div><div><span class="schedule-print-paper-size">A4</span><label>方向 <select id="schedulePrintOrientation"><option value="auto">自動</option><option value="portrait">直式</option><option value="landscape">橫式</option></select></label><label>每頁人數 <input id="schedulePrintRowsPerPage" type="number" min="1" max="60" step="1" inputmode="numeric"></label><label>每頁日數 <input id="schedulePrintDatesPerPage" type="number" min="1" max="62" step="1" inputmode="numeric"></label><button class="ghost-btn" type="button" data-print-close>返回</button><button class="primary-btn" type="button" data-print-now>列印</button></div></div><div class="schedule-print-pages"></div>`;
     document.body.appendChild(root);
     renderPages();
   }
