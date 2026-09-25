@@ -73,7 +73,7 @@ assert(attendanceLedger.includes('.from("attendance_audit_logs")'), "attendance 
 assert(attendanceLedger.includes("工時必須以 0.5 小時為單位"), "regular and overtime hours should use half-hour increments");
 assert(attendanceLedger.includes("if (old.reviewed_at)") && attendanceLedger.includes("此日簽到紀錄已審，無法修改"), "reviewed personal attendance records should be immutable");
 assert(attendanceReview.includes("attendance_review") && attendanceReview.includes("hasAnyGroupPermission") && attendanceReview.includes("hasGroupPermission"), "attendance review should validate attendance_review and concrete group scope");
-assert(attendanceLedgerExport.includes('.not("reviewed_at", "is", null)'), "attendance export should include reviewed records only");
+assert(!attendanceLedgerExport.includes('.not("reviewed_at", "is", null)'), "attendance export should include both reviewed and unreviewed records");
 assert(attendanceLedgerExport.includes('hasAnyGroupPermission(ctx, actorId, "attendance_review")') && attendanceLedgerExport.includes('hasGroupPermission(ctx, actorId, groupId, "attendance_review")'), "attendance export should enforce review permission and group scope through shared runtime helpers");
 assert(webApi.includes('requestFunction("attendance-ledger"') && webApi.includes('requestFunction("attendance-review-groups"') && webApi.includes('requestFunction("attendance-ledger-export"'), "frontend should use the canonical attendance endpoints");
 
