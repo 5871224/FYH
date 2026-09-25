@@ -92,7 +92,6 @@ export default {
           .in("user_id", visibleMemberIds)
           .gte("work_date", fromDate)
           .lte("work_date", toDate)
-          .not("reviewed_at", "is", null)
           .order("work_date", { ascending: true }),
         getScheduleContext(ctx, visibleMemberIds, fromDate, toDate)
       ]);

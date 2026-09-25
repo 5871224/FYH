@@ -27,6 +27,8 @@ test("簽到審核匯出使用正式 exportRows 十二欄契約並納入休例�
   assert.match(edge, /code === "0047"/);
   assert.match(edge, /name === "例假"/);
   assert.match(edge, /name === "休息日"/);
+  assert.doesNotMatch(edge, /\.not\("reviewed_at",\s*"is",\s*null\)/);
+  assert.match(spec, /不論未審或已審.*都納入匯出判斷/);
   assert.match(exporter, /function requireExportRows/);
   assert.match(exporter, /"員工編號",[\s\S]*"加班日期",[\s\S]*"加班時間\(起\)",[\s\S]*"加班時間\(迄\)"/);
   assert.match(spec, /正式唯一格式為 12 欄/);
