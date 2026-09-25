@@ -32,5 +32,6 @@ test("簽到審核匯出使用正式 exportRows 十二欄契約並納入休例�
   assert.match(spec, /正式唯一格式為 12 欄/);
   assert.match(spec, /2\.5 小時輸出 `0230`/);
   assert.match(spec, /例假.*休息日.*班別.*視為加班/);
-  assert.match(spec, /只適用簽到審核.*匯出加班/);
+  assert.match(spec, /班表頁「匯出加班」也沿用例休排班規則/);
+  assert.match(spec, /簽到審核若另有加班時數.*額外前推規則/);
 });
