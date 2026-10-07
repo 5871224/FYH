@@ -6366,6 +6366,52 @@ function getSelectedToolbarItem() {
   return item ? { type, item } : null;
 }
 
+
+function escapeScheduleCursorSvgText(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function buildSelectedScheduleItemCursor(type, item) {
+  if (!item || (type !== "shift" && type !== "leave")) return "";
+  const color = String(item.color || "#888780").trim() || "#888780";
+  const textColor = String(getItemTextColor(item, color) || "#ffffff").trim() || "#ffffff";
+  const fallbackLabel = type === "shift" ? "班" : "假";
+  const localizedName = String(getLocalizedName(item, fallbackLabel) || fallbackLabel).trim();
+  const label = Array.from(localizedName).slice(0, 2).join("") || fallbackLabel;
+  const fontSize = Array.from(label).length <= 1 ? 17 : 13;
+  const svg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">',
+    '<rect x="1" y="1" width="29" height="29" rx="7" ',
+    `fill="${escapeScheduleCursorSvgText(color)}" stroke="rgba(0,0,0,0.32)" stroke-width="1.5"/>`,
+    `<text x="15.5" y="16" dominant-baseline="middle" text-anchor="middle" `,
+    `font-family="sans-serif" font-size="${fontSize}" font-weight="700" fill="${escapeScheduleCursorSvgText(textColor)}">`,
+    `${escapeScheduleCursorSvgText(label)}</text></svg>`
+  ].join("");
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 2 2, pointer`;
+}
+
+function syncSelectedScheduleItemCursor() {
+  const table = document.getElementById("mainTable");
+  if (!(table instanceof HTMLElement)) return;
+  const selected = getSelectedToolbarItem();
+  if (!selected || !canEditSchedule() || state.tableView !== "member") {
+    table.classList.remove("schedule-item-cursor-active");
+    table.style.removeProperty("--schedule-item-cursor");
+    return;
+  }
+  const cursor = buildSelectedScheduleItemCursor(selected.type, selected.item);
+  if (!cursor) {
+    table.classList.remove("schedule-item-cursor-active");
+    table.style.removeProperty("--schedule-item-cursor");
+    return;
+  }
+  table.style.setProperty("--schedule-item-cursor", cursor);
+  table.classList.add("schedule-item-cursor-active");
+}
+
 function syncSelectedToolbarPreview() {
   const preview = document.getElementById("toolbarSelectedPreview");
   if (!preview) return;
@@ -6461,6 +6507,7 @@ function renderToolbar() {
   renderChips("overtimeChips", "overtime", state.overtime.filter((item) => !item.hiddenFromToolbar));
   syncRoleUi();
   syncSelectedToolbarPreview();
+  syncSelectedScheduleItemCursor();
   refreshLocalization(document.querySelector(".toolbar-card"));
 }
 
