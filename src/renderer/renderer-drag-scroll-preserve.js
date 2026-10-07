@@ -3,11 +3,14 @@ let dragScrollSnapshot = null;
 let dragScrollRestoreUntil = 0;
 
 const DRAG_SCROLL_SELECTORS = [
-  ".department-settings-modal [data-sort-item]",
-  ".catalog-settings-modal [data-sort-item]",
+  "[data-sort-item]",
+  "[data-member-card]",
+  "[data-schedule-shift-option]",
   "[data-meal-product-row]",
   "[data-table-member-id]",
-  "[data-table-department-id]"
+  "[data-table-department-id]",
+  "[data-group-row]",
+  "[data-permission-role-id]"
 ].join(",");
 
 function getDragScrollKey(element, index) {
