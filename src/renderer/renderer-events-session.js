@@ -4,7 +4,7 @@
 
 function bindScheduleSessionEvents() {
   document.body.addEventListener("mousedown", beginScheduleHeaderColumnSelection);
-  document.body.addEventListener("mouseover", updateScheduleHeaderColumnSelection);
+  document.body.addEventListener("mousemove", updateScheduleHeaderColumnSelection);
   document.body.addEventListener("mousedown", beginScheduleRangeSelection);
   document.body.addEventListener("mousemove", updateScheduleRangeSelection);
   document.body.addEventListener("mouseup", endScheduleRangeSelection);
