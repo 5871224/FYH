@@ -3476,8 +3476,10 @@ thead th.today,
   }
 }
 
-/* 選取班別／假別後，班表可編輯格游標改用該項目的色塊圖示。 */
-#mainTable.schedule-item-cursor-active .cell:not(.inactive-cell):not(.archived-schedule-cell):not([data-readonly="true"]) {
+/* 選取班別／假別後，所有班表格都顯示該項目的色塊游標。
+ * 不可排、封存與唯讀格仍維持原本不可操作邏輯，只改游標外觀。
+ */
+#mainTable.schedule-item-cursor-active .cell {
   cursor: var(--schedule-item-cursor, pointer);
 }
 
