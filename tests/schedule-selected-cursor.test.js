@@ -12,19 +12,22 @@ test("班別與假別選取後建立對應色塊游標", () => {
   assert.match(toolbar, /type !== "shift" && type !== "leave"/);
   assert.match(toolbar, /const color = String\(item\.color/);
   assert.match(toolbar, /getItemTextColor\(item, color\)/);
-  assert.match(toolbar, /Array\.from\(localizedName\)\.slice\(0, 2\)/);
+  assert.match(toolbar, /const label = String\(getLocalizedName\(item, fallbackLabel\)/);
+  assert.match(toolbar, /const charCount = Array\.from\(label\)\.length/);
+  assert.match(toolbar, /Math\.min\(128, Math\.max\(48/);
   assert.match(toolbar, /data:image\/svg\+xml/);
   assert.match(toolbar, /&quot;/);
   assert.match(toolbar, /stroke-opacity="0\.32"/);
 });
 
-test("只有人員檢視可編輯班表格套用自訂游標", () => {
+test("人員檢視所有班表格都套用自訂游標，但不可操作格仍由既有邏輯阻擋", () => {
   const toolbar = read("src/renderer/renderer-schedule-toolbar.js");
   const css = read("src/renderer/css/schedule.css");
   assert.match(toolbar, /!selected \|\| !canEditSchedule\(\) \|\| state\.tableView !== "member"/);
   assert.match(toolbar, /table\.classList\.add\("schedule-item-cursor-active"\)/);
   assert.match(toolbar, /table\.style\.setProperty\("--schedule-item-cursor", cursor\)/);
-  assert.match(css, /#mainTable\.schedule-item-cursor-active \.cell:not\(\.inactive-cell\):not\(\.archived-schedule-cell\):not\(\[data-readonly="true"\]\)/);
+  assert.match(css, /#mainTable\.schedule-item-cursor-active \.cell \{/);
+  assert.doesNotMatch(css, /schedule-item-cursor-active \.cell:not\(/);
   assert.match(css, /cursor: var\(--schedule-item-cursor, pointer\)/);
 });
 
