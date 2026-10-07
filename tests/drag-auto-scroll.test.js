@@ -31,6 +31,22 @@ test("班表拖曳選取支援固定速度水平與垂直自動捲動", () => {
   assert.match(events, /window\.addEventListener\("blur", endScheduleRangeSelection\)/);
 });
 
+
+test("欄標題拖曳整欄選取支援固定速度左右自動捲動", () => {
+  const keyboard = read("src/renderer/renderer-schedule-keyboard.js");
+  const events = read("src/renderer/renderer-events-session.js");
+  assert.match(keyboard, /scheduleHeaderColumnAutoScrollController/);
+  assert.match(keyboard, /isActive: \(\) => scheduleHeaderDragSelection\?\.type === "column"/);
+  assert.match(keyboard, /horizontal: true/);
+  assert.match(keyboard, /vertical: false/);
+  assert.match(keyboard, /speedX: 24/);
+  assert.match(keyboard, /updateScheduleHeaderColumnFocusAtPointer\(pointer\)/);
+  assert.match(keyboard, /selectScheduleColumn\(col, true\)/);
+  assert.match(keyboard, /scheduleHeaderColumnAutoScroll\(event\.clientX, event\.clientY\)/);
+  assert.match(events, /addEventListener\("mousemove", updateScheduleHeaderColumnSelection\)/);
+  assert.doesNotMatch(events, /addEventListener\("mouseover", updateScheduleHeaderColumnSelection\)/);
+});
+
 test("班表與設定拖曳排序共用固定速度上下自動捲動", () => {
   const drag = read("src/renderer/renderer-events-drag.js");
   for (const stateName of [
