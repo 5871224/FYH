@@ -445,6 +445,68 @@ function previewPermissionRoleOrder(targetRow, clientY) {
   targetRow.parentElement?.insertBefore(dragging, clientY < rect.top + rect.height / 2 ? targetRow : targetRow.nextSibling);
 }
 
+
+let groupFeatureDragAutoScrollController = null;
+let groupFeatureDragScrollContainer = null;
+
+function previewScheduleGroupOrder(targetRow, clientY) {
+  const dragging = document.querySelector(`[data-group-row="${groupFeatureState.dragGroupId}"]`);
+  if (!dragging || dragging === targetRow) return;
+  const rect = targetRow.getBoundingClientRect();
+  targetRow.parentElement?.insertBefore(dragging, clientY < rect.top + rect.height / 2 ? targetRow : targetRow.nextSibling);
+}
+
+function isGroupFeatureSortDragging() {
+  return Boolean(groupFeatureState.dragRoleId || groupFeatureState.dragGroupId);
+}
+
+function refreshGroupFeatureDragPreviewAtPointer(pointer) {
+  if (!pointer || typeof document.elementFromPoint !== "function") return;
+  const target = document.elementFromPoint(pointer.x, pointer.y);
+  if (!(target instanceof Element)) return;
+  if (groupFeatureState.dragRoleId) {
+    const roleRow = target.closest("[data-permission-role-id]");
+    if (roleRow) previewPermissionRoleOrder(roleRow, pointer.y);
+    return;
+  }
+  if (groupFeatureState.dragGroupId) {
+    const groupRow = target.closest("[data-group-row]");
+    if (groupRow) previewScheduleGroupOrder(groupRow, pointer.y);
+  }
+}
+
+function applyGroupFeatureDragAutoScroll({ deltaY, pointer }) {
+  const changed = scrollVerticalDragTarget(groupFeatureDragScrollContainer, deltaY);
+  if (changed) refreshGroupFeatureDragPreviewAtPointer(pointer);
+  return changed;
+}
+
+function getGroupFeatureDragAutoScrollController() {
+  if (!groupFeatureDragAutoScrollController) {
+    groupFeatureDragAutoScrollController = createFixedEdgeAutoScrollController({
+      isActive: isGroupFeatureSortDragging,
+      getBounds: () => getVerticalDragScrollBounds(groupFeatureDragScrollContainer),
+      onStep: applyGroupFeatureDragAutoScroll,
+      horizontal: false,
+      vertical: true,
+      edgeSize: 56,
+      speedY: 18
+    });
+  }
+  return groupFeatureDragAutoScrollController;
+}
+
+function updateGroupFeatureDragAutoScroll(event) {
+  if (!isGroupFeatureSortDragging()) return;
+  groupFeatureDragScrollContainer = findNearestVerticalDragScrollContainer(event.target);
+  getGroupFeatureDragAutoScrollController().updatePointer(event.clientX, event.clientY);
+}
+
+function stopGroupFeatureDragAutoScroll() {
+  groupFeatureDragAutoScrollController?.stop();
+  groupFeatureDragScrollContainer = null;
+}
+
 async function savePermissionRoleOrder() {
   const orderedIds = getPermissionRoleOrderFromDom();
   if (!orderedIds.length || orderedIds.join("|") === groupFeatureState.dragRoleStartOrder.join("|")) return;
@@ -776,6 +838,7 @@ function bindGroupFeatureEvents() {
     row.classList.add("is-dragging");
   });
   document.addEventListener("dragover", (event) => {
+    updateGroupFeatureDragAutoScroll(event);
     const roleRow = event.target.closest?.("[data-permission-role-id]");
     if (roleRow && groupFeatureState.dragRoleId) {
       event.preventDefault();
@@ -786,12 +849,10 @@ function bindGroupFeatureEvents() {
     const row = event.target.closest?.("[data-group-row]");
     if (!row || !groupFeatureState.dragGroupId) return;
     event.preventDefault();
-    const dragging = document.querySelector(`[data-group-row="${groupFeatureState.dragGroupId}"]`);
-    if (!dragging || dragging === row) return;
-    const rect = row.getBoundingClientRect();
-    row.parentElement?.insertBefore(dragging, event.clientY < rect.top + rect.height / 2 ? row : row.nextSibling);
+    previewScheduleGroupOrder(row, event.clientY);
   });
   document.addEventListener("dragend", (event) => {
+    stopGroupFeatureDragAutoScroll();
     const roleRow = event.target.closest?.("[data-permission-role-id]");
     if (groupFeatureState.dragRoleId) {
       roleRow?.classList.remove("permission-role-dragging");
@@ -806,6 +867,7 @@ function bindGroupFeatureEvents() {
     groupFeatureState.dragGroupId = "";
     void saveGroupOrder().catch((error) => showInfoMessage(error.message));
   });
+  window.addEventListener("blur", stopGroupFeatureDragAutoScroll);
 }
 
 
