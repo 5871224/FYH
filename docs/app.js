@@ -4189,6 +4189,143 @@ function setTimeInputDisabled(id, disabled) {
     minuteInput.disabled = disabled;
   }
 }
+
+
+function getFixedEdgeAutoScrollDelta(position, start, end, edgeSize = 56, speed = 18) {
+  if (!Number.isFinite(position) || !Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+    return 0;
+  }
+  const edge = Math.max(1, Number(edgeSize) || 1);
+  const fixedSpeed = Math.max(0, Number(speed) || 0);
+  if (position < start + edge) {
+    return -fixedSpeed;
+  }
+  if (position > end - edge) {
+    return fixedSpeed;
+  }
+  return 0;
+}
+
+function createFixedEdgeAutoScrollController({
+  isActive,
+  getBounds,
+  onStep,
+  horizontal = false,
+  vertical = true,
+  edgeSize = 56,
+  speedX = 24,
+  speedY = 18
+} = {}) {
+  let pointer = null;
+  let frameId = 0;
+
+  const stop = () => {
+    pointer = null;
+    if (frameId) {
+      window.cancelAnimationFrame(frameId);
+      frameId = 0;
+    }
+  };
+
+  const run = () => {
+    frameId = 0;
+    if (!pointer || typeof isActive !== "function" || !isActive()) {
+      return;
+    }
+    const bounds = typeof getBounds === "function" ? getBounds() : null;
+    if (!bounds) {
+      return;
+    }
+    const deltaX = horizontal
+      ? getFixedEdgeAutoScrollDelta(pointer.x, bounds.left, bounds.right, edgeSize, speedX)
+      : 0;
+    const deltaY = vertical
+      ? getFixedEdgeAutoScrollDelta(pointer.y, bounds.top, bounds.bottom, edgeSize, speedY)
+      : 0;
+    if (!deltaX && !deltaY) {
+      return;
+    }
+    const changed = typeof onStep === "function"
+      ? Boolean(onStep({ deltaX, deltaY, pointer: { ...pointer }, bounds }))
+      : false;
+    if (changed && isActive()) {
+      frameId = window.requestAnimationFrame(run);
+    }
+  };
+
+  const schedule = () => {
+    if (!frameId && pointer && typeof isActive === "function" && isActive()) {
+      frameId = window.requestAnimationFrame(run);
+    }
+  };
+
+  return {
+    updatePointer(x, y) {
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return;
+      }
+      pointer = { x, y };
+      schedule();
+    },
+    stop,
+    getPointer() {
+      return pointer ? { ...pointer } : null;
+    }
+  };
+}
+
+function findNearestVerticalDragScrollContainer(target) {
+  let element = target instanceof Element ? target : null;
+  while (element && element !== document.body && element !== document.documentElement) {
+    if (element instanceof HTMLElement && element.scrollHeight > element.clientHeight + 1) {
+      const style = getComputedStyle(element);
+      if (/(auto|scroll)/.test(style.overflowY || "")) {
+        return element;
+      }
+    }
+    element = element.parentElement;
+  }
+  return null;
+}
+
+function getVerticalDragScrollBounds(container) {
+  if (container instanceof HTMLElement) {
+    const rect = container.getBoundingClientRect();
+    return {
+      left: rect.left,
+      right: rect.right,
+      top: Math.max(0, rect.top),
+      bottom: Math.min(window.innerHeight || document.documentElement.clientHeight || rect.bottom, rect.bottom)
+    };
+  }
+  const height = window.innerHeight || document.documentElement.clientHeight || 0;
+  return { left: 0, right: window.innerWidth || 0, top: 0, bottom: height };
+}
+
+function scrollVerticalDragTarget(container, deltaY) {
+  if (!deltaY) {
+    return false;
+  }
+  if (container instanceof HTMLElement) {
+    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+    const nextScrollTop = Math.min(maxScrollTop, Math.max(0, container.scrollTop + deltaY));
+    if (Math.abs(nextScrollTop - container.scrollTop) <= 0.1) {
+      return false;
+    }
+    container.scrollTop = nextScrollTop;
+    return true;
+  }
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const pageHeight = Math.max(document.documentElement.scrollHeight || 0, document.body?.scrollHeight || 0);
+  const currentScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  const maxScrollY = Math.max(0, pageHeight - viewportHeight);
+  const nextScrollY = Math.min(maxScrollY, Math.max(0, currentScrollY + deltaY));
+  if (Math.abs(nextScrollY - currentScrollY) <= 0.1) {
+    return false;
+  }
+  window.scrollTo(window.scrollX || 0, nextScrollY);
+  return true;
+}
 ;
 
 /* ===== renderer-visibility.js ===== */
@@ -8768,6 +8905,68 @@ function previewPermissionRoleOrder(targetRow, clientY) {
   targetRow.parentElement?.insertBefore(dragging, clientY < rect.top + rect.height / 2 ? targetRow : targetRow.nextSibling);
 }
 
+
+let groupFeatureDragAutoScrollController = null;
+let groupFeatureDragScrollContainer = null;
+
+function previewScheduleGroupOrder(targetRow, clientY) {
+  const dragging = document.querySelector(`[data-group-row="${groupFeatureState.dragGroupId}"]`);
+  if (!dragging || dragging === targetRow) return;
+  const rect = targetRow.getBoundingClientRect();
+  targetRow.parentElement?.insertBefore(dragging, clientY < rect.top + rect.height / 2 ? targetRow : targetRow.nextSibling);
+}
+
+function isGroupFeatureSortDragging() {
+  return Boolean(groupFeatureState.dragRoleId || groupFeatureState.dragGroupId);
+}
+
+function refreshGroupFeatureDragPreviewAtPointer(pointer) {
+  if (!pointer || typeof document.elementFromPoint !== "function") return;
+  const target = document.elementFromPoint(pointer.x, pointer.y);
+  if (!(target instanceof Element)) return;
+  if (groupFeatureState.dragRoleId) {
+    const roleRow = target.closest("[data-permission-role-id]");
+    if (roleRow) previewPermissionRoleOrder(roleRow, pointer.y);
+    return;
+  }
+  if (groupFeatureState.dragGroupId) {
+    const groupRow = target.closest("[data-group-row]");
+    if (groupRow) previewScheduleGroupOrder(groupRow, pointer.y);
+  }
+}
+
+function applyGroupFeatureDragAutoScroll({ deltaY, pointer }) {
+  const changed = scrollVerticalDragTarget(groupFeatureDragScrollContainer, deltaY);
+  if (changed) refreshGroupFeatureDragPreviewAtPointer(pointer);
+  return changed;
+}
+
+function getGroupFeatureDragAutoScrollController() {
+  if (!groupFeatureDragAutoScrollController) {
+    groupFeatureDragAutoScrollController = createFixedEdgeAutoScrollController({
+      isActive: isGroupFeatureSortDragging,
+      getBounds: () => getVerticalDragScrollBounds(groupFeatureDragScrollContainer),
+      onStep: applyGroupFeatureDragAutoScroll,
+      horizontal: false,
+      vertical: true,
+      edgeSize: 56,
+      speedY: 18
+    });
+  }
+  return groupFeatureDragAutoScrollController;
+}
+
+function updateGroupFeatureDragAutoScroll(event) {
+  if (!isGroupFeatureSortDragging()) return;
+  groupFeatureDragScrollContainer = findNearestVerticalDragScrollContainer(event.target);
+  getGroupFeatureDragAutoScrollController().updatePointer(event.clientX, event.clientY);
+}
+
+function stopGroupFeatureDragAutoScroll() {
+  groupFeatureDragAutoScrollController?.stop();
+  groupFeatureDragScrollContainer = null;
+}
+
 async function savePermissionRoleOrder() {
   const orderedIds = getPermissionRoleOrderFromDom();
   if (!orderedIds.length || orderedIds.join("|") === groupFeatureState.dragRoleStartOrder.join("|")) return;
@@ -9099,6 +9298,7 @@ function bindGroupFeatureEvents() {
     row.classList.add("is-dragging");
   });
   document.addEventListener("dragover", (event) => {
+    updateGroupFeatureDragAutoScroll(event);
     const roleRow = event.target.closest?.("[data-permission-role-id]");
     if (roleRow && groupFeatureState.dragRoleId) {
       event.preventDefault();
@@ -9109,12 +9309,10 @@ function bindGroupFeatureEvents() {
     const row = event.target.closest?.("[data-group-row]");
     if (!row || !groupFeatureState.dragGroupId) return;
     event.preventDefault();
-    const dragging = document.querySelector(`[data-group-row="${groupFeatureState.dragGroupId}"]`);
-    if (!dragging || dragging === row) return;
-    const rect = row.getBoundingClientRect();
-    row.parentElement?.insertBefore(dragging, event.clientY < rect.top + rect.height / 2 ? row : row.nextSibling);
+    previewScheduleGroupOrder(row, event.clientY);
   });
   document.addEventListener("dragend", (event) => {
+    stopGroupFeatureDragAutoScroll();
     const roleRow = event.target.closest?.("[data-permission-role-id]");
     if (groupFeatureState.dragRoleId) {
       roleRow?.classList.remove("permission-role-dragging");
@@ -9129,6 +9327,7 @@ function bindGroupFeatureEvents() {
     groupFeatureState.dragGroupId = "";
     void saveGroupOrder().catch((error) => showInfoMessage(error.message));
   });
+  window.addEventListener("blur", stopGroupFeatureDragAutoScroll);
 }
 
 
@@ -10549,6 +10748,92 @@ async function moveScheduleTableMemberToDepartment(memberId, departmentId) {
  * 由 renderer.js 拆分；維持既有全域 bundle 執行方式。
  */
 
+
+let scheduleRangeAutoScrollController = null;
+
+function getScheduleRangeAutoScrollBounds() {
+  const tableWrap = document.getElementById("tableWrap");
+  if (!(tableWrap instanceof HTMLElement)) return null;
+  const rect = tableWrap.getBoundingClientRect();
+  const rootStyle = getComputedStyle(document.documentElement);
+  const frozenWidth = parseFloat(rootStyle.getPropertyValue("--schedule-frozen-width")) || 0;
+  const stickyHeader = document.getElementById("tableStickyHeader");
+  const stickyBottom = stickyHeader?.getBoundingClientRect?.().bottom || 0;
+  return {
+    left: Math.min(rect.right, rect.left + frozenWidth),
+    right: rect.right,
+    top: Math.max(rect.top, stickyBottom, 0),
+    bottom: Math.min(rect.bottom, window.innerHeight || document.documentElement.clientHeight || rect.bottom)
+  };
+}
+
+function updateScheduleRangeFocusAtPointer(pointer, tableWrap) {
+  if (!pointer || !tableWrap || typeof document.elementFromPoint !== "function") return;
+  const rect = tableWrap.getBoundingClientRect();
+  const rootStyle = getComputedStyle(document.documentElement);
+  const frozenWidth = parseFloat(rootStyle.getPropertyValue("--schedule-frozen-width")) || 0;
+  const stickyHeader = document.getElementById("tableStickyHeader");
+  const stickyBottom = stickyHeader?.getBoundingClientRect?.().bottom || 0;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || rect.bottom;
+  const sampleX = Math.min(rect.right - 2, Math.max(rect.left + frozenWidth + 2, pointer.x));
+  const sampleY = Math.min(
+    Math.min(rect.bottom - 2, viewportHeight - 2),
+    Math.max(Math.max(rect.top + 2, stickyBottom + 2), pointer.y)
+  );
+  const target = document.elementFromPoint(sampleX, sampleY);
+  const cell = target instanceof Element ? target.closest("#mainTable .cell") : null;
+  if (!(cell instanceof HTMLElement) || !cell.dataset.memberId || !cell.dataset.date) return;
+  setScheduleRangeSelection(scheduleRangeSelection.anchor, getScheduleCellPoint(cell));
+}
+
+function applyScheduleRangeAutoScroll({ deltaX, deltaY, pointer }) {
+  const tableWrap = document.getElementById("tableWrap");
+  if (!(tableWrap instanceof HTMLElement)) return false;
+  let changed = false;
+  const maxScrollLeft = Math.max(0, tableWrap.scrollWidth - tableWrap.clientWidth);
+  const nextScrollLeft = Math.min(maxScrollLeft, Math.max(0, tableWrap.scrollLeft + deltaX));
+  if (Math.abs(nextScrollLeft - tableWrap.scrollLeft) > 0.1) {
+    tableWrap.scrollLeft = nextScrollLeft;
+    syncStickyHeaderScroll();
+    changed = true;
+  }
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const pageHeight = Math.max(document.documentElement.scrollHeight || 0, document.body?.scrollHeight || 0);
+  const currentScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  const maxScrollY = Math.max(0, pageHeight - viewportHeight);
+  const nextScrollY = Math.min(maxScrollY, Math.max(0, currentScrollY + deltaY));
+  if (Math.abs(nextScrollY - currentScrollY) > 0.1) {
+    window.scrollTo(window.scrollX || 0, nextScrollY);
+    changed = true;
+  }
+  if (changed) updateScheduleRangeFocusAtPointer(pointer, tableWrap);
+  return changed;
+}
+
+function getScheduleRangeAutoScrollController() {
+  if (!scheduleRangeAutoScrollController) {
+    scheduleRangeAutoScrollController = createFixedEdgeAutoScrollController({
+      isActive: () => scheduleDragSelecting && Boolean(scheduleRangeSelection),
+      getBounds: getScheduleRangeAutoScrollBounds,
+      onStep: applyScheduleRangeAutoScroll,
+      horizontal: true,
+      vertical: true,
+      edgeSize: 56,
+      speedX: 24,
+      speedY: 18
+    });
+  }
+  return scheduleRangeAutoScrollController;
+}
+
+function scheduleRangeAutoScroll(x, y) {
+  getScheduleRangeAutoScrollController().updatePointer(x, y);
+}
+
+function stopScheduleRangeAutoScroll() {
+  scheduleRangeAutoScrollController?.stop();
+}
+
 function beginScheduleHeaderColumnSelection(event) {
   if (event.button !== 0) {
     return;
@@ -10601,23 +10886,34 @@ function beginScheduleRangeSelection(event) {
   }
   scheduleDragSelecting = true;
   scheduleSuppressNextCellClick = true;
+  scheduleRangeAutoScroll(event.clientX, event.clientY);
   event.preventDefault();
 }
 
 function updateScheduleRangeSelection(event) {
-  if (!scheduleDragSelecting || !scheduleRangeSelection) {
+  if (!scheduleDragSelecting || !scheduleRangeSelection) return;
+  if (typeof event.buttons === "number" && (event.buttons & 1) === 0) {
+    endScheduleRangeSelection();
     return;
   }
+  scheduleRangeAutoScroll(event.clientX, event.clientY);
   const cell = getScheduleCellFromEvent(event);
-  if (!cell) {
+  if (cell) setScheduleRangeSelection(scheduleRangeSelection.anchor, getScheduleCellPoint(cell));
+}
+
+function handleScheduleRangeSelectionMouseLeave(event) {
+  if (scheduleDragSelecting && typeof event.buttons === "number" && (event.buttons & 1) === 1) {
+    scheduleHeaderDragSelection = null;
+    scheduleRangeAutoScroll(event.clientX, event.clientY);
     return;
   }
-  setScheduleRangeSelection(scheduleRangeSelection.anchor, getScheduleCellPoint(cell));
+  endScheduleRangeSelection();
 }
 
 function endScheduleRangeSelection() {
   scheduleDragSelecting = false;
   scheduleHeaderDragSelection = null;
+  stopScheduleRangeAutoScroll();
 }
 
 function clearSelectedChip() {
@@ -13816,9 +14112,10 @@ function bindScheduleSessionEvents() {
   document.body.addEventListener("mousedown", beginScheduleHeaderColumnSelection);
   document.body.addEventListener("mouseover", updateScheduleHeaderColumnSelection);
   document.body.addEventListener("mousedown", beginScheduleRangeSelection);
-  document.body.addEventListener("mouseover", updateScheduleRangeSelection);
+  document.body.addEventListener("mousemove", updateScheduleRangeSelection);
   document.body.addEventListener("mouseup", endScheduleRangeSelection);
-  document.body.addEventListener("mouseleave", endScheduleRangeSelection);
+  document.body.addEventListener("mouseleave", handleScheduleRangeSelectionMouseLeave);
+  window.addEventListener("blur", endScheduleRangeSelection);
   document.addEventListener("keydown", handleScheduleGridKeydown);
   window.addEventListener("popstate", handleAppBackNavigation);
   window.addEventListener("scheduler-session-expired", async () => {
@@ -14486,6 +14783,128 @@ function bindScheduleTooltipEvents() {
  * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
  */
 
+
+let generalDragAutoScrollController = null;
+let generalDragScrollContainer = null;
+
+function isScheduleTableOrderDragging() {
+  return Boolean(dragScheduleTableDeptId || dragScheduleTableMemberId);
+}
+
+function isGeneralSortableDragging() {
+  return Boolean(
+    dragScheduleTableDeptId
+    || dragScheduleTableMemberId
+    || dragScheduleShiftId
+    || dragMemberId
+    || dragMealProductIndex
+    || dragSortItemId
+  );
+}
+
+function getScheduleTableOrderAutoScrollBounds() {
+  const tableWrap = document.getElementById("tableWrap");
+  if (!(tableWrap instanceof HTMLElement)) return null;
+  const rect = tableWrap.getBoundingClientRect();
+  const stickyHeader = document.getElementById("tableStickyHeader");
+  const stickyBottom = stickyHeader?.getBoundingClientRect?.().bottom || 0;
+  return {
+    left: rect.left,
+    right: rect.right,
+    top: Math.max(rect.top, stickyBottom, 0),
+    bottom: Math.min(rect.bottom, window.innerHeight || document.documentElement.clientHeight || rect.bottom)
+  };
+}
+
+function getGeneralDragAutoScrollBounds() {
+  return isScheduleTableOrderDragging()
+    ? getScheduleTableOrderAutoScrollBounds()
+    : getVerticalDragScrollBounds(generalDragScrollContainer);
+}
+
+function refreshGeneralDragPreviewAtPointer(pointer) {
+  if (!pointer || typeof document.elementFromPoint !== "function") return;
+  const target = document.elementFromPoint(pointer.x, pointer.y);
+  if (!(target instanceof Element)) return;
+  const canDragScheduleOrder = canEditSchedule() && state.tableView !== "shift";
+
+  const tableDepartment = target.closest("[data-table-department-id]");
+  if (tableDepartment && dragScheduleTableDeptId && canDragScheduleOrder) {
+    markScheduleTableOrderTarget(tableDepartment, pointer.y);
+    return;
+  }
+  const tableMember = target.closest("[data-table-member-id]");
+  if (tableMember && dragScheduleTableMemberId && canDragScheduleOrder && tableMember.dataset.tableMemberId !== dragScheduleTableMemberId) {
+    markScheduleTableOrderTarget(tableMember, pointer.y);
+    return;
+  }
+  const scheduleShiftOption = target.closest("[data-schedule-shift-option]");
+  if (scheduleShiftOption && dragScheduleShiftId) {
+    previewScheduleShiftOption(scheduleShiftOption, pointer.y);
+    return;
+  }
+  const emptyDepartmentTarget = target.closest("[data-table-empty-department-id]");
+  if (emptyDepartmentTarget && dragScheduleTableMemberId && canDragScheduleOrder) {
+    markDragPreviewTarget(emptyDepartmentTarget);
+    return;
+  }
+  const memberTarget = target.closest("[data-drop-member]");
+  if (memberTarget && dragMemberId) {
+    previewDepartmentMember(memberTarget, pointer.y);
+    return;
+  }
+  const mealProductRow = target.closest("[data-meal-product-row]");
+  if (mealProductRow && dragMealProductIndex) {
+    const draggedElement = document.querySelector(`[data-meal-product-row="${cssEscapeValue(dragMealProductIndex)}"]`);
+    if (draggedElement instanceof HTMLElement) {
+      draggedElement.classList.add("drag-preview-active");
+      moveDragPreviewElement(draggedElement, mealProductRow, pointer.y);
+    }
+    return;
+  }
+  const sortItem = target.closest("[data-sort-item]");
+  if (sortItem && dragSortItemId && dragSortCategory === (sortItem.dataset.sortCategory || "")) {
+    previewSortableSettingsItem(sortItem, pointer.y);
+  }
+}
+
+function applyGeneralDragAutoScroll({ deltaY, pointer }) {
+  const changed = scrollVerticalDragTarget(
+    isScheduleTableOrderDragging() ? null : generalDragScrollContainer,
+    deltaY
+  );
+  if (changed) refreshGeneralDragPreviewAtPointer(pointer);
+  return changed;
+}
+
+function getGeneralDragAutoScrollController() {
+  if (!generalDragAutoScrollController) {
+    generalDragAutoScrollController = createFixedEdgeAutoScrollController({
+      isActive: isGeneralSortableDragging,
+      getBounds: getGeneralDragAutoScrollBounds,
+      onStep: applyGeneralDragAutoScroll,
+      horizontal: false,
+      vertical: true,
+      edgeSize: 56,
+      speedY: 18
+    });
+  }
+  return generalDragAutoScrollController;
+}
+
+function updateGeneralDragAutoScroll(event) {
+  if (!isGeneralSortableDragging()) return;
+  if (!isScheduleTableOrderDragging()) {
+    generalDragScrollContainer = findNearestVerticalDragScrollContainer(event.target);
+  }
+  getGeneralDragAutoScrollController().updatePointer(event.clientX, event.clientY);
+}
+
+function stopGeneralDragAutoScroll() {
+  generalDragAutoScrollController?.stop();
+  generalDragScrollContainer = null;
+}
+
 function bindDragAndDropEvents() {
   document.body.addEventListener("dragstart", (event) => {
     const tableDepartment = event.target.closest("[data-table-department-id]");
@@ -14543,6 +14962,7 @@ function bindDragAndDropEvents() {
   });
 
   document.body.addEventListener("dragover", (event) => {
+    updateGeneralDragAutoScroll(event);
     const tableDepartment = event.target.closest("[data-table-department-id]");
     const canDragScheduleOrder = canEditSchedule() && state.tableView !== "shift";
     if (tableDepartment && dragScheduleTableDeptId && canDragScheduleOrder) {
@@ -14606,6 +15026,7 @@ function bindDragAndDropEvents() {
   });
 
   document.body.addEventListener("drop", async (event) => {
+    stopGeneralDragAutoScroll();
     const tableDepartment = event.target.closest("[data-table-department-id]");
     const canDragScheduleOrder = canEditSchedule() && state.tableView !== "shift";
     if (tableDepartment && dragScheduleTableDeptId && canDragScheduleOrder) {
@@ -14691,6 +15112,7 @@ function bindDragAndDropEvents() {
   });
 
   document.body.addEventListener("dragend", () => {
+    stopGeneralDragAutoScroll();
     clearDragPreviewState();
     dragMemberId = "";
     dragScheduleShiftId = "";
@@ -14700,6 +15122,7 @@ function bindDragAndDropEvents() {
     dragScheduleTableMemberId = "";
     dragMealProductIndex = "";
   });
+  window.addEventListener("blur", stopGeneralDragAutoScroll);
 }
 ;
 
@@ -14709,11 +15132,14 @@ let dragScrollSnapshot = null;
 let dragScrollRestoreUntil = 0;
 
 const DRAG_SCROLL_SELECTORS = [
-  ".department-settings-modal [data-sort-item]",
-  ".catalog-settings-modal [data-sort-item]",
+  "[data-sort-item]",
+  "[data-member-card]",
+  "[data-schedule-shift-option]",
   "[data-meal-product-row]",
   "[data-table-member-id]",
-  "[data-table-department-id]"
+  "[data-table-department-id]",
+  "[data-group-row]",
+  "[data-permission-role-id]"
 ].join(",");
 
 function getDragScrollKey(element, index) {
