@@ -6380,11 +6380,11 @@ function buildSelectedScheduleItemCursor(type, item) {
   if (!item || (type !== "shift" && type !== "leave")) return "";
   const color = String(item.color || "#888780").trim() || "#888780";
   const textColor = String(getItemTextColor(item, color) || "#ffffff").trim() || "#ffffff";
-  const fallbackLabel = type === "shift" ? "班" : "假";
-  const label = String(getLocalizedName(item, fallbackLabel) || fallbackLabel).trim() || fallbackLabel;
+  const label = String(getLocalizedName(item)).trim();
+  if (!label) return "";
   const charCount = Array.from(label).length;
-  const fontSize = charCount <= 3 ? 14 : charCount <= 5 ? 12 : charCount <= 8 ? 10 : 8;
-  const cursorWidth = Math.min(128, Math.max(48, Math.ceil(charCount * fontSize * 1.05 + 16)));
+  const fontSize = 10;
+  const cursorWidth = Math.min(160, Math.max(38, Math.ceil(charCount * fontSize * 1.05 + 10)));
   const centerX = cursorWidth / 2;
   const rectWidth = cursorWidth - 2;
   const svg = [
@@ -6434,7 +6434,7 @@ function syncSelectedToolbarPreview() {
   const { type, item } = selected;
   const categoryLabel = type === "shift" ? "班別" : "假別";
   const color = item.color || "#888780";
-  const name = getLocalizedName(item, categoryLabel);
+  const name = getLocalizedName(item);
   preview.hidden = false;
   preview.style.backgroundColor = color;
   preview.style.color = getItemTextColor(item, color);
