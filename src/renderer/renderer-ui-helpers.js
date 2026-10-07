@@ -113,3 +113,140 @@ function setTimeInputDisabled(id, disabled) {
     minuteInput.disabled = disabled;
   }
 }
+
+
+function getFixedEdgeAutoScrollDelta(position, start, end, edgeSize = 56, speed = 18) {
+  if (!Number.isFinite(position) || !Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+    return 0;
+  }
+  const edge = Math.max(1, Number(edgeSize) || 1);
+  const fixedSpeed = Math.max(0, Number(speed) || 0);
+  if (position < start + edge) {
+    return -fixedSpeed;
+  }
+  if (position > end - edge) {
+    return fixedSpeed;
+  }
+  return 0;
+}
+
+function createFixedEdgeAutoScrollController({
+  isActive,
+  getBounds,
+  onStep,
+  horizontal = false,
+  vertical = true,
+  edgeSize = 56,
+  speedX = 24,
+  speedY = 18
+} = {}) {
+  let pointer = null;
+  let frameId = 0;
+
+  const stop = () => {
+    pointer = null;
+    if (frameId) {
+      window.cancelAnimationFrame(frameId);
+      frameId = 0;
+    }
+  };
+
+  const run = () => {
+    frameId = 0;
+    if (!pointer || typeof isActive !== "function" || !isActive()) {
+      return;
+    }
+    const bounds = typeof getBounds === "function" ? getBounds() : null;
+    if (!bounds) {
+      return;
+    }
+    const deltaX = horizontal
+      ? getFixedEdgeAutoScrollDelta(pointer.x, bounds.left, bounds.right, edgeSize, speedX)
+      : 0;
+    const deltaY = vertical
+      ? getFixedEdgeAutoScrollDelta(pointer.y, bounds.top, bounds.bottom, edgeSize, speedY)
+      : 0;
+    if (!deltaX && !deltaY) {
+      return;
+    }
+    const changed = typeof onStep === "function"
+      ? Boolean(onStep({ deltaX, deltaY, pointer: { ...pointer }, bounds }))
+      : false;
+    if (changed && isActive()) {
+      frameId = window.requestAnimationFrame(run);
+    }
+  };
+
+  const schedule = () => {
+    if (!frameId && pointer && typeof isActive === "function" && isActive()) {
+      frameId = window.requestAnimationFrame(run);
+    }
+  };
+
+  return {
+    updatePointer(x, y) {
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return;
+      }
+      pointer = { x, y };
+      schedule();
+    },
+    stop,
+    getPointer() {
+      return pointer ? { ...pointer } : null;
+    }
+  };
+}
+
+function findNearestVerticalDragScrollContainer(target) {
+  let element = target instanceof Element ? target : null;
+  while (element && element !== document.body && element !== document.documentElement) {
+    if (element instanceof HTMLElement && element.scrollHeight > element.clientHeight + 1) {
+      const style = getComputedStyle(element);
+      if (/(auto|scroll)/.test(style.overflowY || "")) {
+        return element;
+      }
+    }
+    element = element.parentElement;
+  }
+  return null;
+}
+
+function getVerticalDragScrollBounds(container) {
+  if (container instanceof HTMLElement) {
+    const rect = container.getBoundingClientRect();
+    return {
+      left: rect.left,
+      right: rect.right,
+      top: Math.max(0, rect.top),
+      bottom: Math.min(window.innerHeight || document.documentElement.clientHeight || rect.bottom, rect.bottom)
+    };
+  }
+  const height = window.innerHeight || document.documentElement.clientHeight || 0;
+  return { left: 0, right: window.innerWidth || 0, top: 0, bottom: height };
+}
+
+function scrollVerticalDragTarget(container, deltaY) {
+  if (!deltaY) {
+    return false;
+  }
+  if (container instanceof HTMLElement) {
+    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+    const nextScrollTop = Math.min(maxScrollTop, Math.max(0, container.scrollTop + deltaY));
+    if (Math.abs(nextScrollTop - container.scrollTop) <= 0.1) {
+      return false;
+    }
+    container.scrollTop = nextScrollTop;
+    return true;
+  }
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const pageHeight = Math.max(document.documentElement.scrollHeight || 0, document.body?.scrollHeight || 0);
+  const currentScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  const maxScrollY = Math.max(0, pageHeight - viewportHeight);
+  const nextScrollY = Math.min(maxScrollY, Math.max(0, currentScrollY + deltaY));
+  if (Math.abs(nextScrollY - currentScrollY) <= 0.1) {
+    return false;
+  }
+  window.scrollTo(window.scrollX || 0, nextScrollY);
+  return true;
+}
