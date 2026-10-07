@@ -13,9 +13,13 @@ test("班別與假別選取後建立對應色塊游標", () => {
   assert.match(toolbar, /const color = String\(item\.color/);
   assert.match(toolbar, /getItemTextColor\(item, color\)/);
   assert.match(toolbar, /const label = String\(getLocalizedName\(item\)\)\.trim\(\)/);
-  assert.match(toolbar, /if \(!label\) return ""/);\n  assert.match(toolbar, /const charCount = Array\.from\(label\)\.length/);\n  assert.match(toolbar, /const fontSize = 10/);
+  assert.match(toolbar, /if \(!label\) return ""/);
+  assert.match(toolbar, /const charCount = Array\.from\(label\)\.length/);
+  assert.match(toolbar, /const fontSize = 10/);
   assert.match(toolbar, /Math\.min\(160, Math\.max\(38/);
-  assert.match(toolbar, /data:image\/svg\+xml/);\n  assert.match(toolbar, /const name = getLocalizedName\(item\)/);\n  assert.doesNotMatch(toolbar, /getLocalizedName\(item, categoryLabel\)/);
+  assert.match(toolbar, /data:image\/svg\+xml/);
+  assert.match(toolbar, /const name = getLocalizedName\(item\)/);
+  assert.doesNotMatch(toolbar, /getLocalizedName\(item, categoryLabel\)/);
   assert.match(toolbar, /&quot;/);
   assert.match(toolbar, /stroke-opacity="0\.32"/);
 });
