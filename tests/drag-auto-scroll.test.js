@@ -69,7 +69,7 @@ test("班表與設定拖曳排序共用固定速度上下自動捲動", () => {
 
 test("群組與權限角色排序也使用固定速度自動捲動", () => {
   const source = read("src/renderer/renderer-groups-permissions-archive.js");
-  assert.match(source, /groupFeatureState\.dragGroupId \|\| groupFeatureState\.dragRoleId/);
+  assert.match(source, /groupFeatureState\.dragRoleId \|\| groupFeatureState\.dragGroupId/);
   assert.match(source, /createFixedEdgeAutoScrollController\(/);
   assert.match(source, /updateGroupFeatureDragAutoScroll\(event\)/);
   assert.match(source, /refreshGroupFeatureDragPreviewAtPointer\(pointer\)/);
