@@ -73,9 +73,19 @@ function updateSelectedScheduleItemPointerPreview(event) {
     preview.hidden = true;
     return;
   }
-  preview.style.left = `${Math.round(event.clientX + 2)}px`;
-  preview.style.top = `${Math.round(event.clientY + 2)}px`;
   preview.hidden = false;
+  const rect = preview.getBoundingClientRect();
+  const margin = 4;
+  let left = event.clientX + 2;
+  let top = event.clientY + 2;
+  if (left + rect.width + margin > window.innerWidth) {
+    left = event.clientX - rect.width - 2;
+  }
+  if (top + rect.height + margin > window.innerHeight) {
+    top = event.clientY - rect.height - 2;
+  }
+  preview.style.left = `${Math.round(Math.max(margin, left))}px`;
+  preview.style.top = `${Math.round(Math.max(margin, top))}px`;
 }
 
 function syncSelectedToolbarPreview() {
