@@ -4,6 +4,7 @@
 
 
 let scheduleRangeAutoScrollController = null;
+let scheduleHeaderColumnAutoScrollController = null;
 
 function getScheduleRangeAutoScrollBounds() {
   const tableWrap = document.getElementById("tableWrap");
@@ -88,6 +89,76 @@ function stopScheduleRangeAutoScroll() {
   scheduleRangeAutoScrollController?.stop();
 }
 
+
+function getScheduleHeaderColumnAutoScrollBounds() {
+  const tableWrap = document.getElementById("tableWrap");
+  const stickyHeader = document.getElementById("tableStickyHeader");
+  if (!(tableWrap instanceof HTMLElement) || !(stickyHeader instanceof HTMLElement)) return null;
+  const rect = tableWrap.getBoundingClientRect();
+  const headerRect = stickyHeader.getBoundingClientRect();
+  const rootStyle = getComputedStyle(document.documentElement);
+  const frozenWidth = parseFloat(rootStyle.getPropertyValue("--schedule-frozen-width")) || 0;
+  return {
+    left: Math.min(rect.right, rect.left + frozenWidth),
+    right: rect.right,
+    top: headerRect.top,
+    bottom: headerRect.bottom
+  };
+}
+
+function updateScheduleHeaderColumnFocusAtPointer(pointer) {
+  if (!pointer || typeof document.elementFromPoint !== "function") return;
+  const tableWrap = document.getElementById("tableWrap");
+  const stickyHeader = document.getElementById("tableStickyHeader");
+  if (!(tableWrap instanceof HTMLElement) || !(stickyHeader instanceof HTMLElement)) return;
+  const rect = tableWrap.getBoundingClientRect();
+  const headerRect = stickyHeader.getBoundingClientRect();
+  const rootStyle = getComputedStyle(document.documentElement);
+  const frozenWidth = parseFloat(rootStyle.getPropertyValue("--schedule-frozen-width")) || 0;
+  const sampleX = Math.min(rect.right - 2, Math.max(rect.left + frozenWidth + 2, pointer.x));
+  const sampleY = Math.min(headerRect.bottom - 2, Math.max(headerRect.top + 2, pointer.y));
+  const target = document.elementFromPoint(sampleX, sampleY);
+  const column = target instanceof Element ? target.closest("[data-schedule-column]") : null;
+  if (!(column instanceof HTMLElement)) return;
+  const col = Number(column.dataset.scheduleColumn);
+  if (Number.isInteger(col)) selectScheduleColumn(col, true);
+}
+
+function applyScheduleHeaderColumnAutoScroll({ deltaX, pointer }) {
+  const tableWrap = document.getElementById("tableWrap");
+  if (!(tableWrap instanceof HTMLElement)) return false;
+  const maxScrollLeft = Math.max(0, tableWrap.scrollWidth - tableWrap.clientWidth);
+  const nextScrollLeft = Math.min(maxScrollLeft, Math.max(0, tableWrap.scrollLeft + deltaX));
+  if (Math.abs(nextScrollLeft - tableWrap.scrollLeft) <= 0.1) return false;
+  tableWrap.scrollLeft = nextScrollLeft;
+  syncStickyHeaderScroll();
+  updateScheduleHeaderColumnFocusAtPointer(pointer);
+  return true;
+}
+
+function getScheduleHeaderColumnAutoScrollController() {
+  if (!scheduleHeaderColumnAutoScrollController) {
+    scheduleHeaderColumnAutoScrollController = createFixedEdgeAutoScrollController({
+      isActive: () => scheduleHeaderDragSelection?.type === "column",
+      getBounds: getScheduleHeaderColumnAutoScrollBounds,
+      onStep: applyScheduleHeaderColumnAutoScroll,
+      horizontal: true,
+      vertical: false,
+      edgeSize: 56,
+      speedX: 24
+    });
+  }
+  return scheduleHeaderColumnAutoScrollController;
+}
+
+function scheduleHeaderColumnAutoScroll(x, y) {
+  getScheduleHeaderColumnAutoScrollController().updatePointer(x, y);
+}
+
+function stopScheduleHeaderColumnAutoScroll() {
+  scheduleHeaderColumnAutoScrollController?.stop();
+}
+
 function beginScheduleHeaderColumnSelection(event) {
   if (event.button !== 0) {
     return;
@@ -102,21 +173,21 @@ function beginScheduleHeaderColumnSelection(event) {
   }
   selectScheduleColumn(col, event.shiftKey);
   scheduleHeaderDragSelection = { type: "column" };
+  scheduleHeaderColumnAutoScroll(event.clientX, event.clientY);
   event.preventDefault();
 }
 
 function updateScheduleHeaderColumnSelection(event) {
-  if (scheduleHeaderDragSelection?.type !== "column") {
+  if (scheduleHeaderDragSelection?.type !== "column") return;
+  if (typeof event.buttons === "number" && (event.buttons & 1) === 0) {
+    endScheduleRangeSelection();
     return;
   }
+  scheduleHeaderColumnAutoScroll(event.clientX, event.clientY);
   const target = event.target instanceof Element ? event.target.closest("[data-schedule-column]") : null;
-  if (!(target instanceof HTMLElement)) {
-    return;
-  }
+  if (!(target instanceof HTMLElement)) return;
   const col = Number(target.dataset.scheduleColumn);
-  if (Number.isInteger(col)) {
-    selectScheduleColumn(col, true);
-  }
+  if (Number.isInteger(col)) selectScheduleColumn(col, true);
 }
 
 function selectScheduleRowFromMemberCell(cell, extend = false) {
@@ -156,8 +227,11 @@ function updateScheduleRangeSelection(event) {
 }
 
 function handleScheduleRangeSelectionMouseLeave(event) {
+  if (scheduleHeaderDragSelection?.type === "column" && typeof event.buttons === "number" && (event.buttons & 1) === 1) {
+    scheduleHeaderColumnAutoScroll(event.clientX, event.clientY);
+    return;
+  }
   if (scheduleDragSelecting && typeof event.buttons === "number" && (event.buttons & 1) === 1) {
-    scheduleHeaderDragSelection = null;
     scheduleRangeAutoScroll(event.clientX, event.clientY);
     return;
   }
@@ -168,6 +242,7 @@ function endScheduleRangeSelection() {
   scheduleDragSelecting = false;
   scheduleHeaderDragSelection = null;
   stopScheduleRangeAutoScroll();
+  stopScheduleHeaderColumnAutoScroll();
 }
 
 function clearSelectedChip() {
