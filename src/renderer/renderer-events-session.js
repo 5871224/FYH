@@ -7,9 +7,16 @@ function bindScheduleSessionEvents() {
   document.body.addEventListener("mousemove", updateScheduleHeaderColumnSelection);
   document.body.addEventListener("mousedown", beginScheduleRangeSelection);
   document.body.addEventListener("mousemove", updateScheduleRangeSelection);
+  document.body.addEventListener("mousemove", updateSelectedScheduleItemPointerPreview);
   document.body.addEventListener("mouseup", endScheduleRangeSelection);
-  document.body.addEventListener("mouseleave", handleScheduleRangeSelectionMouseLeave);
-  window.addEventListener("blur", endScheduleRangeSelection);
+  document.body.addEventListener("mouseleave", (event) => {
+    handleScheduleRangeSelectionMouseLeave(event);
+    hideSelectedScheduleItemPointerPreview();
+  });
+  window.addEventListener("blur", () => {
+    endScheduleRangeSelection();
+    hideSelectedScheduleItemPointerPreview();
+  });
   document.addEventListener("keydown", handleScheduleGridKeydown);
   window.addEventListener("popstate", handleAppBackNavigation);
   window.addEventListener("scheduler-session-expired", async () => {
