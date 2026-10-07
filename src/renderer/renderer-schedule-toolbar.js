@@ -7,54 +7,75 @@ function getSelectedToolbarItem() {
 }
 
 
-function escapeScheduleCursorSvgText(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
+
+let selectedScheduleItemPointerPreview = null;
+
+function getSelectedScheduleItemPointerPreview() {
+  if (selectedScheduleItemPointerPreview instanceof HTMLElement && selectedScheduleItemPointerPreview.isConnected) {
+    return selectedScheduleItemPointerPreview;
+  }
+  const preview = document.createElement("div");
+  preview.className = "schedule-item-pointer-preview";
+  preview.hidden = true;
+  preview.setAttribute("aria-hidden", "true");
+  document.body.appendChild(preview);
+  selectedScheduleItemPointerPreview = preview;
+  return preview;
 }
 
-function buildSelectedScheduleItemCursor(type, item) {
-  if (!item || (type !== "shift" && type !== "leave")) return "";
-  const color = String(item.color || "#888780").trim() || "#888780";
-  const textColor = String(getItemTextColor(item, color) || "#ffffff").trim() || "#ffffff";
-  const label = String(getLocalizedName(item)).trim();
-  if (!label) return "";
-  const charCount = Array.from(label).length;
-  const fontSize = 10;
-  const cursorWidth = Math.min(160, Math.max(38, Math.ceil(charCount * fontSize * 1.05 + 10)));
-  const centerX = cursorWidth / 2;
-  const rectWidth = cursorWidth - 2;
-  const svg = [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${cursorWidth}" height="32" viewBox="0 0 ${cursorWidth} 32">`,
-    `<rect x="1" y="1" width="${rectWidth}" height="29" rx="7" `,
-    `fill="${escapeScheduleCursorSvgText(color)}" stroke="#000000" stroke-opacity="0.32" stroke-width="1.5"/>`,
-    `<text x="${centerX}" y="16" dominant-baseline="middle" text-anchor="middle" `,
-    `font-family="sans-serif" font-size="${fontSize}" font-weight="700" fill="${escapeScheduleCursorSvgText(textColor)}">`,
-    `${escapeScheduleCursorSvgText(label)}</text></svg>`
-  ].join("");
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 2 2, pointer`;
+function hideSelectedScheduleItemPointerPreview() {
+  if (selectedScheduleItemPointerPreview instanceof HTMLElement) {
+    selectedScheduleItemPointerPreview.hidden = true;
+  }
 }
 
 function syncSelectedScheduleItemCursor() {
   const table = document.getElementById("mainTable");
-  if (!(table instanceof HTMLElement)) return;
+  const preview = getSelectedScheduleItemPointerPreview();
+  if (!(table instanceof HTMLElement)) {
+    preview.hidden = true;
+    return;
+  }
   const selected = getSelectedToolbarItem();
   if (!selected || !canEditSchedule() || state.tableView !== "member") {
     table.classList.remove("schedule-item-cursor-active");
-    table.style.removeProperty("--schedule-item-cursor");
+    preview.hidden = true;
+    preview.textContent = "";
+    preview.style.backgroundColor = "";
+    preview.style.color = "";
+    preview.style.borderColor = "";
     return;
   }
-  const cursor = buildSelectedScheduleItemCursor(selected.type, selected.item);
-  if (!cursor) {
+  const name = String(getLocalizedName(selected.item)).trim();
+  if (!name) {
     table.classList.remove("schedule-item-cursor-active");
-    table.style.removeProperty("--schedule-item-cursor");
+    preview.hidden = true;
+    preview.textContent = "";
     return;
   }
-  table.style.setProperty("--schedule-item-cursor", cursor);
+  const color = selected.item.color || "#888780";
   table.classList.add("schedule-item-cursor-active");
+  preview.textContent = name;
+  preview.style.backgroundColor = color;
+  preview.style.color = getItemTextColor(selected.item, color);
+  preview.style.borderColor = color;
+}
+
+function updateSelectedScheduleItemPointerPreview(event) {
+  const preview = getSelectedScheduleItemPointerPreview();
+  const target = event?.target;
+  const cell = target instanceof Element ? target.closest("#mainTable .cell") : null;
+  const selected = getSelectedToolbarItem();
+  if (!(cell instanceof HTMLElement)
+      || !selected
+      || !canEditSchedule()
+      || state.tableView !== "member") {
+    preview.hidden = true;
+    return;
+  }
+  preview.style.left = `${Math.round(event.clientX + 2)}px`;
+  preview.style.top = `${Math.round(event.clientY + 2)}px`;
+  preview.hidden = false;
 }
 
 function syncSelectedToolbarPreview() {
