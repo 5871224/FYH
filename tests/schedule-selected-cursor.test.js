@@ -14,6 +14,8 @@ test("班別與假別選取後建立對應色塊游標", () => {
   assert.match(toolbar, /getItemTextColor\(item, color\)/);
   assert.match(toolbar, /Array\.from\(localizedName\)\.slice\(0, 2\)/);
   assert.match(toolbar, /data:image\/svg\+xml/);
+  assert.match(toolbar, /&quot;/);
+  assert.match(toolbar, /stroke-opacity="0\.32"/);
 });
 
 test("只有人員檢視可編輯班表格套用自訂游標", () => {
