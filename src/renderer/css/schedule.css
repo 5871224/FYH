@@ -144,3 +144,9 @@
     max-width: calc(100% - var(--schedule-frozen-width));
   }
 }
+
+/* 選取班別／假別後，班表可編輯格游標改用該項目的色塊圖示。 */
+#mainTable.schedule-item-cursor-active .cell:not(.inactive-cell):not(.archived-schedule-cell):not([data-readonly="true"]) {
+  cursor: var(--schedule-item-cursor, pointer);
+}
+
