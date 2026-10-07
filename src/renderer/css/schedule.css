@@ -145,10 +145,37 @@
   }
 }
 
-/* 選取班別／假別後，所有班表格都顯示該項目的色塊游標。
- * 不可排、封存與唯讀格仍維持原本不可操作邏輯，只改游標外觀。
+/* 選取班別／假別後，以 HTML 浮動標籤取代點陣化自訂 cursor，
+ * 保留網頁字型清晰度；不可排、封存與唯讀格仍只改游標外觀。
  */
 #mainTable.schedule-item-cursor-active .cell {
-  cursor: var(--schedule-item-cursor, pointer);
+  cursor: none;
+}
+
+.schedule-item-pointer-preview {
+  position: fixed;
+  z-index: 2500;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  min-height: 30px;
+  max-width: calc(100vw - 8px);
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.08;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.schedule-item-pointer-preview[hidden] {
+  display: none;
 }
 
