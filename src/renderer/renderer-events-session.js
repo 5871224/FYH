@@ -6,9 +6,10 @@ function bindScheduleSessionEvents() {
   document.body.addEventListener("mousedown", beginScheduleHeaderColumnSelection);
   document.body.addEventListener("mouseover", updateScheduleHeaderColumnSelection);
   document.body.addEventListener("mousedown", beginScheduleRangeSelection);
-  document.body.addEventListener("mouseover", updateScheduleRangeSelection);
+  document.body.addEventListener("mousemove", updateScheduleRangeSelection);
   document.body.addEventListener("mouseup", endScheduleRangeSelection);
-  document.body.addEventListener("mouseleave", endScheduleRangeSelection);
+  document.body.addEventListener("mouseleave", handleScheduleRangeSelectionMouseLeave);
+  window.addEventListener("blur", endScheduleRangeSelection);
   document.addEventListener("keydown", handleScheduleGridKeydown);
   window.addEventListener("popstate", handleAppBackNavigation);
   window.addEventListener("scheduler-session-expired", async () => {
