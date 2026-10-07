@@ -21,14 +21,17 @@ function buildSelectedScheduleItemCursor(type, item) {
   const color = String(item.color || "#888780").trim() || "#888780";
   const textColor = String(getItemTextColor(item, color) || "#ffffff").trim() || "#ffffff";
   const fallbackLabel = type === "shift" ? "班" : "假";
-  const localizedName = String(getLocalizedName(item, fallbackLabel) || fallbackLabel).trim();
-  const label = Array.from(localizedName).slice(0, 2).join("") || fallbackLabel;
-  const fontSize = Array.from(label).length <= 1 ? 17 : 13;
+  const label = String(getLocalizedName(item, fallbackLabel) || fallbackLabel).trim() || fallbackLabel;
+  const charCount = Array.from(label).length;
+  const fontSize = charCount <= 3 ? 14 : charCount <= 5 ? 12 : charCount <= 8 ? 10 : 8;
+  const cursorWidth = Math.min(128, Math.max(48, Math.ceil(charCount * fontSize * 1.05 + 16)));
+  const centerX = cursorWidth / 2;
+  const rectWidth = cursorWidth - 2;
   const svg = [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">',
-    '<rect x="1" y="1" width="29" height="29" rx="7" ',
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${cursorWidth}" height="32" viewBox="0 0 ${cursorWidth} 32">`,
+    `<rect x="1" y="1" width="${rectWidth}" height="29" rx="7" `,
     `fill="${escapeScheduleCursorSvgText(color)}" stroke="#000000" stroke-opacity="0.32" stroke-width="1.5"/>`,
-    `<text x="15.5" y="16" dominant-baseline="middle" text-anchor="middle" `,
+    `<text x="${centerX}" y="16" dominant-baseline="middle" text-anchor="middle" `,
     `font-family="sans-serif" font-size="${fontSize}" font-weight="700" fill="${escapeScheduleCursorSvgText(textColor)}">`,
     `${escapeScheduleCursorSvgText(label)}</text></svg>`
   ].join("");
