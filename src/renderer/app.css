@@ -3476,6 +3476,11 @@ thead th.today,
   }
 }
 
+/* 選取班別／假別後，班表可編輯格游標改用該項目的色塊圖示。 */
+#mainTable.schedule-item-cursor-active .cell:not(.inactive-cell):not(.archived-schedule-cell):not([data-readonly="true"]) {
+  cursor: var(--schedule-item-cursor, pointer);
+}
+
 /* ===== Schedule print layout: schedule-print.css ===== */
 #schedulePrintPreview{position:fixed;inset:0;z-index:1200;overflow:auto;background:#e9e5dd;color:var(--text)}
 .schedule-print-preview-toolbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px;padding:10px 16px;border-bottom:1px solid var(--line);background:#fffdf8;box-sizing:border-box}
