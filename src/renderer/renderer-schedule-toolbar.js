@@ -11,7 +11,9 @@ function escapeScheduleCursorSvgText(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
 }
 
 function buildSelectedScheduleItemCursor(type, item) {
@@ -25,7 +27,7 @@ function buildSelectedScheduleItemCursor(type, item) {
   const svg = [
     '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">',
     '<rect x="1" y="1" width="29" height="29" rx="7" ',
-    `fill="${escapeScheduleCursorSvgText(color)}" stroke="rgba(0,0,0,0.32)" stroke-width="1.5"/>`,
+    `fill="${escapeScheduleCursorSvgText(color)}" stroke="#000000" stroke-opacity="0.32" stroke-width="1.5"/>`,
     `<text x="15.5" y="16" dominant-baseline="middle" text-anchor="middle" `,
     `font-family="sans-serif" font-size="${fontSize}" font-weight="700" fill="${escapeScheduleCursorSvgText(textColor)}">`,
     `${escapeScheduleCursorSvgText(label)}</text></svg>`
