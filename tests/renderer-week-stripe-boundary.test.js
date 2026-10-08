@@ -74,8 +74,8 @@ test("每月起算日應在班表形成較明顯月界線並蓋過週界線", ()
   assert.equal(monthEndFallback.getMonthBoundaryClassForDate("2026-02-28", 1), "month-boundary-start");
   assert.match(layout, /getMonthBoundaryClassForDate\(dateString, index\)/);
   assert.match(scheduleTable, /getMonthBoundaryClassForDate\(dateString, dateIndex\)/);
-  assert.match(css, /\.table-sticky-cell-day\.month-boundary-start\s*\{\s*border-left: 4px solid #6f4f28;/s);
-  assert.match(css, /\.cell\.month-boundary-start\s*\{\s*border-left: 4px solid #6f4f28;/s);
+  assert.match(css, /\.table-sticky-cell-day\.month-boundary-start\s*\{\s*border-left: 4px solid #86b8e6;/s);
+  assert.match(css, /\.cell\.month-boundary-start\s*\{\s*border-left: 4px solid #86b8e6;/s);
   assert.ok(css.indexOf(".table-sticky-cell-day.month-boundary-start") > css.indexOf(".table-sticky-cell-day.week-boundary-start"));
   assert.ok(css.indexOf(".cell.month-boundary-start") > css.indexOf(".cell.week-boundary-start"));
 });
