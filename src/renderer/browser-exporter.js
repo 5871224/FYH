@@ -404,12 +404,30 @@
       "支薪2"
     ];
 
+    if (payload.attendanceReview) {
+      headers.splice(1, 0, "姓名", "星期");
+    }
     sheet.addRow(headers);
-    getOvertimeExportRows(payload).forEach((row) => sheet.addRow(row));
+    getOvertimeExportRows(payload).forEach((row, index) => {
+      if (!payload.attendanceReview) {
+        sheet.addRow(row);
+        return;
+      }
+      const source = payload.exportRows.filter((item) => item.overtime_type_id)[index];
+      const match = String(source?.work_date || "").match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+      const weekday = match
+        ? "日一二三四五六"[new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay()]
+        : "";
+      sheet.addRow([row[0], source?.employee_name || "", weekday ? `星期${weekday}` : "", ...row.slice(1)]);
+    });
     sheet.getRow(1).font = { bold: true };
     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EBD8" } };
-    sheet.columns = headers.map((_, index) => ({ width: index === 0 ? 14 : [4, 5, 8, 11].includes(index) ? 10 : 14 }));
+    sheet.columns = headers.map((_, index) => ({
+      width: payload.attendanceReview && index === 1 ? 18
+        : payload.attendanceReview && index === 2 ? 12
+          : (index === 0 ? 14 : [4, 5, 8, 11].includes(index - (payload.attendanceReview ? 2 : 0)) ? 10 : 14)
+    }));
     applySheetBorder(sheet);
     return workbook;
   }

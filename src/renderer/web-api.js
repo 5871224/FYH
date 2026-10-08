@@ -1342,6 +1342,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
         const rest1End = addMinutesToClockTime(overtimeStart, 5 * 60);
         return [{
           employee_code: row.employee_code || "",
+          employee_name: row.employee_name || "",
           work_date: row.work_date || "",
           overtime_type_id: "attendance-rest-day",
           overtime_start_time: adjustedStart.time || scheduledStart,
@@ -1371,7 +1372,8 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     return exportOvertime({
       startDate: filters.fromDate,
       endDate: filters.toDate,
-      exportRows
+      exportRows,
+      attendanceReview: true
     });
   }
 
