@@ -13641,13 +13641,9 @@ function scrollScheduleByWeeks(weeks) {
     syncScheduleWeekNavigationButtons();
     return;
   }
-  if (typeof metrics.tableWrap.scrollTo === "function") {
-    metrics.tableWrap.scrollTo({ left: target, behavior: "smooth" });
-  } else {
-    metrics.tableWrap.scrollLeft = target;
-    syncStickyHeaderScroll();
-    syncScheduleWeekNavigationButtons();
-  }
+  metrics.tableWrap.scrollLeft = target;
+  syncStickyHeaderScroll();
+  syncScheduleWeekNavigationButtons();
 }
 
 async function changeSchedulePeriodWeeks(weeks) {
