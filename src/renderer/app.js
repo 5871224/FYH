@@ -421,7 +421,7 @@
         return;
       }
       const source = payload.exportRows.filter((item) => item.overtime_type_id)[index];
-      const match = String(source?.work_date || "").match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+      const match = String(source?.work_date || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
       const weekday = match
         ? "日一二三四五六"[new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay()]
         : "";
