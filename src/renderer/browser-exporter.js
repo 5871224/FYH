@@ -418,7 +418,7 @@
       const weekday = match
         ? "日一二三四五六"[new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay()]
         : "";
-      sheet.addRow([row[0], source?.employee_name || "", weekday ? `星期${weekday}` : "", ...row.slice(1)]);
+      sheet.addRow([row[0], source?.employee_name || "", weekday || "", ...row.slice(1)]);
     });
     sheet.getRow(1).font = { bold: true };
     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };

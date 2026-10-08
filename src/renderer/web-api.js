@@ -1359,6 +1359,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       if (!(Number(row.overtimeHours) > 0)) return [];
       return [{
         employee_code: row.employee_code || "",
+        employee_name: row.employee_name || "",
         work_date: row.work_date || "",
         overtime_type_id: "attendance-ledger",
         overtime_start_time: "00:00",
