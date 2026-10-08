@@ -2514,3 +2514,135 @@ revoke all on function public.save_vietnamese_label_v1(text,uuid,text) from publ
 grant execute on function public.save_meal_admin_settings(jsonb,text,integer,uuid) to authenticated,service_role;
 grant execute on function public.get_vietnamese_labels_v1() to authenticated,service_role;
 grant execute on function public.save_vietnamese_label_v1(text,uuid,text) to authenticated,service_role;
+
+
+-- ============================================================================================
+-- 2026-10-08：上下班完成後上班時數固定 8 小時
+-- ============================================================================================
+
+begin;
+
+update public.attendance_days
+set regular_minutes = 480
+where clock_in_at is not null
+  and clock_out_at is not null
+  and regular_minutes is distinct from 480;
+
+create or replace function public.save_attendance_clock(
+  p_user_id uuid,
+  p_work_date date,
+  p_kind text,
+  p_location jsonb
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_now timestamptz := now();
+  v_today date := (timezone('Asia/Taipei', v_now))::date;
+  v_employee public.set_employee%rowtype;
+  v_record public.attendance_days%rowtype;
+  v_before jsonb;
+begin
+  if p_user_id is null or p_work_date is null then
+    raise exception '缺少打卡人員或日期' using errcode = '23502';
+  end if;
+  if p_work_date <> v_today then
+    raise exception '員工只能打伺服器當日的卡' using errcode = '23514';
+  end if;
+  if p_kind not in ('clock_in', 'clock_out') then
+    raise exception '不支援的打卡操作' using errcode = '22023';
+  end if;
+
+  select * into v_employee
+  from public.set_employee
+  where id = p_user_id;
+
+  if not found
+    or (v_employee.hire_date is not null and v_today < v_employee.hire_date)
+    or (v_employee.leave_date is not null and v_today > v_employee.leave_date + 5) then
+    raise exception '帳號不在有效任職期間，無法打卡' using errcode = '42501';
+  end if;
+
+  insert into public.attendance_days (user_id, work_date)
+  values (p_user_id, p_work_date)
+  on conflict (user_id, work_date) do nothing;
+
+  select * into v_record
+  from public.attendance_days
+  where user_id = p_user_id
+    and work_date = p_work_date
+  for update;
+
+  if v_record.reviewed_at is not null then
+    raise exception '此日簽到紀錄已審，無法再打卡' using errcode = '23514';
+  end if;
+
+  v_before := to_jsonb(v_record);
+
+  if p_kind = 'clock_in' then
+    if v_record.clock_in_at is not null then
+      return jsonb_build_object(
+        'ok', true,
+        'record', to_jsonb(v_record),
+        'duplicate', true,
+        'serverDate', p_work_date::text
+      );
+    end if;
+
+    update public.attendance_days
+    set clock_in_at = v_now,
+        clock_in_location = coalesce(p_location, '{}'::jsonb),
+        regular_minutes = case when v_record.clock_out_at is not null then 480 else v_record.regular_minutes end
+    where id = v_record.id
+    returning * into v_record;
+  else
+    if v_record.clock_out_at is not null then
+      return jsonb_build_object(
+        'ok', true,
+        'record', to_jsonb(v_record),
+        'duplicate', true,
+        'serverDate', p_work_date::text
+      );
+    end if;
+
+    update public.attendance_days
+    set clock_out_at = v_now,
+        clock_out_location = coalesce(p_location, '{}'::jsonb),
+        regular_minutes = case when v_record.clock_in_at is not null then 480 else v_record.regular_minutes end
+    where id = v_record.id
+    returning * into v_record;
+  end if;
+
+  insert into public.attendance_audit_logs (
+    attendance_day_id,
+    action,
+    changed_by,
+    before_data,
+    after_data
+  )
+  values (
+    v_record.id,
+    p_kind,
+    p_user_id,
+    v_before,
+    to_jsonb(v_record)
+  );
+
+  return jsonb_build_object(
+    'ok', true,
+    'record', to_jsonb(v_record),
+    'duplicate', false,
+    'serverDate', p_work_date::text
+  );
+end;
+$$;
+
+revoke all on function public.save_attendance_clock(uuid, date, text, jsonb)
+from public, anon, authenticated;
+grant execute on function public.save_attendance_clock(uuid, date, text, jsonb)
+to service_role;
+
+commit;
