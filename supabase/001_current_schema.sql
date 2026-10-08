@@ -636,7 +636,8 @@ begin
 
     update public.attendance_days
     set clock_in_at = v_now,
-        clock_in_location = coalesce(p_location, '{}'::jsonb)
+        clock_in_location = coalesce(p_location, '{}'::jsonb),
+        regular_minutes = case when v_record.clock_out_at is not null then 480 else v_record.regular_minutes end
     where id = v_record.id
     returning * into v_record;
   else
@@ -651,7 +652,8 @@ begin
 
     update public.attendance_days
     set clock_out_at = v_now,
-        clock_out_location = coalesce(p_location, '{}'::jsonb)
+        clock_out_location = coalesce(p_location, '{}'::jsonb),
+        regular_minutes = case when v_record.clock_in_at is not null then 480 else v_record.regular_minutes end
     where id = v_record.id
     returning * into v_record;
   end if;

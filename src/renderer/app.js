@@ -3003,6 +3003,7 @@ const fyhLocalization = (() => {
     "打卡時間": "Giờ chấm công",
     "上班時數": "Giờ làm việc",
     "加班時數": "Giờ tăng ca",
+    "填寫加班時數時，備註為必填": "Khi nhập giờ tăng ca, bắt buộc phải ghi chú",
     "異常": "Bất thường",
     "審核": "Duyệt",
     "未審": "Chưa duyệt",
@@ -10382,8 +10383,10 @@ function renderPersonalClockCell(record) {
 }
 
 function renderPersonalHoursInput(record, field) {
-  const value = getPersonalAttendanceValue(record, field);
-  const editable = record.editable !== false && !record.reviewed;
+  const value = field === "regularHours" && record.clockIn && record.clockOut
+    ? 8
+    : getPersonalAttendanceValue(record, field);
+  const editable = field !== "regularHours" && record.editable !== false && !record.reviewed;
   const displayValue = value === null || value === undefined ? "" : escapeHtml(String(value));
   if (!editable) return `<span class="attendance-hours-value">${displayValue}</span>`;
   return `<input class="attendance-hours-input" type="number" min="0" step="0.5" inputmode="decimal" value="${displayValue}" data-personal-attendance-field="${field}" data-personal-attendance-date="${escapeHtml(record.date)}">`;
@@ -10391,9 +10394,14 @@ function renderPersonalHoursInput(record, field) {
 
 function renderPersonalNoteInput(record) {
   const value = String(getPersonalAttendanceValue(record, "note") ?? "");
+  const overtimeValue = Number(getPersonalAttendanceValue(record, "overtimeHours") || 0);
+  const noteRequired = Number.isFinite(overtimeValue) && overtimeValue > 0;
   const editable = record.editable !== false && !record.reviewed;
   if (!editable) return escapeHtml(value);
-  return `<input class="attendance-note-input" type="text" list="personalAttendanceCommonNotes" value="${escapeHtml(value)}" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}">`;
+  const requiredAttrs = noteRequired
+    ? ' required aria-required="true" placeholder="填寫加班時數時，備註為必填"'
+    : "";
+  return `<div class="attendance-note-editor"><input class="attendance-note-input" type="text" list="personalAttendanceCommonNotes" value="${escapeHtml(value)}" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}"${requiredAttrs}>${noteRequired ? '<small class="attendance-note-required-hint">填寫加班時數時，備註為必填</small>' : ""}</div>`;
 }
 
 function renderReviewStatus(reviewed) {
@@ -12031,16 +12039,67 @@ async function saveAttendanceCommonNotes() {
   }
 }
 
+function findPersonalAttendanceRecord(workDate) {
+  return (ensureRecordsState().personal || []).find((record) => record.date === workDate)
+    || { date: workDate };
+}
+
+function personalAttendanceHasOvertime(value) {
+  const hours = Number(value || 0);
+  return Number.isFinite(hours) && hours > 0;
+}
+
+function focusPersonalAttendanceNote(workDate) {
+  requestAnimationFrame(() => {
+    const input = Array.from(document.querySelectorAll('[data-personal-attendance-field="note"]'))
+      .find((element) => element.dataset.personalAttendanceDate === workDate);
+    input?.focus();
+  });
+}
+
 async function savePersonalAttendanceInput(input) {
   if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) return;
   const field = input.dataset.personalAttendanceField || "";
   const workDate = input.dataset.personalAttendanceDate || "";
   const submittedValue = input.value;
   setPersonalAttendanceDraft(workDate, field, submittedValue);
+  const record = findPersonalAttendanceRecord(workDate);
+  if (field === "overtimeHours" && personalAttendanceHasOvertime(submittedValue)) {
+    const noteValue = String(getPersonalAttendanceValue(record, "note") ?? "").trim();
+    if (!noteValue) {
+      const scrollSnapshot = captureRecordsScrollPosition();
+      renderAll();
+      restoreRecordsScrollPosition(scrollSnapshot);
+      showInfoMessage("填寫加班時數時，備註為必填");
+      focusPersonalAttendanceNote(workDate);
+      return;
+    }
+  }
+  if (field === "note" && !String(submittedValue || "").trim()
+    && personalAttendanceHasOvertime(getPersonalAttendanceValue(record, "overtimeHours"))) {
+    showInfoMessage("填寫加班時數時，備註為必填");
+    focusPersonalAttendanceNote(workDate);
+    return;
+  }
   try {
     await window.schedulerApi.savePersonalAttendanceDay({ field, workDate, value: submittedValue });
-    await loadRecordsPage(false);
     clearPersonalAttendanceDraft(workDate, field, submittedValue);
+    if (field === "note" && String(submittedValue || "").trim()) {
+      const current = ensureRecordsState();
+      const overtimeKey = personalAttendanceDraftKey(workDate, "overtimeHours");
+      if (Object.prototype.hasOwnProperty.call(current.personalDrafts, overtimeKey)) {
+        const pendingOvertime = current.personalDrafts[overtimeKey];
+        if (personalAttendanceHasOvertime(pendingOvertime)) {
+          await window.schedulerApi.savePersonalAttendanceDay({
+            field: "overtimeHours",
+            workDate,
+            value: pendingOvertime
+          });
+          clearPersonalAttendanceDraft(workDate, "overtimeHours", pendingOvertime);
+        }
+      }
+    }
+    await loadRecordsPage(false);
     const scrollSnapshot = captureRecordsScrollPosition();
     renderAll();
     restoreRecordsScrollPosition(scrollSnapshot);

@@ -115,8 +115,10 @@ function renderPersonalClockCell(record) {
 }
 
 function renderPersonalHoursInput(record, field) {
-  const value = getPersonalAttendanceValue(record, field);
-  const editable = record.editable !== false && !record.reviewed;
+  const value = field === "regularHours" && record.clockIn && record.clockOut
+    ? 8
+    : getPersonalAttendanceValue(record, field);
+  const editable = field !== "regularHours" && record.editable !== false && !record.reviewed;
   const displayValue = value === null || value === undefined ? "" : escapeHtml(String(value));
   if (!editable) return `<span class="attendance-hours-value">${displayValue}</span>`;
   return `<input class="attendance-hours-input" type="number" min="0" step="0.5" inputmode="decimal" value="${displayValue}" data-personal-attendance-field="${field}" data-personal-attendance-date="${escapeHtml(record.date)}">`;
@@ -124,9 +126,14 @@ function renderPersonalHoursInput(record, field) {
 
 function renderPersonalNoteInput(record) {
   const value = String(getPersonalAttendanceValue(record, "note") ?? "");
+  const overtimeValue = Number(getPersonalAttendanceValue(record, "overtimeHours") || 0);
+  const noteRequired = Number.isFinite(overtimeValue) && overtimeValue > 0;
   const editable = record.editable !== false && !record.reviewed;
   if (!editable) return escapeHtml(value);
-  return `<input class="attendance-note-input" type="text" list="personalAttendanceCommonNotes" value="${escapeHtml(value)}" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}">`;
+  const requiredAttrs = noteRequired
+    ? ' required aria-required="true" placeholder="填寫加班時數時，備註為必填"'
+    : "";
+  return `<div class="attendance-note-editor"><input class="attendance-note-input" type="text" list="personalAttendanceCommonNotes" value="${escapeHtml(value)}" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}"${requiredAttrs}>${noteRequired ? '<small class="attendance-note-required-hint">填寫加班時數時，備註為必填</small>' : ""}</div>`;
 }
 
 function renderReviewStatus(reviewed) {

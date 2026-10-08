@@ -213,7 +213,7 @@ async function personalList(ctx: any, body: any, actor: any) {
         clockInLocation: row?.clock_in_location || null,
         clockOut: row?.clock_out_at || null,
         clockOutLocation: row?.clock_out_location || null,
-        regularHours: minutesToHours(row?.regular_minutes),
+        regularHours: row?.clock_in_at && row?.clock_out_at ? 8 : minutesToHours(row?.regular_minutes),
         overtimeHours: minutesToHours(row?.overtime_minutes),
         note: row?.note || "",
         reviewed: Boolean(row?.reviewed_at),
@@ -257,13 +257,24 @@ async function personalSave(ctx: any, body: any, actor: any) {
   const workDate = validDate(body?.workDate, "");
   if (!workDate || !employedOn(actor, workDate)) throw new Error("只能修改任職期間的簽到資料");
   const field = String(body?.field || "");
-  if (!["regularHours", "overtimeHours", "note"].includes(field)) throw new Error("不支援的簽到欄位");
+  if (!["overtimeHours", "note"].includes(field)) throw new Error("不支援的簽到欄位");
   const old = await getOrCreateDay(ctx, actor.id, workDate);
   if (old.reviewed_at) throw new Error("此日簽到紀錄已審，無法修改");
   const update: any = {};
-  if (field === "regularHours") update.regular_minutes = hoursToMinutes(body?.value);
-  if (field === "overtimeHours") update.overtime_minutes = hoursToMinutes(body?.value);
-  if (field === "note") update.note = String(body?.value || "");
+  if (field === "overtimeHours") {
+    const overtimeMinutes = hoursToMinutes(body?.value);
+    if ((overtimeMinutes ?? 0) > 0 && !String(old.note || "").trim()) {
+      throw new Error("填寫加班時數時，備註為必填");
+    }
+    update.overtime_minutes = overtimeMinutes;
+  }
+  if (field === "note") {
+    const note = String(body?.value || "");
+    if ((old.overtime_minutes ?? 0) > 0 && !note.trim()) {
+      throw new Error("填寫加班時數時，備註為必填");
+    }
+    update.note = note;
+  }
   const result = await ctx.supabaseAdmin.from("attendance_days").update(update).eq("id", old.id).select("*").single();
   if (result.error) throw result.error;
   await writeAudit(ctx, old.id, `employee_${field}`, actor.id, old, result.data);
