@@ -43,7 +43,7 @@ function getVisibleAutoScheduleShifts(dateString = "") {
 }
 
 function getActiveMembersForDate(dateString) {
-  return state.members.filter((member) => isMemberActiveOnDateString(member, dateString));
+  return state.members.filter((member) => countMemberActiveDays(member, [dateString]) > 0);
 }
 
 function markAutoLeave(scheduleMap, member, dateString, leave, preview, reason) {

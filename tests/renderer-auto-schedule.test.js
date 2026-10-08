@@ -56,6 +56,42 @@ test("八週休假目標應扣除既有例假", () => {
   assert.deepEqual(JSON.parse(JSON.stringify(target)), { activeDays: 56, fixedRegularCount: 8, totalHolidayTarget: 16, restTarget: 8 });
 });
 
+test("自動排班與套用排除不顯示所屬單位的班別及例休假，保留既有人工班表", async () => {
+  const context = makeContext();
+  const dates = Array.from({ length: 7 }, (_, index) => `2026-10-${11 + index}`);
+  context.state.departments = [{ id: "visible" }, { id: "hidden", hiddenFromSchedule: true }];
+  context.state.shifts = [{ id: "S", name: "早班", requiredStaffCount: 1, applicableDeptId: "visible" }];
+  context.state.members = [
+    { id: "H", name: "隱藏人員", deptId: "hidden", scheduleShiftIds: ["S"], fixedRestWeekday: 0 },
+    { id: "E", name: "隱藏既有排班", deptId: "hidden", scheduleShiftIds: ["S"], fixedRestWeekday: 0 },
+    { id: "V", name: "一般人員", deptId: "visible", scheduleShiftIds: ["S"], fixedRestWeekday: 0 }
+  ];
+  const existing = { shift: "S", leave: null, overtime: null };
+  context.state.schedule = { "E_2026-10-11": { ...existing } };
+  context.memberCanScheduleShift = (member, shiftId) => member.scheduleShiftIds.includes(shiftId);
+  context.isAutoFillSchedulePreview = () => false;
+  context.requireCurrentGroupUiPermission = () => true;
+  context.parseScheduleKeyParts = (key) => ({ memberId: key.split("_")[0], dateString: key.split("_")[1] });
+  const persisted = [];
+  context.persistScheduleCells = async (cells) => persisted.push(...cells);
+  const interaction = fs.readFileSync(path.join(root, "src/renderer/renderer-schedule-interaction.js"), "utf8");
+  const applySlots = interaction.slice(interaction.indexOf("async function applySchedulePreviewSlots("), interaction.indexOf("\nasync function finishScheduleCellMutation("));
+  const api = evaluateAutoSchedule(applySlots + "\n;({ buildAutoSchedulePreview, applyAutoSchedulePreview })", context);
+  const preview = api.buildAutoSchedulePreview(dates);
+  assert.deepEqual(Object.keys(preview.memberTargets), ["V"]);
+  assert.ok(Object.values(preview.slots).some((slot) => slot.shift === "S"));
+  assert.ok(Object.values(preview.slots).some((slot) => slot.leave === "regular"));
+  assert.ok(Object.values(preview.slots).some((slot) => slot.leave === "rest"));
+  assert.ok(Object.keys(preview.slots).every((key) => key.startsWith("V_")));
+  assert.equal(preview.warnings.some((warning) => warning.includes("隱藏")), false);
+  context.autoSchedulePreview = preview;
+  await api.applyAutoSchedulePreview();
+  assert.equal(persisted.length, Object.keys(preview.slots).length);
+  assert.ok(persisted.every((cell) => cell.memberId === "V"));
+  assert.deepEqual(context.state.schedule["E_2026-10-11"], existing);
+  assert.equal(context.autoSchedulePreview, null);
+});
+
 test("班別需求應依營運狀態及需求人數計算", () => {
   const context = makeContext();
   context.state.shifts = [{ id: "A", name: "早班", requiredStaffCount: 2, applicableDeptId: "D" }];

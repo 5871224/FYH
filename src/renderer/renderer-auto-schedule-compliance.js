@@ -30,6 +30,7 @@ function getMemberAutoRestTarget(member, scheduleMap, dates) {
 }
 
 function countMemberActiveDays(member, dates) {
+  if (state.departments.find((department) => department.id === member.deptId)?.hiddenFromSchedule) return 0;
   return dates.filter((dateString) => isMemberActiveOnDateString(member, dateString)).length;
 }
 

@@ -5460,6 +5460,7 @@ function getMemberAutoRestTarget(member, scheduleMap, dates) {
 }
 
 function countMemberActiveDays(member, dates) {
+  if (state.departments.find((department) => department.id === member.deptId)?.hiddenFromSchedule) return 0;
   return dates.filter((dateString) => isMemberActiveOnDateString(member, dateString)).length;
 }
 
@@ -5560,7 +5561,7 @@ function getVisibleAutoScheduleShifts(dateString = "") {
 }
 
 function getActiveMembersForDate(dateString) {
-  return state.members.filter((member) => isMemberActiveOnDateString(member, dateString));
+  return state.members.filter((member) => countMemberActiveDays(member, [dateString]) > 0);
 }
 
 function markAutoLeave(scheduleMap, member, dateString, leave, preview, reason) {
