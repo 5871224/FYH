@@ -6043,6 +6043,7 @@ body:not(.is-authenticated) .toolbar-card {
 }
 
 
+
 /* ===== 簽到簿 ===== */
 .home-action-grid-three {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -6406,6 +6407,18 @@ body:not(.is-authenticated) .toolbar-card {
   width: 100%;
   min-width: 0;
   height: 40px;
+}
+
+.attendance-note-editor {
+  display: grid;
+  gap: 4px;
+}
+
+.attendance-note-required-hint {
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .attendance-review-status {
