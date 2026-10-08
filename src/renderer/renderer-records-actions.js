@@ -94,16 +94,67 @@ async function saveAttendanceCommonNotes() {
   }
 }
 
+function findPersonalAttendanceRecord(workDate) {
+  return (ensureRecordsState().personal || []).find((record) => record.date === workDate)
+    || { date: workDate };
+}
+
+function personalAttendanceHasOvertime(value) {
+  const hours = Number(value || 0);
+  return Number.isFinite(hours) && hours > 0;
+}
+
+function focusPersonalAttendanceNote(workDate) {
+  requestAnimationFrame(() => {
+    const input = Array.from(document.querySelectorAll('[data-personal-attendance-field="note"]'))
+      .find((element) => element.dataset.personalAttendanceDate === workDate);
+    input?.focus();
+  });
+}
+
 async function savePersonalAttendanceInput(input) {
   if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) return;
   const field = input.dataset.personalAttendanceField || "";
   const workDate = input.dataset.personalAttendanceDate || "";
   const submittedValue = input.value;
   setPersonalAttendanceDraft(workDate, field, submittedValue);
+  const record = findPersonalAttendanceRecord(workDate);
+  if (field === "overtimeHours" && personalAttendanceHasOvertime(submittedValue)) {
+    const noteValue = String(getPersonalAttendanceValue(record, "note") ?? "").trim();
+    if (!noteValue) {
+      const scrollSnapshot = captureRecordsScrollPosition();
+      renderAll();
+      restoreRecordsScrollPosition(scrollSnapshot);
+      showInfoMessage("填寫加班時數時，備註為必填");
+      focusPersonalAttendanceNote(workDate);
+      return;
+    }
+  }
+  if (field === "note" && !String(submittedValue || "").trim()
+    && personalAttendanceHasOvertime(getPersonalAttendanceValue(record, "overtimeHours"))) {
+    showInfoMessage("填寫加班時數時，備註為必填");
+    focusPersonalAttendanceNote(workDate);
+    return;
+  }
   try {
     await window.schedulerApi.savePersonalAttendanceDay({ field, workDate, value: submittedValue });
-    await loadRecordsPage(false);
     clearPersonalAttendanceDraft(workDate, field, submittedValue);
+    if (field === "note" && String(submittedValue || "").trim()) {
+      const current = ensureRecordsState();
+      const overtimeKey = personalAttendanceDraftKey(workDate, "overtimeHours");
+      if (Object.prototype.hasOwnProperty.call(current.personalDrafts, overtimeKey)) {
+        const pendingOvertime = current.personalDrafts[overtimeKey];
+        if (personalAttendanceHasOvertime(pendingOvertime)) {
+          await window.schedulerApi.savePersonalAttendanceDay({
+            field: "overtimeHours",
+            workDate,
+            value: pendingOvertime
+          });
+          clearPersonalAttendanceDraft(workDate, "overtimeHours", pendingOvertime);
+        }
+      }
+    }
+    await loadRecordsPage(false);
     const scrollSnapshot = captureRecordsScrollPosition();
     renderAll();
     restoreRecordsScrollPosition(scrollSnapshot);
