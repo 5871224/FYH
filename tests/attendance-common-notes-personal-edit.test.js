@@ -29,7 +29,7 @@ test("簽到審核可維護共用常用備註，個人記錄可選擇或自由�
   assert.match(schema, /attendance_common_notes text not null default ''/);
 });
 
-test("個人未審紀錄不限當日可修改工時與備註，且個人頁移除訂餐欄", () => {
+test("個人未審紀錄不限當日可修改加班時數與備註，上班時數改為自動帶入", () => {
   const views = read("src/renderer/renderer-records-views.js");
   const ledger = read("supabase/functions/attendance-ledger/index.ts");
   const personalSection = views.split("function renderPersonalRecordsSection", 2)[1]
@@ -39,7 +39,31 @@ test("個人未審紀錄不限當日可修改工時與備註，且個人頁移�
   assert.equal(ledger.includes("workDate !== today"), false);
   assert.match(ledger, /!employedOn\(actor, workDate\)/);
   assert.match(ledger, /if \(old\.reviewed_at\) throw new Error\("此日簽到紀錄已審，無法修改"\)/);
+  assert.match(views, /field !== "regularHours"/);
+  assert.match(ledger, /\["overtimeHours", "note"\]/);
   assert.equal(personalSection.includes("personal-record-meal-col"), false);
   assert.equal(personalSection.includes(">訂餐<"), false);
   assert.match(personalSection, /colspan="8"/);
+});
+
+
+test("上下班打卡完成即自動寫入 8 小時，加班時數要求備註並提供越文提示", () => {
+  const views = read("src/renderer/renderer-records-views.js");
+  const actions = read("src/renderer/renderer-records-actions.js");
+  const i18n = read("src/renderer/renderer-i18n.js");
+  const ledger = read("supabase/functions/attendance-ledger/index.ts");
+  const schema = read("supabase/001_current_schema.sql");
+  const updates = read("supabase/002_current_updates.sql");
+
+  assert.match(views, /record\.clockIn && record\.clockOut\s*\? 8/);
+  assert.match(views, /attendance-note-required-hint/);
+  assert.match(actions, /填寫加班時數時，備註為必填/);
+  assert.match(actions, /pendingOvertime/);
+  assert.match(i18n, /"填寫加班時數時，備註為必填": "Khi nhập giờ tăng ca, bắt buộc phải ghi chú"/);
+  assert.match(ledger, /row\?\.clock_in_at && row\?\.clock_out_at \? 8/);
+  assert.equal(ledger.includes('field === "regularHours"'), false);
+  assert.match(ledger, /\(overtimeMinutes \?\? 0\) > 0/);
+  assert.match(schema, /regular_minutes = case when v_record\.clock_out_at is not null then 480/);
+  assert.match(schema, /regular_minutes = case when v_record\.clock_in_at is not null then 480/);
+  assert.match(updates, /set regular_minutes = 480\s+where clock_in_at is not null\s+and clock_out_at is not null/);
 });
