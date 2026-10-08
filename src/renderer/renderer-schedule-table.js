@@ -27,9 +27,10 @@ function renderTable() {
         html += `<td class="person-col demand-col">${escapeHtml(String(shift.requiredStaffCount ?? 0))}</td>`;
         visibleDates.forEach((dateString, index) => {
           const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, index, days);
+          const monthBoundaryClass = getMonthBoundaryClassForDate(dateString, index);
           const shiftViewCellState = getShiftViewCellState(shift, dateString);
           const inactiveClass = shiftViewCellState.isOperating ? "" : "inactive-cell";
-          html += `<td class="cell shift-view-cell ${inactiveClass} ${shiftViewCellState.isShortage ? "shift-view-shortage" : ""} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-shift-id="${shift.id}" data-date="${dateString}">${renderShiftViewCell(shiftViewCellState.members, dateString)}</td>`;
+          html += `<td class="cell shift-view-cell ${inactiveClass} ${shiftViewCellState.isShortage ? "shift-view-shortage" : ""} ${weekBoundaryClass} ${monthBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-shift-id="${shift.id}" data-date="${dateString}">${renderShiftViewCell(shiftViewCellState.members, dateString)}</td>`;
         });
         html += "</tr>";
       });
@@ -59,7 +60,8 @@ function renderTable() {
           }
           visibleDates.forEach((dateString, dateIndex) => {
             const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, dateIndex, days);
-            html += `<td class="cell inactive-cell empty-department-cell ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-date="${dateString}"><div class="cell-inner"></div></td>`;
+            const monthBoundaryClass = getMonthBoundaryClassForDate(dateString, dateIndex);
+            html += `<td class="cell inactive-cell empty-department-cell ${weekBoundaryClass} ${monthBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-date="${dateString}"><div class="cell-inner"></div></td>`;
           });
           html += "</tr>";
           return;
@@ -83,15 +85,16 @@ function renderTable() {
           visibleDates.forEach((dateString, dateIndex) => {
             const active = isMemberActiveOnDateString(member, dateString);
             const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, dateIndex, days);
+            const monthBoundaryClass = getMonthBoundaryClassForDate(dateString, dateIndex);
             if (!active) {
-              html += `<td class="cell inactive-cell ${weekBoundaryClass}" data-disabled="true" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}"><div class="cell-inner"></div></td>`;
+              html += `<td class="cell inactive-cell ${weekBoundaryClass} ${monthBoundaryClass}" data-disabled="true" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}"><div class="cell-inner"></div></td>`;
               return;
             }
             const key = getScheduleKeyForDateString(member.id, dateString);
             const previewSlot = getPreviewSlotByKey(key);
             const displayedSlot = previewSlot || state.schedule[key] || null;
             const previewClass = previewSlot ? "auto-schedule-preview" : "";
-            html += `<td class="cell ${previewClass} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}">${renderCellInner(key, member.id, dateString, displayedSlot, Boolean(previewSlot))}</td>`;
+            html += `<td class="cell ${previewClass} ${weekBoundaryClass} ${monthBoundaryClass} ${dateString === today ? "today" : ""}" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}">${renderCellInner(key, member.id, dateString, displayedSlot, Boolean(previewSlot))}</td>`;
           });
           html += "</tr>";
           rowIndex += 1;

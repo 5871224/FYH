@@ -1308,6 +1308,10 @@ body.is-records-view .app-shell {
   border-left: 2px solid #b39a75;
 }
 
+.table-sticky-cell-day.month-boundary-start {
+  border-left: 4px solid #6f4f28;
+}
+
 .table-sticky-cell-day.week-boundary-end {
   border-right: 0;
 }
@@ -1611,6 +1615,10 @@ thead th.today,
 
 .cell.week-boundary-start {
   border-left: 2px solid #b39a75;
+}
+
+.cell.month-boundary-start {
+  border-left: 4px solid #6f4f28;
 }
 
 #mainTable td.cell.week-boundary-end {
@@ -6097,6 +6105,19 @@ body:not(.is-authenticated) .toolbar-card {
 
 .attendance-ledger-table .personal-record-date-col {
   width: 98px;
+}
+
+.records-date-value,
+.records-date-weekday {
+  display: block;
+}
+
+.records-date-weekday {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .attendance-ledger-table .personal-schedule-icon-col {

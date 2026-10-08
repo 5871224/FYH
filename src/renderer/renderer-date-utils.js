@@ -15,6 +15,11 @@ function getConfiguredWeekStart() {
   return Number.isInteger(value) && value >= 0 && value <= 6 ? value : 0;
 }
 
+function getConfiguredMonthStartDay() {
+  const value = Number(state.rules?.monthStartDay);
+  return Number.isInteger(value) && value >= 1 && value <= 31 ? value : 1;
+}
+
 function getWeekIndexForDate(dateString) {
   const dates = getVisibleDates();
   const index = dates.indexOf(dateString);
@@ -46,6 +51,17 @@ function getWeekBoundaryClassForDate(dateString, index, totalDays) {
     classes.push("week-boundary-end");
   }
   return classes.join(" ");
+}
+
+function getMonthBoundaryClassForDate(dateString, index) {
+  const date = toDateObject(dateString);
+  if (!date || index === 0) {
+    return "";
+  }
+  const configuredDay = getConfiguredMonthStartDay();
+  const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const effectiveStartDay = Math.min(configuredDay, lastDayOfMonth);
+  return date.getDate() === effectiveStartDay ? "month-boundary-start" : "";
 }
 
 function toDateString(year, month, day) {

@@ -3568,8 +3568,9 @@ function renderStickyTableHeader(dates) {
     const cls = weekday === 0 ? "sun" : weekday === 6 ? "sat" : "";
     const weekStripeClass = getWeekStripeClassForDate(dateString);
     const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, index, dates.length);
+    const monthBoundaryClass = getMonthBoundaryClassForDate(dateString, index);
     cells.push(
-      `<div class="table-sticky-cell table-sticky-cell-day ${cls} ${weekStripeClass} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-schedule-column="${index}" data-date="${dateString}">${date.getMonth() + 1}/${day}<span>${getScheduleWeekdayLabel(weekday)}</span></div>`
+      `<div class="table-sticky-cell table-sticky-cell-day ${cls} ${weekStripeClass} ${weekBoundaryClass} ${monthBoundaryClass} ${dateString === today ? "today" : ""}" data-schedule-column="${index}" data-date="${dateString}">${date.getMonth() + 1}/${day}<span>${getScheduleWeekdayLabel(weekday)}</span></div>`
     );
   });
   container.innerHTML = cells.join("");
@@ -3830,6 +3831,11 @@ function getConfiguredWeekStart() {
   return Number.isInteger(value) && value >= 0 && value <= 6 ? value : 0;
 }
 
+function getConfiguredMonthStartDay() {
+  const value = Number(state.rules?.monthStartDay);
+  return Number.isInteger(value) && value >= 1 && value <= 31 ? value : 1;
+}
+
 function getWeekIndexForDate(dateString) {
   const dates = getVisibleDates();
   const index = dates.indexOf(dateString);
@@ -3861,6 +3867,17 @@ function getWeekBoundaryClassForDate(dateString, index, totalDays) {
     classes.push("week-boundary-end");
   }
   return classes.join(" ");
+}
+
+function getMonthBoundaryClassForDate(dateString, index) {
+  const date = toDateObject(dateString);
+  if (!date || index === 0) {
+    return "";
+  }
+  const configuredDay = getConfiguredMonthStartDay();
+  const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const effectiveStartDay = Math.min(configuredDay, lastDayOfMonth);
+  return date.getDate() === effectiveStartDay ? "month-boundary-start" : "";
 }
 
 function toDateString(year, month, day) {
@@ -6801,9 +6818,10 @@ function renderTable() {
         html += `<td class="person-col demand-col">${escapeHtml(String(shift.requiredStaffCount ?? 0))}</td>`;
         visibleDates.forEach((dateString, index) => {
           const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, index, days);
+          const monthBoundaryClass = getMonthBoundaryClassForDate(dateString, index);
           const shiftViewCellState = getShiftViewCellState(shift, dateString);
           const inactiveClass = shiftViewCellState.isOperating ? "" : "inactive-cell";
-          html += `<td class="cell shift-view-cell ${inactiveClass} ${shiftViewCellState.isShortage ? "shift-view-shortage" : ""} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-shift-id="${shift.id}" data-date="${dateString}">${renderShiftViewCell(shiftViewCellState.members, dateString)}</td>`;
+          html += `<td class="cell shift-view-cell ${inactiveClass} ${shiftViewCellState.isShortage ? "shift-view-shortage" : ""} ${weekBoundaryClass} ${monthBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-shift-id="${shift.id}" data-date="${dateString}">${renderShiftViewCell(shiftViewCellState.members, dateString)}</td>`;
         });
         html += "</tr>";
       });
@@ -6833,7 +6851,8 @@ function renderTable() {
           }
           visibleDates.forEach((dateString, dateIndex) => {
             const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, dateIndex, days);
-            html += `<td class="cell inactive-cell empty-department-cell ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-date="${dateString}"><div class="cell-inner"></div></td>`;
+            const monthBoundaryClass = getMonthBoundaryClassForDate(dateString, dateIndex);
+            html += `<td class="cell inactive-cell empty-department-cell ${weekBoundaryClass} ${monthBoundaryClass} ${dateString === today ? "today" : ""}" data-readonly="true" data-date="${dateString}"><div class="cell-inner"></div></td>`;
           });
           html += "</tr>";
           return;
@@ -6857,15 +6876,16 @@ function renderTable() {
           visibleDates.forEach((dateString, dateIndex) => {
             const active = isMemberActiveOnDateString(member, dateString);
             const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, dateIndex, days);
+            const monthBoundaryClass = getMonthBoundaryClassForDate(dateString, dateIndex);
             if (!active) {
-              html += `<td class="cell inactive-cell ${weekBoundaryClass}" data-disabled="true" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}"><div class="cell-inner"></div></td>`;
+              html += `<td class="cell inactive-cell ${weekBoundaryClass} ${monthBoundaryClass}" data-disabled="true" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}"><div class="cell-inner"></div></td>`;
               return;
             }
             const key = getScheduleKeyForDateString(member.id, dateString);
             const previewSlot = getPreviewSlotByKey(key);
             const displayedSlot = previewSlot || state.schedule[key] || null;
             const previewClass = previewSlot ? "auto-schedule-preview" : "";
-            html += `<td class="cell ${previewClass} ${weekBoundaryClass} ${dateString === today ? "today" : ""}" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}">${renderCellInner(key, member.id, dateString, displayedSlot, Boolean(previewSlot))}</td>`;
+            html += `<td class="cell ${previewClass} ${weekBoundaryClass} ${monthBoundaryClass} ${dateString === today ? "today" : ""}" data-member-id="${member.id}" data-date="${dateString}" data-row-index="${rowIndex}" data-col-index="${dateIndex}">${renderCellInner(key, member.id, dateString, displayedSlot, Boolean(previewSlot))}</td>`;
           });
           html += "</tr>";
           rowIndex += 1;
@@ -10286,6 +10306,13 @@ function attendanceReviewGroupOptions(selectedValue) {
   return `<option value="">全部群組</option>${groups.map((group) => `<option value="${escapeHtml(group.id)}" ${selectedValue === group.id ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("")}`;
 }
 
+function renderRecordDateCell(dateString) {
+  const normalized = String(dateString || "");
+  const date = toDateObject(normalized);
+  const weekday = date ? getScheduleWeekdayLabel(date.getDay()) : "";
+  return `<span class="records-date-value">${escapeHtml(normalized)}</span>${weekday ? `<span class="records-date-weekday">${escapeHtml(weekday)}</span>` : ""}`;
+}
+
 
 function findSegmentItem(segment) {
     const itemId = String(segment?.itemId || "");
@@ -10393,7 +10420,7 @@ function renderPersonalRecordsSection() {
     <div class="records-table-wrap"><table class="records-table personal-record-table attendance-ledger-table">
       <thead><tr><th class="personal-record-date-col">${renderRecordsDateSortButton(filters.sortDirection, "personal")}</th><th class="personal-schedule-icon-col">圖示</th><th class="personal-record-shift-col">班別</th><th class="personal-record-clock-col">打卡時間</th><th class="personal-record-hours-col">上班時數</th><th class="personal-record-hours-col">加班時數</th><th class="personal-record-note-col">備註</th><th class="personal-record-review-col">審核</th></tr></thead>
       <tbody>${(recordsState.personal || []).map((record) => `<tr class="${record.date === getTodayDateString() ? "is-today-row" : ""}">
-        <td class="personal-record-date-col">${escapeHtml(record.date || "")}</td>
+        <td class="personal-record-date-col">${renderRecordDateCell(record.date)}</td>
         <td class="personal-schedule-icon-col">${renderScheduleIcon(record)}</td>
         <td class="personal-record-shift-col">${escapeHtml(record.shiftName || "-")}<br><span>${escapeHtml(record.shiftTime || "")}</span></td>
         <td class="personal-record-clock-col">${renderPersonalClockCell(record)}</td>
@@ -10537,7 +10564,7 @@ function renderAttendanceReviewSection() {
           const token = `${row.user_id}:${row.work_date}`;
           return `<tr>
             <td class="attendance-review-check-col"><input type="checkbox" data-attendance-review-check="${escapeHtml(token)}"></td>
-            <td class="attendance-review-date-col">${escapeHtml(row.work_date || "")}</td>
+            <td class="attendance-review-date-col">${renderRecordDateCell(row.work_date)}</td>
             <td class="attendance-review-employee-col">${escapeHtml(row.employee_name || "")}</td>
             <td class="attendance-schedule-icon-col">${renderScheduleIcon(row)}</td>
             <td class="attendance-review-shift-col">${escapeHtml(row.shiftName || "-")}<br><span>${escapeHtml(row.shiftTime || "")}</span></td>
@@ -13161,11 +13188,6 @@ function syncScheduleOvertimeFormUi() {
 /* 月週設定與例休檢查畫面。
  * 由固定建置清單載入；設定儲存使用明確的領域 API。
  */
-
-function getConfiguredMonthStartDay() {
-  const value = Number(state.rules?.monthStartDay);
-  return Number.isInteger(value) && value >= 1 && value <= 31 ? value : 1;
-}
 
 function formatDateTextFromIso(dateString) {
   const date = toDateObject(dateString);

@@ -27,8 +27,11 @@ test("班表拖曳選取支援固定速度水平與垂直自動捲動", () => {
   assert.match(keyboard, /speedY: 18/);
   assert.match(keyboard, /function handleScheduleRangeSelectionMouseLeave\(event\)/);
   assert.match(events, /addEventListener\("mousemove", updateScheduleRangeSelection\)/);
-  assert.match(events, /addEventListener\("mouseleave", handleScheduleRangeSelectionMouseLeave\)/);
-  assert.match(events, /window\.addEventListener\("blur", endScheduleRangeSelection\)/);
+  assert.match(events, /addEventListener\("mouseleave", \(event\) => \{/);
+  assert.match(events, /handleScheduleRangeSelectionMouseLeave\(event\);/);
+  assert.match(events, /hideSelectedScheduleItemPointerPreview\(\);/);
+  assert.match(events, /window\.addEventListener\("blur", \(\) => \{/);
+  assert.match(events, /endScheduleRangeSelection\(\);/);
 });
 
 

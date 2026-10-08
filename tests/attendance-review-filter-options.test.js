@@ -13,11 +13,15 @@ test("簽到審核人員與異常下拉選單只列查詢期間實際資料", ()
   assert.match(edgeFunction, /const availableMemberIds = new Set<string>\(\)/);
   assert.match(edgeFunction, /const availableIssueTypeSet = new Set<string>\(\)/);
   assert.match(edgeFunction, /if \(!current && !schedule\.schedule\) continue;[\s\S]*?availableMemberIds\.add/);
-  assert.match(edgeFunction, /const availableMembers = members\.filter/);
+  assert.match(edgeFunction, /const groupSortOrder = new Map/);
+  assert.match(edgeFunction, /const departmentSortOrder = new Map/);
+  assert.match(edgeFunction, /const availableMembers = members[\s\S]*?\.filter[\s\S]*?\.sort/);
+  assert.match(edgeFunction, /sort_order,deleted_at/);
   assert.match(edgeFunction, /const availableIssueTypes = ISSUE_TYPES\.filter/);
   assert.match(edgeFunction, /members: availableMembers\.map/);
   assert.match(edgeFunction, /issueTypes: availableIssueTypes/);
   assert.match(edgeFunction, /const effectiveMemberId = memberId && availableMemberIds\.has\(memberId\) \? memberId : ""/);
   assert.match(edgeFunction, /issueType && availableIssueTypeSet\.has\(issueType\) \? issueType : ""/);
   assert.match(spec, /人員與異常下拉選單只列出目前開始日期至結束日期及所選群組範圍內實際有班表或簽到資料的項目/);
+  assert.match(spec, /人員下拉選單依班表的群組、單位及人員排序顯示/);
 });

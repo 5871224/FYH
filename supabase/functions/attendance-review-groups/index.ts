@@ -254,10 +254,10 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
 
   const [memberResult, groupResult, departmentResult] = await Promise.all([
     ctx.supabaseAdmin.from("set_employee")
-      .select("id,employee_code,full_name,group_id,home_department_id,hire_date,leave_date,deleted_at")
+      .select("id,employee_code,full_name,group_id,home_department_id,hire_date,leave_date,sort_order,deleted_at")
       .in("group_id", groupIds).is("deleted_at", null).order("employee_code", { ascending: true }),
-    ctx.supabaseAdmin.from("schedule_groups").select("id,name").in("id", groupIds),
-    ctx.supabaseAdmin.from("set_departments").select("id,name,address,group_id,attendance_enabled,deleted_at").in("group_id", groupIds).is("deleted_at", null)
+    ctx.supabaseAdmin.from("schedule_groups").select("id,name,sort_order").in("id", groupIds),
+    ctx.supabaseAdmin.from("set_departments").select("id,name,address,group_id,attendance_enabled,sort_order,deleted_at").in("group_id", groupIds).is("deleted_at", null)
   ]);
   for (const result of [memberResult, groupResult, departmentResult]) if (result.error) throw result.error;
   const members = memberResult.data || [];
@@ -287,7 +287,22 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
     }
   }
 
-  const availableMembers = members.filter((member: any) => availableMemberIds.has(String(member.id)));
+  const groupSortOrder = new Map((groupResult.data || []).map((group: any) => [String(group.id), Number(group.sort_order ?? Number.MAX_SAFE_INTEGER)]));
+  const departmentSortOrder = new Map((departmentResult.data || []).map((department: any) => [String(department.id), Number(department.sort_order ?? Number.MAX_SAFE_INTEGER)]));
+  const availableMembers = members
+    .filter((member: any) => availableMemberIds.has(String(member.id)))
+    .sort((a: any, b: any) => {
+      const groupCompare = Number(groupSortOrder.get(String(a.group_id || "")) ?? Number.MAX_SAFE_INTEGER)
+        - Number(groupSortOrder.get(String(b.group_id || "")) ?? Number.MAX_SAFE_INTEGER);
+      if (groupCompare) return groupCompare;
+      const departmentCompare = Number(departmentSortOrder.get(String(a.home_department_id || "")) ?? Number.MAX_SAFE_INTEGER)
+        - Number(departmentSortOrder.get(String(b.home_department_id || "")) ?? Number.MAX_SAFE_INTEGER);
+      if (departmentCompare) return departmentCompare;
+      const memberCompare = Number(a.sort_order ?? Number.MAX_SAFE_INTEGER) - Number(b.sort_order ?? Number.MAX_SAFE_INTEGER);
+      return memberCompare
+        || String(a.full_name || "").localeCompare(String(b.full_name || ""))
+        || String(a.employee_code || "").localeCompare(String(b.employee_code || ""));
+    });
   const availableIssueTypes = ISSUE_TYPES.filter((type) => availableIssueTypeSet.has(type));
   const effectiveMemberId = memberId && availableMemberIds.has(memberId) ? memberId : "";
   const effectiveIssueType = issueType === "__all__"

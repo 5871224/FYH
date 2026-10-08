@@ -1302,6 +1302,10 @@ body.is-records-view .app-shell {
   border-left: 2px solid #b39a75;
 }
 
+.table-sticky-cell-day.month-boundary-start {
+  border-left: 4px solid #6f4f28;
+}
+
 .table-sticky-cell-day.week-boundary-end {
   border-right: 0;
 }
@@ -1605,6 +1609,10 @@ thead th.today,
 
 .cell.week-boundary-start {
   border-left: 2px solid #b39a75;
+}
+
+.cell.month-boundary-start {
+  border-left: 4px solid #6f4f28;
 }
 
 #mainTable td.cell.week-boundary-end {

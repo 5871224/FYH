@@ -52,10 +52,13 @@ test("Vietnamese fixed UI covers settings lists, forms, home and attendance revi
   assert.ok(source.includes("text.match(/^(.+)封存班表$/)"));
 });
 
-test("schedule weekday headers switch to Vietnamese labels", () => {
+test("schedule and attendance weekdays switch to Vietnamese labels", () => {
   const layout = read("src/renderer/renderer-schedule-layout.js");
+  const records = read("src/renderer/renderer-records-views.js");
   assert.ok(layout.includes('["CN", "T2", "T3", "T4", "T5", "T6", "T7"]'));
   assert.ok(layout.includes("getScheduleWeekdayLabel(weekday)"));
+  assert.ok(records.includes("getScheduleWeekdayLabel(date.getDay())"));
+  assert.ok((records.match(/renderRecordDateCell\(/g) || []).length >= 3);
 });
 
 test("settings lists localize the original name column while edit forms retain Vietnamese fields", () => {

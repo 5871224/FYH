@@ -2,11 +2,6 @@
  * 由固定建置清單載入；設定儲存使用明確的領域 API。
  */
 
-function getConfiguredMonthStartDay() {
-  const value = Number(state.rules?.monthStartDay);
-  return Number.isInteger(value) && value >= 1 && value <= 31 ? value : 1;
-}
-
 function formatDateTextFromIso(dateString) {
   const date = toDateObject(dateString);
   if (!date) {

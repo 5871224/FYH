@@ -39,6 +39,13 @@ function attendanceReviewGroupOptions(selectedValue) {
   return `<option value="">全部群組</option>${groups.map((group) => `<option value="${escapeHtml(group.id)}" ${selectedValue === group.id ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("")}`;
 }
 
+function renderRecordDateCell(dateString) {
+  const normalized = String(dateString || "");
+  const date = toDateObject(normalized);
+  const weekday = date ? getScheduleWeekdayLabel(date.getDay()) : "";
+  return `<span class="records-date-value">${escapeHtml(normalized)}</span>${weekday ? `<span class="records-date-weekday">${escapeHtml(weekday)}</span>` : ""}`;
+}
+
 
 function findSegmentItem(segment) {
     const itemId = String(segment?.itemId || "");
@@ -146,7 +153,7 @@ function renderPersonalRecordsSection() {
     <div class="records-table-wrap"><table class="records-table personal-record-table attendance-ledger-table">
       <thead><tr><th class="personal-record-date-col">${renderRecordsDateSortButton(filters.sortDirection, "personal")}</th><th class="personal-schedule-icon-col">圖示</th><th class="personal-record-shift-col">班別</th><th class="personal-record-clock-col">打卡時間</th><th class="personal-record-hours-col">上班時數</th><th class="personal-record-hours-col">加班時數</th><th class="personal-record-note-col">備註</th><th class="personal-record-review-col">審核</th></tr></thead>
       <tbody>${(recordsState.personal || []).map((record) => `<tr class="${record.date === getTodayDateString() ? "is-today-row" : ""}">
-        <td class="personal-record-date-col">${escapeHtml(record.date || "")}</td>
+        <td class="personal-record-date-col">${renderRecordDateCell(record.date)}</td>
         <td class="personal-schedule-icon-col">${renderScheduleIcon(record)}</td>
         <td class="personal-record-shift-col">${escapeHtml(record.shiftName || "-")}<br><span>${escapeHtml(record.shiftTime || "")}</span></td>
         <td class="personal-record-clock-col">${renderPersonalClockCell(record)}</td>
@@ -290,7 +297,7 @@ function renderAttendanceReviewSection() {
           const token = `${row.user_id}:${row.work_date}`;
           return `<tr>
             <td class="attendance-review-check-col"><input type="checkbox" data-attendance-review-check="${escapeHtml(token)}"></td>
-            <td class="attendance-review-date-col">${escapeHtml(row.work_date || "")}</td>
+            <td class="attendance-review-date-col">${renderRecordDateCell(row.work_date)}</td>
             <td class="attendance-review-employee-col">${escapeHtml(row.employee_name || "")}</td>
             <td class="attendance-schedule-icon-col">${renderScheduleIcon(row)}</td>
             <td class="attendance-review-shift-col">${escapeHtml(row.shiftName || "-")}<br><span>${escapeHtml(row.shiftTime || "")}</span></td>
