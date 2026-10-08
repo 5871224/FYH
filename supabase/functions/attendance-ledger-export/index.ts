@@ -14,7 +14,7 @@ function isRestDayLeave(leave: any) {
 async function getVisibleMembers(ctx: any, actorId: string, requestedGroupId = "") {
   const { data, error } = await ctx.supabaseAdmin
     .from("set_employee")
-    .select("id,employee_code,full_name,group_id")
+    .select("id,employee_code,full_name,group_id,home_department:set_departments!home_department_id(hidden_from_schedule)")
     .is("deleted_at", null)
     .not("group_id", "is", null);
   if (error) throw error;
@@ -28,7 +28,7 @@ async function getVisibleMembers(ctx: any, actorId: string, requestedGroupId = "
   if (requestedGroupId && !allowedGroups.has(requestedGroupId)) throw new Error("沒有查看此群組簽到資料的權限");
   return (data || []).filter((row: any) => {
     const groupId = String(row.group_id || "");
-    return allowedGroups.has(groupId) && (!requestedGroupId || groupId === requestedGroupId);
+    return allowedGroups.has(groupId) && (!requestedGroupId || groupId === requestedGroupId) && !row.home_department?.hidden_from_schedule;
   });
 }
 

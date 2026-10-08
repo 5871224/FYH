@@ -111,7 +111,7 @@ async function getActor(ctx: any) {
   const userId = ctx.userClaims?.sub || ctx.userClaims?.id || "";
   if (!userId) throw new Error("請先登入");
   const result = await ctx.supabaseAdmin.from("set_employee")
-    .select("id,employee_code,full_name,hire_date,leave_date,deleted_at")
+    .select("id,employee_code,full_name,hire_date,leave_date,deleted_at,home_department:set_departments!home_department_id(hidden_from_schedule)")
     .eq("id", userId)
     .is("deleted_at", null)
     .single();
@@ -199,7 +199,7 @@ async function personalList(ctx: any, body: any, actor: any) {
   const cutoff = String(mealSettingResult.data?.daily_cutoff_time || "10:30").slice(0, 5);
   const nowTime = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
   const records = datesBetween(fromDate, toDate)
-    .filter((date) => employedOn(actor, date))
+    .filter((date) => !actor.home_department?.hidden_from_schedule && employedOn(actor, date))
     .sort((a, b) => sortDirection === "asc" ? a.localeCompare(b) : b.localeCompare(a))
     .map((date) => {
       const row: any = attendance.get(date) || null;

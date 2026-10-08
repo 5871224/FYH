@@ -254,13 +254,13 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
 
   const [memberResult, groupResult, departmentResult] = await Promise.all([
     ctx.supabaseAdmin.from("set_employee")
-      .select("id,employee_code,full_name,group_id,home_department_id,hire_date,leave_date,sort_order,deleted_at")
+      .select("id,employee_code,full_name,group_id,home_department_id,hire_date,leave_date,sort_order,deleted_at,home_department:set_departments!home_department_id(hidden_from_schedule)")
       .in("group_id", groupIds).is("deleted_at", null).order("employee_code", { ascending: true }),
     ctx.supabaseAdmin.from("schedule_groups").select("id,name,sort_order").in("id", groupIds),
     ctx.supabaseAdmin.from("set_departments").select("id,name,address,group_id,attendance_enabled,sort_order,deleted_at").in("group_id", groupIds).is("deleted_at", null)
   ]);
   for (const result of [memberResult, groupResult, departmentResult]) if (result.error) throw result.error;
-  const members = memberResult.data || [];
+  const members = (memberResult.data || []).filter((member: any) => !member.home_department?.hidden_from_schedule);
   const memberIds = members.map((member: any) => member.id);
   const [attendanceRows, scheduleContext] = await Promise.all([
     memberIds.length ? fetchAllRows((from, to) => ctx.supabaseAdmin.from("attendance_days").select("*")

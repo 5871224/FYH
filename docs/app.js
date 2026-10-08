@@ -14004,7 +14004,8 @@ function getDefaultExportPeriod() {
 
 function getCurrentGroupExportMembers() {
   const groupId = String(groupFeatureState?.currentGroupId || state?.currentGroupId || "");
-  return (state.members || []).filter((member) => !groupId || member.groupId === groupId);
+  const hiddenDepartmentIds = new Set((state.departments || []).filter((department) => department.hiddenFromSchedule).map((department) => department.id));
+  return (state.members || []).filter((member) => (!groupId || member.groupId === groupId) && !hiddenDepartmentIds.has(member.deptId));
 }
 
 function filterExportRowsToCurrentGroup(rows) {
