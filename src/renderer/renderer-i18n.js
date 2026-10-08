@@ -228,6 +228,7 @@ const fyhLocalization = (() => {
     "打卡時間": "Giờ chấm công",
     "上班時數": "Giờ làm việc",
     "加班時數": "Giờ tăng ca",
+    "填寫加班時數時，備註為必填": "Khi nhập giờ tăng ca, bắt buộc phải ghi chú",
     "異常": "Bất thường",
     "審核": "Duyệt",
     "未審": "Chưa duyệt",
