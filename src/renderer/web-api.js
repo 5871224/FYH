@@ -1332,6 +1332,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       memberId: filters.memberId || "",
       groupId: filters.groupId || ""
     });
+    const skippedOvertime = [];
     const exportRows = (Array.isArray(result.rows) ? result.rows : []).flatMap((row) => {
       const scheduledStart = row.restDayScheduled ? String(row.scheduledShiftStartTime || "") : "";
       const scheduledEnd = row.restDayScheduled ? String(row.scheduledShiftEndTime || "") : "";
@@ -1360,7 +1361,8 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       const shiftStart = String(row.scheduledShiftStartTime || "");
       const adjustedStart = subtractOvertimeHoursFromClockTime(shiftStart, row.overtimeHours);
       if (!adjustedStart.time) {
-        throw new Error(`員工 ${row.employee_name || row.employee_code || ""} 於 ${row.work_date || ""} 未設定有效的班別上班時間`);
+        skippedOvertime.push(`${row.employee_name || row.employee_code || "未知員工"}（${row.work_date || "日期不明"}）`);
+        return [];
       }
       return [{
         employee_code: row.employee_code || "",
@@ -1375,12 +1377,14 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
         overtime_use_rest_2: false
       }];
     });
-    return exportOvertime({
+    const exported = await exportOvertime({
       startDate: filters.fromDate,
       endDate: filters.toDate,
       exportRows,
       attendanceReview: true
     });
+    return { ...exported, skippedOvertime };
+
   }
 
   async function exportMembers(payload) {

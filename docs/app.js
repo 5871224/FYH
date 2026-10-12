@@ -2570,6 +2570,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       memberId: filters.memberId || "",
       groupId: filters.groupId || ""
     });
+    const skippedOvertime = [];
     const exportRows = (Array.isArray(result.rows) ? result.rows : []).flatMap((row) => {
       const scheduledStart = row.restDayScheduled ? String(row.scheduledShiftStartTime || "") : "";
       const scheduledEnd = row.restDayScheduled ? String(row.scheduledShiftEndTime || "") : "";
@@ -2598,7 +2599,8 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       const shiftStart = String(row.scheduledShiftStartTime || "");
       const adjustedStart = subtractOvertimeHoursFromClockTime(shiftStart, row.overtimeHours);
       if (!adjustedStart.time) {
-        throw new Error(`員工 ${row.employee_name || row.employee_code || ""} 於 ${row.work_date || ""} 未設定有效的班別上班時間`);
+        skippedOvertime.push(`${row.employee_name || row.employee_code || "未知員工"}（${row.work_date || "日期不明"}）`);
+        return [];
       }
       return [{
         employee_code: row.employee_code || "",
@@ -2613,12 +2615,14 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
         overtime_use_rest_2: false
       }];
     });
-    return exportOvertime({
+    const exported = await exportOvertime({
       startDate: filters.fromDate,
       endDate: filters.toDate,
       exportRows,
       attendanceReview: true
     });
+    return { ...exported, skippedOvertime };
+
   }
 
   async function exportMembers(payload) {
@@ -12286,17 +12290,24 @@ async function openAttendanceHistoryModal(recordId) {
 async function exportAttendanceReview() {
   const filters = ensureAttendanceReviewState().filters;
   try {
-    setSaveStatus("正在準備已審加班資料...", true);
+    setSaveStatus("正在準備加班資料...", true);
     const result = await window.schedulerApi.exportAttendanceReview({
       fromDate: filters.fromDate,
       toDate: filters.toDate,
       memberId: filters.memberId,
       groupId: filters.groupId
     });
-    if (result.empty) showInfoMessage("所選期間沒有已審資料");
     setSaveStatus("");
+    const skipped = Array.isArray(result.skippedOvertime) ? result.skippedOvertime : [];
+    if (skipped.length) {
+      const sample = skipped.slice(0, 8).join("、");
+      showInfoMessage(`已略過 ${skipped.length} 筆缺少有效班別上班時間的加班紀錄：${sample}${skipped.length > 8 ? " 等" : ""}。請補齊班表後再匯出。`);
+    } else if (result.empty) {
+      showInfoMessage("所選期間沒有可匯出的加班資料");
+    }
   } catch (error) {
-    setSaveStatus(`匯出加班失敗：${error.message || error}`);
+    setSaveStatus("");
+    showInfoMessage(`匯出加班失敗：${error.message || error}`);
   }
 }
 

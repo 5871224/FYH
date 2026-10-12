@@ -314,17 +314,24 @@ async function openAttendanceHistoryModal(recordId) {
 async function exportAttendanceReview() {
   const filters = ensureAttendanceReviewState().filters;
   try {
-    setSaveStatus("正在準備已審加班資料...", true);
+    setSaveStatus("正在準備加班資料...", true);
     const result = await window.schedulerApi.exportAttendanceReview({
       fromDate: filters.fromDate,
       toDate: filters.toDate,
       memberId: filters.memberId,
       groupId: filters.groupId
     });
-    if (result.empty) showInfoMessage("所選期間沒有已審資料");
     setSaveStatus("");
+    const skipped = Array.isArray(result.skippedOvertime) ? result.skippedOvertime : [];
+    if (skipped.length) {
+      const sample = skipped.slice(0, 8).join("、");
+      showInfoMessage(`已略過 ${skipped.length} 筆缺少有效班別上班時間的加班紀錄：${sample}${skipped.length > 8 ? " 等" : ""}。請補齊班表後再匯出。`);
+    } else if (result.empty) {
+      showInfoMessage("所選期間沒有可匯出的加班資料");
+    }
   } catch (error) {
-    setSaveStatus(`匯出加班失敗：${error.message || error}`);
+    setSaveStatus("");
+    showInfoMessage(`匯出加班失敗：${error.message || error}`);
   }
 }
 
