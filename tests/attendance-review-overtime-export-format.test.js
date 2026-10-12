@@ -18,6 +18,9 @@ test("簽到審核匯出使用正式 exportRows 十二欄契約並納入休例�
   assert.match(webApi, /scheduledShiftEndTime/);
   assert.match(webApi, /overtime_type_id: "attendance-rest-day"/);
   assert.match(webApi, /overtime_type_id: "attendance-ledger"/);
+  assert.match(webApi, /const shiftStart = String\(row\.scheduledShiftStartTime \|\| ""\)/);
+  assert.match(webApi, /overtime_start_time: adjustedStart\.time,[\s\S]*overtime_end_time: shiftStart/);
+  assert.match(edge, /scheduledShiftStartTime: shift\?\.start_time \|\| null/);
   assert.match(webApi, /return exportOvertime\(\{/);
   assert.doesNotMatch(webApi + exporter, /approvedOvertimeRows/);
   assert.match(edge, /schedule_entries/);

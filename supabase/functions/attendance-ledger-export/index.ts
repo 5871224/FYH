@@ -113,8 +113,8 @@ export default {
           clock_out_at: row.clock_out_at || null,
           note: row.note || "",
           restDayScheduled,
-          scheduledShiftStartTime: restDayScheduled ? shift.start_time || null : null,
-          scheduledShiftEndTime: restDayScheduled ? shift.end_time || null : null
+          scheduledShiftStartTime: shift?.start_time || null,
+          scheduledShiftEndTime: shift?.end_time || null
         };
       });
       return Response.json({ ok: true, rows });

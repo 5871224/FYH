@@ -1357,14 +1357,19 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
         }];
       }
       if (!(Number(row.overtimeHours) > 0)) return [];
+      const shiftStart = String(row.scheduledShiftStartTime || "");
+      const adjustedStart = subtractOvertimeHoursFromClockTime(shiftStart, row.overtimeHours);
+      if (!adjustedStart.time) {
+        throw new Error(`員工 ${row.employee_name || row.employee_code || ""} 於 ${row.work_date || ""} 未設定有效的班別上班時間`);
+      }
       return [{
         employee_code: row.employee_code || "",
         employee_name: row.employee_name || "",
         work_date: row.work_date || "",
         overtime_type_id: "attendance-ledger",
-        overtime_start_time: "00:00",
-        overtime_end_time: formatOvertimeHoursAsTime(row.overtimeHours),
-        overtime_previous_day: 0,
+        overtime_start_time: adjustedStart.time,
+        overtime_end_time: shiftStart,
+        overtime_previous_day: adjustedStart.previousDay,
         overtime_subsidy_type: 1,
         overtime_use_rest_1: false,
         overtime_use_rest_2: false
