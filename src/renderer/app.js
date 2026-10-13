@@ -11742,8 +11742,8 @@ function attachmentIcon(kind){
 }
 function attachmentActionButton(action,id){
   const attr=escapeHtml(id);
-  if(action==="view")return '<button class="settings-icon-btn attachment-action-btn" type="button" title="查看／下載" aria-label="查看／下載" data-att-view="'+attr+'">'+attachmentIcon("view")+'</button>';
-  if(action==="delete")return '<button class="settings-icon-btn attachment-action-btn" type="button" title="刪除" aria-label="刪除" data-att-delete="'+attr+'">'+attachmentIcon("delete")+'</button>';
+  if(action==="view")return '<button class="settings-icon-btn attachment-action-btn" type="button" aria-label="查看／下載" data-att-view="'+attr+'">'+attachmentIcon("view")+'</button>';
+  if(action==="delete")return '<button class="settings-icon-btn attachment-action-btn" type="button" aria-label="刪除" data-att-delete="'+attr+'">'+attachmentIcon("delete")+'</button>';
   return "";
 }
 function renderAttachmentCell(owner,date,editable,serverCount){
@@ -11752,8 +11752,8 @@ function renderAttachmentCell(owner,date,editable,serverCount){
     ? serverCount
     : (recordsState.attachmentCounts[owner+":"+date]||0);
   return '<span class="attachment-cell">'
-    +(editable?'<button class="settings-icon-btn attachment-icon-btn" type="button" title="上傳檔案" aria-label="上傳檔案" data-att-upload="'+escapeHtml(date)+'">'+attachmentIcon("upload")+'</button>':"")
-    +(count?'<button class="settings-icon-btn attachment-icon-btn" type="button" title="查看附件" aria-label="查看附件" data-att-day="'+escapeHtml(owner+":"+date)+'">'+attachmentIcon("clip")+'<sup>'+count+'</sup></button>':"")
+    +(editable?'<button class="settings-icon-btn attachment-icon-btn" type="button" aria-label="上傳檔案" data-att-upload="'+escapeHtml(date)+'">'+attachmentIcon("upload")+'</button>':"")
+    +(count?'<button class="settings-icon-btn attachment-icon-btn" type="button" aria-label="查看附件" data-att-day="'+escapeHtml(owner+":"+date)+'">'+attachmentIcon("clip")+'<sup>'+count+'</sup></button>':"")
     +'</span>';
 }
 async function refreshAttachmentCounts(rows,personal){
@@ -11862,6 +11862,7 @@ async function openAttachmentDay(owner,date){
       title:"附檔｜"+date,
       modalClass:"modal modal-wide attachment-day-modal",
       hideFooterClose:true,
+      suppressCloseTooltip:true,
       headerButtons:editable&&rows.length
         ?'<button class="btn-primary" type="button" data-att-save-all>儲存</button>'
         :"",
@@ -11884,7 +11885,6 @@ async function openAttachmentDay(owner,date){
 async function saveAttachmentDayDescriptions(button){
   const inputs=[...document.querySelectorAll("#modalRoot .attachment-day-list [data-att-description]")];
   const updates=inputs.filter(input=>input.value!==input.dataset.attOriginalDescription);
-  if(!updates.length){showInfoMessage("附件說明沒有變更");return;}
   if(button)button.disabled=true;
   const failures=[];
   let saved=0;
@@ -11898,9 +11898,13 @@ async function saveAttachmentDayDescriptions(button){
         failures.push(input.closest(".attachment-day-row")?.querySelector(".attachment-file-meta strong")?.textContent||input.dataset.attDescription);
       }
     }
-    showInfoMessage(failures.length
-      ?"已儲存 "+saved+" 個附件說明；以下 "+failures.length+" 個失敗，請重試："+failures.join("、")
-      :"已儲存 "+saved+" 個附件說明");
+    if(failures.length){
+      // 保存失敗仍保留編輯視窗，讓使用者修正後再次送出。
+      showInfoMessage("已儲存 "+saved+" 個附件說明；以下 "+failures.length+" 個失敗，請重試："+failures.join("、"));
+      return;
+    }
+    // 全部成功（或沒有內容異動）立即關閉，不另顯示成功／確認視窗。
+    closeModal();
   }finally{
     if(button?.isConnected)button.disabled=false;
   }
@@ -13202,7 +13206,7 @@ function openEntityListModal(config) {
     : '<div class="modal-header-actions"></div>';
   const closeButton = `
     <div class="modal-header-close">
-      <button class="settings-icon-btn modal-close-btn" type="button" data-close-button="true" aria-label="關閉" title="關閉">
+      <button class="settings-icon-btn modal-close-btn" type="button" data-close-button="true" aria-label="關閉" ${config.suppressCloseTooltip ? "" : 'title="關閉"'}>
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M6 6l12 12"></path>
           <path d="M18 6l-12 12"></path>
