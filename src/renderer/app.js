@@ -2827,6 +2827,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   };
 })();
 ;
+
 /* ===== renderer-i18n.js ===== */
 /* 繁中／越文語系。
  * 固定介面文字在正式 Renderer 渲染後翻譯；資料名稱沿用 nameVi，空白時維持中文。
@@ -3336,6 +3337,7 @@ function setApplicationLanguage(value) {
   fyhLocalization.setLanguage(value);
 }
 ;
+
 /* ===== renderer-foundation.js ===== */
 /* 排班主程式共用常數與初始狀態工廠
  * 由固定建置清單載入。
@@ -10697,6 +10699,7 @@ function renderMealSettingsSection() {
     </section>`;
   }
 ;
+
 /* ===== renderer-modal-navigation.js ===== */
 /* 彈窗、返回鍵與設定頁重新開啟控制。
  * 由 renderer.js 拆分；維持既有全域 bundle 執行方式。
@@ -11692,6 +11695,7 @@ async function loadMealAdminSettings(shouldRender = true) {
   if (shouldRender) renderAll();
 }
 ;
+
 /* ===== renderer-attachments.js ===== */
 /* 簽到附件共用介面與操作。正式檔案權限一律由 attendance-attachments Edge Function 驗證。 */
 let pendingAttendanceFiles=[];
@@ -11977,6 +11981,7 @@ function bindRecordsEvents() {
   });
 }
 ;
+
 /* ===== renderer-runtime-helpers.js ===== */
 /* 執行狀態、單位、人員、班別與目錄查詢共用工具。
  * 由固定建置清單載入。
@@ -12889,6 +12894,7 @@ function renderAll() {
   refreshLocalization(document.body);
 }
 ;
+
 /* ===== renderer-persistence.js ===== */
 /* 班表狀態整理、延遲儲存與強制儲存。
  * 由 renderer.js 最終拆分；維持既有全域 bundle 與功能行為。
@@ -15085,6 +15091,7 @@ function bindDelegatedClickEvents() {
   });
 }
 ;
+
 /* ===== renderer-events-form.js ===== */
 /* 輸入欄位與選單異動的委派事件。
  * 由 renderer.js 最終拆分；事件註冊順序與原行為不變。
