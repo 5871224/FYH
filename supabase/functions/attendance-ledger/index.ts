@@ -182,14 +182,21 @@ async function personalList(ctx: any, body: any, actor: any) {
   const page = pageNumber(body?.page);
   const sortDirection = body?.sortDirection === "asc" ? "asc" : "desc";
   const commonNotes = await getCommonNotes(ctx);
-  const [attendanceResult, mealResult, scheduleContext, mealSettingResult] = await Promise.all([
+  const [attendanceResult, mealResult, attachmentResult, scheduleContext, mealSettingResult] = await Promise.all([
     ctx.supabaseAdmin.from("attendance_days").select("*").eq("user_id", actor.id).gte("work_date", fromDate).lte("work_date", toDate),
     ctx.supabaseAdmin.from("meal_orders").select("*").eq("user_id", actor.id).gte("order_date", fromDate).lte("order_date", toDate),
+    // Attachments are keyed by employee and work date, even when no attendance_days row exists.
+    ctx.supabaseAdmin.from("attendance_attachments").select("work_date")
+      .eq("owner_id", actor.id).eq("status", "ready").gte("work_date", fromDate).lte("work_date", toDate),
     fetchScheduleContext(ctx, fromDate, toDate, [actor.id]),
     ctx.supabaseAdmin.from("meal_settings").select("daily_cutoff_time").eq("id", "default").maybeSingle()
   ]);
-  for (const result of [attendanceResult, mealResult, mealSettingResult]) if (result.error) throw result.error;
+  for (const result of [attendanceResult, mealResult, attachmentResult, mealSettingResult]) if (result.error) throw result.error;
   const attendance = new Map((attendanceResult.data || []).map((row: any) => [row.work_date, row]));
+  const attachmentCounts = new Map<string, number>();
+  for (const attachment of attachmentResult.data || []) {
+    attachmentCounts.set(attachment.work_date, (attachmentCounts.get(attachment.work_date) || 0) + 1);
+  }
   const meals = new Map<string, any[]>();
   for (const row of mealResult.data || []) {
     const group = meals.get(row.order_date) || [];
@@ -208,6 +215,8 @@ async function personalList(ctx: any, body: any, actor: any) {
       return {
         id: row?.id || "",
         date,
+        ownerId: actor.id,
+        attachmentCount: attachmentCounts.get(date) || 0,
         ...schedule,
         clockIn: row?.clock_in_at || null,
         clockInLocation: row?.clock_in_location || null,
