@@ -1128,19 +1128,28 @@ html[lang="vi"] .attendance-ledger-table .attendance-clock-buttons [data-persona
 .attachment-usage>div:first-child{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .attachment-progress{height:12px;background:#e5e7e9;border-radius:10px;overflow:hidden;margin:10px 0}
 .attachment-progress span{height:100%;display:block}
-.attachment-manager-table{min-width:760px}
+.attachment-manager-table{min-width:900px}
 .attachment-manager-table th:first-child,.attachment-manager-table td:first-child{width:40px;text-align:center}
 .attachment-manager-table th:nth-child(2){width:110px}
 .attachment-manager-table th:nth-child(3){width:100px}
-.attachment-manager-table th:nth-child(5){width:90px}
-.attachment-manager-table th:nth-child(6){width:145px}
+.attachment-manager-table th:nth-child(5){min-width:160px}
+.attachment-manager-table th:nth-child(6){width:90px;white-space:nowrap}
+.attachment-manager-table th:nth-child(7){width:92px}
+.attachment-manager-description{overflow-wrap:anywhere;white-space:pre-wrap}
+.attachment-manager-actions,.attachment-file-actions{display:flex;justify-content:flex-end;align-items:center;gap:6px;flex-shrink:0}
+.attachment-action-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;min-width:32px;padding:5px}
+.attachment-action-btn svg{display:block;width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .attachment-form{display:grid;gap:12px}
 .attachment-picker{display:flex;gap:8px;flex-wrap:wrap}
 .attachment-drop{border:2px dashed var(--border-color,#aaa);padding:20px;border-radius:8px;text-align:center}
 .attachment-pending-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px;border-bottom:1px solid #ddd}
 .attachment-day-list{display:grid;gap:10px;max-height:65vh;overflow:auto}
-.attachment-day-row{display:grid;gap:6px;padding:10px;border:1px solid #ddd;border-radius:8px;overflow-wrap:anywhere}
-.attachment-day-row small{color:var(--muted)}
-.attachment-day-row input{width:100%}
+.attachment-day-row{display:grid;gap:8px;padding:10px;border:1px solid #ddd;border-radius:8px}
+.attachment-file-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.attachment-file-meta{display:flex;align-items:baseline;flex-wrap:wrap;column-gap:10px;row-gap:2px;min-width:0;overflow-wrap:anywhere}
+.attachment-file-meta strong{font-weight:600;min-width:0}
+.attachment-file-meta small{color:var(--muted);white-space:nowrap;font-size:12px}
+.attachment-day-row input{box-sizing:border-box;width:100%;min-width:0}
+.attachment-file-description{overflow-wrap:anywhere;white-space:pre-wrap}
 .attachment-preview{max-height:75vh;overflow:auto;text-align:center}
 .attachment-preview img{max-width:100%;height:auto}
