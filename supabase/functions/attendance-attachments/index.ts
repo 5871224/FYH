@@ -11,7 +11,11 @@ async function actorOf(ctx:any) {
     .select("id,full_name,group_id,access_role_id,hire_date,leave_date,deleted_at,home_department:set_departments!home_department_id(hidden_from_schedule)")
     .eq("id",id).is("deleted_at",null).single();
   if(found.error)throw found.error;
-  if(!isProfileEffective(found.data)||found.data.home_department?.hidden_from_schedule)
+  if(!isProfileEffective(found.data))
+    throw new Error("此帳號目前無法使用附件功能");
+  // 隱藏單位的管理員仍可依 attendance_review 群組權限審核其他員工附件。
+  if(found.data.home_department?.hidden_from_schedule
+    && !await hasAnyGroupPermission(ctx,id,"attendance_review"))
     throw new Error("此帳號目前無法使用附件功能");
   return found.data;
 }
