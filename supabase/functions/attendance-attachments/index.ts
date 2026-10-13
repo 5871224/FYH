@@ -178,7 +178,8 @@ async function view(ctx:any,actor:any,body:any){
   const row=await getRow(ctx,String(body.id||""));
   const target=await targetOf(ctx,row.owner_id);
   await authorize(ctx,actor,target);
-  const signed=await ctx.supabaseAdmin.storage.from(BUCKET).createSignedUrl(row.storage_path,120);
+  const inline=/^image\/(jpeg|png|webp|gif|heic|heif)$/.test(row.mime_type);
+  const signed=await ctx.supabaseAdmin.storage.from(BUCKET).createSignedUrl(row.storage_path,120,inline?{}:{download:row.original_name});
   if(signed.error)throw signed.error;
   return {url:signed.data.signedUrl,name:row.original_name,mime:row.mime_type};
 }
