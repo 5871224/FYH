@@ -128,12 +128,13 @@ function renderPersonalNoteInput(record) {
   const value = String(getPersonalAttendanceValue(record, "note") ?? "");
   const overtimeValue = Number(getPersonalAttendanceValue(record, "overtimeHours") || 0);
   const noteRequired = Number.isFinite(overtimeValue) && overtimeValue > 0;
+  const showRequiredHint = noteRequired && !value.trim();
   const editable = record.editable !== false && !record.reviewed;
   if (!editable) return escapeHtml(value);
   const requiredAttrs = noteRequired
     ? ' required aria-required="true" placeholder="填寫加班時數時，備註為必填"'
     : "";
-  return `<div class="attendance-note-editor"><input class="attendance-note-input" type="text" list="personalAttendanceCommonNotes" value="${escapeHtml(value)}" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}"${requiredAttrs}>${noteRequired ? '<small class="attendance-note-required-hint">填寫加班時數時，備註為必填</small>' : ""}</div>`;
+  return `<div class="attendance-note-editor"><input class="attendance-note-input" type="text" list="personalAttendanceCommonNotes" value="${escapeHtml(value)}" data-personal-attendance-field="note" data-personal-attendance-date="${escapeHtml(record.date)}"${requiredAttrs}>${showRequiredHint ? '<small class="attendance-note-required-hint">填寫加班時數時，備註為必填</small>' : ""}</div>`;
 }
 
 function renderReviewStatus(reviewed) {
