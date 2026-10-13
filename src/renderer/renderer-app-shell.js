@@ -9,7 +9,7 @@ function renderRecordsPage() {
   }
   const activeSection = recordsState.activeTab === "review"
     ? renderAttendanceReviewSection()
-    : renderPersonalRecordsSection();
+    : recordsState.activeTab === "attachments" ? renderAttachmentManager() : renderPersonalRecordsSection();
   recordsCard.innerHTML = `
     <div class="clock-page-header">
       <div>
