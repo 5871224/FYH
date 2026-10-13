@@ -203,3 +203,27 @@ test("放大鏡照片預覽視窗只有右上角 X，不建立底部關閉按鈕
   assert.match(dialogs[0].body,/<img /);
   assert.equal(dialogs[0].footerButtons,undefined);
 });
+
+
+test("上傳附件標題右側是主要按鈕「存檔」，底部沒有關閉、取消或送出按鈕",()=>{
+  const vm=require("node:vm");
+  const source=read("src/renderer/renderer-attachments.js");
+  const dialogs=[];
+  const context={
+    recordsState:{personal:[{date:"2026-10-13",reviewed:false,editable:true}]},
+    openEntityListModal:dialog=>dialogs.push(dialog),
+    showInfoMessage:()=>{throw new Error("不應阻擋上傳")},
+  };
+  vm.runInNewContext(source,context,{timeout:2000});
+  context.openAttachmentUpload("2026-10-13");
+  assert.equal(dialogs.length,1);
+  const dialog=dialogs[0];
+  assert.equal(dialog.hideFooterClose,true);
+  assert.equal(dialog.suppressCloseTooltip,true);
+  assert.equal(dialog.footerButtons,undefined);
+  assert.match(dialog.headerButtons,/class="btn-primary"[^>]*data-att-submit>存檔<\/button>/);
+  assert.match(dialog.body,/data-att-camera/);
+  assert.match(dialog.body,/data-att-choose/);
+  assert.match(dialog.body,/id="attachmentDrop"/);
+  assert.doesNotMatch(dialog.body,/data-att-submit|>取消<\/button>|>送出<\/button>/);
+});

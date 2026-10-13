@@ -94,13 +94,16 @@ function openAttachmentUpload(date){
   const record=(recordsState.personal||[]).find(x=>x.date===date);
   if(!record||record.reviewed||record.editable===false){showInfoMessage("該日期已審核或不能修改");return;}
   attachmentWorkDate=date;pendingAttendanceFiles=[];
-  openEntityListModal({title:"上傳附件｜"+date,body:
-    '<div class="attachment-form"><label class="form-row">說明（選填）<textarea id="attachmentDesc" maxlength="1000" rows="2"></textarea></label>'
+  openEntityListModal({
+    title:"上傳附件｜"+date,
+    hideFooterClose:true,
+    suppressCloseTooltip:true,
+    headerButtons:'<button class="btn-primary" type="button" data-att-submit>存檔</button>',
+    body:'<div class="attachment-form"><label class="form-row">說明（選填）<textarea id="attachmentDesc" maxlength="1000" rows="2"></textarea></label>'
     +'<div class="attachment-picker"><button class="ghost-btn" type="button" data-att-camera>拍照</button><button class="ghost-btn" type="button" data-att-choose>選擇檔案（可多選）</button></div>'
     +'<input id="attachmentCamera" type="file" accept="image/*" capture="environment" hidden>'
     +'<input id="attachmentFiles" type="file" multiple accept="image/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip" hidden>'
-    +'<div class="attachment-drop" id="attachmentDrop">也可以將檔案拖曳至此</div><div id="attachmentPendingFiles">尚未選擇檔案</div><p id="attachmentStatus"></p></div>',
-    footerButtons:'<button class="btn-cancel" type="button" data-close-button="true">取消</button><button class="btn-primary" type="button" data-att-submit>送出</button>'
+    +'<div class="attachment-drop" id="attachmentDrop">也可以將檔案拖曳至此</div><div id="attachmentPendingFiles">尚未選擇檔案</div><p id="attachmentStatus"></p></div>'
   });
 }
 async function saveAttachmentUpload(){
