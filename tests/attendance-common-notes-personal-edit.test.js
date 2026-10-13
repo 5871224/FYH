@@ -43,7 +43,7 @@ test("個人未審紀錄不限當日可修改加班時數與備註，上班時�
   assert.match(ledger, /\["overtimeHours", "note"\]/);
   assert.equal(personalSection.includes("personal-record-meal-col"), false);
   assert.equal(personalSection.includes(">訂餐<"), false);
-  assert.match(personalSection, /colspan="8"/);
+  assert.match(personalSection, /colspan="9"/);
 });
 
 
