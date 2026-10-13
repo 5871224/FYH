@@ -169,7 +169,7 @@ function renderPersonalRecordsSection() {
         <td class="personal-record-hours-col">${renderPersonalHoursInput(record, "regularHours")}</td>
         <td class="personal-record-hours-col">${renderPersonalHoursInput(record, "overtimeHours")}</td>
         <td class="personal-record-note-col">${renderPersonalNoteInput(record)}</td>
-        <td class="personal-record-attachment-col">${renderAttachmentCell(attachmentOwner(),record.date,!record.reviewed && record.editable!==false)}</td>
+        <td class="personal-record-attachment-col">${renderAttachmentCell(record.ownerId || attachmentOwner(),record.date,!record.reviewed && record.editable!==false,record.attachmentCount)}</td>
         <td class="personal-record-review-col">${renderReviewStatus(record.reviewed)}</td>
       </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
     </table></div>
