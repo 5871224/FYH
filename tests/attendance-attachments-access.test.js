@@ -60,10 +60,83 @@ test("本人未審可看到每個檔案的刪除與儲存說明，不依賴已�
   vm.runInNewContext(source,ctx,{timeout:2000});
   await ctx.openAttachmentDay("owner-aaa","2026-10-13");
   assert.equal((dialogs[0].body.match(/data-att-delete=/g)||[]).length,2);
-  assert.equal((dialogs[0].body.match(/data-att-save=/g)||[]).length,2);
+  assert.match(dialogs[0].headerButtons,/data-att-save-all/);
+  assert.equal(dialogs[0].hideFooterClose,true);
+  assert.equal((dialogs[0].body.match(/data-att-view=/g)||[]).length,2);
+  assert.equal((dialogs[0].body.match(/data-att-description=/g)||[]).length,2);
   permitted=false;
   await ctx.openAttachmentDay("owner-aaa","2026-10-13");
   assert.doesNotMatch(dialogs[1].body,/data-att-delete=/);
-  assert.doesNotMatch(dialogs[1].body,/data-att-save=/);
-  assert.match(dialogs[1].body,/查看／下載/);
+  assert.ok(!dialogs[1].headerButtons);
+  assert.doesNotMatch(dialogs[1].body,/data-att-description=/);
+  assert.equal((dialogs[1].body.match(/data-att-view=/g)||[]).length,2);
+});
+
+
+test("附檔管理列表顯示說明，查看與刪除都用 SVG 圖示按鈕",()=>{
+  const vm=require("node:vm");
+  const source=read("src/renderer/renderer-attachments.js");
+  const ctx={
+    recordsState:{attachmentCounts:{},attachmentManager:{
+      loaded:true,loading:false,total:1,page:1,pageSize:50,
+      filters:{fromDate:"2026-10-01",toDate:"2026-10-31"},
+      usage:{usedBytes:1000,limitBytes:21474836480},
+      rows:[{id:"photo-1",work_date:"2026-10-13",employee_name:"AAA",
+        original_name:"LINE_NOTE.jpg",description:"測試說明",size_bytes:259000}]
+    }},
+    ensureRecordsState(){},
+    getTodayDateString(){return "2026-10-13";},
+    addDaysToDateString(){return "2026-09-13";},
+    escapeHtml:v=>String(v),
+    renderRecordDateCell:v=>v
+  };
+  vm.runInNewContext(source,ctx,{timeout:2000});
+  const html=ctx.renderAttachmentManager();
+  assert.match(html,/<th>說明<\/th>/);
+  assert.match(html,/測試說明/);
+  assert.match(html,/data-att-view="photo-1"/);
+  assert.match(html,/data-att-delete="photo-1"/);
+  assert.equal((html.match(/<svg/g)||[]).length,2);
+  assert.doesNotMatch(html,/>查看<\/button>|>刪除<\/button>/);
+});
+
+test("標題儲存鈕一次儲存所有已修改說明，並略過未變更檔案",async()=>{
+  const vm=require("node:vm");
+  const source=read("src/renderer/renderer-attachments.js");
+  const saved=[],messages=[];
+  const inputs=[
+    {value:"新說明A",dataset:{attDescription:"f1",attOriginalDescription:"舊說明A"}},
+    {value:"沒變更",dataset:{attDescription:"f2",attOriginalDescription:"沒變更"}},
+    {value:"新說明C",dataset:{attDescription:"f3",attOriginalDescription:"舊說明C"}}
+  ];
+  const ctx={
+    document:{querySelectorAll:()=>inputs},
+    window:{schedulerApi:{editAttendanceAttachment:async (id,text)=>{saved.push([id,text]);}}},
+    showInfoMessage:m=>messages.push(m)
+  };
+  vm.runInNewContext(source,ctx,{timeout:2000});
+  const button={disabled:false,isConnected:true};
+  await ctx.saveAttachmentDayDescriptions(button);
+  assert.deepEqual(saved,[["f1","新說明A"],["f3","新說明C"]]);
+  assert.equal(inputs[0].dataset.attOriginalDescription,"新說明A");
+  assert.equal(inputs[2].dataset.attOriginalDescription,"新說明C");
+  assert.equal(button.disabled,false);
+  assert.match(messages[0],/已儲存 2 個附件說明/);
+});
+
+test("批次儲存若某筆失敗，保留未成功的修改供重試",async()=>{
+  const vm=require("node:vm");
+  const source=read("src/renderer/renderer-attachments.js");
+  const input={value:"準備重試",dataset:{attDescription:"f1",attOriginalDescription:"舊說明"},closest:()=>({querySelector:()=>({textContent:"x.jpg"})})};
+  const messages=[];
+  const ctx={
+    document:{querySelectorAll:()=>[input]},
+    window:{schedulerApi:{editAttendanceAttachment:async()=>{throw new Error("審核狀態已變更");}}},
+    showInfoMessage:m=>messages.push(m)
+  };
+  vm.runInNewContext(source,ctx,{timeout:2000});
+  await ctx.saveAttachmentDayDescriptions({disabled:false,isConnected:true});
+  assert.equal(input.dataset.attOriginalDescription,"舊說明");
+  assert.match(messages[0],/失敗/);
+  assert.match(messages[0],/x\.jpg/);
 });
