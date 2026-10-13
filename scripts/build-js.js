@@ -48,6 +48,7 @@ const modules = [
   "renderer-attendance-page.js",
   "renderer-meal-page.js",
   "renderer-records-page.js",
+  "renderer-attachments.js",
   "renderer-records-events.js",
   "renderer-runtime-helpers.js",
   "renderer-page-data.js",
