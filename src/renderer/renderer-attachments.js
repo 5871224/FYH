@@ -102,13 +102,27 @@ async function saveAttachmentUpload(){
       if(status)status.textContent="正在上傳 "+(count+1)+" / "+pendingAttendanceFiles.length+"："+f.name;
       await window.schedulerApi.uploadAttendanceAttachment(attachmentWorkDate,document.getElementById("attachmentDesc")?.value||"",f);count++;
     }
-    closeModal();showInfoMessage("上傳完成，共 "+count+" 個附件");
+    closeModal();
+    showInfoMessage("已成功上傳 "+count+" 個附件");
   }catch(error){
-    if(status)status.textContent="已成功 "+count+" 個，上傳中斷："+error.message;
+    const message="已成功 "+count+" 個，上傳中斷："+(error?.message||"未知錯誤");
+    if(status)status.textContent=message;
+    // 上傳錯誤不能只藏在視窗文字中，員工必須能清楚看到失敗原因。
+    showInfoMessage(message);
     pendingAttendanceFiles=pendingAttendanceFiles.slice(count);updateAttachmentPending();
   }finally{
     if(button?.isConnected)button.disabled=false;
-    await loadRecordsPage(false);renderAll();
+    await loadRecordsPage(false);
+    // 即使個人紀錄的筆數批次查詢失敗，也要直接讀取當天的附件結果。
+    try{
+      const result=await window.schedulerApi.getAttachmentDay(attachmentOwner(),attachmentWorkDate);
+      ensureAttachmentState();
+      recordsState.attachmentCounts[attachmentOwner()+":"+attachmentWorkDate]=(result.rows||[]).length;
+    }catch(error){
+      console.warn("附件已送出，但同步當日附件數量失敗",error);
+      showInfoMessage("附件已送出，更新附檔欄失敗："+(error?.message||"請重新整理頁面"));
+    }
+    renderAll();
   }
 }
 async function openAttachmentDay(owner,date){
