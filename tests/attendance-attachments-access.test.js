@@ -261,14 +261,14 @@ test("選取器 accept 及後端副檔名白名單與前端一致",()=>{
   const source=read("src/renderer/renderer-attachments.js");
   const edge=read("supabase/functions/attendance-attachments/index.ts");
   const ctx={};
-  vm.runInNewContext(source,ctx,{timeout:2000});
-  const front=[...vm.runInNewContext("attachmentAllowedExtensions",ctx,{timeout:1000})].sort();
+  vm.runInNewContext(source+'\n;globalThis.__allowedExtensions=attachmentAllowedExtensions;globalThis.__acceptedTypes=attachmentAcceptedTypes;',ctx,{timeout:2000});
+  const front=[...ctx.__allowedExtensions].sort();
   const match=edge.match(/const allowedExtensions=\[([^\]]+)\]/);
   assert.ok(match,"後端應有副檔名白名單");
   const backend=[...match[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]).sort();
   assert.deepEqual(front,backend);
   assert.match(source,/accept="'\+attachmentAcceptedTypes\+'/);
-  assert.doesNotMatch(vm.runInNewContext("attachmentAcceptedTypes",ctx,{timeout:1000}),/\.ico|image\/\*/);
+  assert.doesNotMatch(ctx.__acceptedTypes,/\.ico|image\/\*/);
 });
 
 test("多選超過五檔時僅保留合格且不超額的檔案",()=>{
