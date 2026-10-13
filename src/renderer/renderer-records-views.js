@@ -13,7 +13,8 @@ function renderHomeIconButton() {
 function renderRecordsTabs() {
   const tabs = [
     ["personal", "個人記錄", true],
-    ["review", "簽到審核", hasAnyGroupPermission("attendance_review")]
+    ["review", "簽到審核", hasAnyGroupPermission("attendance_review")],
+    ["attachments", "附檔管理", hasAnyGroupPermission("attendance_review")]
   ].filter((tab) => tab[2]);
   if (!tabs.some((tab) => tab[0] === recordsState.activeTab)) recordsState.activeTab = "personal";
   return `<div class="record-tabs" role="tablist" aria-label="簽到簿分頁">${tabs.map(([id, label]) => `<button class="ghost-btn page-tab-btn ${recordsState.activeTab === id ? "active" : ""}" type="button" role="tab" aria-selected="${recordsState.activeTab === id ? "true" : "false"}" data-records-tab="${id}">${label}</button>`).join("")}</div>`;
@@ -159,7 +160,7 @@ function renderPersonalRecordsSection() {
     ${attendanceState.error ? `<div class="auth-error">${escapeHtml(attendanceState.error)}</div>` : ""}
     <datalist id="personalAttendanceCommonNotes">${(recordsState.commonAttendanceNotes || []).map((note) => `<option value="${escapeHtml(note)}"></option>`).join("")}</datalist>
     <div class="records-table-wrap"><table class="records-table personal-record-table attendance-ledger-table">
-      <thead><tr><th class="personal-record-date-col">${renderRecordsDateSortButton(filters.sortDirection, "personal")}</th><th class="personal-schedule-icon-col">圖示</th><th class="personal-record-shift-col">班別</th><th class="personal-record-clock-col">打卡時間</th><th class="personal-record-hours-col">上班時數</th><th class="personal-record-hours-col">加班時數</th><th class="personal-record-note-col">備註</th><th class="personal-record-review-col">審核</th></tr></thead>
+      <thead><tr><th class="personal-record-date-col">${renderRecordsDateSortButton(filters.sortDirection, "personal")}</th><th class="personal-schedule-icon-col">圖示</th><th class="personal-record-shift-col">班別</th><th class="personal-record-clock-col">打卡時間</th><th class="personal-record-hours-col">上班時數</th><th class="personal-record-hours-col">加班時數</th><th class="personal-record-note-col">備註</th><th class="personal-record-attachment-col">附檔</th><th class="personal-record-review-col">審核</th></tr></thead>
       <tbody>${(recordsState.personal || []).map((record) => `<tr class="${record.date === getTodayDateString() ? "is-today-row" : ""}">
         <td class="personal-record-date-col">${renderRecordDateCell(record.date)}</td>
         <td class="personal-schedule-icon-col">${renderScheduleIcon(record)}</td>
@@ -168,8 +169,9 @@ function renderPersonalRecordsSection() {
         <td class="personal-record-hours-col">${renderPersonalHoursInput(record, "regularHours")}</td>
         <td class="personal-record-hours-col">${renderPersonalHoursInput(record, "overtimeHours")}</td>
         <td class="personal-record-note-col">${renderPersonalNoteInput(record)}</td>
+        <td class="personal-record-attachment-col">${renderAttachmentCell(attachmentOwner(),record.date,!record.reviewed && record.editable!==false)}</td>
         <td class="personal-record-review-col">${renderReviewStatus(record.reviewed)}</td>
-      </tr>`).join("") || '<tr><td colspan="8">沒有資料</td></tr>'}</tbody>
+      </tr>`).join("") || '<tr><td colspan="9">沒有資料</td></tr>'}</tbody>
     </table></div>
     <div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一頁</button><span>共 ${total} 筆，第 ${page} / ${pages} 頁</span><button class="ghost-btn compact-btn" type="button" data-personal-record-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一頁</button></div>
   </section>`;
@@ -300,7 +302,7 @@ function renderAttendanceReviewSection() {
     ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
     <div class="records-table-wrap">
       <table class="records-table attendance-review-table">
-        <thead><tr><th class="attendance-review-check-col"><input type="checkbox" data-attendance-review-check-all></th><th class="attendance-review-date-col">${renderRecordsDateSortButton(filters.sortDirection, "review")}</th><th class="attendance-review-employee-col">員工</th><th class="attendance-schedule-icon-col">圖示</th><th class="attendance-review-shift-col">班別</th><th class="attendance-review-clock-col">打卡時間</th><th class="attendance-review-hours-col">上班時數</th><th class="attendance-review-hours-col">加班時數</th><th class="attendance-review-note-col">備註</th><th class="attendance-review-issue-col">異常</th><th class="attendance-review-status-col">狀態</th><th class="attendance-review-operation-col">操作</th></tr></thead>
+        <thead><tr><th class="attendance-review-check-col"><input type="checkbox" data-attendance-review-check-all></th><th class="attendance-review-date-col">${renderRecordsDateSortButton(filters.sortDirection, "review")}</th><th class="attendance-review-employee-col">員工</th><th class="attendance-schedule-icon-col">圖示</th><th class="attendance-review-shift-col">班別</th><th class="attendance-review-clock-col">打卡時間</th><th class="attendance-review-hours-col">上班時數</th><th class="attendance-review-hours-col">加班時數</th><th class="attendance-review-note-col">備註</th><th class="attendance-review-attachment-col">附檔</th><th class="attendance-review-issue-col">異常</th><th class="attendance-review-status-col">狀態</th><th class="attendance-review-operation-col">操作</th></tr></thead>
         <tbody>${rows.map((row) => {
           const token = `${row.user_id}:${row.work_date}`;
           return `<tr>
@@ -313,6 +315,7 @@ function renderAttendanceReviewSection() {
             <td class="attendance-review-hours-col">${row.regularHours === null || row.regularHours === undefined ? "" : escapeHtml(String(row.regularHours))}</td>
             <td class="attendance-review-hours-col">${row.overtimeHours === null || row.overtimeHours === undefined ? "" : escapeHtml(String(row.overtimeHours))}</td>
             <td class="attendance-review-note-col">${escapeHtml(row.note || "")}</td>
+            <td class="attendance-review-attachment-col">${renderAttachmentCell(row.user_id,row.work_date,false)}</td>
             <td class="attendance-review-issue-col">${escapeHtml((row.issues || []).join("、"))}</td>
             <td class="attendance-review-status-col">${renderReviewStatus(row.reviewed)}</td>
             <td class="attendance-review-operation-col"><div class="attendance-review-row-actions">
@@ -321,7 +324,7 @@ function renderAttendanceReviewSection() {
               ${row.id ? `<button class="settings-icon-btn attendance-review-action-btn" type="button" data-view-attendance-history="${escapeHtml(row.id)}" aria-label="歷程" title="歷程"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg></button>` : ""}
             </div></td>
           </tr>`;
-        }).join("") || '<tr><td colspan="12">沒有資料</td></tr>'}</tbody>
+        }).join("") || '<tr><td colspan="13">沒有資料</td></tr>'}</tbody>
       </table>
     </div>
     ${renderAttendanceReviewPagination(review)}
