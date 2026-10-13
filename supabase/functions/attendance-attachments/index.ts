@@ -19,7 +19,7 @@ async function targetOf(ctx:any,userId:string){
   if(!isUuid(userId))throw new Error("人員識別碼錯誤");
   const r=await ctx.supabaseAdmin.from("set_employee")
     .select("id,employee_code,full_name,group_id,hire_date,leave_date,deleted_at,home_department:set_departments!home_department_id(hidden_from_schedule)")
-    .eq("id",userId).is("deleted_at",null).single();
+    .eq("id",userId).single();
   if(r.error)throw r.error;
   if(r.data.home_department?.hidden_from_schedule)throw new Error("無法存取此人員的附件");
   return r.data;
@@ -77,7 +77,7 @@ async function managerList(ctx:any,actor:any,body:any){
   if(!groupIds.length)return {rows:[],total:0,page,pageSize:50,usage:u};
   const people=await ctx.supabaseAdmin.from("set_employee")
     .select("id,employee_code,full_name,home_department:set_departments!home_department_id(hidden_from_schedule)")
-    .in("group_id",groupIds).is("deleted_at",null);
+    .in("group_id",groupIds);
   if(people.error)throw people.error;
   const valid=(people.data||[]).filter((p:any)=>!p.home_department?.hidden_from_schedule);
   if(!valid.length)return {rows:[],total:0,page,pageSize:50,usage:u};
