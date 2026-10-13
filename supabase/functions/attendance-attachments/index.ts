@@ -229,7 +229,7 @@ export default {
       const body=await req.json(),actor=await actorOf(ctx);
       switch(body.action){
         case "day":{const ownerId=String(body.ownerId||actor.id),date=String(body.workDate||"");
-          if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date))throw new Error("附件日期不正確");
+          if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new Error("附件日期不正確");
           const target=await targetOf(ctx,ownerId);await authorize(ctx,actor,target);
           // Whether attachments are editable is authoritative on the server; viewing a day does
           // not depend on which tab was previously rendered in the browser.
