@@ -229,8 +229,16 @@ export default {
       const body=await req.json(),actor=await actorOf(ctx);
       switch(body.action){
         case "day":{const ownerId=String(body.ownerId||actor.id),date=String(body.workDate||"");
+          if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date))throw new Error("附件日期不正確");
           const target=await targetOf(ctx,ownerId);await authorize(ctx,actor,target);
-          return Response.json({rows:await rowsForDay(ctx,ownerId,date),reviewed:undefined});}
+          // Whether attachments are editable is authoritative on the server; viewing a day does
+          // not depend on which tab was previously rendered in the browser.
+          const review=await ctx.supabaseAdmin.from("attendance_days").select("reviewed_at")
+            .eq("user_id",ownerId).eq("work_date",date).maybeSingle();
+          if(review.error)throw review.error;
+          const canEdit=ownerId===actor.id&&!review.data?.reviewed_at
+            &&isProfileEmployedOn(actor,date)&&date<=taipeiDateString();
+          return Response.json({rows:await rowsForDay(ctx,ownerId,date),canEdit});}
         case "counts":return Response.json(await countRows(ctx,actor,body));
         case "manager_list":return Response.json(await managerList(ctx,actor,body));
         case "usage":await canManage(ctx,actor);return Response.json(await usage(ctx));
