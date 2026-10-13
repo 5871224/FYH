@@ -2931,6 +2931,17 @@ const fyhLocalization = (() => {
     "套用預覽": "Áp dụng bản xem trước",
     "取消預覽": "Hủy bản xem trước",
     "匯出上班日": "Xuất ngày làm việc",
+    "統計上班日": "Thống kê ngày làm việc",
+    "統計人數": "Thống kê nhân sự",
+    "排班日數": "Số ngày được xếp ca",
+    "年份": "Năm",
+    "月份": "Tháng",
+    "匯出 Excel": "Xuất Excel",
+    "目前沒有符合條件的人員": "Hiện không có nhân viên phù hợp",
+    "依每月起算日當天的到職日、離職日，統計目前群組在職人員。": "Thống kê nhân viên đang làm việc trong nhóm vào ngày bắt đầu tháng, theo ngày vào làm và nghỉ việc.",
+    "請選擇有效的年份與月份": "Chọn năm và tháng hợp lệ",
+    "群組已變更，請重新統計": "Nhóm đã thay đổi, hãy thống kê lại",
+    "正在準備統計資料...": "Đang chuẩn bị dữ liệu thống kê...",
     "匯出休例假": "Xuất ngày nghỉ",
     "匯出請假": "Xuất nghỉ phép",
     "匯出加班": "Xuất tăng ca",
@@ -3205,6 +3216,8 @@ const fyhLocalization = (() => {
   }
 
   function translateDynamic(text, entityMap) {
+    const statisticsSummary = text.match(/^(統計日期：)?(\d{4}-\d{2}-\d{2}(?: ～ \d{4}-\d{2}-\d{2})?)；人員數：(\d+)$/);
+    if (statisticsSummary) return `${statisticsSummary[1] ? "Ngày thống kê: " : ""}${statisticsSummary[2]}; Số nhân viên: ${statisticsSummary[3]}`;
     const resetConfirm = text.match(/^確定要將 (.+) 的密碼重設為 000000 嗎？$/);
     if (resetConfirm) return `Bạn có chắc muốn đặt lại mật khẩu của ${resetConfirm[1]} thành 000000 không?`;
     const resetSuccess = text.match(/^(.+) 的密碼已重設為 000000$/);
@@ -8925,7 +8938,9 @@ function getFunctionMenuSections() {
         { id: "exportScheduleButton", label: "匯出上班日", action: "export-workday" },
         { id: "exportSapButton", label: "匯出休例假", action: "export-sap" },
         { id: "exportLeaveButton", label: "匯出請假", action: "export-leave" },
-        { id: "exportOvertimeButton", label: "匯出加班", action: "export-overtime" }
+        { id: "exportOvertimeButton", label: "匯出加班", action: "export-overtime" },
+        { id: "workdayStatisticsButton", label: "統計上班日", action: "statistics-workday" },
+        { id: "headcountStatisticsButton", label: "統計人數", action: "statistics-headcount" }
       ]
     });
   }
@@ -11804,13 +11819,27 @@ async function saveAttachmentUpload(){
       if(status)status.textContent="正在上傳 "+(count+1)+" / "+pendingAttendanceFiles.length+"："+f.name;
       await window.schedulerApi.uploadAttendanceAttachment(attachmentWorkDate,document.getElementById("attachmentDesc")?.value||"",f);count++;
     }
-    closeModal();showInfoMessage("上傳完成，共 "+count+" 個附件");
+    closeModal();
+    showInfoMessage("已成功上傳 "+count+" 個附件");
   }catch(error){
-    if(status)status.textContent="已成功 "+count+" 個，上傳中斷："+error.message;
+    const message="已成功 "+count+" 個，上傳中斷："+(error?.message||"未知錯誤");
+    if(status)status.textContent=message;
+    // 上傳錯誤不能只藏在視窗文字中，員工必須能清楚看到失敗原因。
+    showInfoMessage(message);
     pendingAttendanceFiles=pendingAttendanceFiles.slice(count);updateAttachmentPending();
   }finally{
     if(button?.isConnected)button.disabled=false;
-    await loadRecordsPage(false);renderAll();
+    await loadRecordsPage(false);
+    // 即使個人紀錄的筆數批次查詢失敗，也要直接讀取當天的附件結果。
+    try{
+      const result=await window.schedulerApi.getAttachmentDay(attachmentOwner(),attachmentWorkDate);
+      ensureAttachmentState();
+      recordsState.attachmentCounts[attachmentOwner()+":"+attachmentWorkDate]=(result.rows||[]).length;
+    }catch(error){
+      console.warn("附件已送出，但同步當日附件數量失敗",error);
+      showInfoMessage("附件已送出，更新附檔欄失敗："+(error?.message||"請重新整理頁面"));
+    }
+    renderAll();
   }
 }
 async function openAttachmentDay(owner,date){
@@ -14216,7 +14245,7 @@ function parseExportDate(value) {
   const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return null;
   const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  return Number.isNaN(date.getTime()) ? null : date;
+  return Number.isNaN(date.getTime()) || formatExportDate(date) !== value ? null : date;
 }
 
 function formatExportDate(date) {
@@ -14293,6 +14322,7 @@ async function buildWorkdayExportRows(startDate, endDate) {
       const department = departments.get(shift.applicableDeptId || member.deptId || "");
       const leave = slot.leave ? leaves.get(slot.leave) : null;
       rows.push({
+        memberId: member.id,
         values: [department?.name || "", member.name || "", member.code || "", date.replaceAll("-", "")],
         date,
         departmentName: department?.name || "",
@@ -14306,6 +14336,97 @@ async function buildWorkdayExportRows(startDate, endDate) {
     || a.departmentName.localeCompare(b.departmentName, "zh-Hant")
     || a.memberName.localeCompare(b.memberName, "zh-Hant"));
   return rows;
+}
+
+async function buildWorkdayStatisticsRows(startDate, endDate) {
+  const workdays = await buildWorkdayExportRows(startDate, endDate);
+  const datesByMember = new Map();
+  for (const row of workdays) {
+    if (!datesByMember.has(row.memberId)) datesByMember.set(row.memberId, new Set());
+    datesByMember.get(row.memberId).add(row.date);
+  }
+  const departments = new Map((state.departments || []).map((item) => [item.id, item.name]));
+  return getCurrentGroupExportMembers()
+    .filter((member) => !member.deleted && doesDateRangeOverlapRange(member.hireDate, member.leaveDate, startDate, endDate))
+    .map((member) => [departments.get(member.deptId) || "", member.name || "", member.code || "", datesByMember.get(member.id)?.size || 0]);
+}
+
+function buildHeadcountStatistics(year, month) {
+  if (!Number.isInteger(year) || year < 1900 || year > 9999 || !Number.isInteger(month) || month < 1 || month > 12) {
+    throw new Error("請選擇有效的年份與月份");
+  }
+  const day = Math.min(getConfiguredMonthStartDay(), daysInMonth(year, month - 1));
+  const date = formatExportDate(new Date(year, month - 1, day));
+  const departments = new Map((state.departments || []).map((item) => [item.id, item.name]));
+  // ponytail: 沿用班表已授權的人員目錄與到離職日期，不另建統計端點；歷史所屬單位若需追溯再引入異動紀錄。
+  const rows = getCurrentGroupExportMembers()
+    .filter((member) => !member.deleted && isMemberActiveOnDateString(member, date))
+    .map((member) => [departments.get(member.deptId) || "", member.name || "", member.code || "", member.hireDate || "", member.leaveDate || ""]);
+  return { date, rows };
+}
+
+function openHeadcountStatisticsDialog() {
+  if (!requireCommonUiPermission("export", "統計人數") || !requireCurrentGroupUiPermission("schedule_view", "統計人數")) return;
+  const today = parseExportDate(getTodayDateString());
+  openEntityListModal({
+    title: "統計人數",
+    modalClass: "modal modal-member-form",
+    description: "依每月起算日當天的到職日、離職日，統計目前群組在職人員。",
+    body: `<div class="form-grid">
+      <div class="form-row"><label for="headcountYear">年份</label><input id="headcountYear" type="number" min="1900" max="9999" step="1" value="${today.getFullYear()}"></div>
+      <div class="form-row"><label for="headcountMonth">月份</label><select id="headcountMonth">${Array.from({ length: 12 }, (_, index) => `<option value="${index + 1}" ${index === today.getMonth() ? "selected" : ""}>${index + 1}</option>`).join("")}</select></div>
+      <div class="form-row"><label>每月起算日</label><div class="readonly-pill">${getConfiguredMonthStartDay()}</div></div>
+    </div>`,
+    footerButtons: '<button class="btn-primary" type="button" data-run-headcount-statistics="true">統計人數</button>',
+    hideFooterClose: true
+  });
+}
+
+function runHeadcountStatistics() {
+  if (!requireCommonUiPermission("export", "統計人數") || !requireCurrentGroupUiPermission("schedule_view", "統計人數")) return;
+  try {
+    const year = Number(document.getElementById("headcountYear")?.value);
+    const month = Number(document.getElementById("headcountMonth")?.value);
+    const { date, rows } = buildHeadcountStatistics(year, month);
+    showScheduleStatisticsResult("統計人數", `統計日期：${date}`, ["所屬單位", "姓名", "工號", "到職日", "離職日"], rows,
+      `統計人數_${date.replaceAll("-", "")}.xlsx`);
+  } catch (error) {
+    reportValidationError(error.message || String(error));
+  }
+}
+
+function showScheduleStatisticsResult(title, period, headers, rows, fileName) {
+  const groupId = groupFeatureState.currentGroupId;
+  const description = `${period}；人員數：${rows.length}`;
+  openEntityListModal({
+    title,
+    description,
+    body: `<div class="records-table-wrap"><table class="records-table"><thead><tr>${headers.map((header) => `<th scope="col">${escapeHtml(header)}</th>`).join("")}</tr></thead>
+      <tbody>${rows.length ? rows.map((row) => `<tr>${row.map((value) => `<td>${escapeHtml(String(value))}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${headers.length}">目前沒有符合條件的人員</td></tr>`}</tbody></table></div>`,
+    headerButtons: '<button id="exportScheduleStatisticsButton" class="btn-primary" type="button">匯出 Excel</button>'
+  });
+  document.getElementById("exportScheduleStatisticsButton").addEventListener("click", async (event) => {
+    if (!requireCommonUiPermission("export", title) || !hasGroupPermission(groupId, "schedule_view")) return;
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      const excel = await window.schedulerBrowserExporter.ensureExcelJS();
+      const workbook = new excel.Workbook();
+      const sheet = workbook.addWorksheet(title, { views: [{ state: "frozen", ySplit: 2 }] });
+      sheet.addRow([description]);
+      sheet.addRow(headers);
+      rows.forEach((row) => sheet.addRow(row));
+      sheet.getRow(2).font = { bold: true };
+      sheet.columns = headers.map((_, index) => ({ width: index === 0 ? 24 : 18 }));
+      sheet.getColumn(3).numFmt = "@";
+      sheet.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: headers.length } };
+      await downloadScheduleWorkbook(workbook, fileName);
+    } catch (error) {
+      showInfoMessage(`匯出失敗：${error.message || error}`);
+    } finally {
+      button.disabled = false;
+    }
+  });
 }
 
 async function runWorkdayExport(startDate, endDate) {
@@ -14354,8 +14475,14 @@ async function runWorkdayExport(startDate, endDate) {
       };
     });
   });
-  const blob = await exporter.workbookToBlob(workbook);
   const fileName = `匯出上班日_${startDate.replaceAll("-", "")}-${endDate.replaceAll("-", "")}.xlsx`;
+  await downloadScheduleWorkbook(workbook, fileName);
+  closeModal();
+  setSaveStatus("");
+}
+
+async function downloadScheduleWorkbook(workbook, fileName) {
+  const blob = await window.schedulerBrowserExporter.workbookToBlob(workbook);
   const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = objectUrl;
@@ -14364,14 +14491,14 @@ async function runWorkdayExport(startDate, endDate) {
   anchor.click();
   anchor.remove();
   setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-  closeModal();
-  setSaveStatus("");
 }
 
 function openExportPeriodDialog(type) {
+  if (!requireCommonUiPermission("export", "匯出")) return;
   const defaults = getDefaultExportPeriod();
   const labels = {
     workday: { title: "匯出上班日期間", action: "匯出上班日" },
+    "workday-statistics": { title: "統計上班日", action: "統計上班日" },
     sap: { title: "匯出休例假期間", action: "匯出休例假" },
     leave: { title: "匯出請假期間", action: "匯出請假" },
     overtime: { title: "匯出加班期間", action: "匯出加班" }
@@ -14389,6 +14516,7 @@ function openExportPeriodDialog(type) {
 }
 
 async function runPeriodExport(type) {
+  if (!requireCommonUiPermission("export", "匯出")) return;
   const startDate = document.getElementById("exportPeriodStart")?.value || "";
   const endDate = document.getElementById("exportPeriodEnd")?.value || "";
   const start = parseExportDate(startDate);
@@ -14399,6 +14527,23 @@ async function runPeriodExport(type) {
   }
   if (start > end) {
     reportValidationError("開始日期必須早於或等於結束日期");
+    return;
+  }
+  if (type === "workday-statistics") {
+    const groupId = groupFeatureState.currentGroupId;
+    if (!requireCurrentGroupUiPermission("schedule_view", "統計上班日")) return;
+    try {
+      setSaveStatus("正在準備統計資料...", true);
+      await window.schedulerApi.loadScheduleExportRows(startDate, endDate);
+      const rows = await buildWorkdayStatisticsRows(startDate, endDate);
+      if (groupId !== groupFeatureState.currentGroupId) throw new Error("群組已變更，請重新統計");
+      showScheduleStatisticsResult("統計上班日", `${startDate} ～ ${endDate}`, ["所屬單位", "姓名", "工號", "排班日數"], rows,
+        `統計上班日_${startDate.replaceAll("-", "")}-${endDate.replaceAll("-", "")}.xlsx`);
+      setSaveStatus("");
+    } catch (error) {
+      setSaveStatus(`統計失敗：${error.message || error}`);
+      showInfoMessage(`統計失敗：${error.message || error}`);
+    }
     return;
   }
   if (type === "workday") {
@@ -14458,6 +14603,8 @@ async function runFunctionMenuAction(action) {
   if (action === "export-sap") return openExportPeriodDialog("sap");
   if (action === "export-leave") return openExportPeriodDialog("leave");
   if (action === "export-overtime") return openExportPeriodDialog("overtime");
+  if (action === "statistics-workday") return openExportPeriodDialog("workday-statistics");
+  if (action === "statistics-headcount") return openHeadcountStatisticsDialog();
 }
 
 function bindCoreActionsMenuEvents() {
@@ -14850,6 +14997,10 @@ function bindDelegatedClickEvents() {
     }
     if (target.dataset.runPeriodExport) {
       await runPeriodExport(target.dataset.runPeriodExport);
+      return;
+    }
+    if (target.dataset.runHeadcountStatistics) {
+      runHeadcountStatistics();
       return;
     }
     if (target.dataset.editAttendanceReview) {

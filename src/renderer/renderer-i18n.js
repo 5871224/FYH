@@ -97,6 +97,17 @@ const fyhLocalization = (() => {
     "套用預覽": "Áp dụng bản xem trước",
     "取消預覽": "Hủy bản xem trước",
     "匯出上班日": "Xuất ngày làm việc",
+    "統計上班日": "Thống kê ngày làm việc",
+    "統計人數": "Thống kê nhân sự",
+    "排班日數": "Số ngày được xếp ca",
+    "年份": "Năm",
+    "月份": "Tháng",
+    "匯出 Excel": "Xuất Excel",
+    "目前沒有符合條件的人員": "Hiện không có nhân viên phù hợp",
+    "依每月起算日當天的到職日、離職日，統計目前群組在職人員。": "Thống kê nhân viên đang làm việc trong nhóm vào ngày bắt đầu tháng, theo ngày vào làm và nghỉ việc.",
+    "請選擇有效的年份與月份": "Chọn năm và tháng hợp lệ",
+    "群組已變更，請重新統計": "Nhóm đã thay đổi, hãy thống kê lại",
+    "正在準備統計資料...": "Đang chuẩn bị dữ liệu thống kê...",
     "匯出休例假": "Xuất ngày nghỉ",
     "匯出請假": "Xuất nghỉ phép",
     "匯出加班": "Xuất tăng ca",
@@ -371,6 +382,8 @@ const fyhLocalization = (() => {
   }
 
   function translateDynamic(text, entityMap) {
+    const statisticsSummary = text.match(/^(統計日期：)?(\d{4}-\d{2}-\d{2}(?: ～ \d{4}-\d{2}-\d{2})?)；人員數：(\d+)$/);
+    if (statisticsSummary) return `${statisticsSummary[1] ? "Ngày thống kê: " : ""}${statisticsSummary[2]}; Số nhân viên: ${statisticsSummary[3]}`;
     const resetConfirm = text.match(/^確定要將 (.+) 的密碼重設為 000000 嗎？$/);
     if (resetConfirm) return `Bạn có chắc muốn đặt lại mật khẩu của ${resetConfirm[1]} thành 000000 không?`;
     const resetSuccess = text.match(/^(.+) 的密碼已重設為 000000$/);

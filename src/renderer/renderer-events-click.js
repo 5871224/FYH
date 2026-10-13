@@ -212,6 +212,10 @@ function bindDelegatedClickEvents() {
       await runPeriodExport(target.dataset.runPeriodExport);
       return;
     }
+    if (target.dataset.runHeadcountStatistics) {
+      runHeadcountStatistics();
+      return;
+    }
     if (target.dataset.editAttendanceReview) {
       openAttendanceReviewEditModal(target.dataset.editAttendanceReview);
       return;
