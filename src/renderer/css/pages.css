@@ -1115,4 +1115,32 @@ html[lang="vi"] .attendance-ledger-table .attendance-clock-buttons [data-persona
   line-height: 1.2;
   text-align: center;
 }
-
+/* 簽到附件欄、管理表格與手機上傳介面 */
+.attachment-cell{display:inline-flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap}
+.attachment-icon-btn{position:relative;width:30px;height:30px;min-width:30px}
+.attachment-icon-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.attachment-icon-btn sup{position:absolute;right:-3px;top:-5px;font-size:11px}
+.attendance-ledger-table .personal-record-attachment-col,.attendance-review-table .attendance-review-attachment-col{width:74px;text-align:center}
+.attendance-ledger-table{min-width:1038px}
+.attendance-review-table{min-width:1074px}
+.attachment-manager-filters{display:flex;gap:12px;flex-wrap:wrap}
+.attachment-usage{padding:12px;border:1px solid var(--border-color,#ddd);border-radius:9px;margin-bottom:12px}
+.attachment-usage>div:first-child{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.attachment-progress{height:12px;background:#e5e7e9;border-radius:10px;overflow:hidden;margin:10px 0}
+.attachment-progress span{height:100%;display:block}
+.attachment-manager-table{min-width:760px}
+.attachment-manager-table th:first-child,.attachment-manager-table td:first-child{width:40px;text-align:center}
+.attachment-manager-table th:nth-child(2){width:110px}
+.attachment-manager-table th:nth-child(3){width:100px}
+.attachment-manager-table th:nth-child(5){width:90px}
+.attachment-manager-table th:nth-child(6){width:145px}
+.attachment-form{display:grid;gap:12px}
+.attachment-picker{display:flex;gap:8px;flex-wrap:wrap}
+.attachment-drop{border:2px dashed var(--border-color,#aaa);padding:20px;border-radius:8px;text-align:center}
+.attachment-pending-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px;border-bottom:1px solid #ddd}
+.attachment-day-list{display:grid;gap:10px;max-height:65vh;overflow:auto}
+.attachment-day-row{display:grid;gap:6px;padding:10px;border:1px solid #ddd;border-radius:8px;overflow-wrap:anywhere}
+.attachment-day-row small{color:var(--muted)}
+.attachment-day-row input{width:100%}
+.attachment-preview{max-height:75vh;overflow:auto;text-align:center}
+.attachment-preview img{max-width:100%;height:auto}
