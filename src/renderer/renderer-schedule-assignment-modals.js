@@ -9,7 +9,7 @@ function openEntityListModal(config) {
     : '<div class="modal-header-actions"></div>';
   const closeButton = `
     <div class="modal-header-close">
-      <button class="settings-icon-btn modal-close-btn" type="button" data-close-button="true" aria-label="關閉" title="關閉">
+      <button class="settings-icon-btn modal-close-btn" type="button" data-close-button="true" aria-label="關閉" ${config.suppressCloseTooltip ? "" : 'title="關閉"'}>
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M6 6l12 12"></path>
           <path d="M18 6l-12 12"></path>

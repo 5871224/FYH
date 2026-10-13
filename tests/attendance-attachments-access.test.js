@@ -62,6 +62,7 @@ test("本人未審可看到每個檔案的刪除與儲存說明，不依賴已�
   assert.equal((dialogs[0].body.match(/data-att-delete=/g)||[]).length,2);
   assert.match(dialogs[0].headerButtons,/data-att-save-all/);
   assert.equal(dialogs[0].hideFooterClose,true);
+  assert.equal(dialogs[0].suppressCloseTooltip,true);
   assert.equal((dialogs[0].body.match(/data-att-view=/g)||[]).length,2);
   assert.equal((dialogs[0].body.match(/data-att-description=/g)||[]).length,2);
   permitted=false;
@@ -104,6 +105,7 @@ test("標題儲存鈕一次儲存所有已修改說明，並略過未變更檔�
   const vm=require("node:vm");
   const source=read("src/renderer/renderer-attachments.js");
   const saved=[],messages=[];
+  let closed=0;
   const inputs=[
     {value:"新說明A",dataset:{attDescription:"f1",attOriginalDescription:"舊說明A"}},
     {value:"沒變更",dataset:{attDescription:"f2",attOriginalDescription:"沒變更"}},
@@ -112,7 +114,8 @@ test("標題儲存鈕一次儲存所有已修改說明，並略過未變更檔�
   const ctx={
     document:{querySelectorAll:()=>inputs},
     window:{schedulerApi:{editAttendanceAttachment:async (id,text)=>{saved.push([id,text]);}}},
-    showInfoMessage:m=>messages.push(m)
+    showInfoMessage:m=>messages.push(m),
+    closeModal:()=>{closed++;}
   };
   vm.runInNewContext(source,ctx,{timeout:2000});
   const button={disabled:false,isConnected:true};
@@ -121,7 +124,8 @@ test("標題儲存鈕一次儲存所有已修改說明，並略過未變更檔�
   assert.equal(inputs[0].dataset.attOriginalDescription,"新說明A");
   assert.equal(inputs[2].dataset.attOriginalDescription,"新說明C");
   assert.equal(button.disabled,false);
-  assert.match(messages[0],/已儲存 2 個附件說明/);
+  assert.deepEqual(messages,[]);
+  assert.equal(closed,1);
 });
 
 test("批次儲存若某筆失敗，保留未成功的修改供重試",async()=>{
@@ -139,4 +143,43 @@ test("批次儲存若某筆失敗，保留未成功的修改供重試",async()=>
   assert.equal(input.dataset.attOriginalDescription,"舊說明");
   assert.match(messages[0],/失敗/);
   assert.match(messages[0],/x\.jpg/);
+});
+
+
+test("說明未修改時儲存直接關閉，不跳確認提示",async()=>{
+  const vm=require("node:vm");
+  const source=read("src/renderer/renderer-attachments.js");
+  const notices=[],saved=[];
+  let closed=0;
+  const ctx={
+    document:{querySelectorAll:()=>[{value:"未變更",dataset:{attDescription:"f1",attOriginalDescription:"未變更"}}]},
+    window:{schedulerApi:{editAttendanceAttachment:async(...args)=>saved.push(args)}},
+    showInfoMessage:m=>notices.push(m),
+    closeModal:()=>{closed++;}
+  };
+  vm.runInNewContext(source,ctx,{timeout:2000});
+  await ctx.saveAttachmentDayDescriptions({disabled:false,isConnected:true});
+  assert.equal(closed,1);
+  assert.equal(saved.length,0);
+  assert.equal(notices.length,0);
+});
+
+test("附件 SVG 不使用滑鼠 title 提示，同時保留 aria-label",()=>{
+  const vm=require("node:vm");
+  const source=read("src/renderer/renderer-attachments.js");
+  const ctx={
+    recordsState:{attachmentCounts:{}},
+    ensureRecordsState(){},
+    getTodayDateString(){return "2026-10-13";},
+    addDaysToDateString(){return "2026-09-13";},
+    escapeHtml:s=>String(s)
+  };
+  vm.runInNewContext(source,ctx,{timeout:2000});
+  const markup=[ctx.attachmentActionButton("view","f1"),ctx.attachmentActionButton("delete","f1"),
+    ctx.renderAttachmentCell("person","2026-10-13",true,2)].join("");
+  assert.doesNotMatch(markup,/\stitle=/);
+  assert.match(markup,/aria-label="查看／下載"/);
+  assert.match(markup,/aria-label="刪除"/);
+  assert.match(markup,/aria-label="上傳檔案"/);
+  assert.match(markup,/aria-label="查看附件"/);
 });
