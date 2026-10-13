@@ -2646,3 +2646,5 @@ grant execute on function public.save_attendance_clock(uuid, date, text, jsonb)
 to service_role;
 
 commit;
+
+-- Attendance attachments schema lives in 001_current_schema.sql and migration 2026101301.
