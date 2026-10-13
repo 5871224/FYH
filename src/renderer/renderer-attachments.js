@@ -24,8 +24,10 @@ function attachmentIcon(kind){
   return "";
 }
 function attachmentActionButton(action,id){
-  const label=action==="view"?"查看／下載":"刪除";
-  return '<button class="settings-icon-btn attachment-action-btn" type="button" title="'+label+'" aria-label="'+label+'" data-att-'+action+'="'+escapeHtml(id)+'">'+attachmentIcon(action)+'</button>';
+  const attr=escapeHtml(id);
+  if(action==="view")return '<button class="settings-icon-btn attachment-action-btn" type="button" title="查看／下載" aria-label="查看／下載" data-att-view="'+attr+'">'+attachmentIcon("view")+'</button>';
+  if(action==="delete")return '<button class="settings-icon-btn attachment-action-btn" type="button" title="刪除" aria-label="刪除" data-att-delete="'+attr+'">'+attachmentIcon("delete")+'</button>';
+  return "";
 }
 function renderAttachmentCell(owner,date,editable,serverCount){
   ensureAttachmentState();
