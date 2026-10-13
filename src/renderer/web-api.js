@@ -1477,6 +1477,25 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     };
   }
 
+
+  async function attachmentRequest(action,payload={}) {
+    ensureSignedIn();
+    return requestFunction("attendance-attachments",{action,...payload});
+  }
+  async function uploadAttendanceAttachment(workDate,description,file) {
+    const mime=file.type||"application/octet-stream";
+    const reserved=await attachmentRequest("reserve",{workDate,description,name:file.name,size:file.size,mime});
+    const response=await fetch(reserved.signedUrl,{method:"PUT",headers:{"Content-Type":mime,"x-upsert":"false"},body:file});
+    if(!response.ok)throw new Error("Storage 上傳失敗："+(await response.text()).slice(0,180));
+    return attachmentRequest("finish",{id:reserved.id});
+  }
+  const getAttachmentCounts=(days)=>attachmentRequest("counts",{days});
+  const getAttachmentDay=(ownerId,workDate)=>attachmentRequest("day",{ownerId,workDate});
+  const getAttachmentManager=(filters)=>attachmentRequest("manager_list",filters);
+  const getAttachmentView=(id)=>attachmentRequest("view",{id});
+  const editAttendanceAttachment=(id,description)=>attachmentRequest("edit",{id,description});
+  const deleteAttendanceAttachments=(ids)=>attachmentRequest("delete",{ids});
+
   window.schedulerApi = {
     initializeAuth,
     getAuthContext: () => ({ session: currentSession, profile: currentProfile }),
@@ -1489,6 +1508,13 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     getTodayMealOrder,
     saveTodayMealOrder,
     getPersonalRecords,
+    uploadAttendanceAttachment,
+    getAttachmentCounts,
+    getAttachmentDay,
+    getAttachmentManager,
+    getAttachmentView,
+    editAttendanceAttachment,
+    deleteAttendanceAttachments,
     savePersonalAttendanceDay,
     getAttendanceReviewList,
     saveAttendanceCommonNotes,
