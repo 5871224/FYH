@@ -113,7 +113,7 @@ async function loadRecordsPage(shouldRender = true) {
       ...recordsState.personalFilters,
       page: recordsState.personalPage
     });
-    await refreshAttachmentCounts(result.records || [],true);
+    // Personal attachment counts arrive in the same authenticated personal_list response.
     recordsState = {
       ...recordsState,
       loading: false,
