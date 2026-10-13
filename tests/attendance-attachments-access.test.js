@@ -183,3 +183,23 @@ test("附件 SVG 不使用滑鼠 title 提示，同時保留 aria-label",()=>{
   assert.match(markup,/aria-label="上傳檔案"/);
   assert.match(markup,/aria-label="查看附件"/);
 });
+
+
+test("放大鏡照片預覽視窗只有右上角 X，不建立底部關閉按鈕",async()=>{
+  const vm=require("node:vm");
+  const src=read("src/renderer/renderer-attachments.js");
+  const dialogs=[];
+  const ctx={
+    window:{schedulerApi:{getAttachmentView:async id=>({name:"照片.jpg",mime:"image/jpeg",url:"https://example.invalid/private-image"})}},
+    escapeHtml:value=>String(value),
+    openEntityListModal:config=>dialogs.push(config),
+    showInfoMessage:message=>{throw new Error(message);}
+  };
+  vm.runInNewContext(src,ctx,{timeout:2000});
+  await ctx.openAttachmentPreview("file-1");
+  assert.equal(dialogs.length,1);
+  assert.equal(dialogs[0].hideFooterClose,true);
+  assert.equal(dialogs[0].suppressCloseTooltip,true);
+  assert.match(dialogs[0].body,/<img /);
+  assert.equal(dialogs[0].footerButtons,undefined);
+});

@@ -196,7 +196,7 @@ async function openAttachmentPreview(id){
   try{
     const r=await window.schedulerApi.getAttachmentView(id);
     if(/^image\/(jpeg|png|webp|gif)$/.test(r.mime)){
-      openEntityListModal({title:r.name,body:'<div class="attachment-preview"><img alt="'+escapeHtml(r.name)+'" src="'+escapeHtml(r.url)+'"></div>'});
+      openEntityListModal({title:r.name,hideFooterClose:true,suppressCloseTooltip:true,body:'<div class="attachment-preview"><img alt="'+escapeHtml(r.name)+'" src="'+escapeHtml(r.url)+'"></div>'});
     }else{
       const a=document.createElement("a");a.href=r.url;a.download=r.name;a.rel="noopener";document.body.appendChild(a);a.click();a.remove();
     }
