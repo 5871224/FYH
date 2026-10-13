@@ -99,7 +99,17 @@ async function countRows(ctx:any,actor:any,body:any){
   const other=list.some((d:any)=>d.ownerId!==actor.id);
   if(other)await canManage(ctx,actor);
   const targetIds=[...new Set(list.map((p:any)=>p.ownerId))];
-  for(const id of targetIds){const target=await targetOf(ctx,id);await authorize(ctx,actor,target);}
+  const permittedGroups=other?await groups(ctx,actor):[];
+  const people=await ctx.supabaseAdmin.from("set_employee")
+    .select("id,group_id,deleted_at,home_department:set_departments!home_department_id(hidden_from_schedule)")
+    .in("id",targetIds);
+  if(people.error)throw people.error;
+  const targets=new Map((people.data||[]).map((p:any)=>[p.id,p]));
+  for(const id of targetIds){
+    const p:any=targets.get(id);
+    if(!p||p.deleted_at||p.home_department?.hidden_from_schedule
+      ||(id!==actor.id&&!permittedGroups.includes(p.group_id)))throw new Error("沒有該人員的附件權限");
+  }
   const min=list.map((d:any)=>d.date).sort()[0],max=list.map((d:any)=>d.date).sort().at(-1);
   const r=await ctx.supabaseAdmin.from("attendance_attachments").select("owner_id,work_date")
     .in("owner_id",targetIds).gte("work_date",min).lte("work_date",max).eq("status","ready");
@@ -115,7 +125,23 @@ function safeType(v:string){
     "application/vnd.ms-excel","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/zip"];
   return allowed.includes(v.toLowerCase());
 }
+async function cleanupExpiredReservations(ctx:any){
+  // Signed upload URLs expire after two hours. Reclaim abandoned reservations after three.
+  const expiration=new Date(Date.now()-3*60*60*1000).toISOString();
+  const pending=await ctx.supabaseAdmin.from("attendance_attachments").select("id,storage_path")
+    .eq("status","reserved").lt("created_at",expiration).limit(100);
+  if(pending.error)throw pending.error;
+  for(const row of pending.data||[]){
+    const removed=await ctx.supabaseAdmin.storage.from(BUCKET).remove([row.storage_path]);
+    if(removed.error)continue;
+    const released=await ctx.supabaseAdmin.from("attendance_attachments")
+      .update({status:"deleted",deleted_at:new Date().toISOString()})
+      .eq("id",row.id).eq("status","reserved");
+    if(released.error)throw released.error;
+  }
+}
 async function reserve(ctx:any,actor:any,body:any){
+  await cleanupExpiredReservations(ctx);
   const date=String(body.workDate||""),name=String(body.name||"").trim();
   const size=Number(body.size),mime=String(body.mime||"").toLowerCase();
   const ext=name.split(".").pop()?.toLowerCase()||"";
