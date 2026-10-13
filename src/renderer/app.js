@@ -11734,9 +11734,15 @@ function attachmentSize(bytes){
     :n>=1048576?(n/1048576).toFixed(2)+" MB":(n/1024).toFixed(1)+" KB";
 }
 function attachmentIcon(kind){
-  return kind==="upload"
-    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 17v3h16v-3"/></svg>'
-    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 11.5-8.5 8.5a6 6 0 0 1-8.5-8.5L13 2.5a4 4 0 0 1 5.7 5.7l-9 9a2 2 0 0 1-2.8-2.8l8.4-8.4"/></svg>';
+  if(kind==="upload")return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 17v3h16v-3"/></svg>';
+  if(kind==="clip")return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 11.5-8.5 8.5a6 6 0 0 1-8.5-8.5L13 2.5a4 4 0 0 1 5.7 5.7l-9 9a2 2 0 0 1-2.8-2.8l8.4-8.4"/></svg>';
+  if(kind==="view")return '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.2"/><path d="m15.4 15.4 5.2 5.2"/></svg>';
+  if(kind==="delete")return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v6m4-6v6"/></svg>';
+  return "";
+}
+function attachmentActionButton(action,id){
+  const label=action==="view"?"查看／下載":"刪除";
+  return '<button class="settings-icon-btn attachment-action-btn" type="button" title="'+label+'" aria-label="'+label+'" data-att-'+action+'="'+escapeHtml(id)+'">'+attachmentIcon(action)+'</button>';
 }
 function renderAttachmentCell(owner,date,editable,serverCount){
   ensureAttachmentState();
@@ -11781,9 +11787,9 @@ function renderAttachmentManager(){
     +'</div><div class="records-admin-actions"><button type="button" class="ghost-btn compact-btn" data-att-batch>整批刪除</button></div></div>'
     +(s.error?'<p class="auth-error">'+escapeHtml(s.error)+'</p>':'')
     +'<div class="records-table-wrap"><table class="records-table attachment-manager-table"><thead><tr>'
-    +'<th><input type="checkbox" data-att-check-all aria-label="全選本頁"></th><th>日期</th><th>員工</th><th>檔案</th><th>大小</th><th>操作</th></tr></thead><tbody>'
-    +(s.rows||[]).map(r=>'<tr><td><input type="checkbox" data-att-check="'+escapeHtml(r.id)+'"></td><td>'+renderRecordDateCell(r.work_date)+'</td><td>'+escapeHtml(r.employee_name)+'</td><td title="'+escapeHtml(r.description||"")+'">'+escapeHtml(r.original_name)+'</td><td>'+attachmentSize(r.size_bytes)+'</td><td><button class="ghost-btn compact-btn" data-att-view="'+escapeHtml(r.id)+'">查看</button> <button class="ghost-btn compact-btn" data-att-delete="'+escapeHtml(r.id)+'">刪除</button></td></tr>').join("")
-    +(!(s.rows||[]).length?'<tr><td colspan="6">沒有檔案</td></tr>':"")+'</tbody></table></div>'
+    +'<th><input type="checkbox" data-att-check-all aria-label="全選本頁"></th><th>日期</th><th>員工</th><th>檔案</th><th>說明</th><th>大小</th><th>操作</th></tr></thead><tbody>'
+    +(s.rows||[]).map(r=>'<tr><td><input type="checkbox" data-att-check="'+escapeHtml(r.id)+'"></td><td>'+renderRecordDateCell(r.work_date)+'</td><td>'+escapeHtml(r.employee_name)+'</td><td>'+escapeHtml(r.original_name)+'</td><td class="attachment-manager-description">'+escapeHtml(r.description||"")+'</td><td>'+attachmentSize(r.size_bytes)+'</td><td><div class="attachment-manager-actions">'+attachmentActionButton("view",r.id)+attachmentActionButton("delete",r.id)+'</div></td></tr>').join("")
+    +(!(s.rows||[]).length?'<tr><td colspan="7">沒有檔案</td></tr>':"")+'</tbody></table></div>'
     +'<div class="records-filter-row records-pagination"><button class="ghost-btn compact-btn" data-att-page="'+(s.page-1)+'" '+(s.page<=1?'disabled':'')+'>上一頁</button>'
     +'<span>共 '+s.total+' 筆，第 '+s.page+' / '+Math.max(1,Math.ceil(s.total/s.pageSize))+' 頁</span>'
     +'<button class="ghost-btn compact-btn" data-att-page="'+(s.page+1)+'" '+(s.page*s.pageSize>=s.total?'disabled':'')+'>下一頁</button></div>'
@@ -11846,16 +11852,56 @@ async function saveAttachmentUpload(){
 }
 async function openAttachmentDay(owner,date){
   try{
-    const r=await window.schedulerApi.getAttachmentDay(owner,date);
-    // The backend checks both ownership and review status, independent of cached personal rows.
-    const editable=r.canEdit===true;
-    openEntityListModal({title:"附檔｜"+date,body:'<div class="attachment-day-list">'
-      +(r.rows||[]).map(f=>'<div class="attachment-day-row"><b>'+escapeHtml(f.original_name)+'</b><small>'+attachmentSize(f.size_bytes)+'</small>'
-      +(editable?'<input type="text" maxlength="1000" aria-label="說明" value="'+escapeHtml(f.description||"")+'" data-att-description="'+escapeHtml(f.id)+'">':'<span>'+escapeHtml(f.description||"")+'</span>')
-      +'<div><button class="ghost-btn compact-btn" data-att-view="'+escapeHtml(f.id)+'">查看／下載</button>'
-      +(editable?'<button class="ghost-btn compact-btn" data-att-save="'+escapeHtml(f.id)+'">儲存說明</button><button class="ghost-btn compact-btn" data-att-delete="'+escapeHtml(f.id)+'">刪除</button>':'')+'</div></div>').join("")
-      +(!(r.rows||[]).length?'<p>沒有附件</p>':'')+'</div>'});
-  }catch(error){showInfoMessage(error.message);}
+    const result=await window.schedulerApi.getAttachmentDay(owner,date);
+    // 本人／審核權限由後端驗證，避免依賴個人紀錄的暫存資料。
+    const editable=result.canEdit===true;
+    const rows=result.rows||[];
+    openEntityListModal({
+      title:"附檔｜"+date,
+      modalClass:"modal modal-wide attachment-day-modal",
+      hideFooterClose:true,
+      headerButtons:editable&&rows.length
+        ?'<button class="btn-primary" type="button" data-att-save-all>儲存</button>'
+        :"",
+      body:'<div class="attachment-day-list">'
+        +rows.map(file=>{
+          const id=escapeHtml(file.id);
+          return '<div class="attachment-day-row">'
+            +'<div class="attachment-file-heading">'
+            +'<div class="attachment-file-meta"><strong>'+escapeHtml(file.original_name)+'</strong><small>'+attachmentSize(file.size_bytes)+'</small></div>'
+            +'<div class="attachment-file-actions">'+attachmentActionButton("view",file.id)
+            +(editable?attachmentActionButton("delete",file.id):"")+'</div></div>'
+            +(editable?'<input type="text" maxlength="1000" aria-label="'+escapeHtml(file.original_name)+'的說明" value="'+escapeHtml(file.description||"")+'" data-att-description="'+id+'" data-att-original-description="'+escapeHtml(file.description||"")+'">'
+              :'<div class="attachment-file-description">'+escapeHtml(file.description||"")+'</div>')
+            +'</div>';
+        }).join("")
+        +(!rows.length?'<p>沒有附件</p>':"")+'</div>'
+    });
+  }catch(error){showInfoMessage(error.message||"無法讀取附件");}
+}
+async function saveAttachmentDayDescriptions(button){
+  const inputs=[...document.querySelectorAll("#modalRoot .attachment-day-list [data-att-description]")];
+  const updates=inputs.filter(input=>input.value!==input.dataset.attOriginalDescription);
+  if(!updates.length){showInfoMessage("附件說明沒有變更");return;}
+  if(button)button.disabled=true;
+  const failures=[];
+  let saved=0;
+  try{
+    for(const input of updates){
+      try{
+        await window.schedulerApi.editAttendanceAttachment(input.dataset.attDescription,input.value);
+        input.dataset.attOriginalDescription=input.value;
+        saved++;
+      }catch(error){
+        failures.push(input.closest(".attachment-day-row")?.querySelector(".attachment-file-meta strong")?.textContent||input.dataset.attDescription);
+      }
+    }
+    showInfoMessage(failures.length
+      ?"已儲存 "+saved+" 個附件說明；以下 "+failures.length+" 個失敗，請重試："+failures.join("、")
+      :"已儲存 "+saved+" 個附件說明");
+  }finally{
+    if(button?.isConnected)button.disabled=false;
+  }
 }
 async function openAttachmentPreview(id){
   try{
@@ -11900,8 +11946,7 @@ function bindAttachmentEvents(){
     if(t.dataset.attDelete){await removeAttachments([t.dataset.attDelete]);return;}
     if(t.dataset.attBatch!==undefined){await removeAttachments([...document.querySelectorAll("[data-att-check]:checked")].map(x=>x.dataset.attCheck));return;}
     if(t.dataset.attPage){const s=ensureAttachmentState();s.page=Number(t.dataset.attPage);if(s.page>0)await loadAttachmentManager();return;}
-    if(t.dataset.attSave){const input=[...document.querySelectorAll("[data-att-description]")].find(x=>x.dataset.attDescription===t.dataset.attSave);
-      try{await window.schedulerApi.editAttendanceAttachment(t.dataset.attSave,input?.value||"");showInfoMessage("說明已儲存");}catch(error){showInfoMessage(error.message);}return;}
+    if(t.dataset.attSaveAll!==undefined){await saveAttachmentDayDescriptions(t);return;}
   });
 }
 ;
