@@ -192,6 +192,8 @@ function bindDelegatedClickEvents() {
       recordsState.activeTab = nextTab;
       if (nextTab === "review" && hasAnyGroupPermission("attendance_review") && !ensureAttendanceReviewState().loaded) {
         await loadAttendanceReview();
+      } else if (nextTab === "attachments" && hasAnyGroupPermission("attendance_review")) {
+        await loadAttachmentManager();
       } else {
         renderAll();
       }
