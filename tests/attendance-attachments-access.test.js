@@ -29,3 +29,41 @@ test("檔案僅能經私有 Storage 和配額預留完成上傳",()=>{
   assert.match(edge,/createSignedUploadUrl\(row\.storage_path\)/);
   assert.match(edge,/rpc\("finish_attendance_attachment"/);
 });
+
+
+test("未審附件的編輯權限由伺服器按所有者與審核狀態判斷",()=>{
+  const backend=read("supabase/functions/attendance-attachments/index.ts");
+  assert.match(backend,/const canEdit=ownerId===actor\.id&&!review\.data\?\.reviewed_at/);
+  assert.match(backend,/isProfileEmployedOn\(actor,date\)&&date<=taipeiDateString\(\)/);
+  assert.match(backend,/return Response\.json\(\{rows:await rowsForDay\(ctx,ownerId,date\),canEdit\}\)/);
+  assert.match(backend,/if\(r\.data\?\.reviewed_at\)throw new Error\("該日期已審核，不能修改附件"\)/);
+});
+
+test("本人未審可看到每個檔案的刪除與儲存說明，不依賴已載入個人紀錄",async()=>{
+  const vm=require("node:vm");
+  const source=read("src/renderer/renderer-attachments.js");
+  const dialogs=[];
+  let permitted=true;
+  const ctx={
+    recordsState:{personal:[]},
+    window:{schedulerApi:{
+      getAuthContext:()=>({session:{user:{id:"owner-aaa"}}}),
+      getAttachmentDay:async()=>({canEdit:permitted,rows:[
+        {id:"file-1",original_name:"photo1.jpg",size_bytes:1024,description:"測試"},
+        {id:"file-2",original_name:"photo2.jpg",size_bytes:2048,description:"測試2"}
+      ]})
+    }},
+    escapeHtml:s=>String(s),
+    openEntityListModal:dialog=>dialogs.push(dialog),
+    showInfoMessage:message=>{throw new Error(message)}
+  };
+  vm.runInNewContext(source,ctx,{timeout:2000});
+  await ctx.openAttachmentDay("owner-aaa","2026-10-13");
+  assert.equal((dialogs[0].body.match(/data-att-delete=/g)||[]).length,2);
+  assert.equal((dialogs[0].body.match(/data-att-save=/g)||[]).length,2);
+  permitted=false;
+  await ctx.openAttachmentDay("owner-aaa","2026-10-13");
+  assert.doesNotMatch(dialogs[1].body,/data-att-delete=/);
+  assert.doesNotMatch(dialogs[1].body,/data-att-save=/);
+  assert.match(dialogs[1].body,/查看／下載/);
+});
