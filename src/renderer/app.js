@@ -11847,8 +11847,8 @@ async function saveAttachmentUpload(){
 async function openAttachmentDay(owner,date){
   try{
     const r=await window.schedulerApi.getAttachmentDay(owner,date);
-    const record=(recordsState.personal||[]).find(x=>x.date===date);
-    const editable=owner===attachmentOwner()&&record&&!record.reviewed&&record.editable!==false;
+    // The backend checks both ownership and review status, independent of cached personal rows.
+    const editable=r.canEdit===true;
     openEntityListModal({title:"附檔｜"+date,body:'<div class="attachment-day-list">'
       +(r.rows||[]).map(f=>'<div class="attachment-day-row"><b>'+escapeHtml(f.original_name)+'</b><small>'+attachmentSize(f.size_bytes)+'</small>'
       +(editable?'<input type="text" maxlength="1000" aria-label="說明" value="'+escapeHtml(f.description||"")+'" data-att-description="'+escapeHtml(f.id)+'">':'<span>'+escapeHtml(f.description||"")+'</span>')
