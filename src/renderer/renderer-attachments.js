@@ -84,11 +84,31 @@ function updateAttachmentPending(){
   const list=document.getElementById("attachmentPendingFiles");if(!list)return;
   list.innerHTML=pendingAttendanceFiles.map((f,i)=>'<div class="attachment-pending-row"><span>'+escapeHtml(f.name)+'（'+attachmentSize(f.size)+'）</span><button type="button" class="ghost-btn compact-btn" data-att-remove="'+i+'">移除</button></div>').join("")||'<span>尚未選擇檔案</span>';
 }
+// 以副檔名限制選取，避免瀏覽器的 accept 或拖曳功能放入不支援的格式。
+const attachmentAllowedExtensions=["jpg","jpeg","png","webp","gif","heic","heif","pdf","txt","csv","doc","docx","xls","xlsx","zip"];
+const attachmentAcceptedTypes=attachmentAllowedExtensions.map(ext=>"."+ext).join(",");
+function attachmentFileIssue(file){
+  const extension=String(file?.name||"").split(".").pop().toLowerCase();
+  if(!attachmentAllowedExtensions.includes(extension))return "格式不支援";
+  if(!Number.isInteger(file.size)||file.size<1||file.size>10485760)return "檔案必須介於 1 B 至 10 MB";
+  return "";
+}
 function addAttachmentFiles(files){
-  const added=[...(files||[])];
-  if(pendingAttendanceFiles.length+added.length>5){showInfoMessage("每次最多上傳五個檔案");return;}
-  if(added.some(f=>!f.size||f.size>10485760)){showInfoMessage("單檔大小不可超過 10 MB");return;}
-  pendingAttendanceFiles.push(...added);updateAttachmentPending();
+  const selected=[...(files||[])];
+  const rejected=[],accepted=[];
+  let remaining=5-pendingAttendanceFiles.length;
+  for(const file of selected){
+    const issue=attachmentFileIssue(file);
+    if(issue)rejected.push(file.name+"（"+issue+"）");
+    else if(remaining===0)rejected.push(file.name+"（每次最多五個檔案）");
+    else {accepted.push(file);remaining--;}
+  }
+  if(accepted.length)pendingAttendanceFiles.push(...accepted);
+  updateAttachmentPending();
+  const status=document.getElementById("attachmentStatus");
+  if(status)status.textContent=rejected.length
+    ?"以下檔案未加入："+rejected.join("、")
+    :"";
 }
 function openAttachmentUpload(date){
   const record=(recordsState.personal||[]).find(x=>x.date===date);
@@ -102,7 +122,7 @@ function openAttachmentUpload(date){
     body:'<div class="attachment-form"><label class="form-row">說明（選填）<textarea id="attachmentDesc" maxlength="1000" rows="2"></textarea></label>'
     +'<div class="attachment-picker"><button class="ghost-btn" type="button" data-att-camera>拍照</button><button class="ghost-btn" type="button" data-att-choose>選擇檔案（可多選）</button></div>'
     +'<input id="attachmentCamera" type="file" accept="image/*" capture="environment" hidden>'
-    +'<input id="attachmentFiles" type="file" multiple accept="image/*,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip" hidden>'
+    +'<input id="attachmentFiles" type="file" multiple accept="'+attachmentAcceptedTypes+'" hidden>'
     +'<div class="attachment-drop" id="attachmentDrop">也可以將檔案拖曳至此</div><div id="attachmentPendingFiles">尚未選擇檔案</div><p id="attachmentStatus"></p></div>'
   });
 }

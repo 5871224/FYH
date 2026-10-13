@@ -227,3 +227,61 @@ test("上傳附件標題右側是主要按鈕「存檔」，底部沒有關閉�
   assert.match(dialog.body,/id="attachmentDrop"/);
   assert.doesNotMatch(dialog.body,/data-att-submit|>取消<\/button>|>送出<\/button>/);
 });
+
+
+test("選取與拖曳時即排除不支援格式，TXT 仍允許，顯示拒絕原因",()=>{
+  const vm=require("node:vm");
+  const source=read("src/renderer/renderer-attachments.js");
+  const status={textContent:""};
+  const list={innerHTML:""};
+  const ctx={
+    document:{getElementById:id=>id==="attachmentStatus"?status:id==="attachmentPendingFiles"?list:null},
+    escapeHtml:v=>String(v),attachmentSize:v=>String(v)+" B"
+  };
+  vm.runInNewContext(source,ctx,{timeout:2000});
+  const attachments=[
+    {name:"1c.ico",size:38400,type:"image/vnd.microsoft.icon"},
+    {name:"License.txt",size:5600,type:"text/plain"},
+    {name:"proof.JPG",size:1500,type:"image/jpeg"},
+    {name:"oversized.pdf",size:10485761,type:"application/pdf"}
+  ];
+  ctx.addAttachmentFiles(attachments);
+  assert.match(list.innerHTML,/License\.txt/);
+  assert.match(list.innerHTML,/proof\.JPG/);
+  assert.doesNotMatch(list.innerHTML,/1c\.ico|oversized\.pdf/);
+  assert.match(status.textContent,/1c\.ico（格式不支援）/);
+  assert.match(status.textContent,/oversized\.pdf（檔案必須介於/);
+  assert.equal(ctx.attachmentFileIssue(attachments[0]),"格式不支援");
+  assert.equal(ctx.attachmentFileIssue(attachments[1]),"");
+  assert.equal(ctx.attachmentFileIssue({name:"no-extension",size:500}),"格式不支援");
+});
+
+test("選取器 accept 及後端副檔名白名單與前端一致",()=>{
+  const vm=require("node:vm");
+  const source=read("src/renderer/renderer-attachments.js");
+  const edge=read("supabase/functions/attendance-attachments/index.ts");
+  const ctx={};
+  vm.runInNewContext(source,ctx,{timeout:2000});
+  const front=[...ctx.attachmentAllowedExtensions].sort();
+  const match=edge.match(/const allowedExtensions=\[([^\]]+)\]/);
+  assert.ok(match,"後端應有副檔名白名單");
+  const backend=[...match[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]).sort();
+  assert.deepEqual(front,backend);
+  assert.match(source,/accept="'\+attachmentAcceptedTypes\+'/);
+  assert.doesNotMatch(ctx.attachmentAcceptedTypes,/\.ico|image\/\*/);
+});
+
+test("多選超過五檔時僅保留合格且不超額的檔案",()=>{
+  const vm=require("node:vm");
+  const source=read("src/renderer/renderer-attachments.js");
+  const status={textContent:""},list={innerHTML:""};
+  const ctx={
+    document:{getElementById:id=>id==="attachmentStatus"?status:id==="attachmentPendingFiles"?list:null},
+    escapeHtml:v=>String(v),attachmentSize:v=>String(v)+" B"
+  };
+  vm.runInNewContext(source,ctx,{timeout:2000});
+  ctx.addAttachmentFiles(Array.from({length:7},(_,i)=>({name:"photo"+i+".jpg",size:1000})));
+  const selected=(list.innerHTML.match(/class="attachment-pending-row"/g)||[]).length;
+  assert.equal(selected,5);
+  assert.match(status.textContent,/每次最多五個檔案/);
+});

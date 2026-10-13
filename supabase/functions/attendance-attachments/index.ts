@@ -151,8 +151,9 @@ async function reserve(ctx:any,actor:any,body:any){
   const ext=name.split(".").pop()?.toLowerCase()||"";
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!isProfileEmployedOn(actor,date)||date>taipeiDateString())
     throw new Error("上傳日期無效");
+  const allowedExtensions=["jpg","jpeg","png","webp","gif","heic","heif","pdf","txt","csv","doc","docx","xls","xlsx","zip"];
   if(!Number.isInteger(size)||size<1||size>MAX||name.length>255||!safeType(mime)
-    ||!/^[a-z0-9]{1,10}$/.test(ext)||/^(exe|html|htm|svg|js|bat|cmd|ps1|sh|msi|apk|php)$/i.test(ext))
+    ||!allowedExtensions.includes(ext))
     throw new Error("不支援此檔案類型或檔案超過 10 MB");
   await unreviewed(ctx,actor.id,date);
   const r=await ctx.supabaseAdmin.rpc("reserve_attendance_attachment",{
