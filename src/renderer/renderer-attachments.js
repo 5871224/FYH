@@ -21,9 +21,11 @@ function attachmentIcon(kind){
     ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 17v3h16v-3"/></svg>'
     : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 11.5-8.5 8.5a6 6 0 0 1-8.5-8.5L13 2.5a4 4 0 0 1 5.7 5.7l-9 9a2 2 0 0 1-2.8-2.8l8.4-8.4"/></svg>';
 }
-function renderAttachmentCell(owner,date,editable){
+function renderAttachmentCell(owner,date,editable,serverCount){
   ensureAttachmentState();
-  const count=recordsState.attachmentCounts[owner+":"+date]||0;
+  const count=Number.isInteger(serverCount) && serverCount>=0
+    ? serverCount
+    : (recordsState.attachmentCounts[owner+":"+date]||0);
   return '<span class="attachment-cell">'
     +(editable?'<button class="settings-icon-btn attachment-icon-btn" type="button" title="上傳檔案" aria-label="上傳檔案" data-att-upload="'+escapeHtml(date)+'">'+attachmentIcon("upload")+'</button>':"")
     +(count?'<button class="settings-icon-btn attachment-icon-btn" type="button" title="查看附件" aria-label="查看附件" data-att-day="'+escapeHtml(owner+":"+date)+'">'+attachmentIcon("clip")+'<sup>'+count+'</sup></button>':"")
