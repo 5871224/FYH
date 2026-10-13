@@ -12,6 +12,7 @@ function scheduleRecordsReload(key, callback) {
 }
 
 function bindRecordsEvents() {
+  bindAttachmentEvents();
   document.addEventListener("input", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
