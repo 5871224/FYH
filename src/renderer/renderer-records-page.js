@@ -113,6 +113,7 @@ async function loadRecordsPage(shouldRender = true) {
       ...recordsState.personalFilters,
       page: recordsState.personalPage
     });
+    await refreshAttachmentCounts(result.records || [],true);
     recordsState = {
       ...recordsState,
       loading: false,
@@ -145,6 +146,7 @@ async function loadAttendanceReview(shouldRender = true) {
       ...requestFilters,
       page: requestPage
     });
+    await refreshAttachmentCounts(result.rows || [],false);
     const current = ensureAttendanceReviewState();
     if (Number(current.requestId || 0) !== requestId) return false;
     recordsState = {
