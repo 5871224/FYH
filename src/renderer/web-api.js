@@ -1485,7 +1485,10 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   async function uploadAttendanceAttachment(workDate,description,file) {
     const mime=file.type||"application/octet-stream";
     const reserved=await attachmentRequest("reserve",{workDate,description,name:file.name,size:file.size,mime});
-    const response=await fetch(reserved.signedUrl,{method:"PUT",headers:{"Content-Type":mime,"x-upsert":"false"},body:file});
+    const form=new FormData();
+    form.append("cacheControl","3600");
+    form.append("",file);
+    const response=await fetch(reserved.signedUrl,{method:"PUT",headers:{"x-upsert":"false"},body:form});
     if(!response.ok)throw new Error("Storage 上傳失敗："+(await response.text()).slice(0,180));
     return attachmentRequest("finish",{id:reserved.id});
   }
