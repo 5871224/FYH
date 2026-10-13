@@ -117,7 +117,7 @@ test("標題儲存鈕一次儲存所有已修改說明，並略過未變更檔�
   vm.runInNewContext(source,ctx,{timeout:2000});
   const button={disabled:false,isConnected:true};
   await ctx.saveAttachmentDayDescriptions(button);
-  assert.deepEqual(saved,[["f1","新說明A"],["f3","新說明C"]]);
+  assert.deepEqual(saved.map(([id,text])=>`${id}:${text}`),["f1:新說明A","f3:新說明C"]);
   assert.equal(inputs[0].dataset.attOriginalDescription,"新說明A");
   assert.equal(inputs[2].dataset.attOriginalDescription,"新說明C");
   assert.equal(button.disabled,false);
