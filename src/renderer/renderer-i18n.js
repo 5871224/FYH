@@ -23,6 +23,57 @@ const fyhLocalization = (() => {
     "附件儲存用量": "Dung lượng tệp",
     "拍照": "Chụp ảnh",
     "整批刪除": "Xóa hàng loạt",
+    "關閉": "Đóng",
+    "提示": "Thông báo",
+    "檔案": "Tệp",
+    "大小": "Dung lượng",
+    "存檔": "Lưu",
+    "選擇檔案（可多選）": "Chọn tệp (có thể chọn nhiều)",
+    "說明（選填）": "Mô tả (không bắt buộc)",
+    "也可以將檔案拖曳至此": "Hoặc kéo thả tệp vào đây",
+    "尚未選擇檔案": "Chưa chọn tệp",
+    "移除": "Gỡ bỏ",
+    "沒有檔案": "Không có tệp",
+    "沒有附件": "Không có tệp đính kèm",
+    "剩餘": "Còn lại",
+    "全選本頁": "Chọn tất cả trên trang",
+    "查看／下載": "Xem / tải xuống",
+    "查看附件": "Xem tệp đính kèm",
+    "上傳檔案": "Tải tệp lên",
+    "載入中...": "Đang tải...",
+    "請先選擇檔案": "Vui lòng chọn tệp trước",
+    "請勾選檔案": "Vui lòng đánh dấu chọn tệp",
+    "格式不支援": "Định dạng không được hỗ trợ",
+    "檔案必須介於 1 B 至 10 MB": "Dung lượng tệp phải từ 1 B đến 10 MB",
+    "每次最多五個檔案": "Tối đa 5 tệp mỗi lần",
+    "以下檔案未加入：": "Không thể thêm các tệp sau: ",
+    "該日期已審核或不能修改": "Ngày này đã được duyệt hoặc không thể chỉnh sửa",
+    "附件清單載入失敗": "Không tải được danh sách tệp",
+    "無法讀取附件": "Không thể tải tệp đính kèm",
+    "附件已刪除": "Đã xóa tệp đính kèm",
+    "未知錯誤": "Lỗi không xác định",
+    "請重新整理頁面": "Vui lòng tải lại trang",
+    "附件已送出，更新附檔欄失敗：": "Tệp đã được gửi nhưng không thể cập nhật cột tệp đính kèm: ",
+    "返回附檔": "Quay lại danh sách tệp",
+    "此帳號目前無法使用附件功能": "Tài khoản này hiện không thể sử dụng chức năng tệp đính kèm",
+    "人員識別碼錯誤": "Mã định danh nhân viên không hợp lệ",
+    "無法存取此人員的附件": "Không thể truy cập tệp đính kèm của nhân viên này",
+    "沒有該群組的附件權限": "Không có quyền truy cập tệp đính kèm của nhóm này",
+    "沒有簽到審核權限": "Không có quyền duyệt chấm công",
+    "該日期已審核，不能修改附件": "Ngày này đã được duyệt, không thể sửa tệp đính kèm",
+    "附件識別碼錯誤": "Mã định danh tệp đính kèm không hợp lệ",
+    "附件不存在或已刪除": "Tệp đính kèm không tồn tại hoặc đã bị xóa",
+    "日期範圍不正確": "Khoảng ngày không hợp lệ",
+    "沒有該人員的附件權限": "Không có quyền xem tệp đính kèm của nhân viên này",
+    "上傳日期無效": "Ngày tải lên không hợp lệ",
+    "不支援此檔案類型或檔案超過 10 MB": "Loại tệp không được hỗ trợ hoặc dung lượng vượt quá 10 MB",
+    "只能編輯自己的附件": "Chỉ có thể sửa tệp đính kèm của chính mình",
+    "說明文字太長": "Nội dung mô tả quá dài",
+    "沒有刪除權限": "Không có quyền xóa",
+    "刪除失敗": "Xóa thất bại",
+    "附件日期不正確": "Ngày của tệp đính kèm không hợp lệ",
+    "不支援的附件操作": "Thao tác với tệp đính kèm không được hỗ trợ",
+    "附件操作失敗": "Thao tác với tệp đính kèm thất bại",
     "班表": "Lịch làm việc",
     "登入": "Đăng nhập",
     "登出": "Đăng xuất",
@@ -382,6 +433,23 @@ const fyhLocalization = (() => {
   }
 
   function translateDynamic(text, entityMap) {
+    // 附件各頁的日期、檔名及進度狀態，統一由語系模組翻譯。
+    const attTitle = text.match(/^(上傳附件|附檔)｜(\d{4}-\d{2}-\d{2})$/);
+    if (attTitle) return `${attTitle[1] === "上傳附件" ? "Tải tệp lên" : "Tệp đính kèm"} | ${attTitle[2]}`;
+    const attDesc = text.match(/^(.+)的說明$/);
+    if (attDesc) return `Mô tả của ${attDesc[1]}`;
+    const attProgress = text.match(/^正在上傳 (\d+) \/ (\d+)：(.+)$/);
+    if (attProgress) return `Đang tải lên ${attProgress[1]} / ${attProgress[2]}: ${attProgress[3]}`;
+    const attUploaded = text.match(/^已成功上傳 (\d+) 個附件$/);
+    if (attUploaded) return `Đã tải lên thành công ${attUploaded[1]} tệp`;
+    const attInterrupted = text.match(/^已成功 (\d+) 個，上傳中斷：(.+)$/);
+    if (attInterrupted) return `Đã tải lên ${attInterrupted[1]} tệp; quá trình tải lên bị gián đoạn: ${attInterrupted[2]}`;
+    const attEditError = text.match(/^已儲存 (\d+) 個附件說明；以下 (\d+) 個失敗，請重試：(.+)$/);
+    if (attEditError) return `Đã lưu mô tả của ${attEditError[1]} tệp; ${attEditError[2]} tệp sau không thành công, vui lòng thử lại: ${attEditError[3]}`;
+    const attDeleteConfirm = text.match(/^確定要刪除 (\d+) 個檔案（(.+)）嗎？此操作無法復原。$/);
+    if (attDeleteConfirm) return `Bạn có chắc muốn xóa ${attDeleteConfirm[1]} tệp (${attDeleteConfirm[2]}) không? Thao tác này không thể hoàn tác.`;
+    const attDeleteError = text.match(/^有 (\d+) 個刪除失敗：(.+)$/);
+    if (attDeleteError) return `Không thể xóa ${attDeleteError[1]} tệp: ${attDeleteError[2]}`;
     const statisticsSummary = text.match(/^(統計日期：)?(\d{4}-\d{2}-\d{2}(?: ～ \d{4}-\d{2}-\d{2})?)；人員數：(\d+)$/);
     if (statisticsSummary) return `${statisticsSummary[1] ? "Ngày thống kê: " : ""}${statisticsSummary[2]}; Số nhân viên: ${statisticsSummary[3]}`;
     const resetConfirm = text.match(/^確定要將 (.+) 的密碼重設為 000000 嗎？$/);
@@ -487,6 +555,7 @@ const fyhLocalization = (() => {
     },
     refreshLabels,
     saveLabel,
+    translate: (message) => translateText(String(message ?? ""), entityTranslationMap()),
     refresh,
     prepareData,
     renderLanguageControl,
@@ -500,6 +569,7 @@ window.fyhI18n = {
   displayName: fyhLocalization.displayName,
   refreshLabels: fyhLocalization.refreshLabels,
   saveLabel: fyhLocalization.saveLabel,
+  translate: fyhLocalization.translate,
   refresh: fyhLocalization.refresh
 };
 
