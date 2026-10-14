@@ -70,7 +70,7 @@ function renderAttachmentManager(){
   return '<section class="records-section attachment-manager">'
     +'<div class="attachment-usage"><div><b>附件儲存用量</b><span>'+attachmentSize(bytes)+' / '+attachmentSize(limit)+'（'+pct.toFixed(1)+'%）</span></div>'
     +'<div class="attachment-progress" role="progressbar" aria-valuenow="'+Math.round(pct)+'" aria-valuemin="0" aria-valuemax="100"><span style="width:'+pct+'%;background:'+(pct>=90?'#b44b41':pct>=80?'#bb891d':'#4387ba')+'"></span></div>'
-    +'<small>剩餘 '+attachmentSize(Math.max(0,limit-bytes))+'</small></div>'
+    +'<small><span>剩餘</span> '+attachmentSize(Math.max(0,limit-bytes))+'</small></div>'
     +'<div class="records-admin-toolbar"><div class="records-admin-filters attachment-manager-filters">'
     +'<label class="records-admin-field"><span>開始日期</span><input type="date" value="'+escapeHtml(s.filters.fromDate)+'" data-att-filter="fromDate"></label>'
     +'<label class="records-admin-field"><span>結束日期</span><input type="date" value="'+escapeHtml(s.filters.toDate)+'" data-att-filter="toDate"></label>'
