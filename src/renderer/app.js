@@ -426,11 +426,15 @@
         ? "日一二三四五六"[new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay()]
         : "";
       const excelRow = sheet.addRow([row[0], source?.employee_name || "", weekday || "", ...row.slice(1)]);
-      if (source?.missingScheduledShift) {
-        // Include empty cells so the entire 14-column row is visibly marked.
+      // Missing shift is pink; example/rest day is yellow. Pink takes priority.
+      const rowFill = source?.missingScheduledShift
+        ? "FFFFE4EC"
+        : source?.overtime_type_id === "attendance-rest-day" ? "FFFFF2CC" : "";
+      if (rowFill) {
+        // Apply to all 14 cells, including blank cells.
         for (let column = 1; column <= headers.length; column += 1) {
           excelRow.getCell(column).fill = {
-            type: "pattern", pattern: "solid", fgColor: { argb: "FFFFE4EC" }
+            type: "pattern", pattern: "solid", fgColor: { argb: rowFill }
           };
         }
       }
