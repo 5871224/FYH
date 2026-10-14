@@ -322,10 +322,9 @@ async function exportAttendanceReview() {
       groupId: filters.groupId
     });
     setSaveStatus("");
-    const skipped = Array.isArray(result.skippedOvertime) ? result.skippedOvertime : [];
-    if (skipped.length) {
-      const sample = skipped.slice(0, 8).join("、");
-      showInfoMessage(`已略過 ${skipped.length} 筆缺少有效班別上班時間的加班紀錄：${sample}${skipped.length > 8 ? " 等" : ""}。請補齊班表後再匯出。`);
+    const highlighted = Array.isArray(result.highlightedMissingShift) ? result.highlightedMissingShift : [];
+    if (highlighted.length) {
+      showInfoMessage(`已匯出 ${highlighted.length} 筆缺少有效班別時間的加班紀錄，Excel 已以粉紅底色標示；開始時間為當天 00:00，結束時間依加班時數推算，請人工核對。`);
     } else if (result.empty) {
       showInfoMessage("所選期間沒有可匯出的加班資料");
     }

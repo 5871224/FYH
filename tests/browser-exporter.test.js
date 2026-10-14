@@ -72,3 +72,50 @@ test("SAP CSV 保留 BOM 並正確跳脫逗號與雙引號", () => {
   assert.equal(csv.includes('"王,小""明"'), true);
   assert.equal(csv.includes("A001,20260502,20260502,REST"), true);
 });
+
+test("簽到審核匯出 Excel：缺班別整列粉紅，正常班別不變", async () => {
+  class FakeRow {
+    constructor(values) { this.values = values; this.cells = new Map(); }
+    getCell(index) {
+      if (!this.cells.has(index)) this.cells.set(index, {value:this.values[index-1]});
+      return this.cells.get(index);
+    }
+    eachCell(callback) {
+      this.values.forEach((value, index) => {if (value !== undefined && value !== "") callback(this.getCell(index+1), index+1);});
+    }
+  }
+  class FakeSheet {
+    constructor(){this.rows=[];this.columns=[];}
+    addRow(values){const row=new FakeRow(values);this.rows.push(row);return row;}
+    getRow(index){return this.rows[index-1];}
+    eachRow(callback){this.rows.forEach((row,index)=>callback(row,index+1));}
+  }
+  class FakeWorkbook {
+    constructor(){this.sheet=new FakeSheet();}
+    addWorksheet(){return this.sheet;}
+  }
+  const prev=global.ExcelJS;
+  global.ExcelJS={Workbook:FakeWorkbook};
+  const previousWindow=global.window;
+  global.window={ExcelJS:global.ExcelJS};
+  try {
+    const workbook=await exporter.createOvertimeWorkbook({
+      attendanceReview:true,
+      exportRows:[
+        {employee_code:"001",employee_name:"缺班",work_date:"2026-10-01",overtime_type_id:"attendance-ledger",overtime_start_time:"00:00",overtime_end_time:"03:30",missingScheduledShift:true},
+        {employee_code:"002",employee_name:"正常",work_date:"2026-10-01",overtime_type_id:"attendance-ledger",overtime_start_time:"10:30",overtime_end_time:"11:30"}
+      ]
+    });
+    const missing=workbook.sheet.getRow(2), normal=workbook.sheet.getRow(3);
+    assert.equal(missing.values.length,14);
+    assert.equal(missing.getCell(5).value,"0000");
+    assert.equal(missing.getCell(6).value,"0330");
+    for(let i=1;i<=14;i++) assert.equal(missing.getCell(i).fill?.fgColor?.argb,"FFFFE4EC");
+    for(let i=1;i<=14;i++) assert.equal(normal.getCell(i).fill,undefined);
+  } finally {
+    if(prev===undefined) delete global.ExcelJS;
+    else global.ExcelJS=prev;
+    if(previousWindow===undefined) delete global.window;
+    else global.window=previousWindow;
+  }
+});

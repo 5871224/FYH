@@ -40,3 +40,41 @@ test("簽到審核匯出使用正式 exportRows 十二欄契約並納入休例�
   assert.match(spec, /班表頁「匯出加班」也沿用例休排班規則/);
   assert.match(spec, /簽到審核若另有加班時數.*額外前推規則/);
 });
+
+test("缺少班別開始時間仍匯出，以 00:00 起算並標記粉紅底色", async () => {
+  const vm = require("node:vm");
+  const webApi = read("src/renderer/web-api.js");
+  const helperStart = webApi.indexOf("function formatOvertimeHoursAsTime");
+  const helperEnd = webApi.indexOf("  function downloadBlob", helperStart);
+  const helpers = vm.runInNewContext(
+    webApi.slice(helperStart, helperEnd) + "\n({formatOvertimeHoursAsTime,subtractOvertimeHoursFromClockTime,addMinutesToClockTime})",
+    {}
+  );
+  const functionStart = webApi.indexOf("async function exportAttendanceReview(filters = {})");
+  const functionEnd = webApi.indexOf("  async function exportMembers(", functionStart);
+  let captured;
+  const exportAttendanceReview = vm.runInNewContext(
+    "(" + webApi.slice(functionStart, functionEnd).trim() + ")",
+    {
+      ensureSignedIn() {},
+      requestFunction: async () => ({
+        rows: [
+          {employee_code: "A101", employee_name: "無班別", work_date: "2026-10-01", overtimeHours: 3.5, scheduledShiftStartTime: null},
+          {employee_code: "A102", employee_name: "有班別", work_date: "2026-10-01", overtimeHours: 1, scheduledShiftStartTime: "11:30"}
+        ]
+      }),
+      ...helpers,
+      exportOvertime: async payload => {captured = payload;return {empty:false};}
+    }
+  );
+  const result = await exportAttendanceReview({fromDate:"2026-10-01",toDate:"2026-10-01"});
+  assert.equal(captured.exportRows.length, 2);
+  assert.equal(captured.exportRows[0].overtime_start_time, "00:00");
+  assert.equal(captured.exportRows[0].overtime_end_time, "03:30");
+  assert.equal(captured.exportRows[0].overtime_previous_day, 0);
+  assert.equal(captured.exportRows[0].missingScheduledShift, true);
+  assert.equal(captured.exportRows[1].overtime_start_time, "10:30");
+  assert.equal(captured.exportRows[1].overtime_end_time, "11:30");
+  assert.equal(captured.exportRows[1].missingScheduledShift, undefined);
+  assert.equal(result.highlightedMissingShift.length, 1);
+});

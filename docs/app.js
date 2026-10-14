@@ -425,7 +425,15 @@
       const weekday = match
         ? "日一二三四五六"[new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay()]
         : "";
-      sheet.addRow([row[0], source?.employee_name || "", weekday || "", ...row.slice(1)]);
+      const excelRow = sheet.addRow([row[0], source?.employee_name || "", weekday || "", ...row.slice(1)]);
+      if (source?.missingScheduledShift) {
+        // Include empty cells so the entire 14-column row is visibly marked.
+        for (let column = 1; column <= headers.length; column += 1) {
+          excelRow.getCell(column).fill = {
+            type: "pattern", pattern: "solid", fgColor: { argb: "FFFFE4EC" }
+          };
+        }
+      }
     });
     sheet.getRow(1).font = { bold: true };
     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
@@ -2605,7 +2613,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       memberId: filters.memberId || "",
       groupId: filters.groupId || ""
     });
-    const skippedOvertime = [];
+    const highlightedMissingShift = [];
     const exportRows = (Array.isArray(result.rows) ? result.rows : []).flatMap((row) => {
       const scheduledStart = row.restDayScheduled ? String(row.scheduledShiftStartTime || "") : "";
       const scheduledEnd = row.restDayScheduled ? String(row.scheduledShiftEndTime || "") : "";
@@ -2634,8 +2642,22 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       const shiftStart = String(row.scheduledShiftStartTime || "");
       const adjustedStart = subtractOvertimeHoursFromClockTime(shiftStart, row.overtimeHours);
       if (!adjustedStart.time) {
-        skippedOvertime.push(`${row.employee_name || row.employee_code || "未知員工"}（${row.work_date || "日期不明"}）`);
-        return [];
+        // Keep overtime even without a usable shift start. 00:00 is a visible
+        // placeholder; the actual end is computed from the reported duration.
+        highlightedMissingShift.push(`${row.employee_name || row.employee_code || "未知員工"}（${row.work_date || "日期不明"}）`);
+        return [{
+          employee_code: row.employee_code || "",
+          employee_name: row.employee_name || "",
+          work_date: row.work_date || "",
+          overtime_type_id: "attendance-ledger",
+          overtime_start_time: "00:00",
+          overtime_end_time: formatOvertimeHoursAsTime(row.overtimeHours),
+          overtime_previous_day: 0,
+          overtime_subsidy_type: 1,
+          overtime_use_rest_1: false,
+          overtime_use_rest_2: false,
+          missingScheduledShift: true
+        }];
       }
       return [{
         employee_code: row.employee_code || "",
@@ -2656,7 +2678,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       exportRows,
       attendanceReview: true
     });
-    return { ...exported, skippedOvertime };
+    return { ...exported, highlightedMissingShift };
 
   }
 
@@ -12765,10 +12787,9 @@ async function exportAttendanceReview() {
       groupId: filters.groupId
     });
     setSaveStatus("");
-    const skipped = Array.isArray(result.skippedOvertime) ? result.skippedOvertime : [];
-    if (skipped.length) {
-      const sample = skipped.slice(0, 8).join("、");
-      showInfoMessage(`已略過 ${skipped.length} 筆缺少有效班別上班時間的加班紀錄：${sample}${skipped.length > 8 ? " 等" : ""}。請補齊班表後再匯出。`);
+    const highlighted = Array.isArray(result.highlightedMissingShift) ? result.highlightedMissingShift : [];
+    if (highlighted.length) {
+      showInfoMessage(`已匯出 ${highlighted.length} 筆缺少有效班別時間的加班紀錄，Excel 已以粉紅底色標示；開始時間為當天 00:00，結束時間依加班時數推算，請人工核對。`);
     } else if (result.empty) {
       showInfoMessage("所選期間沒有可匯出的加班資料");
     }

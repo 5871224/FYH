@@ -418,7 +418,15 @@
       const weekday = match
         ? "日一二三四五六"[new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay()]
         : "";
-      sheet.addRow([row[0], source?.employee_name || "", weekday || "", ...row.slice(1)]);
+      const excelRow = sheet.addRow([row[0], source?.employee_name || "", weekday || "", ...row.slice(1)]);
+      if (source?.missingScheduledShift) {
+        // Include empty cells so the entire 14-column row is visibly marked.
+        for (let column = 1; column <= headers.length; column += 1) {
+          excelRow.getCell(column).fill = {
+            type: "pattern", pattern: "solid", fgColor: { argb: "FFFFE4EC" }
+          };
+        }
+      }
     });
     sheet.getRow(1).font = { bold: true };
     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
