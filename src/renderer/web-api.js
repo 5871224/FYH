@@ -18,6 +18,9 @@
 
   let currentSession = null;
   let currentProfile = null;
+  // A single in-memory snapshot makes page navigation independent from network latency.
+  const reviewListCache = new Map();
+  const REVIEW_CACHE_TTL_MS = 5 * 60 * 1000;
 
       function compactExportDate(value) {
     return String(value || "").replace(/[^0-9]/g, "").slice(0, 8);
@@ -164,6 +167,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   function clearSession() {
     currentSession = null;
     currentProfile = null;
+    reviewListCache.clear();
     localStorage.removeItem(sessionStorageKey);
     sessionStorage.removeItem(sessionStorageKey);
   }
@@ -743,16 +747,43 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
 
   async function savePersonalAttendanceDay(payload = {}) {
     ensureSignedIn();
-    return requestFunction("attendance-ledger", { action: "personal_save", ...payload });
+    const result = await requestFunction("attendance-ledger", { action: "personal_save", ...payload });
+    reviewListCache.clear();
+    return result;
   }
 
-    async function getAttendanceReviewList(filters = {}) {
+  async function getAttendanceReviewList(filters = {}) {
     ensureSignedIn();
-    return requestFunction(
-      "attendance-review-groups",
-      { action: "review_list", ...filters },
-      { retryTransientOnce: true }
-    );
+    const key = JSON.stringify([
+      currentSession?.user?.id || "", filters.fromDate || "", filters.toDate || "",
+      filters.groupId || "", filters.memberId || "", filters.issueType || "",
+      filters.status || "unreviewed"
+    ]);
+    let cached = reviewListCache.get(key);
+    if (!cached || Date.now() - cached.fetchedAt >= REVIEW_CACHE_TTL_MS) {
+      const request = requestFunction(
+        "attendance-review-groups",
+        { action: "review_list", ...filters, page: 1, includeAllRows: true },
+        { retryTransientOnce: true }
+      );
+      cached = { fetchedAt: Date.now(), request };
+      reviewListCache.clear();
+      reviewListCache.set(key, cached);
+      request.catch(() => { if (reviewListCache.get(key) === cached) reviewListCache.delete(key); });
+    }
+    const result = await cached.request;
+    const rows = Array.isArray(result.rows) ? result.rows : [];
+    const sortDirection = filters.sortDirection === "asc" ? "asc" : "desc";
+    const sorted = [...rows].sort((a, b) => {
+      const dateCompare = sortDirection === "asc"
+        ? String(a.work_date).localeCompare(String(b.work_date))
+        : String(b.work_date).localeCompare(String(a.work_date));
+      return dateCompare || String(a.employee_code).localeCompare(String(b.employee_code));
+    });
+    const pageSize = 50;
+    const pages = Math.max(1, Math.ceil(sorted.length / pageSize));
+    const page = Math.min(pages, Math.max(1, Math.trunc(Number(filters.page) || 1)));
+    return { ...result, rows: sorted.slice((page - 1) * pageSize, page * pageSize), total: sorted.length, page, pageSize };
   }
 
   async function saveAttendanceCommonNotes(payload = {}) {
@@ -762,12 +793,16 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
 
   async function saveAttendanceReviewRecord(payload = {}) {
     ensureSignedIn();
-    return requestFunction("attendance-review-groups", { action: "review_save", ...payload });
+    const result = await requestFunction("attendance-review-groups", { action: "review_save", ...payload });
+    reviewListCache.clear();
+    return result;
   }
 
   async function setAttendanceReviewed(payload = {}) {
     ensureSignedIn();
-    return requestFunction("attendance-review-groups", { action: "review_set", ...payload });
+    const result = await requestFunction("attendance-review-groups", { action: "review_set", ...payload });
+    reviewListCache.clear();
+    return result;
   }
 
   async function getAttendanceHistory(recordId) {

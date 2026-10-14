@@ -249,6 +249,7 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
   const issueType = String(body?.issueType || "");
   const sortDirection = body?.sortDirection === "asc" ? "asc" : "desc";
   const page = pageNumber(body?.page);
+  const includeAllRows = !exportOnly && body?.includeAllRows === true;
   const commonNotes = await getCommonNotes(ctx);
   if (!groupIds.length) return { ok: true, members: [], departments: [], issueTypes: [], commonNotes, rows: [], total: 0, page, pageSize: PAGE_SIZE };
 
@@ -355,7 +356,7 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
       .map((department: any) => ({ id: department.id, name: department.name || "", group_id: department.group_id })),
     issueTypes: availableIssueTypes,
     commonNotes,
-    rows: exportOnly ? rows : rows.slice(offset, offset + PAGE_SIZE),
+    rows: exportOnly || includeAllRows ? rows : rows.slice(offset, offset + PAGE_SIZE),
     total: rows.length, page, pageSize: exportOnly ? rows.length : PAGE_SIZE
   };
 }

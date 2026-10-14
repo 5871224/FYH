@@ -146,7 +146,6 @@ async function loadAttendanceReview(shouldRender = true) {
       ...requestFilters,
       page: requestPage
     });
-    await refreshAttachmentCounts(result.rows || [],false);
     const current = ensureAttendanceReviewState();
     if (Number(current.requestId || 0) !== requestId) return false;
     recordsState = {
@@ -166,6 +165,10 @@ async function loadAttendanceReview(shouldRender = true) {
         error: ""
       }
     };
+    // Attachment metadata is supplemental: don't block page changes on it.
+    void refreshAttachmentCounts(result.rows || [], false).then((changed) => {
+      if (changed && Number(ensureAttendanceReviewState().requestId || 0) === requestId) renderAll();
+    });
   } catch (error) {
     const current = ensureAttendanceReviewState();
     if (Number(current.requestId || 0) !== requestId) return false;

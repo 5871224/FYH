@@ -46,13 +46,16 @@ function renderAttachmentCell(owner,date,editable,serverCount){
 }
 async function refreshAttachmentCounts(rows,personal){
   const owner=attachmentOwner();
-  const days=(rows||[]).map(x=>({ownerId:personal?owner:x.user_id,date:personal?x.date:x.work_date})).filter(x=>x.ownerId&&x.date);
-  if(!days.length)return;
+  ensureAttachmentState();
+  const days=(rows||[]).map(x=>({ownerId:personal?owner:x.user_id,date:personal?x.date:x.work_date}))
+    .filter(x=>x.ownerId&&x.date&&!Object.prototype.hasOwnProperty.call(recordsState.attachmentCounts,x.ownerId+":"+x.date));
+  if(!days.length)return false;
   try{
     const r=await window.schedulerApi.getAttachmentCounts(days);
     ensureAttachmentState();
     for(const x of days)recordsState.attachmentCounts[x.ownerId+":"+x.date]=r.counts?.[x.ownerId+":"+x.date]||0;
-  }catch(error){console.warn("附件數量載入失敗",error);}
+    return true;
+  }catch(error){console.warn("附件數量載入失敗",error);return false;}
 }
 async function loadAttachmentManager(render=true){
   if(!hasAnyGroupPermission("attendance_review"))return;
