@@ -20,7 +20,6 @@ async function runFunctionMenuAction(action) {
   if (action === "export-workday") return openExportPeriodDialog("workday");
   if (action === "export-sap") return openExportPeriodDialog("sap");
   if (action === "export-leave") return openExportPeriodDialog("leave");
-  if (action === "export-overtime") return openExportPeriodDialog("overtime");
   if (action === "statistics-workday") return openExportPeriodDialog("workday-statistics");
   if (action === "statistics-headcount") return openHeadcountStatisticsDialog();
 }

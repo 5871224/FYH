@@ -32,3 +32,27 @@ test("班表頁匯出加班會將例假或休息日的排班班別視為加班",
   assert.match(exportFunction, /left join public\.set_shift shift_type on shift_type\.id=schedule\.shift_type_id/);
   assert.match(exportFunction, /when schedule\.overtime_type_id is not null then schedule\.overtime_start_time/);
 });
+
+test("班表的匯出選單不再有加班，但簽到審核仍有匯出加班", () => {
+  const vm = require("node:vm");
+  const source = read("src/renderer/renderer-groups-permissions-archive.js");
+  const start = source.indexOf("function getFunctionMenuSections()");
+  const end = source.indexOf("\nfunction hasFunctionMenuAccess()", start);
+  assert.ok(start >= 0 && end > start);
+  const categories = vm.runInNewContext(
+    source.slice(start, end) + "\ngetFunctionMenuSections()",
+    {
+      groupFeatureState: { currentGroupId: "g1" },
+      hasCommonPermission: name => name === "export",
+      hasGroupPermission: () => false
+    }
+  );
+  const items = categories.find(category => category.id === "export").items;
+  assert.deepEqual(Array.from(items, item => item.label), [
+    "列印班表", "匯出上班日", "匯出休例假", "匯出請假",
+    "統計上班日", "統計人數"
+  ]);
+  assert.doesNotMatch(read("src/renderer/renderer-events-toolbar.js"), /action === "export-overtime"/);
+  assert.match(read("src/renderer/renderer-records-views.js"), /data-export-attendance-review="true">匯出加班/);
+  assert.match(read("src/renderer/web-api.js"), /async function exportAttendanceReview\(filters = \{\}\)/);
+});

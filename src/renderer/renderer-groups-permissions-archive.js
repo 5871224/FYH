@@ -296,7 +296,6 @@ function getFunctionMenuSections() {
         { id: "exportScheduleButton", label: "匯出上班日", action: "export-workday" },
         { id: "exportSapButton", label: "匯出休例假", action: "export-sap" },
         { id: "exportLeaveButton", label: "匯出請假", action: "export-leave" },
-        { id: "exportOvertimeButton", label: "匯出加班", action: "export-overtime" },
         { id: "workdayStatisticsButton", label: "統計上班日", action: "statistics-workday" },
         { id: "headcountStatisticsButton", label: "統計人數", action: "statistics-headcount" }
       ]

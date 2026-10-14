@@ -9071,7 +9071,6 @@ function getFunctionMenuSections() {
         { id: "exportScheduleButton", label: "匯出上班日", action: "export-workday" },
         { id: "exportSapButton", label: "匯出休例假", action: "export-sap" },
         { id: "exportLeaveButton", label: "匯出請假", action: "export-leave" },
-        { id: "exportOvertimeButton", label: "匯出加班", action: "export-overtime" },
         { id: "workdayStatisticsButton", label: "統計上班日", action: "statistics-workday" },
         { id: "headcountStatisticsButton", label: "統計人數", action: "statistics-headcount" }
       ]
@@ -14847,7 +14846,6 @@ async function runFunctionMenuAction(action) {
   if (action === "export-workday") return openExportPeriodDialog("workday");
   if (action === "export-sap") return openExportPeriodDialog("sap");
   if (action === "export-leave") return openExportPeriodDialog("leave");
-  if (action === "export-overtime") return openExportPeriodDialog("overtime");
   if (action === "statistics-workday") return openExportPeriodDialog("workday-statistics");
   if (action === "statistics-headcount") return openHeadcountStatisticsDialog();
 }
