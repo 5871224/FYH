@@ -11,13 +11,28 @@ function isRestDayLeave(leave: any) {
   return code === "0036" || code === "0047" || name === "例假" || name === "休息日";
 }
 
+// Supabase REST queries return at most one server-configured page of rows.
+// Always paginate large exports instead of treating truncated results as missing records.
+const EXPORT_PAGE_SIZE = 500;
+
+async function readAllPages(buildQuery: () => any): Promise<any[]> {
+  const rows: any[] = [];
+  for (let offset = 0; ; offset += EXPORT_PAGE_SIZE) {
+    const { data, error } = await buildQuery().range(offset, offset + EXPORT_PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < EXPORT_PAGE_SIZE) return rows;
+  }
+}
+
 async function getVisibleMembers(ctx: any, actorId: string, requestedGroupId = "") {
-  const { data, error } = await ctx.supabaseAdmin
+  const data = await readAllPages(() => ctx.supabaseAdmin
     .from("set_employee")
     .select("id,employee_code,full_name,group_id,home_department:set_departments!home_department_id(hidden_from_schedule)")
     .is("deleted_at", null)
-    .not("group_id", "is", null);
-  if (error) throw error;
+    .not("group_id", "is", null)
+    .order("id", { ascending: true }));
 
   const groupIds = [...new Set<string>((data || []).map((row: any) => String(row.group_id || "")).filter(Boolean))];
   const accessPairs = await Promise.all(groupIds.map(async (groupId) => [
@@ -34,15 +49,14 @@ async function getVisibleMembers(ctx: any, actorId: string, requestedGroupId = "
 
 async function getScheduleContext(ctx: any, memberIds: string[], fromDate: string, toDate: string) {
   if (!memberIds.length) return { schedules: new Map(), shifts: new Map(), leaves: new Map() };
-  const scheduleResult = await ctx.supabaseAdmin
+  const schedules = await readAllPages(() => ctx.supabaseAdmin
     .from("schedule_entries")
     .select("member_id,work_date,shift_type_id,leave_type_id")
     .in("member_id", memberIds)
     .gte("work_date", fromDate)
-    .lte("work_date", toDate);
-  if (scheduleResult.error) throw scheduleResult.error;
-
-  const schedules = scheduleResult.data || [];
+    .lte("work_date", toDate)
+    .order("work_date", { ascending: true })
+    .order("member_id", { ascending: true }));
   const shiftIds = [...new Set<string>(schedules.map((row: any) => String(row.shift_type_id || "")).filter(Boolean))];
   const leaveIds = [...new Set<string>(schedules.map((row: any) => String(row.leave_type_id || "")).filter(Boolean))];
   const [shiftResult, leaveResult] = await Promise.all([
@@ -85,17 +99,17 @@ export default {
       const visibleMemberIds: string[] = requestedMemberId ? [requestedMemberId] : [...memberMap.keys()];
       if (!visibleMemberIds.length) return Response.json({ ok: true, rows: [] });
 
-      const [{ data: attendanceRows, error: attendanceError }, scheduleContext] = await Promise.all([
-        ctx.supabaseAdmin
+      const [attendanceRows, scheduleContext] = await Promise.all([
+        readAllPages(() => ctx.supabaseAdmin
           .from("attendance_days")
-          .select("*")
+          .select("user_id,work_date,regular_minutes,overtime_minutes,clock_in_at,clock_out_at,note")
           .in("user_id", visibleMemberIds)
           .gte("work_date", fromDate)
           .lte("work_date", toDate)
-          .order("work_date", { ascending: true }),
+          .order("work_date", { ascending: true })
+          .order("user_id", { ascending: true })),
         getScheduleContext(ctx, visibleMemberIds, fromDate, toDate)
       ]);
-      if (attendanceError) throw attendanceError;
 
       const rows = ((attendanceRows || []) as any[]).map((row: any) => {
         const member: any = memberMap.get(row.user_id) || {};
