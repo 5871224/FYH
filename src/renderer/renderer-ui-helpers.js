@@ -36,11 +36,12 @@ function closeCoreActionsMenu() {
 }
 
 function showInfoMessage(message) {
+  const translated = window.fyhI18n?.translate?.(message) ?? message;
   if (window.schedulerApi?.showMessage) {
-    window.schedulerApi.showMessage("提示", message);
+    window.schedulerApi.showMessage(window.fyhI18n?.translate?.("提示") ?? "提示", translated);
     return;
   }
-  window.alert(message);
+  window.alert(translated);
 }
 
 function formatSchedulerError(error, fallback = "操作失敗") {
@@ -55,10 +56,11 @@ function formatSchedulerError(error, fallback = "操作失敗") {
 }
 
 async function confirmAction(message) {
+  const translated = window.fyhI18n?.translate?.(message) ?? message;
   if (window.schedulerApi?.confirmAction) {
-    return window.schedulerApi.confirmAction("確認", message);
+    return window.schedulerApi.confirmAction(window.fyhI18n?.translate?.("確認") ?? "確認", translated);
   }
-  return window.confirm(message);
+  return window.confirm(translated);
 }
 
 function buildTimeOptions(selectedValue, values) {
