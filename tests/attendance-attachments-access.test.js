@@ -285,3 +285,61 @@ test("多選超過五檔時僅保留合格且不超額的檔案",()=>{
   assert.equal(selected,5);
   assert.match(status.textContent,/每次最多五個檔案/);
 });
+
+
+test("從附檔清單查看圖片時，右上角 X 返回原附檔視窗並保留尚未儲存的說明",async()=>{
+  const vm=require("node:vm");
+  const source=read("src/renderer/renderer-attachments.js");
+  const input={value:"尚未存檔的說明"};
+  const original={querySelector:()=>({}),input,scrollTop:175};
+  const closeBtn={
+    dataset:{closeButton:"true"},
+    setAttribute(name,value){this[name]=value;}
+  };
+  const preview={querySelector:selector=>selector.includes("modal-close-btn")?closeBtn:null};
+  const root={
+    firstElementChild:original,
+    querySelector:selector=>selector===".attachment-day-list"?{}:selector.includes("modal-close-btn")?closeBtn:null,
+    replaceChildren(node){this.firstElementChild=node;}
+  };
+  const ctx={
+    document:{getElementById:id=>id==="modalRoot"?root:null},
+    modalContext:{category:"existing-dialog"},
+    window:{schedulerApi:{getAttachmentView:async()=>({name:"a.jpg",mime:"image/jpeg",url:"https://example.invalid/a.jpg"})}},
+    escapeHtml:s=>String(s),
+    openEntityListModal:()=>{root.firstElementChild=preview;},
+    showInfoMessage:message=>{throw Error(message);}
+  };
+  vm.runInNewContext(source,ctx,{timeout:2000});
+  await ctx.openAttachmentPreview("file-1");
+  assert.equal(closeBtn.dataset.closeButton,undefined);
+  assert.equal(closeBtn.dataset.attPreviewBack,"");
+  assert.equal(closeBtn["aria-label"],"返回附檔");
+  assert.equal(root.firstElementChild,preview);
+  ctx.restoreAttachmentPreviewOrigin();
+  assert.equal(root.firstElementChild,original);
+  assert.equal(root.firstElementChild.input.value,"尚未存檔的說明");
+  assert.equal(root.firstElementChild.scrollTop,175);
+  assert.equal(ctx.modalContext.category,"existing-dialog");
+});
+
+test("從附檔管理直接查看圖片時，X 保持一般關閉行為",async()=>{
+  const vm=require("node:vm");
+  const source=read("src/renderer/renderer-attachments.js");
+  const closeBtn={dataset:{closeButton:"true"}};
+  const root={
+    firstElementChild:null,
+    querySelector:selector=>selector===".attachment-day-list"?null:closeBtn
+  };
+  const ctx={
+    document:{getElementById:id=>id==="modalRoot"?root:null},
+    window:{schedulerApi:{getAttachmentView:async()=>({name:"a.jpg",mime:"image/jpeg",url:"https://example.invalid/a.jpg"})}},
+    escapeHtml:s=>String(s),
+    openEntityListModal:()=>{root.firstElementChild={};},
+    showInfoMessage:message=>{throw Error(message);}
+  };
+  vm.runInNewContext(source,ctx,{timeout:2000});
+  await ctx.openAttachmentPreview("file-1");
+  assert.equal(closeBtn.dataset.closeButton,"true");
+  assert.equal(closeBtn.dataset.attPreviewBack,undefined);
+});
