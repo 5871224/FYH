@@ -71,3 +71,9 @@ test("中文模式保持原來文字，附件動態訊息使用共用翻譯函�
   assert.match(attachments, /attachmentTranslate\("正在上傳 "/);
   assert.match(attachments, /attachmentTranslate\("確定要刪除 "/);
 });
+
+test("儲存空間的剩餘文字要獨立成節點，不能與容量數字合併而漏翻", () => {
+  assert.ok(attachments.includes('<small><span>剩餘</span> '));
+  assert.equal(translator("vi-VN")("剩餘"), "Còn lại");
+  assert.equal(translator("zh-TW")("剩餘"), "剩餘");
+});
