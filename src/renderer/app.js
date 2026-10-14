@@ -2857,6 +2857,57 @@ const fyhLocalization = (() => {
     "附件儲存用量": "Dung lượng tệp",
     "拍照": "Chụp ảnh",
     "整批刪除": "Xóa hàng loạt",
+    "關閉": "Đóng",
+    "提示": "Thông báo",
+    "檔案": "Tệp",
+    "大小": "Dung lượng",
+    "存檔": "Lưu",
+    "選擇檔案（可多選）": "Chọn tệp (có thể chọn nhiều)",
+    "說明（選填）": "Mô tả (không bắt buộc)",
+    "也可以將檔案拖曳至此": "Hoặc kéo thả tệp vào đây",
+    "尚未選擇檔案": "Chưa chọn tệp",
+    "移除": "Gỡ bỏ",
+    "沒有檔案": "Không có tệp",
+    "沒有附件": "Không có tệp đính kèm",
+    "剩餘": "Còn lại",
+    "全選本頁": "Chọn tất cả trên trang",
+    "查看／下載": "Xem / tải xuống",
+    "查看附件": "Xem tệp đính kèm",
+    "上傳檔案": "Tải tệp lên",
+    "載入中...": "Đang tải...",
+    "請先選擇檔案": "Vui lòng chọn tệp trước",
+    "請勾選檔案": "Vui lòng đánh dấu chọn tệp",
+    "格式不支援": "Định dạng không được hỗ trợ",
+    "檔案必須介於 1 B 至 10 MB": "Dung lượng tệp phải từ 1 B đến 10 MB",
+    "每次最多五個檔案": "Tối đa 5 tệp mỗi lần",
+    "以下檔案未加入：": "Không thể thêm các tệp sau: ",
+    "該日期已審核或不能修改": "Ngày này đã được duyệt hoặc không thể chỉnh sửa",
+    "附件清單載入失敗": "Không tải được danh sách tệp",
+    "無法讀取附件": "Không thể tải tệp đính kèm",
+    "附件已刪除": "Đã xóa tệp đính kèm",
+    "未知錯誤": "Lỗi không xác định",
+    "請重新整理頁面": "Vui lòng tải lại trang",
+    "附件已送出，更新附檔欄失敗：": "Tệp đã được gửi nhưng không thể cập nhật cột tệp đính kèm: ",
+    "返回附檔": "Quay lại danh sách tệp",
+    "此帳號目前無法使用附件功能": "Tài khoản này hiện không thể sử dụng chức năng tệp đính kèm",
+    "人員識別碼錯誤": "Mã định danh nhân viên không hợp lệ",
+    "無法存取此人員的附件": "Không thể truy cập tệp đính kèm của nhân viên này",
+    "沒有該群組的附件權限": "Không có quyền truy cập tệp đính kèm của nhóm này",
+    "沒有簽到審核權限": "Không có quyền duyệt chấm công",
+    "該日期已審核，不能修改附件": "Ngày này đã được duyệt, không thể sửa tệp đính kèm",
+    "附件識別碼錯誤": "Mã định danh tệp đính kèm không hợp lệ",
+    "附件不存在或已刪除": "Tệp đính kèm không tồn tại hoặc đã bị xóa",
+    "日期範圍不正確": "Khoảng ngày không hợp lệ",
+    "沒有該人員的附件權限": "Không có quyền xem tệp đính kèm của nhân viên này",
+    "上傳日期無效": "Ngày tải lên không hợp lệ",
+    "不支援此檔案類型或檔案超過 10 MB": "Loại tệp không được hỗ trợ hoặc dung lượng vượt quá 10 MB",
+    "只能編輯自己的附件": "Chỉ có thể sửa tệp đính kèm của chính mình",
+    "說明文字太長": "Nội dung mô tả quá dài",
+    "沒有刪除權限": "Không có quyền xóa",
+    "刪除失敗": "Xóa thất bại",
+    "附件日期不正確": "Ngày của tệp đính kèm không hợp lệ",
+    "不支援的附件操作": "Thao tác với tệp đính kèm không được hỗ trợ",
+    "附件操作失敗": "Thao tác với tệp đính kèm thất bại",
     "班表": "Lịch làm việc",
     "登入": "Đăng nhập",
     "登出": "Đăng xuất",
@@ -3216,6 +3267,23 @@ const fyhLocalization = (() => {
   }
 
   function translateDynamic(text, entityMap) {
+    // 附件各頁的日期、檔名及進度狀態，統一由語系模組翻譯。
+    const attTitle = text.match(/^(上傳附件|附檔)｜(\d{4}-\d{2}-\d{2})$/);
+    if (attTitle) return `${attTitle[1] === "上傳附件" ? "Tải tệp lên" : "Tệp đính kèm"} | ${attTitle[2]}`;
+    const attDesc = text.match(/^(.+)的說明$/);
+    if (attDesc) return `Mô tả của ${attDesc[1]}`;
+    const attProgress = text.match(/^正在上傳 (\d+) \/ (\d+)：(.+)$/);
+    if (attProgress) return `Đang tải lên ${attProgress[1]} / ${attProgress[2]}: ${attProgress[3]}`;
+    const attUploaded = text.match(/^已成功上傳 (\d+) 個附件$/);
+    if (attUploaded) return `Đã tải lên thành công ${attUploaded[1]} tệp`;
+    const attInterrupted = text.match(/^已成功 (\d+) 個，上傳中斷：(.+)$/);
+    if (attInterrupted) return `Đã tải lên ${attInterrupted[1]} tệp; quá trình tải lên bị gián đoạn: ${attInterrupted[2]}`;
+    const attEditError = text.match(/^已儲存 (\d+) 個附件說明；以下 (\d+) 個失敗，請重試：(.+)$/);
+    if (attEditError) return `Đã lưu mô tả của ${attEditError[1]} tệp; ${attEditError[2]} tệp sau không thành công, vui lòng thử lại: ${attEditError[3]}`;
+    const attDeleteConfirm = text.match(/^確定要刪除 (\d+) 個檔案（(.+)）嗎？此操作無法復原。$/);
+    if (attDeleteConfirm) return `Bạn có chắc muốn xóa ${attDeleteConfirm[1]} tệp (${attDeleteConfirm[2]}) không? Thao tác này không thể hoàn tác.`;
+    const attDeleteError = text.match(/^有 (\d+) 個刪除失敗：(.+)$/);
+    if (attDeleteError) return `Không thể xóa ${attDeleteError[1]} tệp: ${attDeleteError[2]}`;
     const statisticsSummary = text.match(/^(統計日期：)?(\d{4}-\d{2}-\d{2}(?: ～ \d{4}-\d{2}-\d{2})?)；人員數：(\d+)$/);
     if (statisticsSummary) return `${statisticsSummary[1] ? "Ngày thống kê: " : ""}${statisticsSummary[2]}; Số nhân viên: ${statisticsSummary[3]}`;
     const resetConfirm = text.match(/^確定要將 (.+) 的密碼重設為 000000 嗎？$/);
@@ -3321,6 +3389,7 @@ const fyhLocalization = (() => {
     },
     refreshLabels,
     saveLabel,
+    translate: (message) => translateText(String(message ?? ""), entityTranslationMap()),
     refresh,
     prepareData,
     renderLanguageControl,
@@ -3334,6 +3403,7 @@ window.fyhI18n = {
   displayName: fyhLocalization.displayName,
   refreshLabels: fyhLocalization.refreshLabels,
   saveLabel: fyhLocalization.saveLabel,
+  translate: fyhLocalization.translate,
   refresh: fyhLocalization.refresh
 };
 
@@ -4208,11 +4278,12 @@ function closeCoreActionsMenu() {
 }
 
 function showInfoMessage(message) {
+  const translated = window.fyhI18n?.translate?.(message) ?? message;
   if (window.schedulerApi?.showMessage) {
-    window.schedulerApi.showMessage("提示", message);
+    window.schedulerApi.showMessage(window.fyhI18n?.translate?.("提示") ?? "提示", translated);
     return;
   }
-  window.alert(message);
+  window.alert(translated);
 }
 
 function formatSchedulerError(error, fallback = "操作失敗") {
@@ -4227,10 +4298,11 @@ function formatSchedulerError(error, fallback = "操作失敗") {
 }
 
 async function confirmAction(message) {
+  const translated = window.fyhI18n?.translate?.(message) ?? message;
   if (window.schedulerApi?.confirmAction) {
-    return window.schedulerApi.confirmAction("確認", message);
+    return window.schedulerApi.confirmAction(window.fyhI18n?.translate?.("確認") ?? "確認", translated);
   }
-  return window.confirm(message);
+  return window.confirm(translated);
 }
 
 function buildTimeOptions(selectedValue, values) {
@@ -11718,6 +11790,11 @@ async function loadMealAdminSettings(shouldRender = true) {
 /* 簽到附件共用介面與操作。正式檔案權限一律由 attendance-attachments Edge Function 驗證。 */
 let pendingAttendanceFiles=[];
 let attachmentWorkDate="";
+// 使用統一詞庫翻譯動態更新的上傳進度、操作結果與錯誤訊息。
+function attachmentTranslate(message){
+  const text=String(message??"");
+  return window.fyhI18n?.translate?.(text)??text;
+}
 function ensureAttachmentState(){
   ensureRecordsState();
   recordsState.attachmentCounts ||= {};
@@ -11800,6 +11877,7 @@ function renderAttachmentManager(){
 function updateAttachmentPending(){
   const list=document.getElementById("attachmentPendingFiles");if(!list)return;
   list.innerHTML=pendingAttendanceFiles.map((f,i)=>'<div class="attachment-pending-row"><span>'+escapeHtml(f.name)+'（'+attachmentSize(f.size)+'）</span><button type="button" class="ghost-btn compact-btn" data-att-remove="'+i+'">移除</button></div>').join("")||'<span>尚未選擇檔案</span>';
+  window.fyhI18n?.refresh?.(list);
 }
 // 以副檔名限制選取，避免瀏覽器的 accept 或拖曳功能放入不支援的格式。
 const attachmentAllowedExtensions=["jpg","jpeg","png","webp","gif","heic","heif","pdf","txt","csv","doc","docx","xls","xlsx","zip"];
@@ -11816,20 +11894,20 @@ function addAttachmentFiles(files){
   let remaining=5-pendingAttendanceFiles.length;
   for(const file of selected){
     const issue=attachmentFileIssue(file);
-    if(issue)rejected.push(file.name+"（"+issue+"）");
-    else if(remaining===0)rejected.push(file.name+"（每次最多五個檔案）");
+    if(issue)rejected.push(file.name+"（"+attachmentTranslate(issue)+"）");
+    else if(remaining===0)rejected.push(file.name+"（"+attachmentTranslate("每次最多五個檔案")+"）");
     else {accepted.push(file);remaining--;}
   }
   if(accepted.length)pendingAttendanceFiles.push(...accepted);
   updateAttachmentPending();
   const status=document.getElementById("attachmentStatus");
   if(status)status.textContent=rejected.length
-    ?"以下檔案未加入："+rejected.join("、")
+    ?attachmentTranslate("以下檔案未加入：")+rejected.join("、")
     :"";
 }
 function openAttachmentUpload(date){
   const record=(recordsState.personal||[]).find(x=>x.date===date);
-  if(!record||record.reviewed||record.editable===false){showInfoMessage("該日期已審核或不能修改");return;}
+  if(!record||record.reviewed||record.editable===false){showInfoMessage(attachmentTranslate("該日期已審核或不能修改"));return;}
   attachmentWorkDate=date;pendingAttendanceFiles=[];
   openEntityListModal({
     title:"上傳附件｜"+date,
@@ -11844,18 +11922,18 @@ function openAttachmentUpload(date){
   });
 }
 async function saveAttachmentUpload(){
-  if(!pendingAttendanceFiles.length){showInfoMessage("請先選擇檔案");return;}
+  if(!pendingAttendanceFiles.length){showInfoMessage(attachmentTranslate("請先選擇檔案"));return;}
   const button=document.querySelector("[data-att-submit]");
   const status=document.getElementById("attachmentStatus");if(button)button.disabled=true;
   let count=0;try{
     for(const f of pendingAttendanceFiles){
-      if(status)status.textContent="正在上傳 "+(count+1)+" / "+pendingAttendanceFiles.length+"："+f.name;
+      if(status)status.textContent=attachmentTranslate("正在上傳 "+(count+1)+" / "+pendingAttendanceFiles.length+"："+f.name);
       await window.schedulerApi.uploadAttendanceAttachment(attachmentWorkDate,document.getElementById("attachmentDesc")?.value||"",f);count++;
     }
     closeModal();
-    showInfoMessage("已成功上傳 "+count+" 個附件");
+    showInfoMessage(attachmentTranslate("已成功上傳 "+count+" 個附件"));
   }catch(error){
-    const message="已成功 "+count+" 個，上傳中斷："+(error?.message||"未知錯誤");
+    const message=attachmentTranslate("已成功 "+count+" 個，上傳中斷："+attachmentTranslate(error?.message||"未知錯誤"));
     if(status)status.textContent=message;
     // 上傳錯誤不能只藏在視窗文字中，員工必須能清楚看到失敗原因。
     showInfoMessage(message);
@@ -11870,7 +11948,7 @@ async function saveAttachmentUpload(){
       recordsState.attachmentCounts[attachmentOwner()+":"+attachmentWorkDate]=(result.rows||[]).length;
     }catch(error){
       console.warn("附件已送出，但同步當日附件數量失敗",error);
-      showInfoMessage("附件已送出，更新附檔欄失敗："+(error?.message||"請重新整理頁面"));
+      showInfoMessage(attachmentTranslate("附件已送出，更新附檔欄失敗：")+attachmentTranslate(error?.message||"請重新整理頁面"));
     }
     renderAll();
   }
@@ -11903,7 +11981,7 @@ async function openAttachmentDay(owner,date){
         }).join("")
         +(!rows.length?'<p>沒有附件</p>':"")+'</div>'
     });
-  }catch(error){showInfoMessage(error.message||"無法讀取附件");}
+  }catch(error){showInfoMessage(attachmentTranslate(error.message||"無法讀取附件"));}
 }
 async function saveAttachmentDayDescriptions(button){
   const inputs=[...document.querySelectorAll("#modalRoot .attachment-day-list [data-att-description]")];
@@ -11923,7 +12001,7 @@ async function saveAttachmentDayDescriptions(button){
     }
     if(failures.length){
       // 保存失敗仍保留編輯視窗，讓使用者修正後再次送出。
-      showInfoMessage("已儲存 "+saved+" 個附件說明；以下 "+failures.length+" 個失敗，請重試："+failures.join("、"));
+      showInfoMessage(attachmentTranslate("已儲存 "+saved+" 個附件說明；以下 "+failures.length+" 個失敗，請重試："+failures.join("、")));
       return;
     }
     // 全部成功（或沒有內容異動）立即關閉，不另顯示成功／確認視窗。
@@ -11958,25 +12036,25 @@ async function openAttachmentPreview(id){
         if(closeButton){
           delete closeButton.dataset.closeButton;
           closeButton.dataset.attPreviewBack="";
-          closeButton.setAttribute("aria-label","返回附檔");
+          closeButton.setAttribute("aria-label",attachmentTranslate("返回附檔"));
         }
       }
     }else{
       const a=document.createElement("a");a.href=r.url;a.download=r.name;a.rel="noopener";document.body.appendChild(a);a.click();a.remove();
     }
-  }catch(error){showInfoMessage(error.message);}
+  }catch(error){showInfoMessage(attachmentTranslate(error?.message||"無法讀取附件"));}
 }
 async function removeAttachments(ids){
-  if(!ids.length){showInfoMessage("請勾選檔案");return;}
+  if(!ids.length){showInfoMessage(attachmentTranslate("請勾選檔案"));return;}
   const s=ensureAttachmentState(),bytes=(s.rows||[]).filter(x=>ids.includes(x.id)).reduce((n,x)=>n+Number(x.size_bytes),0);
-  if(!await confirmAction("確定要刪除 "+ids.length+" 個檔案（"+attachmentSize(bytes)+"）嗎？此操作無法復原。"))return;
+  if(!await confirmAction(attachmentTranslate("確定要刪除 "+ids.length+" 個檔案（"+attachmentSize(bytes)+"）嗎？此操作無法復原。")))return;
   try{
     const r=await window.schedulerApi.deleteAttendanceAttachments(ids),failed=(r.results||[]).filter(x=>!x.ok);
-    showInfoMessage(failed.length?"有 "+failed.length+" 個刪除失敗："+failed.map(x=>x.error).join("；"):"附件已刪除");
+    showInfoMessage(attachmentTranslate(failed.length?"有 "+failed.length+" 個刪除失敗："+failed.map(x=>attachmentTranslate(x.error)).join("；"):"附件已刪除"));
     closeModal();
     await Promise.all([loadRecordsPage(false),loadAttachmentManager(false),...(ensureAttendanceReviewState().loaded?[loadAttendanceReview(false)]:[])]);
     renderAll();
-  }catch(error){showInfoMessage(error.message);}
+  }catch(error){showInfoMessage(attachmentTranslate(error?.message||"無法讀取附件"));}
 }
 function bindAttachmentEvents(){
   document.addEventListener("change",e=>{
