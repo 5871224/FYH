@@ -11932,11 +11932,35 @@ async function saveAttachmentDayDescriptions(button){
     if(button?.isConnected)button.disabled=false;
   }
 }
+// 圖片預覽是附檔清單的下一層，返回時直接還原原視窗 DOM，
+ // 保留尚未存檔的說明與捲動位置，不重新載入或覆蓋使用者輸入。
+let attachmentPreviewOrigin=null;
+function restoreAttachmentPreviewOrigin(){
+  if(!attachmentPreviewOrigin)return;
+  const original=attachmentPreviewOrigin;
+  attachmentPreviewOrigin=null;
+  const root=document.getElementById("modalRoot");
+  if(!root)return;
+  root.replaceChildren(original.node);
+  modalContext=original.context;
+}
 async function openAttachmentPreview(id){
   try{
     const r=await window.schedulerApi.getAttachmentView(id);
     if(/^image\/(jpeg|png|webp|gif)$/.test(r.mime)){
+      const root=typeof document!=="undefined"?document.getElementById("modalRoot"):null;
+      const previous=root?.querySelector(".attachment-day-list")?root.firstElementChild:null;
+      const previousContext=typeof modalContext==="undefined"?{}:modalContext;
       openEntityListModal({title:r.name,hideFooterClose:true,suppressCloseTooltip:true,body:'<div class="attachment-preview"><img alt="'+escapeHtml(r.name)+'" src="'+escapeHtml(r.url)+'"></div>'});
+      attachmentPreviewOrigin=previous?{node:previous,context:previousContext}:null;
+      if(attachmentPreviewOrigin){
+        const closeButton=root.querySelector(".modal-close-btn[data-close-button]");
+        if(closeButton){
+          delete closeButton.dataset.closeButton;
+          closeButton.dataset.attPreviewBack="";
+          closeButton.setAttribute("aria-label","返回附檔");
+        }
+      }
     }else{
       const a=document.createElement("a");a.href=r.url;a.download=r.name;a.rel="noopener";document.body.appendChild(a);a.click();a.remove();
     }
@@ -11971,6 +11995,7 @@ function bindAttachmentEvents(){
     if(t.dataset.attChoose!==undefined){document.getElementById("attachmentFiles")?.click();return;}
     if(t.dataset.attRemove!==undefined){pendingAttendanceFiles.splice(Number(t.dataset.attRemove),1);updateAttachmentPending();return;}
     if(t.dataset.attSubmit!==undefined){await saveAttachmentUpload();return;}
+    if(t.dataset.attPreviewBack!==undefined){restoreAttachmentPreviewOrigin();return;}
     if(t.dataset.attView){await openAttachmentPreview(t.dataset.attView);return;}
     if(t.dataset.attDelete){await removeAttachments([t.dataset.attDelete]);return;}
     if(t.dataset.attBatch!==undefined){await removeAttachments([...document.querySelectorAll("[data-att-check]:checked")].map(x=>x.dataset.attCheck));return;}
