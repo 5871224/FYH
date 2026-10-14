@@ -52,11 +52,46 @@ test("簽到審核只在讀取清單遇到暫時性閘道錯誤時重試一次",
   assert.equal(calls, 2);
   assert.equal(result.ok, true);
   assert.match(webApi, /retryTransientOnce && attempt === 0 && \[502, 503, 504\]\.includes\(response\.status\)/);
-  assert.match(webApi, /\{ action: "review_list", \.\.\.filters \},\s*\{ retryTransientOnce: true \}/);
+  assert.match(webApi, /includeAllRows: true/);
   for (const action of ["review_save", "review_set", "history"]) {
     const call = webApi.match(new RegExp(`requestFunction\\(\\"attendance-review-groups\\", \\{ action: \\"${action}\\"[^;]+`))?.[0] || "";
     assert.doesNotMatch(call, /retryTransientOnce/, `${action} 不得自動重送`);
   }
+});
+
+test("簽到審核載入所選範圍後，第二頁及排序不應再次查詢伺服器", async () => {
+  const source = read("src/renderer/web-api.js");
+  const start = source.indexOf("async function getAttendanceReviewList(");
+  const end = source.indexOf("\n  async function saveAttendanceCommonNotes(", start);
+  assert.ok(start >= 0 && end > start);
+  const rows = Array.from({ length: 120 }, (_, index) => ({
+    work_date: index < 60 ? "2026-10-01" : "2026-10-02",
+    employee_code: String(index + 1).padStart(4, "0")
+  }));
+  let calls = 0;
+  const context = {
+    currentSession: { user: { id: "reviewer" } },
+    ensureSignedIn() {},
+    reviewListCache: new Map(),
+    REVIEW_CACHE_TTL_MS: 5 * 60 * 1000,
+    requestFunction: async (_name, payload, options) => {
+      calls++;
+      assert.equal(payload.includeAllRows, true);
+      assert.equal(options.retryTransientOnce, true);
+      return { rows, total: rows.length, members: [], issueTypes: [] };
+    }
+  };
+  const fetchReview = vm.runInNewContext("(" + source.slice(start, end).trim() + ")", context);
+  const filters = { fromDate: "2026-10-01", toDate: "2026-10-02", status: "all" };
+  const first = await fetchReview({ ...filters, page: 1 });
+  const second = await fetchReview({ ...filters, page: 2 });
+  const reverse = await fetchReview({ ...filters, page: 2, sortDirection: "asc" });
+  assert.equal(calls, 1);
+  assert.equal(first.rows.length, 50);
+  assert.equal(second.rows.length, 50);
+  assert.equal(reverse.rows.length, 50);
+  assert.equal(first.total, 120);
+  assert.notEqual(second.rows[0].work_date, reverse.rows[0].work_date);
 });
 
 test("人員設定先顯示載入畫面，再延遲讀取管理欄位", () => {

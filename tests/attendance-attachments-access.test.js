@@ -236,6 +236,7 @@ test("選取與拖曳時即排除不支援格式，TXT 仍允許，顯示拒絕�
   const list={innerHTML:""};
   const ctx={
     document:{getElementById:id=>id==="attachmentStatus"?status:id==="attachmentPendingFiles"?list:null},
+    window:{},
     escapeHtml:v=>String(v),attachmentSize:v=>String(v)+" B"
   };
   vm.runInNewContext(source,ctx,{timeout:2000});
@@ -277,6 +278,7 @@ test("多選超過五檔時僅保留合格且不超額的檔案",()=>{
   const status={textContent:""},list={innerHTML:""};
   const ctx={
     document:{getElementById:id=>id==="attachmentStatus"?status:id==="attachmentPendingFiles"?list:null},
+    window:{},
     escapeHtml:v=>String(v),attachmentSize:v=>String(v)+" B"
   };
   vm.runInNewContext(source,ctx,{timeout:2000});
