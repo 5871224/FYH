@@ -137,7 +137,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       const stored = JSON.parse(getSessionStore().getItem(sessionStorageKey) || "null");
       const session = normalizeSession(stored?.session || stored);
       const lastActivityAt = Number(stored?.lastActivityAt || 0);
-      if (!session || !lastActivityAt || Date.now() - lastActivityAt > getSessionMaxIdleMs()) {
+      if (!session || !lastActivityAt || Date.now() - lastActivityAt >= getSessionMaxIdleMs()) {
         clearSession();
         return null;
       }
@@ -147,26 +147,34 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     }
   }
 
-  function persistSession(session) {
+  function persistSession(session, { preserveActivity = false } = {}) {
+    // Token 更新、背景資料請求與重新整理都不得延長使用者閒置期限。
+    const previousActivityAt = preserveActivity ? Number(readSessionMeta()?.lastActivityAt || 0) : 0;
     currentSession = normalizeSession(session);
     if (currentSession) {
+      const lastActivityAt = previousActivityAt || Date.now();
       const store = getSessionStore();
       const otherStore = store === localStorage ? sessionStorage : localStorage;
       store.setItem(sessionStorageKey, JSON.stringify({
         session: currentSession,
-        lastActivityAt: Date.now(),
+        lastActivityAt,
         device: isTabletDevice() ? "tablet" : isPhoneDevice() ? "phone" : "desktop"
       }));
       otherStore.removeItem(sessionStorageKey);
+      scheduleSessionExpiry(lastActivityAt);
     } else {
-      localStorage.removeItem(sessionStorageKey);
-      sessionStorage.removeItem(sessionStorageKey);
+      clearSession();
     }
   }
 
   function clearSession() {
     currentSession = null;
     currentProfile = null;
+    lastActivityWriteAt = 0;
+    if (sessionIdleTimer !== null) {
+      clearTimeout(sessionIdleTimer);
+      sessionIdleTimer = null;
+    }
     reviewListCache.clear();
     localStorage.removeItem(sessionStorageKey);
     sessionStorage.removeItem(sessionStorageKey);
@@ -183,10 +191,29 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   function isSessionIdleExpired() {
     const stored = readSessionMeta();
     const lastActivityAt = Number(stored?.lastActivityAt || 0);
-    return Boolean(currentSession && (!lastActivityAt || Date.now() - lastActivityAt > getSessionMaxIdleMs()));
+    return Boolean(currentSession && (!lastActivityAt || Date.now() - lastActivityAt >= getSessionMaxIdleMs()));
+  }
+
+  let sessionIdleTimer = null;
+  let lastActivityWriteAt = 0;
+
+  function scheduleSessionExpiry(lastActivityAt) {
+    if (sessionIdleTimer !== null) clearTimeout(sessionIdleTimer);
+    sessionIdleTimer = null;
+    if (!currentSession) return;
+    const remainingMs = lastActivityAt + getSessionMaxIdleMs() - Date.now();
+    sessionIdleTimer = setTimeout(() => {
+      sessionIdleTimer = null;
+      if (isSessionIdleExpired()) {
+        expireSession();
+      } else if (currentSession) {
+        scheduleSessionExpiry(Number(readSessionMeta()?.lastActivityAt || 0));
+      }
+    }, Math.max(1, remainingMs));
   }
 
   function expireSession() {
+    if (!currentSession) return;
     clearSession();
     window.dispatchEvent(new CustomEvent("scheduler-session-expired"));
   }
@@ -196,18 +223,18 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       expireSession();
       throw new Error("登入已逾時，請重新登入");
     }
+    if (!currentSession) throw new Error("請先登入");
   }
 
-  let lastActivityWriteAt = 0;
-
-  function touchSession(force = false) {
-    if (!currentSession) {
+  function touchSession() {
+    if (!currentSession) return;
+    // 背景分頁睡眠後的首次點擊不能復活過期的登入。
+    if (isSessionIdleExpired()) {
+      expireSession();
       return;
     }
     const now = Date.now();
-    if (!force && now - lastActivityWriteAt < 15000) {
-      return;
-    }
+    if (now - lastActivityWriteAt < 1000) return;
     persistSession(currentSession);
     lastActivityWriteAt = now;
   }
@@ -255,9 +282,6 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     if (!response.ok) {
       throw new Error(await readError(response));
     }
-    if (options.auth) {
-      touchSession();
-    }
     if (response.status === 204) {
       return null;
     }
@@ -299,7 +323,6 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
         }
         throw new Error(message);
       }
-      touchSession();
       const text = await response.text();
       return text ? JSON.parse(text) : null;
     }
@@ -389,7 +412,8 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   }
 
     async function refreshSessionIfNeeded() {
-    if (!currentSession?.refresh_token) {
+    assertSessionActive();
+    if (!currentSession.refresh_token) {
       return currentSession;
     }
     if (currentSession.expires_at && Date.now() < (currentSession.expires_at - 60) * 1000) {
@@ -401,7 +425,8 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
         refresh_token: currentSession.refresh_token
       })
     });
-    persistSession(payload);
+    assertSessionActive();
+    persistSession(payload, { preserveActivity: true });
     return currentSession;
   }
 
@@ -431,7 +456,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   }
 
   async function initializeAuth() {
-    persistSession(readStoredSession());
+    persistSession(readStoredSession(), { preserveActivity: true });
     if (!currentSession?.user) {
       return { session: null, profile: null };
     }
@@ -457,13 +482,14 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       passive: eventName === "touchstart"
     });
   });
-  window.addEventListener("focus", () => touchSession());
-
-  setInterval(() => {
-    if (isSessionIdleExpired()) {
-      expireSession();
-    }
-  }, 60 * 1000);
+  // 重新取得焦點不算使用者操作；僅補檢查背景分頁可能延遲的計時器。
+  function checkIdleOnReturn() {
+    if (isSessionIdleExpired()) expireSession();
+  }
+  window.addEventListener("focus", checkIdleOnReturn);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) checkIdleOnReturn();
+  });
 
   async function signIn(loginAccount, password) {
     const employeeCode = String(loginAccount ?? "");

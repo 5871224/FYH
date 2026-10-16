@@ -24,13 +24,11 @@ function bindScheduleSessionEvents() {
     authPromptMessage = "";
     authModalOpen = true;
     clearAuthIdentity();
-    currentMember = null;
+    resetLoadedUserRuntimeState();
     managerDirectoryLoaded = false;
     managerDirectoryLoading = null;
-    attendanceState = createAttendanceState();
-    mealOrderState = { loading: false, status: null, error: "" };
-    recordsState = createRecordsState();
     state = createEmptyState();
+    groupFeatureState.bundle = { actor: {}, groups: [], roles: [] };
     clearScheduleApplicationState();
     appView = "home";
     closeModal();
