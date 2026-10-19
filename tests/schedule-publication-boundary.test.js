@@ -21,6 +21,7 @@ test("公開日期之後的標題標示灰底，班表管理者也可辨識", ()
   const days = { innerHTML: "" };
   let cutoff = "2026-10-31";
   const ctx = vm.createContext({
+    window: { fyhI18n: { isVietnamese: () => true } },
     document: { getElementById(id) {
       return id === "tableStickyHeaderDays" ? days : id === "tableStickyHeader" ? {} : null;
     }, querySelector() { return null; } },
