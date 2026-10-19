@@ -1261,6 +1261,7 @@ body.is-records-view .app-shell {
 }
 
 .table-sticky-cell-day {
+  position: relative;
   flex-direction: column;
   gap: 2px;
   height: 40px;
@@ -1298,12 +1299,41 @@ body.is-records-view .app-shell {
   background: var(--week-alt);
 }
 
-.table-sticky-cell-day.week-boundary-start {
-  border-left: 2px solid #b39a75;
+/* 日期已超過公開截止日時，包含管理者的日期標題也要顯示灰底。 */
+.table-sticky-cell-day.schedule-date-unpublished,
+.table-sticky-cell-day.schedule-date-unpublished:hover,
+.table-sticky-cell-day.week-alt.schedule-date-unpublished {
+  background: #d9d9d9;
 }
 
-.table-sticky-cell-day.month-boundary-start {
-  border-left: 4px solid #86b8e6;
+/* 使用不參與欄寬計算的分隔線；黑線和每月分隔線均為 4px。 */
+.table-sticky-cell-day.week-boundary-start::before,
+.table-sticky-cell-day.month-boundary-start::before,
+.table-sticky-cell-day.four-week-boundary-start::before,
+#mainTable td.cell.week-boundary-start::before,
+#mainTable td.cell.month-boundary-start::before,
+#mainTable td.cell.four-week-boundary-start::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  width: 2px;
+  background: #b39a75;
+  pointer-events: none;
+}
+
+.table-sticky-cell-day.month-boundary-start::before,
+#mainTable td.cell.month-boundary-start::before {
+  width: 4px;
+  background: #86b8e6;
+}
+
+.table-sticky-cell-day.four-week-boundary-start::before,
+#mainTable td.cell.four-week-boundary-start::before {
+  width: 4px;
+  background: #000;
 }
 
 .table-sticky-cell-day.week-boundary-end {
@@ -1591,6 +1621,7 @@ thead th.stats-col {
 }
 
 .cell {
+  position: relative;
   min-width: var(--day-col-width);
   width: var(--day-col-width);
   max-width: var(--day-col-width);
@@ -1605,14 +1636,6 @@ thead th.today,
 .dept-col.today,
 .person-col.today {
   background: var(--today);
-}
-
-.cell.week-boundary-start {
-  border-left: 2px solid #b39a75;
-}
-
-.cell.month-boundary-start {
-  border-left: 4px solid #86b8e6;
 }
 
 #mainTable td.cell.week-boundary-end {

@@ -179,11 +179,6 @@
   display: none;
 }
 
-/* 八週前四週／後四週之間以粗黑線區隔，優先於每週、每月線。 */
-.table-sticky-cell-day.four-week-boundary-start,
-#mainTable td.cell.four-week-boundary-start {
-  border-left: 5px solid #000;
-}
 #mainTable td.cell.unpublished-schedule-cell {
   background: #f0f0f0;
   cursor: default;

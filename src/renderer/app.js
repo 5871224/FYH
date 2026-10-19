@@ -3806,6 +3806,7 @@ function renderStickyTableHeader(dates) {
   }
   renderStickyHeaderTitleCells();
   const today = getTodayDateString();
+  const publishedUntil = getSchedulePublishedUntil();
   const cells = [];
   dates.forEach((dateString, index) => {
     const date = toDateObject(dateString);
@@ -3819,8 +3820,9 @@ function renderStickyTableHeader(dates) {
     const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, index, dates.length);
     const monthBoundaryClass = getMonthBoundaryClassForDate(dateString, index);
     const fourWeekBoundaryClass = getFourWeekBoundaryClassForIndex(index);
+    const unpublishedClass = publishedUntil && dateString > publishedUntil ? "schedule-date-unpublished" : "";
     cells.push(
-      `<div class="table-sticky-cell table-sticky-cell-day ${cls} ${weekStripeClass} ${weekBoundaryClass} ${monthBoundaryClass} ${fourWeekBoundaryClass} ${dateString === today ? "today" : ""}" data-schedule-column="${index}" data-date="${dateString}">${date.getMonth() + 1}/${day}<span>${getScheduleWeekdayLabel(weekday)}</span></div>`
+      `<div class="table-sticky-cell table-sticky-cell-day ${cls} ${weekStripeClass} ${weekBoundaryClass} ${monthBoundaryClass} ${fourWeekBoundaryClass} ${unpublishedClass} ${dateString === today ? "today" : ""}" data-schedule-column="${index}" data-date="${dateString}">${date.getMonth() + 1}/${day}<span>${getScheduleWeekdayLabel(weekday)}</span></div>`
     );
   });
   container.innerHTML = cells.join("");

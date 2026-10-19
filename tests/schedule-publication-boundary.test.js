@@ -16,3 +16,34 @@ assert.equal(c.isScheduleDatePublished("2026-11-01"),false);
 vm.runInContext('groupFeatureState.bundle.actor.groupPermissions.g1.push("schedule_manage")',c);
 assert.equal(c.isScheduleDatePublished("2026-11-01"),true);
 });
+
+test("公開日期之後的標題標示灰底，班表管理者也可辨識", () => {
+  const days = { innerHTML: "" };
+  let cutoff = "2026-10-31";
+  const ctx = vm.createContext({
+    document: { getElementById(id) {
+      return id === "tableStickyHeaderDays" ? days : id === "tableStickyHeader" ? {} : null;
+    } },
+    requestAnimationFrame() {},
+    getTodayDateString: () => "2026-10-30",
+    getSchedulePublishedUntil: () => cutoff,
+    renderStickyHeaderTitleCells() {},
+    getWeekStripeClassForDate: () => "",
+    getWeekBoundaryClassForDate: () => "",
+    getMonthBoundaryClassForDate: () => "",
+    getFourWeekBoundaryClassForIndex: () => "",
+    getScheduleWeekdayLabel: () => "一",
+    toDateObject(s) {
+      const [year, month, day] = s.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    }
+  });
+  vm.runInContext(fs.readFileSync(path.join(root, "renderer-schedule-layout.js"), "utf8"), ctx);
+  ctx.renderStickyTableHeader(["2026-10-31", "2026-11-01"]);
+  assert.match(days.innerHTML, /data-schedule-column="0" data-date="2026-10-31"/);
+  assert.match(days.innerHTML, /schedule-date-unpublished[^"]*" data-schedule-column="1" data-date="2026-11-01"/);
+  assert.equal((days.innerHTML.match(/schedule-date-unpublished/g) || []).length, 1);
+  cutoff = "";
+  ctx.renderStickyTableHeader(["2026-10-31", "2026-11-01"]);
+  assert.doesNotMatch(days.innerHTML, /schedule-date-unpublished/);
+});
