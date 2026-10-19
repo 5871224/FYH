@@ -53,6 +53,13 @@ function hasAnyGroupPermission(permission) {
 function getAllGroups() { return Array.isArray(groupFeatureState.bundle?.groups) ? groupFeatureState.bundle.groups : []; }
 function getSelectableGroups() { return getAllGroups().filter((group) => group.status === "active" && hasGroupPermission(group.id, "schedule_view")); }
 function getCurrentGroup() { return getAllGroups().find((group) => group.id === groupFeatureState.currentGroupId) || null; }
+function getSchedulePublishedUntil(groupId = groupFeatureState.currentGroupId) {
+  return getAllGroups().find((group) => group.id === groupId)?.publishedUntil || "";
+}
+function isScheduleDatePublished(dateString, groupId = groupFeatureState.currentGroupId) {
+  const until = getSchedulePublishedUntil(groupId);
+  return hasGroupPermission(groupId, "schedule_manage") || !until || Boolean(dateString && dateString <= until);
+}
 function getActorGroup() { return getAllGroups().find((group) => group.id === getAccessActor().groupId) || null; }
 function getAllRoles() { return Array.isArray(groupFeatureState.bundle?.roles) ? groupFeatureState.bundle.roles : []; }
 function getRoleById(roleId) { return getAllRoles().find((role) => role.id === roleId) || null; }
@@ -166,7 +173,10 @@ function applyCurrentGroupScope(targetState = state) {
   const memberIds = new Set(members.map((member) => member.id));
   const schedule = {};
   Object.entries(groupFeatureState.catalog.schedule || {}).forEach(([key, slot]) => {
-    if (memberIds.has(scheduleKeyMemberId(key))) schedule[key] = deepClone(slot);
+    if (!memberIds.has(scheduleKeyMemberId(key))) return;
+    const match = String(key).match(/_(\d{4})_(\d{1,2})_(\d{1,2})$/);
+    const date = match ? toDateString(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : "";
+    if (isScheduleDatePublished(date, groupId)) schedule[key] = deepClone(slot);
   });
   targetState.departments = deepClone(departments);
   targetState.members = deepClone(members);
@@ -279,6 +289,7 @@ function getFunctionMenuSections() {
       id: "schedule",
       label: "排班",
       items: [
+        { id: "schedulePublicationMenuButton", label: "公開日期", groupAction: "schedule-publication" },
         { id: "scheduleConditionsMenuButton", label: "排班條件", groupAction: "schedule-conditions" },
         { id: "autoSchedulePreviewButton", label: "自動排班預覽", action: "auto-schedule-preview" },
         { id: "autoFillSchedulePreviewButton", label: "自動補班預覽", action: "auto-fill-schedule-preview" },
@@ -371,6 +382,31 @@ function renderGroupSettingsRows() {
       <td class="group-status-col"><span class="group-status ${group.status === "active" ? "is-active" : "is-inactive"}">${group.status === "active" ? "啟用" : "停用"}</span></td>
       <td class="group-actions-cell group-actions-col"><button class="settings-icon-btn" type="button" data-edit-schedule-group="${escapeHtml(group.id)}" aria-label="編輯" title="編輯">${actionIcon("edit")}</button><button class="ghost-btn compact-btn" type="button" data-toggle-schedule-group="${escapeHtml(group.id)}">${group.status === "active" ? "停用" : "啟用"}</button><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-schedule-group="${escapeHtml(group.id)}" aria-label="刪除" title="刪除">${actionIcon("delete")}</button></td>
     </tr>`).join("");
+}
+
+function openSchedulePublicationModal() {
+  const groupId = groupFeatureState.currentGroupId;
+  if (!requireCurrentGroupUiPermission("schedule_manage", "公開日期")) return;
+  modalContext = { category: "schedule-publication", targetId: groupId };
+  openEntityListModal({
+    title: "公開日期",
+    modalClass: "modal modal-form-compact",
+    body: `<div class="form-grid"><div class="form-row"><label for="schedulePublicationDate">公開截止日期</label><input id="schedulePublicationDate" type="date" required value="${escapeHtml(getSchedulePublishedUntil(groupId))}"></div><p>沒有「班表管理」權限的人，只能查看公開截止日期及之前的班表。</p></div>`,
+    headerButtons: '<button class="btn-primary" type="button" data-save-schedule-publication>儲存</button>',
+    hideFooterClose: true
+  });
+}
+async function saveSchedulePublicationFromModal() {
+  const groupId = modalContext.targetId;
+  if (!hasGroupPermission(groupId, "schedule_manage") || groupId !== groupFeatureState.currentGroupId) {
+    showInfoMessage("沒有班表管理權限");
+    return;
+  }
+  const date = document.getElementById("schedulePublicationDate")?.value || "";
+  if (!toDateObject(date)) { reportValidationError("請選擇公開截止日期"); return; }
+  await window.schedulerApi.saveSchedulePublication(groupId, date);
+  closeModal();
+  await reloadGroupApplicationState();
 }
 
 function openGroupSettings() {
@@ -795,6 +831,15 @@ function bindGroupFeatureEvents() {
     if (action === "group-settings") { event.preventDefault(); closeCoreActionsMenu(); openGroupSettings(); return; }
     if (action === "permission-settings") { event.preventDefault(); closeCoreActionsMenu(); openPermissionSettings(); return; }
     if (action === "schedule-conditions") { event.preventDefault(); closeCoreActionsMenu(); void openScheduleConditions(); return; }
+    if (action === "schedule-publication") { event.preventDefault(); closeCoreActionsMenu(); openSchedulePublicationModal(); return; }
+    if (button.dataset.saveSchedulePublication !== undefined) {
+      if (button.disabled) return;
+      button.disabled = true;
+      void saveSchedulePublicationFromModal()
+        .catch((error) => reportValidationError(error.message))
+        .finally(() => { if (button.isConnected) button.disabled = false; });
+      return;
+    }
     if (action === "schedule-archive") { event.preventDefault(); closeCoreActionsMenu(); void openScheduleArchive(); return; }
     if (button.dataset.addScheduleCondition !== undefined) { event.preventDefault(); openScheduleConditionForm(); return; }
     if (button.dataset.editScheduleCondition) { event.preventDefault(); openScheduleConditionForm(button.dataset.editScheduleCondition); return; }
@@ -881,4 +926,3 @@ function initializeGroupPermissionState(payload) {
   groupFeatureState.initialized = true;
   return applyCurrentGroupScope(normalized);
 }
-

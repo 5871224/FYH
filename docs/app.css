@@ -3518,6 +3518,16 @@ thead th.today,
   display: none;
 }
 
+/* 八週前四週／後四週之間以粗黑線區隔，優先於每週、每月線。 */
+.table-sticky-cell-day.four-week-boundary-start,
+#mainTable td.cell.four-week-boundary-start {
+  border-left: 5px solid #000;
+}
+#mainTable td.cell.unpublished-schedule-cell {
+  background: #f0f0f0;
+  cursor: default;
+}
+
 /* ===== Schedule print layout: schedule-print.css ===== */
 #schedulePrintPreview{position:fixed;inset:0;z-index:1200;overflow:auto;background:#e9e5dd;color:var(--text)}
 .schedule-print-preview-toolbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:60px;padding:10px 16px;border-bottom:1px solid var(--line);background:#fffdf8;box-sizing:border-box}

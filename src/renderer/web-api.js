@@ -1315,6 +1315,13 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
   }
 
   async function getGroupAccessBundle() { return requestFunction("access-control", { action: "bundle" }) || {}; }
+  async function saveSchedulePublication(groupId, publishedUntil) {
+    ensureSignedIn();
+    return callRpc("set_group_schedule_publication_v1", {
+      p_group_id: groupId,
+      p_published_until: publishedUntil
+    });
+  }
   async function getScheduleConditions(groupId) { return callRpc("get_schedule_conditions_v1", { p_group_id: groupId }) || []; }
   async function saveScheduleCondition(item) { return callRpc("save_schedule_condition_v1", { p_item: item }); }
   async function deleteScheduleCondition(conditionId) { return callRpc("delete_schedule_condition_v1", { p_condition_id: conditionId }); }
@@ -1623,6 +1630,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     saveSchedulerPreferences,
     saveHolidays,
     getGroupAccessBundle,
+    saveSchedulePublication,
     getScheduleConditions,
     saveScheduleCondition,
     deleteScheduleCondition,

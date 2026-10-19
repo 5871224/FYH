@@ -236,6 +236,7 @@ const schedulePrintFeature = (() => {
     const startDate = document.getElementById("schedulePrintStartDate")?.value || "";
     const endDate = document.getElementById("schedulePrintEndDate")?.value || "";
     if (!toDateObject(startDate) || !toDateObject(endDate) || startDate > endDate) { showInfoMessage("請選擇正確的開始日期與結束日期"); return; }
+    if (!isScheduleDatePublished(endDate)) { showInfoMessage("列印結束日期不可超過班表公開日期"); return; }
     const text = button.textContent; button.disabled = true; button.textContent = "載入中…";
     try {
       const { groups, schedule } = await loadRange(startDate, endDate);

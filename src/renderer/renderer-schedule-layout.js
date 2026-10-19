@@ -29,8 +29,9 @@ function renderStickyTableHeader(dates) {
     const weekStripeClass = getWeekStripeClassForDate(dateString);
     const weekBoundaryClass = getWeekBoundaryClassForDate(dateString, index, dates.length);
     const monthBoundaryClass = getMonthBoundaryClassForDate(dateString, index);
+    const fourWeekBoundaryClass = getFourWeekBoundaryClassForIndex(index);
     cells.push(
-      `<div class="table-sticky-cell table-sticky-cell-day ${cls} ${weekStripeClass} ${weekBoundaryClass} ${monthBoundaryClass} ${dateString === today ? "today" : ""}" data-schedule-column="${index}" data-date="${dateString}">${date.getMonth() + 1}/${day}<span>${getScheduleWeekdayLabel(weekday)}</span></div>`
+      `<div class="table-sticky-cell table-sticky-cell-day ${cls} ${weekStripeClass} ${weekBoundaryClass} ${monthBoundaryClass} ${fourWeekBoundaryClass} ${dateString === today ? "today" : ""}" data-schedule-column="${index}" data-date="${dateString}">${date.getMonth() + 1}/${day}<span>${getScheduleWeekdayLabel(weekday)}</span></div>`
     );
   });
   container.innerHTML = cells.join("");

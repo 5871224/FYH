@@ -70,7 +70,7 @@ async function bundle(ctx: any) {
   const visibleGroupIds = new Set(actorRows.filter((row: any) => (row.permissions || []).length).map((row: any) => row.group_id));
 
   const groupResult = await ctx.supabaseAdmin.from("schedule_groups")
-    .select("id,code,name,name_vi,meal_enabled,status,sort_order,deleted_at")
+    .select("id,code,name,name_vi,meal_enabled,status,sort_order,published_until,deleted_at")
     .is("deleted_at", null).order("sort_order").order("name");
   if (groupResult.error) throw groupResult.error;
   const allGroups = groupResult.data || [];
@@ -107,7 +107,7 @@ async function bundle(ctx: any) {
     },
     groups: groups.map((group: any) => ({
       id: group.id, code: group.code, name: group.name, nameVi: group.name_vi || "",
-      mealEnabled: Boolean(group.meal_enabled), status: group.status, sortOrder: Number(group.sort_order || 0),
+      mealEnabled: Boolean(group.meal_enabled), status: group.status, sortOrder: Number(group.sort_order || 0), publishedUntil: group.published_until || "",
       unitNames: unitNames.get(group.id) || []
     })),
     roles: roles.map((role: any) => roleDto(role, allRoleRows))

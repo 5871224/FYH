@@ -35,6 +35,10 @@ function getWeekStripeClassForDate(dateString) {
   return getWeekIndexForDate(dateString) % 2 === 1 ? "week-alt" : "";
 }
 
+function getFourWeekBoundaryClassForIndex(index) {
+  return index === 28 ? "four-week-boundary-start" : "";
+}
+
 function getWeekBoundaryClassForDate(dateString, index, totalDays) {
   const classes = [];
   const date = toDateObject(dateString);
