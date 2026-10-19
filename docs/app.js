@@ -3401,7 +3401,7 @@ const fyhLocalization = (() => {
     const page = text.match(/^共\s*(\d+)\s*筆，第\s*(\d+)\s*\/\s*(\d+)\s*頁$/);
     if (page) return `Tổng ${page[1]} mục, trang ${page[2]} / ${page[3]}`;
     const total = text.match(/^目前合計\s*(\d+)\s*份，\$(.+)$/);
-    if (total) return `Tổng hiện tại ${total[1]} phần, ${total[2]}`;
+    if (total) return `Tổng hiện tại ${total[1]} phần, $${total[2]}`;
     return "";
   }
 
