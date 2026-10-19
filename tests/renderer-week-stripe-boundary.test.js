@@ -58,11 +58,12 @@ test("電腦與手機班表標題應共用放大後字級", () => {
   assert.doesNotMatch(responsiveCss, /body\.is-schedule-view \.table-sticky-cell-day span\s*\{/);
 });
 
-test("日期標題與表格內容週界線應只繪製單一同粗線條", () => {
-  assert.match(css, /\.table-sticky-cell-day\.week-boundary-start\s*\{\s*border-left: 2px solid #b39a75;/s);
+test("每週分隔線應對齊表頭與儲存格且不改變欄寬", () => {
+  assert.match(css, /\.table-sticky-cell-day\.week-boundary-start::before/);
+  assert.match(css, /#mainTable td\.cell\.week-boundary-start::before/);
   assert.match(css, /\.table-sticky-cell-day\.week-boundary-end\s*\{\s*border-right: 0;/s);
-  assert.match(css, /\.cell\.week-boundary-start\s*\{\s*border-left: 2px solid #b39a75;/s);
   assert.match(css, /#mainTable td\.cell\.week-boundary-end\s*\{\s*border-right: 0;/s);
+  assert.doesNotMatch(css, /\.week-boundary-start\s*\{\s*border-left:/);
 });
 
 
@@ -74,8 +75,9 @@ test("每月起算日應在班表形成較明顯月界線並蓋過週界線", ()
   assert.equal(monthEndFallback.getMonthBoundaryClassForDate("2026-02-28", 1), "month-boundary-start");
   assert.match(layout, /getMonthBoundaryClassForDate\(dateString, index\)/);
   assert.match(scheduleTable, /getMonthBoundaryClassForDate\(dateString, dateIndex\)/);
-  assert.match(css, /\.table-sticky-cell-day\.month-boundary-start\s*\{\s*border-left: 4px solid #86b8e6;/s);
-  assert.match(css, /\.cell\.month-boundary-start\s*\{\s*border-left: 4px solid #86b8e6;/s);
-  assert.ok(css.indexOf(".table-sticky-cell-day.month-boundary-start") > css.indexOf(".table-sticky-cell-day.week-boundary-start"));
-  assert.ok(css.indexOf(".cell.month-boundary-start") > css.indexOf(".cell.week-boundary-start"));
+  assert.match(css, /\.table-sticky-cell-day\.month-boundary-start::before/);
+  assert.match(css, /#mainTable td\.cell\.month-boundary-start::before/);
+  assert.match(css, /\.table-sticky-cell-day\.month-boundary-start::before,\s*#mainTable td\.cell\.month-boundary-start::before\s*\{\s*width: 4px;\s*background: #86b8e6;/s);
+  assert.match(css, /\.table-sticky-cell-day\.four-week-boundary-start::before,\s*#mainTable td\.cell\.four-week-boundary-start::before\s*\{\s*width: 4px;\s*background: #000;/s);
+  assert.doesNotMatch(css, /\.month-boundary-start\s*\{\s*border-left:/);
 });
