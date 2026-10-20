@@ -9,7 +9,7 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
 function setup() {
   const state = {
     rules: { monthStartDay: 26 },
-    departments: [{ id: "visible", name: "一般單位" }, { id: "hidden", name: "隱藏單位", hiddenFromSchedule: true }],
+    departments: [{ id: "visible", name: "一般單位", groupId: "g" }, { id: "hidden", name: "隱藏單位", groupId: "g", hiddenFromSchedule: true }, { id: "other-dept", name: "其他群組單位", groupId: "other" }],
     shifts: [{ id: "shift", applicableDeptId: "hidden" }],
     leaves: [{ id: "rest", code: "0047" }],
     members: [
@@ -19,7 +19,7 @@ function setup() {
       { id: "future", code: "004", groupId: "g", hireDate: "2026-10-27" },
       { id: "left", groupId: "g", leaveDate: "2026-10-25" },
       { id: "hidden", groupId: "g", deptId: "hidden" },
-      { id: "other", groupId: "other" },
+      { id: "other", code: "901", name: "其他群組員工", groupId: "other", deptId: "other-dept" },
       { id: "deleted", groupId: "g", deleted: true }
     ]
   };
@@ -37,7 +37,9 @@ function setup() {
   const button = { disabled: false, addEventListener: (_type, handler) => { button.click = handler; } };
   const inputs = { exportPeriodStart: { value: "2026-10-26" }, exportPeriodEnd: { value: "2026-10-28" } };
   const context = {
-    state, groupFeatureState: { currentGroupId: "g" },
+    state, groupFeatureState: { currentGroupId: "g", catalog: { departments: state.departments, members: state.members } },
+    getAllGroups: () => [{ id: "g", name: "門市" }, { id: "other", name: "工廠" }],
+    syncCurrentScopeIntoCatalog: () => {},
     document: { getElementById: (id) => id === "exportScheduleStatisticsButton" ? button : inputs[id] },
     window: { schedulerApi: {
       loadScheduleEntries: async (range) => { context.loaded = range; return { schedule }; },
@@ -80,7 +82,12 @@ test("人數統計只採起算日當天在職，當天到離職皆計入，同�
   const { context } = setup();
   const { date, rows } = context.buildHeadcountStatistics(2026, 10);
   assert.equal(date, "2026-10-26");
-  assert.deepEqual(Array.from(rows, (row) => row[2]), ["001", "002", "003"]);
+  assert.deepEqual(plain(rows), [
+    ["門市", "一般單位", "同名人員", "001", "2026-01-01", ""],
+    ["門市", "一般單位", "同名人員", "002", "2026-10-26", "2026-10-26"],
+    ["門市", "", "未排班", "003", "", ""],
+    ["工廠", "其他群組單位", "其他群組員工", "901", "", ""]
+  ]);
 });
 
 test("起算日超過月底時使用月底，涵蓋平年、閏年及跨年月份並拒絕無效輸入", () => {
@@ -138,8 +145,18 @@ test("統計結果與 Excel 共用相同資料，工號保留前導零、日數�
   assert.equal(context.fileName, "統計上班日_20261026-20261028.xlsx");
   assert.equal(button.disabled, false);
   state.members = [];
+  context.groupFeatureState.catalog.members = [];
   const result = context.buildHeadcountStatistics(2026, 10);
   context.showScheduleStatisticsResult("統計人數", `統計日期：${result.date}`, ["工號"], result.rows, "empty.xlsx");
   assert.match(context.modal.description, /人員數：0/);
   assert.match(context.modal.body, /目前沒有符合條件的人員/);
+});
+
+test("人數統計不限目前群組，但不能包含沒有查看權限的群組", () => {
+  const { context, state } = setup();
+  state.members = state.members.filter((member) => member.groupId === "g");
+  state.departments = state.departments.filter((department) => department.groupId === "g");
+  assert.deepEqual(plain(context.buildHeadcountStatistics(2026, 10).rows.map((row) => row[3])), ["001", "002", "003", "901"]);
+  context.hasGroupPermission = (groupId, permission) => groupId === "g" && permission === "schedule_view";
+  assert.deepEqual(plain(context.buildHeadcountStatistics(2026, 10).rows.map((row) => row[3])), ["001", "002", "003"]);
 });

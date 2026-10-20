@@ -517,11 +517,25 @@ function buildHeadcountStatistics(year, month) {
   }
   const day = Math.min(getConfiguredMonthStartDay(), daysInMonth(year, month - 1));
   const date = formatExportDate(new Date(year, month - 1, day));
-  const departments = new Map((state.departments || []).map((item) => [item.id, item.name]));
-  // ponytail: 沿用班表已授權的人員目錄與到離職日期，不另建統計端點；歷史所屬單位若需追溯再引入異動紀錄。
-  const rows = getCurrentGroupExportMembers()
-    .filter((member) => !member.deleted && isMemberActiveOnDateString(member, date))
-    .map((member) => [departments.get(member.deptId) || "", member.name || "", member.code || "", member.hireDate || "", member.leaveDate || ""]);
+  const groups = getAllGroups();
+  const groupNames = new Map(groups.map((group) => [group.id, group.name]));
+  const groupOrder = new Map(groups.map((group, index) => [group.id, index]));
+  const departments = new Map((groupFeatureState.catalog.departments || []).map((item) => [item.id, item]));
+  // 使用初始化時取得的跨群組目錄，只統計實際具備班表查看權限的群組。
+  const rows = (groupFeatureState.catalog.members || [])
+    .filter((member) => !member.deleted
+      && hasGroupPermission(member.groupId, "schedule_view")
+      && !departments.get(member.deptId)?.hiddenFromSchedule
+      && isMemberActiveOnDateString(member, date))
+    .sort((a, b) => (groupOrder.get(a.groupId) ?? Infinity) - (groupOrder.get(b.groupId) ?? Infinity))
+    .map((member) => [
+      groupNames.get(member.groupId) || "",
+      departments.get(member.deptId)?.name || "",
+      member.name || "",
+      member.code || "",
+      member.hireDate || "",
+      member.leaveDate || ""
+    ]);
   return { date, rows };
 }
 
@@ -531,7 +545,7 @@ function openHeadcountStatisticsDialog() {
   openEntityListModal({
     title: "統計人數",
     modalClass: "modal modal-member-form",
-    description: "依每月起算日當天的到職日、離職日，統計目前群組在職人員。",
+    description: "依每月起算日當天的到職日、離職日，統計所有可查看群組的在職人員。",
     body: `<div class="form-grid">
       <div class="form-row"><label for="headcountYear">年份</label><input id="headcountYear" type="number" min="1900" max="9999" step="1" value="${today.getFullYear()}"></div>
       <div class="form-row"><label for="headcountMonth">月份</label><select id="headcountMonth">${Array.from({ length: 12 }, (_, index) => `<option value="${index + 1}" ${index === today.getMonth() ? "selected" : ""}>${index + 1}</option>`).join("")}</select></div>
@@ -547,8 +561,9 @@ function runHeadcountStatistics() {
   try {
     const year = Number(document.getElementById("headcountYear")?.value);
     const month = Number(document.getElementById("headcountMonth")?.value);
+    syncCurrentScopeIntoCatalog();
     const { date, rows } = buildHeadcountStatistics(year, month);
-    showScheduleStatisticsResult("統計人數", `統計日期：${date}`, ["所屬單位", "姓名", "工號", "到職日", "離職日"], rows,
+    showScheduleStatisticsResult("統計人數", `統計日期：${date}`, ["所屬群組", "所屬單位", "姓名", "工號", "到職日", "離職日"], rows,
       `統計人數_${date.replaceAll("-", "")}.xlsx`);
   } catch (error) {
     reportValidationError(error.message || String(error));
@@ -578,7 +593,8 @@ function showScheduleStatisticsResult(title, period, headers, rows, fileName) {
       rows.forEach((row) => sheet.addRow(row));
       sheet.getRow(2).font = { bold: true };
       sheet.columns = headers.map((_, index) => ({ width: index === 0 ? 24 : 18 }));
-      sheet.getColumn(3).numFmt = "@";
+      const codeColumn = headers.indexOf("工號") + 1;
+      if (codeColumn) sheet.getColumn(codeColumn).numFmt = "@";
       sheet.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: headers.length } };
       await downloadScheduleWorkbook(workbook, fileName);
     } catch (error) {
