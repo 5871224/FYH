@@ -9,8 +9,8 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
 function setup() {
   const state = {
     rules: { monthStartDay: 26 },
-    departments: [{ id: "visible", name: "一般單位", groupId: "g" }, { id: "hidden", name: "隱藏單位", groupId: "g", hiddenFromSchedule: true }, { id: "other-dept", name: "其他群組單位", groupId: "other" }],
-    shifts: [{ id: "shift", applicableDeptId: "hidden" }],
+    departments: [{ id: "visible", name: "一般單位", groupId: "g" }, { id: "support", name: "支援單位", groupId: "g" }, { id: "hidden", name: "隱藏單位", groupId: "g", hiddenFromSchedule: true }, { id: "other-dept", name: "其他群組單位", groupId: "other" }],
+    shifts: [{ id: "shift", applicableDeptId: "visible" }, { id: "support-shift", applicableDeptId: "support" }, { id: "hidden-shift", applicableDeptId: "hidden" }],
     leaves: [{ id: "rest", code: "0047" }],
     members: [
       { id: "a", code: "001", name: "同名人員", groupId: "g", deptId: "visible", hireDate: "2026-01-01" },
@@ -25,8 +25,8 @@ function setup() {
   };
   const schedule = {
     a_2026_9_25: { shift: "shift" },
-    a_2026_9_26: { shift: "shift", leave: "rest", overtime: "overtime" },
-    a_2026_9_27: { shift: "shift" },
+    a_2026_9_26: { shift: "support-shift", leave: "rest", overtime: "overtime" },
+    a_2026_9_27: { shift: "hidden-shift" },
     a_2026_9_28: { overtime: "overtime" },
     b_2026_9_26: { shift: "shift" },
     zero_2026_9_26: { leave: "rest" },
@@ -66,12 +66,13 @@ function setup() {
 
 test("上班日統計按人員計算區間首尾與例休排班，保留零日並排除其他群組及隱藏單位", async () => {
   const { context } = setup();
-  const rows = await context.buildWorkdayStatisticsRows("2026-10-26", "2026-10-28");
+  const { headers, rows } = await context.buildWorkdayStatisticsRows("2026-10-26", "2026-10-28");
+  assert.deepEqual(plain(headers), ["工號", "姓名", "一般單位", "支援單位", "隱藏單位", "日數合計"]);
   assert.deepEqual(plain(rows), [
-    ["一般單位", "同名人員", "001", 2],
-    ["一般單位", "同名人員", "002", 1],
-    ["", "未排班", "003", 0],
-    ["", "", "004", 0]
+    ["001", "同名人員", 0, 1, 1, 2],
+    ["002", "同名人員", 1, 0, 0, 1],
+    ["003", "未排班", 0, 0, 0, 0],
+    ["004", "", 0, 0, 0, 0]
   ]);
   assert.equal(context.loaded.startDate, "2026-10-26");
   assert.equal(context.loaded.endDate, "2026-10-28");
@@ -135,12 +136,15 @@ test("統計結果與 Excel 共用相同資料，工號保留前導零、日數�
   context.downloadScheduleWorkbook = async (_workbook, fileName) => { context.fileName = fileName; };
   await context.runPeriodExport("workday-statistics");
   assert.equal(context.authorized, 1);
-  assert.match(context.modal.body, /<td>001<\/td><td>2<\/td>/);
+  assert.match(context.modal.body, /<td>001<\/td><td>同名人員<\/td><td>0<\/td><td>1<\/td><td>1<\/td><td>2<\/td>/);
   await button.click({ currentTarget: button });
   assert.equal(workbook.name, "統計上班日");
   assert.equal(workbook.options.views[0].ySplit, 2);
-  assert.equal(workbook.rows[2][2], "001");
-  assert.equal(workbook.rows[2][3], 2);
+  assert.equal(workbook.options.views[0].xSplit, 2);
+  assert.deepEqual(plain(workbook.rows[1]), ["工號", "姓名", "一般單位", "支援單位", "隱藏單位", "日數合計"]);
+  assert.equal(workbook.rows[2][0], "001");
+  assert.equal(workbook.rows[2][3], 1);
+  assert.equal(workbook.rows[2][5], 2);
   assert.equal(workbook.rows[0][0], "2026-10-26 ～ 2026-10-28；人員數：4");
   assert.equal(context.fileName, "統計上班日_20261026-20261028.xlsx");
   assert.equal(button.disabled, false);

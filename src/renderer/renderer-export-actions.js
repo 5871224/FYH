@@ -483,6 +483,7 @@ async function buildWorkdayExportRows(startDate, endDate) {
       const leave = slot.leave ? leaves.get(slot.leave) : null;
       rows.push({
         memberId: member.id,
+        departmentId: department?.id || null,
         values: [department?.name || "", member.name || "", member.code || "", date.replaceAll("-", "")],
         date,
         departmentName: department?.name || "",
@@ -500,15 +501,38 @@ async function buildWorkdayExportRows(startDate, endDate) {
 
 async function buildWorkdayStatisticsRows(startDate, endDate) {
   const workdays = await buildWorkdayExportRows(startDate, endDate);
-  const datesByMember = new Map();
+  const groupId = String(groupFeatureState.currentGroupId || state.currentGroupId || "");
+  // 沿用單位設定排序，所有單位均顯示為獨立欄位。
+  const departments = (state.departments || [])
+    .filter((department) => !department.deleted && (!groupId || department.groupId === groupId));
+  const departmentIds = new Set(departments.map((department) => department.id));
+  const unassignedKey = "__workday_unassigned_department__";
+  const hasUnassigned = workdays.some((row) => !departmentIds.has(row.departmentId));
+  const unitColumns = departments.map((department) => ({ id: department.id, name: department.name || "" }));
+  if (hasUnassigned) unitColumns.push({ id: unassignedKey, name: "未設定單位" });
+
+  // 同一人同一天至多計 1 日，歸類至實際排班班別對應的單位。
+  const daysByMember = new Map();
   for (const row of workdays) {
-    if (!datesByMember.has(row.memberId)) datesByMember.set(row.memberId, new Set());
-    datesByMember.get(row.memberId).add(row.date);
+    if (!daysByMember.has(row.memberId)) daysByMember.set(row.memberId, new Map());
+    const days = daysByMember.get(row.memberId);
+    if (!days.has(row.date)) {
+      days.set(row.date, departmentIds.has(row.departmentId) ? row.departmentId : unassignedKey);
+    }
   }
-  const departments = new Map((state.departments || []).map((item) => [item.id, item.name]));
-  return getCurrentGroupExportMembers()
+
+  const headers = ["工號", "姓名", ...unitColumns.map((unit) => unit.name), "日數合計"];
+  const rows = getCurrentGroupExportMembers()
     .filter((member) => !member.deleted && doesDateRangeOverlapRange(member.hireDate, member.leaveDate, startDate, endDate))
-    .map((member) => [departments.get(member.deptId) || "", member.name || "", member.code || "", datesByMember.get(member.id)?.size || 0]);
+    .map((member) => {
+      const counts = new Map();
+      for (const unitId of daysByMember.get(member.id)?.values() || []) {
+        counts.set(unitId, (counts.get(unitId) || 0) + 1);
+      }
+      const unitDays = unitColumns.map((unit) => counts.get(unit.id) || 0);
+      return [member.code || "", member.name || "", ...unitDays, unitDays.reduce((sum, days) => sum + days, 0)];
+    });
+  return { headers, rows };
 }
 
 function buildHeadcountStatistics(year, month) {
@@ -587,7 +611,7 @@ function showScheduleStatisticsResult(title, period, headers, rows, fileName) {
     try {
       const excel = await window.schedulerBrowserExporter.ensureExcelJS();
       const workbook = new excel.Workbook();
-      const sheet = workbook.addWorksheet(title, { views: [{ state: "frozen", ySplit: 2 }] });
+      const sheet = workbook.addWorksheet(title, { views: [{ state: "frozen", ySplit: 2, ...(title === "統計上班日" ? { xSplit: 2 } : {}) }] });
       sheet.addRow([description]);
       sheet.addRow(headers);
       rows.forEach((row) => sheet.addRow(row));
@@ -711,9 +735,9 @@ async function runPeriodExport(type) {
     try {
       setSaveStatus("正在準備統計資料...", true);
       await window.schedulerApi.loadScheduleExportRows(startDate, endDate);
-      const rows = await buildWorkdayStatisticsRows(startDate, endDate);
+      const { headers, rows } = await buildWorkdayStatisticsRows(startDate, endDate);
       if (groupId !== groupFeatureState.currentGroupId) throw new Error("群組已變更，請重新統計");
-      showScheduleStatisticsResult("統計上班日", `${startDate} ～ ${endDate}`, ["所屬單位", "姓名", "工號", "排班日數"], rows,
+      showScheduleStatisticsResult("統計上班日", `${startDate} ～ ${endDate}`, headers, rows,
         `統計上班日_${startDate.replaceAll("-", "")}-${endDate.replaceAll("-", "")}.xlsx`);
       setSaveStatus("");
     } catch (error) {
