@@ -6,6 +6,15 @@ function getSelectedToolbarItem() {
   return item ? { type, item } : null;
 }
 
+function getSelectedToolbarCancelLabel() {
+  const type = state?.selected?.type || "";
+  if (type !== "cancel-shift" && type !== "cancel-leave") return "";
+  if (fyhLocalization.isVietnamese()) {
+    return type === "cancel-shift" ? "Ca làm\nHủy" : "Loại nghỉ\nHủy";
+  }
+  return type === "cancel-shift" ? "班別\n取消" : "假別\n取消";
+}
+
 
 
 let selectedScheduleItemPointerPreview = null;
@@ -37,8 +46,10 @@ function syncSelectedScheduleItemCursor() {
     return;
   }
   const selected = getSelectedToolbarItem();
-  if (!selected || !canEditSchedule() || state.tableView !== "member") {
+  const cancelLabel = getSelectedToolbarCancelLabel();
+  if ((!selected && !cancelLabel) || !canEditSchedule() || state.tableView !== "member") {
     table.classList.remove("schedule-item-cursor-active");
+    preview.classList.remove("schedule-item-pointer-cancel");
     preview.hidden = true;
     preview.textContent = "";
     preview.style.backgroundColor = "";
@@ -46,6 +57,16 @@ function syncSelectedScheduleItemCursor() {
     preview.style.borderColor = "";
     return;
   }
+  if (cancelLabel) {
+    table.classList.add("schedule-item-cursor-active");
+    preview.classList.add("schedule-item-pointer-cancel");
+    preview.textContent = cancelLabel;
+    preview.style.backgroundColor = "#fbf8f2";
+    preview.style.color = "#574b3f";
+    preview.style.borderColor = "#8b7b6a";
+    return;
+  }
+  preview.classList.remove("schedule-item-pointer-cancel");
   const name = String(getLocalizedName(selected.item)).trim();
   if (!name) {
     table.classList.remove("schedule-item-cursor-active");
@@ -66,8 +87,9 @@ function updateSelectedScheduleItemPointerPreview(event) {
   const target = event?.target;
   const cell = target instanceof Element ? target.closest("#mainTable .cell") : null;
   const selected = getSelectedToolbarItem();
+  const cancelLabel = getSelectedToolbarCancelLabel();
   if (!(cell instanceof HTMLElement)
-      || !selected
+      || (!selected && !cancelLabel)
       || !canEditSchedule()
       || state.tableView !== "member") {
     preview.hidden = true;

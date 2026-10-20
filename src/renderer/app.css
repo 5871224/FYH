@@ -3507,7 +3507,7 @@ thead th.today,
   }
 }
 
-/* 選取班別／假別後，以 HTML 浮動標籤取代點陣化自訂 cursor，
+/* 選取班別／假別或其取消工具後，以 HTML 浮動標籤取代點陣化自訂 cursor，
  * 保留網頁字型清晰度；不可排、封存與唯讀格仍只改游標外觀。
  */
 #mainTable.schedule-item-cursor-active .cell {
@@ -3535,6 +3535,14 @@ thead th.today,
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
+}
+
+.schedule-item-pointer-preview.schedule-item-pointer-cancel {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 4px 6px;
+  font-size: 12px;
+  white-space: pre-line;
 }
 
 .schedule-item-pointer-preview[hidden] {
