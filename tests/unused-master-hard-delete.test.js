@@ -37,3 +37,19 @@ test("unused departments are physically deleted while referenced history is reta
   assert.match(sql, /select 1 from public\.meal_orders where department_id=p_department_id or attendance_department_id=p_department_id/);
   assert.match(sql, /update public\.set_departments set deleted_at=now\(\)/);
 });
+
+test("deleting a member removes only owned attachments and retries storage cleanup", () => {
+  const sql = read("supabase/002_current_updates.sql");
+  const memberEdge = read("supabase/functions/member-auth-admin/index.ts");
+  const attachmentEdge = read("supabase/functions/attendance-attachments/index.ts");
+  const cleanup = read("supabase/functions/_shared/attachment-cleanup.ts");
+  const migration = read("supabase/migrations/2026102001_delete_member_attachments.sql");
+  assert.match(sql, /delete from public\.attendance_attachments where owner_id=p_target_id/);
+  assert.match(sql, /update public\.attendance_attachments set deleted_by=null where deleted_by=p_target_id/);
+  assert.match(sql, /insert into public\.attendance_attachment_cleanup_queue\(storage_path\)/);
+  assert.match(sql, /if v_schedule_count=0 and v_attendance_count=0 and v_meal_count=0 then/);
+  assert.match(migration, /create table if not exists public\.attendance_attachment_cleanup_queue/);
+  assert.match(memberEdge, /await cleanupDeletedMemberAttachments\(ctx\.supabaseAdmin\)/);
+  assert.match(attachmentEdge, /await cleanupDeletedMemberAttachments\(ctx\.supabaseAdmin\)/);
+  assert.match(cleanup, /storage\.from\("attendance-files"\)\.remove\(paths\)/);
+});

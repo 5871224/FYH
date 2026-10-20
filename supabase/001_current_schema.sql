@@ -1049,6 +1049,14 @@ create table if not exists public.attendance_attachments (
 );
 create index if not exists attendance_attachments_owner_date on public.attendance_attachments(owner_id,work_date,status);
 create index if not exists attendance_attachments_status_created on public.attendance_attachments(status,created_at);
+create table if not exists public.attendance_attachment_cleanup_queue (
+  storage_path text primary key,
+  created_at timestamptz not null default now()
+);
+alter table public.attendance_attachment_cleanup_queue enable row level security;
+revoke all on public.attendance_attachment_cleanup_queue from public,anon,authenticated;
+grant select,delete on public.attendance_attachment_cleanup_queue to service_role;
+
 alter table public.attendance_attachments enable row level security;
 revoke all on public.attendance_attachments from anon, authenticated;
 grant select,insert,update on public.attendance_attachments to service_role;

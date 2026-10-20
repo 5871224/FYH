@@ -1,4 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@^1";
+import { cleanupDeletedMemberAttachments } from "../_shared/attachment-cleanup.ts";
 import { actorIdOf, hasAnyGroupPermission, hasCommonPermission, hasGroupPermission, isProfileEffective, isUuid, rpcBoolean, taipeiDateString } from "../_shared/runtime.ts";
 
 type MemberPayload = {
@@ -372,7 +373,10 @@ async function deleteMember(ctx: any, body: any) {
       throw authDeleteError;
     }
   }
-  return { ...result, selfDelete, employeeCode };
+  const attachmentCleanupPending = result?.deleted
+    ? await cleanupDeletedMemberAttachments(ctx.supabaseAdmin)
+    : false;
+  return { ...result, selfDelete, employeeCode, attachmentCleanupPending };
 }
 
 console.assert(buildLoginEmail("SELF_CHECK") === "self_check@local.invalid", "member-auth-admin buildLoginEmail failed");

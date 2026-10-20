@@ -1,4 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@^1";
+import { cleanupDeletedMemberAttachments } from "../_shared/attachment-cleanup.ts";
 import { actorIdOf,hasAnyGroupPermission,hasGroupPermission,isProfileEffective,isProfileEmployedOn,isUuid,pageNumber,validDate,taipeiDateString } from "../_shared/runtime.ts";
 
 const BUCKET="attendance-files";
@@ -130,6 +131,8 @@ function safeType(v:string){
   return allowed.includes(v.toLowerCase());
 }
 async function cleanupExpiredReservations(ctx:any){
+  // 每次預留附件時順便重試先前刪除人員所遺留的 Storage 清理工作。
+  await cleanupDeletedMemberAttachments(ctx.supabaseAdmin);
   // Signed upload URLs expire after two hours. Reclaim abandoned reservations after three.
   const expiration=new Date(Date.now()-3*60*60*1000).toISOString();
   const pending=await ctx.supabaseAdmin.from("attendance_attachments").select("id,storage_path")

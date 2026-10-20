@@ -547,6 +547,14 @@ end $$;
 drop trigger if exists trg_block_direct_employee_profile_delete_v2 on public.set_employee;
 drop function if exists public.block_direct_employee_profile_delete_v2();
 
+create table if not exists public.attendance_attachment_cleanup_queue (
+  storage_path text primary key,
+  created_at timestamptz not null default now()
+);
+alter table public.attendance_attachment_cleanup_queue enable row level security;
+revoke all on public.attendance_attachment_cleanup_queue from public,anon,authenticated;
+grant select,delete on public.attendance_attachment_cleanup_queue to service_role;
+
 create or replace function public.delete_member_account_v4(p_target_id uuid)
 returns jsonb
 language plpgsql
@@ -559,6 +567,7 @@ declare
   v_unarchived_schedule_count bigint := 0;
   v_attendance_count bigint := 0;
   v_meal_count bigint := 0;
+  v_attachment_count bigint := 0;
   v_today date := (timezone('Asia/Taipei',now()))::date;
 begin
   select * into v_profile
@@ -612,6 +621,21 @@ begin
   select count(*) into v_attendance_count from public.attendance_days where user_id=p_target_id;
   select count(*) into v_meal_count from public.meal_orders where user_id=p_target_id;
 
+  -- 清除被刪除人員所擁有的附件；實際 Storage 檔案由後端依佇列刪除。
+  -- 不論實體或軟刪除，附件都隨人員刪除；資料庫操作保持交易一致性。
+  select count(*) into v_attachment_count
+  from public.attendance_attachments
+  where owner_id=p_target_id;
+
+  insert into public.attendance_attachment_cleanup_queue(storage_path)
+  select storage_path from public.attendance_attachments where owner_id=p_target_id
+  on conflict(storage_path) do nothing;
+
+  delete from public.attendance_attachments where owner_id=p_target_id;
+
+  -- 此人若曾刪除其他人的附件，不得誤刪其他人的資料。
+  update public.attendance_attachments set deleted_by=null where deleted_by=p_target_id;
+
   if v_schedule_count=0 and v_attendance_count=0 and v_meal_count=0 then
     delete from public.set_employee where id=p_target_id;
     return jsonb_build_object(
@@ -619,6 +643,7 @@ begin
       'deleted',true,
       'softDeleted',false,
       'hardDeleted',true,
+      'attachmentsDeleted',v_attachment_count,
       'blocked',false,
       'employeeCode',v_profile.employee_code
     );
@@ -633,6 +658,7 @@ begin
     'deleted',true,
     'softDeleted',true,
     'hardDeleted',false,
+    'attachmentsDeleted',v_attachment_count,
     'blocked',false,
     'employeeCode',v_profile.employee_code,
     'history',jsonb_build_object(
