@@ -6659,7 +6659,7 @@ html[lang="vi"] .attendance-ledger-table .attendance-clock-buttons [data-persona
 .core-actions-menu-trigger {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 10px;
   width: 100%;
   padding: 9px 12px;
