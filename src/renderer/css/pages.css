@@ -696,6 +696,30 @@
   text-align: center;
 }
 
+/* 統計上班日：欄寬依完整文字展開，超出彈窗寬度時水平捲動。 */
+.workday-statistics-table-wrap {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.workday-statistics-table-wrap .records-table {
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+.workday-statistics-table-wrap .records-table th,
+.workday-statistics-table-wrap .records-table td {
+  white-space: nowrap;
+}
+
+.workday-statistics-table-wrap .records-table th:nth-child(n + 3),
+.workday-statistics-table-wrap .records-table td:nth-child(n + 3) {
+  text-align: center;
+}
+
 .attendance-review-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

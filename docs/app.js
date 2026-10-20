@@ -14806,10 +14806,13 @@ function runHeadcountStatistics() {
 function showScheduleStatisticsResult(title, period, headers, rows, fileName) {
   const groupId = groupFeatureState.currentGroupId;
   const description = `${period}；人員數：${rows.length}`;
+  const tableWrapClass = title === "統計上班日"
+    ? "records-table-wrap workday-statistics-table-wrap"
+    : "records-table-wrap";
   openEntityListModal({
     title,
     description,
-    body: `<div class="records-table-wrap"><table class="records-table"><thead><tr>${headers.map((header) => `<th scope="col">${escapeHtml(header)}</th>`).join("")}</tr></thead>
+    body: `<div class="${tableWrapClass}"><table class="records-table"><thead><tr>${headers.map((header) => `<th scope="col">${escapeHtml(header)}</th>`).join("")}</tr></thead>
       <tbody>${rows.length ? rows.map((row) => `<tr>${row.map((value) => `<td>${escapeHtml(String(value))}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${headers.length}">目前沒有符合條件的人員</td></tr>`}</tbody></table></div>`,
     headerButtons: '<button id="exportScheduleStatisticsButton" class="btn-primary" type="button">匯出 Excel</button>'
   });
