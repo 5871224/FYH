@@ -6659,7 +6659,7 @@ html[lang="vi"] .attendance-ledger-table .attendance-clock-buttons [data-persona
 .core-actions-menu-trigger {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 10px;
   width: 100%;
   padding: 9px 12px;
@@ -6682,6 +6682,7 @@ html[lang="vi"] .attendance-ledger-table .attendance-clock-buttons [data-persona
 }
 
 .core-actions-menu-arrow {
+  order: -1;
   color: var(--accent-strong);
   font-size: 18px;
   line-height: 1;
