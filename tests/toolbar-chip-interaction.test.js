@@ -18,6 +18,8 @@ test("班表浮動工具列支援快速連點修改與選中項目圖示", () =>
   const collapseIndex = html.indexOf('id="toolbarCollapseToggle"', primaryStart);
   const previewIndex = html.indexOf('id="toolbarSelectedPreview"', primaryStart);
   assert.ok(primaryStart >= 0 && collapseIndex > primaryStart && previewIndex > collapseIndex, "縮放按鈕與選中項目圖示必須位於同一主控制列");
+  assert.match(css, /\.toolbar-control-stack\s*\{[^}]*gap:\s*12px;/s, "縮放按鈕與上一步／下一步應相隔 12px");
+  assert.match(css, /\.toolbar-control-primary,\s*\.toolbar-control-history\s*\{[^}]*gap:\s*4px;/s, "上一步／下一步之間維持 4px");
 
   const shiftTitle = html.indexOf('<span class="toolbar-title">班別</span>');
   const shiftEdit = html.indexOf('id="shiftSettingsButton"', shiftTitle);

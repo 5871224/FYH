@@ -5691,7 +5691,7 @@ body:not(.is-authenticated) .toolbar-card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: 12px;
   min-width: 80px;
 }
 
