@@ -64,6 +64,14 @@ test("簽到審核加班 Excel 將姓名放第一欄，星期後帶入當天排�
   assert.equal(sheet.columns[3].width, 18);
   assert.ok(sheet.rows[1].getCell(15).fill, "粉紅底色須覆蓋新增單位欄及所有資料欄");
 
+  const restDay = await createOvertimeWorkbook({
+    attendanceReview: true,
+    exportRows: [{ ...payload.exportRows[0], overtime_type_id: "attendance-rest-day", missingScheduledShift: false }],
+    mockOvertimeRows: [overtimeValues]
+  });
+  assert.deepEqual(restDay.sheet.rows[1].getCell(4).fill.fgColor, { argb: "FFFFF2CC" },
+    "休息日加班新增的單位欄須維持黃色底色");
+
   const normal = await createOvertimeWorkbook({
     attendanceReview: false,
     exportRows: payload.exportRows,
