@@ -112,6 +112,9 @@ test("簽到審核匯出 Excel：缺班別粉紅，例假及休息日加班黃�
     const missing=workbook.sheet.getRow(2), normal=workbook.sheet.getRow(3);
     const offDay=workbook.sheet.getRow(4), restDay=workbook.sheet.getRow(5), missingPriority=workbook.sheet.getRow(6);
     assert.equal(missing.values.length,15);
+    assert.equal(missing.getCell(1).value,"缺班");
+    assert.equal(missing.getCell(3).value,"四");
+    assert.equal(missing.getCell(4).value,"");
     assert.equal(missing.getCell(6).value,"0000");
     assert.equal(missing.getCell(7).value,"0330");
     for(let i=1;i<=15;i++) assert.equal(missing.getCell(i).fill?.fgColor?.argb,"FFFFE4EC");
