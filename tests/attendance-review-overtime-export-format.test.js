@@ -34,7 +34,8 @@ test("簽到審核匯出使用正式 exportRows 十二欄契約並納入休例�
   assert.match(spec, /不論未審或已審.*都納入匯出判斷/);
   assert.match(exporter, /function requireExportRows/);
   assert.match(exporter, /"員工編號",[\s\S]*"加班日期",[\s\S]*"加班時間\(起\)",[\s\S]*"加班時間\(迄\)"/);
-  assert.match(spec, /正式唯一格式為 12 欄/);
+  assert.match(spec, /總共 15 欄/);
+  assert.match(spec, /姓名、員工編號、星期、單位、加班日期/);
   assert.match(spec, /2\.5 小時輸出 `0230`/);
   assert.match(spec, /例假.*休息日.*班別.*視為加班/);
   assert.match(spec, /班表頁「功能 → 匯出」不提供「匯出加班」選項/);
