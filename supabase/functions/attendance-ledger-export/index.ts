@@ -48,10 +48,10 @@ async function getVisibleMembers(ctx: any, actorId: string, requestedGroupId = "
 }
 
 async function getScheduleContext(ctx: any, memberIds: string[], fromDate: string, toDate: string) {
-  if (!memberIds.length) return { schedules: new Map(), shifts: new Map(), leaves: new Map() };
+  if (!memberIds.length) return { schedules: new Map(), shifts: new Map(), leaves: new Map(), departments: new Map() };
   const schedules = await readAllPages(() => ctx.supabaseAdmin
     .from("schedule_entries")
-    .select("member_id,work_date,shift_type_id,leave_type_id")
+    .select("member_id,work_date,shift_type_id,leave_type_id,support_department_id")
     .in("member_id", memberIds)
     .gte("work_date", fromDate)
     .lte("work_date", toDate)
@@ -61,7 +61,7 @@ async function getScheduleContext(ctx: any, memberIds: string[], fromDate: strin
   const leaveIds = [...new Set<string>(schedules.map((row: any) => String(row.leave_type_id || "")).filter(Boolean))];
   const [shiftResult, leaveResult] = await Promise.all([
     shiftIds.length
-      ? ctx.supabaseAdmin.from("set_shift").select("id,start_time,end_time").in("id", shiftIds)
+      ? ctx.supabaseAdmin.from("set_shift").select("id,start_time,end_time,applicable_department_id").in("id", shiftIds)
       : Promise.resolve({ data: [], error: null }),
     leaveIds.length
       ? ctx.supabaseAdmin.from("set_leave").select("id,code,name").in("id", leaveIds)
@@ -69,11 +69,20 @@ async function getScheduleContext(ctx: any, memberIds: string[], fromDate: strin
   ]);
   if (shiftResult.error) throw shiftResult.error;
   if (leaveResult.error) throw leaveResult.error;
+  const departmentIds = [...new Set<string>([
+    ...schedules.map((row: any) => String(row.support_department_id || "")),
+    ...(shiftResult.data || []).map((row: any) => String(row.applicable_department_id || ""))
+  ].filter(Boolean))];
+  const departmentResult = departmentIds.length
+    ? await ctx.supabaseAdmin.from("set_departments").select("id,name").in("id", departmentIds)
+    : { data: [], error: null };
+  if (departmentResult.error) throw departmentResult.error;
 
   return {
     schedules: new Map(schedules.map((row: any) => [scheduleKey(row.member_id, row.work_date), row])),
     shifts: new Map((shiftResult.data || []).map((row: any) => [row.id, row])),
-    leaves: new Map((leaveResult.data || []).map((row: any) => [row.id, row]))
+    leaves: new Map((leaveResult.data || []).map((row: any) => [row.id, row])),
+    departments: new Map((departmentResult.data || []).map((row: any) => [row.id, row]))
   };
 }
 
@@ -117,6 +126,11 @@ export default {
         const shift: any = schedule?.shift_type_id ? scheduleContext.shifts.get(schedule.shift_type_id) || null : null;
         const leave: any = schedule?.leave_type_id ? scheduleContext.leaves.get(schedule.leave_type_id) || null : null;
         const restDayScheduled = Boolean(shift && isRestDayLeave(leave));
+        // 以當天支援單位優先，否則使用實際排入班別的適用單位。
+        // 無班別時不回填員工所屬單位，以免匯出錯誤。
+        const scheduledDepartmentId = shift
+          ? String(schedule?.support_department_id || shift.applicable_department_id || "")
+          : "";
         return {
           work_date: row.work_date,
           employee_code: member.employee_code || "",
@@ -128,7 +142,8 @@ export default {
           note: row.note || "",
           restDayScheduled,
           scheduledShiftStartTime: shift?.start_time || null,
-          scheduledShiftEndTime: shift?.end_time || null
+          scheduledShiftEndTime: shift?.end_time || null,
+          scheduledShiftDepartmentName: scheduleContext.departments.get(scheduledDepartmentId)?.name || ""
         };
       });
       return Response.json({ ok: true, rows });
