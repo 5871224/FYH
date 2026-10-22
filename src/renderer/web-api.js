@@ -1412,6 +1412,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
         return [{
           employee_code: row.employee_code || "",
           employee_name: row.employee_name || "",
+          scheduled_department_name: row.scheduledShiftDepartmentName || "",
           work_date: row.work_date || "",
           overtime_type_id: "attendance-rest-day",
           overtime_start_time: adjustedStart.time || scheduledStart,
@@ -1435,6 +1436,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
         return [{
           employee_code: row.employee_code || "",
           employee_name: row.employee_name || "",
+          scheduled_department_name: row.scheduledShiftDepartmentName || "",
           work_date: row.work_date || "",
           overtime_type_id: "attendance-ledger",
           overtime_start_time: "00:00",
@@ -1449,6 +1451,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       return [{
         employee_code: row.employee_code || "",
         employee_name: row.employee_name || "",
+        scheduled_department_name: row.scheduledShiftDepartmentName || "",
         work_date: row.work_date || "",
         overtime_type_id: "attendance-ledger",
         overtime_start_time: adjustedStart.time,
