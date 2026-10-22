@@ -412,7 +412,8 @@
     ];
 
     if (payload.attendanceReview) {
-      headers.splice(1, 0, "姓名", "星期");
+      headers.splice(0, 0, "姓名");
+      headers.splice(2, 0, "星期", "單位");
     }
     sheet.addRow(headers);
     getOvertimeExportRows(payload).forEach((row, index) => {
@@ -425,13 +426,13 @@
       const weekday = match
         ? "日一二三四五六"[new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay()]
         : "";
-      const excelRow = sheet.addRow([row[0], source?.employee_name || "", weekday || "", ...row.slice(1)]);
+      const excelRow = sheet.addRow([source?.employee_name || "", row[0], weekday || "", source?.scheduled_department_name || "", ...row.slice(1)]);
       // Missing shift is pink; example/rest day is yellow. Pink takes priority.
       const rowFill = source?.missingScheduledShift
         ? "FFFFE4EC"
         : source?.overtime_type_id === "attendance-rest-day" ? "FFFFF2CC" : "";
       if (rowFill) {
-        // Apply to all 14 cells, including blank cells.
+        // Apply to every attendance-review export column, including blank cells.
         for (let column = 1; column <= headers.length; column += 1) {
           excelRow.getCell(column).fill = {
             type: "pattern", pattern: "solid", fgColor: { argb: rowFill }
@@ -442,11 +443,15 @@
     sheet.getRow(1).font = { bold: true };
     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EBD8" } };
-    sheet.columns = headers.map((_, index) => ({
-      width: payload.attendanceReview && index === 1 ? 18
-        : payload.attendanceReview && index === 2 ? 12
-          : (index === 0 ? 14 : [4, 5, 8, 11].includes(index - (payload.attendanceReview ? 2 : 0)) ? 10 : 14)
-    }));
+    sheet.columns = headers.map((_, index) => {
+      if (payload.attendanceReview) {
+        if (index === 0 || index === 3) return { width: 18 }; // 姓名、單位
+        if (index === 2) return { width: 10 }; // 星期
+        const originalIndex = index === 1 ? 0 : index - 3;
+        return { width: originalIndex === 0 ? 14 : [4, 5, 8, 11].includes(originalIndex) ? 10 : 14 };
+      }
+      return { width: index === 0 ? 14 : [4, 5, 8, 11].includes(index) ? 10 : 14 };
+    });
     applySheetBorder(sheet);
     return workbook;
   }
@@ -2662,6 +2667,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
         return [{
           employee_code: row.employee_code || "",
           employee_name: row.employee_name || "",
+          scheduled_department_name: row.scheduledShiftDepartmentName || "",
           work_date: row.work_date || "",
           overtime_type_id: "attendance-rest-day",
           overtime_start_time: adjustedStart.time || scheduledStart,
@@ -2685,6 +2691,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
         return [{
           employee_code: row.employee_code || "",
           employee_name: row.employee_name || "",
+          scheduled_department_name: row.scheduledShiftDepartmentName || "",
           work_date: row.work_date || "",
           overtime_type_id: "attendance-ledger",
           overtime_start_time: "00:00",
@@ -2699,6 +2706,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       return [{
         employee_code: row.employee_code || "",
         employee_name: row.employee_name || "",
+        scheduled_department_name: row.scheduledShiftDepartmentName || "",
         work_date: row.work_date || "",
         overtime_type_id: "attendance-ledger",
         overtime_start_time: adjustedStart.time,
