@@ -79,10 +79,10 @@ test("簽到審核單位由當天班表班別或支援單位取得，未排班�
   const spec = read("規格書.md");
   assert.match(edge, /shift_type_id,leave_type_id,support_department_id/);
   assert.match(edge, /id,start_time,end_time,applicable_department_id/);
-  assert.match(edge, /schedule\\?\\.support_department_id \\|\\| shift\\.applicable_department_id/);
+  assert.match(edge, /schedule\?\.support_department_id \|\| shift\.applicable_department_id/);
   assert.match(edge, /const scheduledDepartmentId = shift/);
-  assert.match(edge, /scheduledShiftDepartmentName: scheduleContext\\.departments\\.get\\(scheduledDepartmentId\\)\\?\\.name/);
-  assert.equal((webApi.match(/scheduled_department_name: row\\.scheduledShiftDepartmentName \\|\\| ""/g) || []).length, 3);
+  assert.match(edge, /scheduledShiftDepartmentName: scheduleContext\.departments\.get\(scheduledDepartmentId\)\?\.name/);
+  assert.equal((webApi.match(/scheduled_department_name: row\.scheduledShiftDepartmentName \|\| ""/g) || []).length, 3);
   assert.match(spec, /當天未排班別時留空/);
   assert.equal(read("src/renderer/app.js"), read("docs/app.js"), "正式版 bundle 必須同步");
 });
