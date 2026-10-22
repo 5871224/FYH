@@ -51,6 +51,10 @@ test("簽到審核加班 Excel 將姓名放第一欄，星期後帶入當天排�
   };
   const workbook = await createOvertimeWorkbook(payload);
   const sheet = workbook.sheet;
+  for (const column of [1, 3, 4]) assert.equal(sheet.rows[0].getCell(column).fill, undefined);
+  for (const column of [2, 5, 15]) {
+    assert.deepEqual(sheet.rows[0].getCell(column).fill.fgColor, { argb: "FFF3EBD8" });
+  }
   assert.deepEqual(sheet.rows[0].values, [
     "姓名", "員工編號", "星期", "單位", "加班日期", "加班時間(起)",
     "加班時間(迄)", "前一日", "加班補貼類型", "休息1(起)",
@@ -69,8 +73,8 @@ test("簽到審核加班 Excel 將姓名放第一欄，星期後帶入當天排�
     exportRows: [{ ...payload.exportRows[0], overtime_type_id: "attendance-rest-day", missingScheduledShift: false }],
     mockOvertimeRows: [overtimeValues]
   });
-  assert.deepEqual(restDay.sheet.rows[1].getCell(4).fill.fgColor, { argb: "FFFFF2CC" },
-    "休息日加班新增的單位欄須維持黃色底色");
+  assert.deepEqual(restDay.sheet.rows[1].getCell(4).fill.fgColor, { argb: "FFFFFF00" },
+    "休假日加班新增的單位欄須為亮黃色底色");
 
   const normal = await createOvertimeWorkbook({
     attendanceReview: false,
@@ -79,6 +83,7 @@ test("簽到審核加班 Excel 將姓名放第一欄，星期後帶入當天排�
   });
   assert.equal(normal.sheet.rows[0].values.length, 12, "其他既有加班匯出不可更改欄序");
   assert.equal(normal.sheet.rows[0].values[0], "員工編號");
+  assert.deepEqual(normal.sheet.rows[0].getCell(1).fill.fgColor, { argb: "FFF3EBD8" });
 });
 
 test("簽到審核單位由當天班表班別或支援單位取得，未排班不套用所屬單位", () => {

@@ -73,7 +73,7 @@ test("SAP CSV 保留 BOM 並正確跳脫逗號與雙引號", () => {
   assert.equal(csv.includes("A001,20260502,20260502,REST"), true);
 });
 
-test("簽到審核匯出 Excel：缺班別粉紅，例假及休息日加班黃色，正常班別不變", async () => {
+test("簽到審核匯出 Excel：缺班別粉紅，休假日加班亮黃色，補充欄標題無底色", async () => {
   class FakeRow {
     constructor(values) { this.values = values; this.cells = new Map(); }
     getCell(index) {
@@ -109,6 +109,13 @@ test("簽到審核匯出 Excel：缺班別粉紅，例假及休息日加班黃�
         {employee_code:"005",employee_name:"缺班別優先",work_date:"2026-10-04",overtime_type_id:"attendance-rest-day",overtime_start_time:"00:00",overtime_end_time:"03:30",missingScheduledShift:true}
       ]
     });
+    const header=workbook.sheet.getRow(1);
+    for (const column of [1,3,4]) {
+      assert.equal(header.getCell(column).fill,undefined, `第 ${column} 欄標題應維持無底色`);
+    }
+    for (const column of [2,5,15]) {
+      assert.equal(header.getCell(column).fill?.fgColor?.argb,"FFF3EBD8");
+    }
     const missing=workbook.sheet.getRow(2), normal=workbook.sheet.getRow(3);
     const offDay=workbook.sheet.getRow(4), restDay=workbook.sheet.getRow(5), missingPriority=workbook.sheet.getRow(6);
     assert.equal(missing.values.length,15);
@@ -120,8 +127,8 @@ test("簽到審核匯出 Excel：缺班別粉紅，例假及休息日加班黃�
     for(let i=1;i<=15;i++) assert.equal(missing.getCell(i).fill?.fgColor?.argb,"FFFFE4EC");
     for(let i=1;i<=15;i++) {
       assert.equal(normal.getCell(i).fill,undefined);
-      assert.equal(offDay.getCell(i).fill?.fgColor?.argb,"FFFFF2CC");
-      assert.equal(restDay.getCell(i).fill?.fgColor?.argb,"FFFFF2CC");
+      assert.equal(offDay.getCell(i).fill?.fgColor?.argb,"FFFFFF00");
+      assert.equal(restDay.getCell(i).fill?.fgColor?.argb,"FFFFFF00");
       assert.equal(missingPriority.getCell(i).fill?.fgColor?.argb,"FFFFE4EC");
     }
   } finally {
