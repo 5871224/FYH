@@ -420,10 +420,10 @@
         ? "日一二三四五六"[new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay()]
         : "";
       const excelRow = sheet.addRow([source?.employee_name || "", row[0], weekday || "", source?.scheduled_department_name || "", ...row.slice(1)]);
-      // Missing shift is pink; example/rest day is yellow. Pink takes priority.
+      // Missing shift is pink; rest-day overtime is bright yellow. Pink takes priority.
       const rowFill = source?.missingScheduledShift
         ? "FFFFE4EC"
-        : source?.overtime_type_id === "attendance-rest-day" ? "FFFFF2CC" : "";
+        : source?.overtime_type_id === "attendance-rest-day" ? "FFFFFF00" : "";
       if (rowFill) {
         // Apply to every attendance-review export column, including blank cells.
         for (let column = 1; column <= headers.length; column += 1) {
@@ -435,7 +435,14 @@
     });
     sheet.getRow(1).font = { bold: true };
     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-    sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EBD8" } };
+    // 姓名、星期與單位三個補充欄位維持 Excel 預設的無底色表頭。
+    // 只在其餘表頭格套用原有底色，避免整列上色後難以清除。
+    headers.forEach((_, index) => {
+      if (payload.attendanceReview && [0, 2, 3].includes(index)) return;
+      sheet.getRow(1).getCell(index + 1).fill = {
+        type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EBD8" }
+      };
+    });
     sheet.columns = headers.map((_, index) => {
       if (payload.attendanceReview) {
         if (index === 0 || index === 3) return { width: 18 }; // 姓名、單位
