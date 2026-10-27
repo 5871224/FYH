@@ -23,5 +23,8 @@ test("簽到審核列印 A4 直式且可設定每頁筆數", () => {
   assert.match(actions, /renderReviewStatus\(row\.reviewed\)/);
   assert.match(actions, /列印版沿用簽到審核頁的表格、色彩與狀態視覺/);
   assert.match(actions, /border-bottom:1px solid var\(--line\)/);
+  assert.match(views, /function renderRecordDateCell\(dateString\)[\s\S]*getScheduleWeekdayLabel\(date\.getDay\(\)\)/);
+  assert.match(actions, /renderRecordDateCell\(row\.work_date\)/);
+  assert.match(actions, /\.attendance-review-print-table \.records-date-weekday\{display:block/);
   assert.match(spec, /「每頁筆數」設定，範圍 1～60 筆、預設 40 筆/);
 });
