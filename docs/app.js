@@ -13042,13 +13042,9 @@ function attendanceReviewPrintPageStyle(pageSize) {
   return [
     `--attendance-review-print-row-height:${rowHeight.toFixed(2)}mm`,
     `--attendance-review-print-cell-max-height:${cellMaxHeight.toFixed(2)}mm`,
-    `--attendance-review-print-font-size:${(8.3 * scale).toFixed(2)}px`,
-    `--attendance-review-print-small-font-size:${(6.5 * scale).toFixed(2)}px`,
-    `--attendance-review-print-punch-font-size:${(7 * scale).toFixed(2)}px`,
-    `--attendance-review-print-punch-small-font-size:${(6 * scale).toFixed(2)}px`,
-    `--attendance-review-print-status-font-size:${(6.5 * scale).toFixed(2)}px`,
+    `--attendance-review-print-font-size:${(9 * scale).toFixed(2)}px`,
+    `--attendance-review-print-secondary-font-size:${(8 * scale).toFixed(2)}px`,
     `--attendance-review-print-icon-height:${Math.max(2.8, 4 * scale).toFixed(2)}mm`,
-    `--attendance-review-print-seg-font-size:${Math.max(4.2, 5.5 * scale).toFixed(2)}px`,
     `--attendance-review-print-pad-y:${Math.max(0.12, 0.25 * scale).toFixed(2)}mm`,
     `--attendance-review-print-pad-x:${Math.max(0.25, 0.5 * scale).toFixed(2)}mm`
   ].join(";");
@@ -13104,33 +13100,35 @@ function ensureAttendanceReviewPrintStyles() {
     .attendance-review-print-toolbar input{width:72px;min-height:38px;padding:6px 10px;border:1px solid #ddd4c7;border-radius:12px;background:#fff;box-sizing:border-box}
     .attendance-review-print-pages{padding:16px}
     .attendance-review-print-page{width:210mm;height:297mm;margin:0 auto 16px;padding:4mm;background:#fff;box-sizing:border-box;overflow:hidden;box-shadow:0 8px 26px #0002}
-    .attendance-review-print-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:7px;line-height:1.05}
+    .attendance-review-print-table{width:100%;border-collapse:collapse;table-layout:fixed;line-height:1.12}
     .attendance-review-print-table col.ar-print-date{width:17mm}.attendance-review-print-table col.ar-print-employee{width:16mm}.attendance-review-print-table col.ar-print-icon{width:11mm}.attendance-review-print-table col.ar-print-shift{width:18mm}
     .attendance-review-print-table col.ar-print-clock{width:38mm}.attendance-review-print-table col.ar-print-hours{width:11mm}.attendance-review-print-table col.ar-print-note{width:27mm}.attendance-review-print-table col.ar-print-issue{width:28mm}.attendance-review-print-table col.ar-print-status{width:10mm}
     .attendance-review-print-table th,.attendance-review-print-table td{box-sizing:border-box;border:1px solid #d8d0c5;vertical-align:middle;overflow:hidden}
-    .attendance-review-print-table th{height:6mm;padding:.2mm .35mm;background:#f7f3ed;text-align:center;font-size:7.2px;font-weight:900;white-space:nowrap}
+    .attendance-review-print-table th{height:6mm;padding:.2mm .35mm;background:#f7f3ed;text-align:center;font-weight:900;white-space:nowrap}
     .attendance-review-print-table tbody tr,.attendance-review-print-table tbody td{height:7mm;max-height:7mm}
     .attendance-review-print-table td{padding:.12mm .3mm}
     .attendance-review-print-cell{display:-webkit-box;max-height:4.05mm;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}
-    .attendance-review-print-cell small{display:block;font-size:5.8px;line-height:1.05;color:#5e554d}
+    .attendance-review-print-cell small{display:block;line-height:1.08;color:#5e554d}
     .attendance-review-print-center{text-align:center;-webkit-line-clamp:1;white-space:nowrap}
     .attendance-review-print-clock span{display:block;white-space:nowrap}.attendance-review-print-clock small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .attendance-review-print-icon{padding:.15mm!important}
     .attendance-review-print-icon .personal-record-schedule-cell{height:var(--attendance-review-print-icon-height,4mm)!important;min-height:0!important;border-radius:.7mm!important;overflow:hidden}
-    .attendance-review-print-icon .seg{min-height:0!important}.attendance-review-print-icon .seg-label{font-size:var(--attendance-review-print-seg-font-size,5.5px)!important;line-height:1!important}
-    /* 列印版沿用簽到審核頁的表格、色彩與狀態視覺；每頁超過 40 筆時依設定自動壓縮尺寸。 */
+    .attendance-review-print-icon .seg{min-height:0!important}.attendance-review-print-icon .seg-label{font-size:var(--attendance-review-print-secondary-font-size,8px)!important;line-height:1!important}
+    /* 列印版沿用簽到審核頁的表格、色彩與狀態視覺；主次字級一致，每頁超過 40 筆時同步縮放。 */
     .attendance-review-print-page{background:var(--panel);color:var(--text);font-family:"Microsoft JhengHei UI","PingFang TC",sans-serif}
-    .attendance-review-print-table{width:100%;min-width:0!important;border-collapse:collapse;table-layout:fixed;color:var(--text);font-size:var(--attendance-review-print-font-size,8.3px);line-height:1.12;background:transparent}
-    .attendance-review-print-table th,.attendance-review-print-table td{height:var(--attendance-review-print-row-height,7mm);max-height:var(--attendance-review-print-row-height,7mm);padding:var(--attendance-review-print-pad-y,.25mm) var(--attendance-review-print-pad-x,.5mm);border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:center;vertical-align:middle;font-size:var(--attendance-review-print-font-size,8.3px)}
+    .attendance-review-print-table{width:100%;min-width:0!important;border-collapse:collapse;table-layout:fixed;color:var(--text);font-size:var(--attendance-review-print-font-size,9px);line-height:1.12;background:transparent}
+    .attendance-review-print-table th,.attendance-review-print-table td{height:var(--attendance-review-print-row-height,7mm);max-height:var(--attendance-review-print-row-height,7mm);padding:var(--attendance-review-print-pad-y,.25mm) var(--attendance-review-print-pad-x,.5mm);border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:center;vertical-align:middle;font-size:var(--attendance-review-print-font-size,9px)}
     .attendance-review-print-table th{height:6mm;max-height:6mm;color:var(--muted);font-weight:800;background:rgba(248,243,231,.72);white-space:nowrap}
+    /* 列印表格主文字統一，覆蓋簽到頁既有欄位內字級。 */
+    .attendance-review-print-table :is(th,td,td div,td span,td small,th span){font-size:var(--attendance-review-print-font-size,9px)!important;line-height:1.12}
     .attendance-review-print-table .attendance-review-print-cell{max-height:var(--attendance-review-print-cell-max-height,6.2mm);line-height:1.12}
-    .attendance-review-print-table .attendance-review-print-cell small{color:var(--muted);font-size:var(--attendance-review-print-small-font-size,6.5px)}
+    .attendance-review-print-table .attendance-review-print-cell small{color:var(--muted);font-size:var(--attendance-review-print-secondary-font-size,8px)!important}
     .attendance-review-print-table .attendance-review-print-date-col .records-date-value{display:block;white-space:nowrap;line-height:1.1}
-    .attendance-review-print-table .attendance-review-print-date-col .records-date-weekday{display:block;margin-top:.2mm;color:var(--text);font-size:var(--attendance-review-print-small-font-size,6.5px);font-weight:700;line-height:1.1}
+    .attendance-review-print-table .attendance-review-print-date-col .records-date-weekday{display:block;margin-top:.2mm;color:var(--text);font-size:var(--attendance-review-print-secondary-font-size,8px)!important;font-weight:700;line-height:1.1}
     .attendance-review-print-table .attendance-review-print-clock{display:flex;flex-direction:column;justify-content:center;gap:0;max-height:var(--attendance-review-print-cell-max-height,6.2mm);overflow:hidden;line-height:1.08}
-    .attendance-review-print-table .attendance-punch-line{display:flex;align-items:center;justify-content:center;gap:1mm;min-width:0;white-space:nowrap;font-size:var(--attendance-review-print-punch-font-size,7px);line-height:1.02}
-    .attendance-review-print-table .attendance-punch-line small{display:block;max-width:23mm;overflow:hidden;color:var(--muted);font-size:var(--attendance-review-print-punch-small-font-size,6px);line-height:1.02;text-overflow:ellipsis;white-space:nowrap}
-    .attendance-review-print-table .attendance-review-status{min-width:10mm;padding:.15mm 1mm;border-radius:999px;font-size:var(--attendance-review-print-status-font-size,6.5px);line-height:1.15;font-weight:700}
+    .attendance-review-print-table .attendance-punch-line{display:flex;align-items:center;justify-content:center;gap:1mm;min-width:0;white-space:nowrap;line-height:1.12}
+    .attendance-review-print-table .attendance-punch-line small{display:block;max-width:23mm;overflow:hidden;color:var(--muted);font-size:var(--attendance-review-print-secondary-font-size,8px)!important;line-height:1.08;text-overflow:ellipsis;white-space:nowrap}
+    .attendance-review-print-table .attendance-review-status{min-width:0;padding:.15mm .7mm;border-radius:999px;font-size:var(--attendance-review-print-font-size,9px)!important;line-height:1.12;font-weight:700}
     .attendance-review-print-table .attendance-review-status.is-unreviewed{background:#fff4d6;color:#8a5a00;border:1px solid #efc66a}
     .attendance-review-print-table .attendance-review-status.is-reviewed{background:#e8f7ef;color:#176b45;border:1px solid #8bc9aa}
     .attendance-review-print-table .attendance-review-status-col{text-align:center}

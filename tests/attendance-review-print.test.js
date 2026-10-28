@@ -58,3 +58,13 @@ test("簽到審核列印日期一週七天都產生星期，且不使用會裁�
   assert.equal(matches.length, 7);
   assert.deepEqual(matches.map((match) => match[2]), weekdays);
 });
+
+test("簽到審核列印主次字級統一與整表縮放", () => {
+  const actions = read("src/renderer/renderer-records-actions.js");
+  assert.match(actions, /--attendance-review-print-font-size:\$\{\(9 \* scale\)\.toFixed\(2\)\}px/);
+  assert.match(actions, /--attendance-review-print-secondary-font-size:\$\{\(8 \* scale\)\.toFixed\(2\)\}px/);
+  assert.doesNotMatch(actions, /--attendance-review-print-(?:punch|status|seg|small)-font-size:/);
+  assert.match(actions, /\.attendance-review-print-table :is\(th,td,td div,td span,td small,th span\)\{font-size:var\(--attendance-review-print-font-size,9px\)!important/);
+  assert.match(actions, /\.attendance-review-print-table \.attendance-review-status\{min-width:0/);
+  assert.match(actions, /\.attendance-review-print-icon \.seg-label\{font-size:var\(--attendance-review-print-secondary-font-size,8px\)!important/);
+});
