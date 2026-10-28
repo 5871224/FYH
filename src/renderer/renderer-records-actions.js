@@ -477,7 +477,7 @@ function renderAttendanceReviewPrintTable(rows) {
     </colgroup>
     <thead><tr><th>日期</th><th>員工</th><th>圖示</th><th>班別</th><th>打卡時間</th><th>上班<br>時數</th><th>加班<br>時數</th><th>備註</th><th>異常</th><th>狀態</th></tr></thead>
     <tbody>${rows.map((row) => `<tr>
-      <td><div class="attendance-review-print-cell">${renderRecordDateCell(row.work_date)}</div></td>
+      <td class="attendance-review-print-date-col">${renderRecordDateCell(row.work_date)}</td>
       <td><div class="attendance-review-print-cell">${escapeHtml(row.employee_name || "")}</div></td>
       <td class="attendance-review-print-icon">${renderScheduleIcon(row)}</td>
       <td><div class="attendance-review-print-cell">${escapeHtml(row.shiftName || "-")}${row.shiftTime ? `<small>${escapeHtml(row.shiftTime)}</small>` : ""}</div></td>
@@ -524,7 +524,8 @@ function ensureAttendanceReviewPrintStyles() {
     .attendance-review-print-table th{height:6mm;max-height:6mm;color:var(--muted);font-weight:800;background:rgba(248,243,231,.72);white-space:nowrap}
     .attendance-review-print-table .attendance-review-print-cell{max-height:var(--attendance-review-print-cell-max-height,6.2mm);line-height:1.12}
     .attendance-review-print-table .attendance-review-print-cell small{color:var(--muted);font-size:var(--attendance-review-print-small-font-size,6.5px)}
-    .attendance-review-print-table .records-date-weekday{display:block;color:var(--muted);font-size:var(--attendance-review-print-small-font-size,6.5px);line-height:1.05}
+    .attendance-review-print-table .attendance-review-print-date-col .records-date-value{display:block;white-space:nowrap;line-height:1.1}
+    .attendance-review-print-table .attendance-review-print-date-col .records-date-weekday{display:block;margin-top:.2mm;color:var(--text);font-size:var(--attendance-review-print-small-font-size,6.5px);font-weight:700;line-height:1.1}
     .attendance-review-print-table .attendance-review-print-clock{display:flex;flex-direction:column;justify-content:center;gap:0;max-height:var(--attendance-review-print-cell-max-height,6.2mm);overflow:hidden;line-height:1.08}
     .attendance-review-print-table .attendance-punch-line{display:flex;align-items:center;justify-content:center;gap:1mm;min-width:0;white-space:nowrap;font-size:var(--attendance-review-print-punch-font-size,7px);line-height:1.02}
     .attendance-review-print-table .attendance-punch-line small{display:block;max-width:23mm;overflow:hidden;color:var(--muted);font-size:var(--attendance-review-print-punch-small-font-size,6px);line-height:1.02;text-overflow:ellipsis;white-space:nowrap}
