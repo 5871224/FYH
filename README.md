@@ -19,7 +19,6 @@ Supabase PostgreSQL
 - `src/renderer/app.css`、`src/renderer/app.js` 與 `docs/` 都是建置產生檔，不直接修改。
 - PostgreSQL、RLS、Trigger、RPC 與 Edge Function 共同負責正式資料與安全邊界。
 - 瀏覽器不直接 CRUD 核心資料表。
-- 班表按日期區間快取所有授權群組的完整資料，畫面再取出目前群組；八週導覽與自動補班共用載入流程。切換群組不丟棄其他群組班表，登入狀態重建後不接受舊請求回應。
 
 ## 單一正式版本原則
 
@@ -188,6 +187,18 @@ npm run ci:check
 - `npm run renderer:check`：檢查 Renderer、bundle、發布對齊與正式契約。
 - `npm run ci:check`：執行正式完整檢查。
 
+## 班表載入與切換
+
+班表每次按需讀取目前八週的 56 天，完整保留 API 回傳的所有授權群組資料，再取出目前群組供畫面使用。已讀取的同一期間可直接切換門市／工廠，不重複查詢；前後八週導覽與自動補班的指定期間讀取共用同一載入流程。
+
+載入途中切群組，回應仍保留各群組班別；登出或重新初始化後，舊回應不再更新新狀態。快速連續切換八週時，以最後一次導覽為準；讀取失敗會提示錯誤並回復最後顯示的期間。
+
+若姓名、日期與格線正常但班別空白，檢查目標期間的 API 回應、完整群組快取與在途請求。既有行為回歸涵蓋門市轉工廠、工廠前後八週、延遲回應、重新登入、重疊請求及讀取失敗：
+
+```bash
+node --test tests/schedule-group-period-loading.test.js
+```
+
 ## 修改位置
 
 | 內容 | 正式位置 |
@@ -211,5 +222,5 @@ npm run ci:check
 2. 前端有變更時執行 `npm run web:publish`；重要變更執行 `npm run ci:check`。
 3. 同一需求的多檔案以單一完整 commit 提交到 `main`。
 4. 若有 SQL / Edge Function 變更，依正式部署程序套用 migration／部署 Edge Function，並同步 canonical SQL 與部署腳本。
-5. 確認 `main` 正式驗證 workflow 與 GitHub Pages 部署成功。
+5. 確認 `main` 正式驗證 workflow 與 GitHub Pages 部署成功；核對正式網站載入的 bundle 版本及內容與本次發布成品一致。前端更新後，原本長時間開啟的分頁需重新載入才能使用新程式。
 6. 權限變更需驗證重新登入、切換群組、離開再進頁面與重新整理後仍顯示相同正確功能。
