@@ -27,21 +27,7 @@ function getAutoFillEligibleDates(member, dates) {
 }
 
 async function ensureAutoFillScheduleRangeLoaded(startDate, endDate) {
-  const range = { startDate, endDate };
-  if (typeof isScheduleRangeLoaded === "function" && isScheduleRangeLoaded(range)) {
-    return;
-  }
-  const payload = await window.schedulerApi.loadScheduleEntries({
-    ...range,
-    members: state.members.map((member) => ({ id: member.id }))
-  });
-  state.schedule = cleanupScheduleEntries({
-    ...state.schedule,
-    ...(payload.schedule || {})
-  }, state);
-  if (typeof rememberScheduleLoadedRange === "function") {
-    rememberScheduleLoadedRange(range);
-  }
+  return ensureVisibleScheduleLoaded({ startDate, endDate });
 }
 
 function buildAutoFillSchedulePreview(dates) {
@@ -142,11 +128,14 @@ async function generateAutoFillSchedulePreviewFromModal(button) {
   if (button) {
     button.disabled = true;
   }
+  const loadingState = state;
+  const groupId = groupFeatureState.currentGroupId;
   try {
     await Promise.all([
       ensureAutoFillScheduleRangeLoaded(startDate, endDate),
-      loadScheduleConditions(groupFeatureState.currentGroupId, true)
+      loadScheduleConditions(groupId, true)
     ]);
+    if (state !== loadingState || groupFeatureState.currentGroupId !== groupId) return;
     closeModal();
     autoSchedulePreview = buildAutoFillSchedulePreview(dates);
     renderAll();

@@ -39,7 +39,6 @@ test("初始八週與切換八週都使用完整分頁讀取", () => {
 test("切換八週只載入目標 56 天，不預載前後一週", () => {
   const dateUtils = read("src/renderer/renderer-date-utils.js");
   assert.match(dateUtils, /function getVisibleScheduleLoadRange\(\) \{\s*return getVisibleDateRange\(\);\s*\}/);
-  assert.match(dateUtils, /const range = getVisibleScheduleLoadRange\(\);/);
   assert.doesNotMatch(dateUtils, /getBufferedVisibleDateRange/);
 });
 

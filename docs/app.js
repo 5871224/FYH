@@ -4252,20 +4252,24 @@ function rememberScheduleLoadedRange(range) {
   ];
 }
 
-async function ensureVisibleScheduleLoaded() {
-  const range = getVisibleScheduleLoadRange();
+async function ensureVisibleScheduleLoaded(range = getVisibleScheduleLoadRange()) {
   if (isScheduleRangeLoaded(range)) {
     return;
   }
+  const loadingState = state;
   const payload = await window.schedulerApi.loadScheduleEntries({
     ...range,
-    members: state.members.map((member) => ({ id: member.id }))
+    members: groupFeatureState.catalog.members.map((member) => ({ id: member.id }))
   });
-  state.schedule = cleanupScheduleEntries({
-    ...state.schedule,
+  if (state !== loadingState || isScheduleRangeLoaded(range)) return;
+  syncCurrentScopeIntoCatalog();
+  // ponytail: RPC 已回傳所有授權群組，日期快取直接保留完整群組資料。
+  groupFeatureState.catalog.schedule = cleanupScheduleEntries({
+    ...groupFeatureState.catalog.schedule,
     ...(payload.schedule || {})
-  }, state);
+  }, { ...state, shifts: groupFeatureState.catalog.shifts });
   rememberScheduleLoadedRange(range);
+  applyCurrentGroupScope(state);
 }
 
 function getScheduleKeyForDateString(memberId, dateString) {
@@ -6284,21 +6288,7 @@ function getAutoFillEligibleDates(member, dates) {
 }
 
 async function ensureAutoFillScheduleRangeLoaded(startDate, endDate) {
-  const range = { startDate, endDate };
-  if (typeof isScheduleRangeLoaded === "function" && isScheduleRangeLoaded(range)) {
-    return;
-  }
-  const payload = await window.schedulerApi.loadScheduleEntries({
-    ...range,
-    members: state.members.map((member) => ({ id: member.id }))
-  });
-  state.schedule = cleanupScheduleEntries({
-    ...state.schedule,
-    ...(payload.schedule || {})
-  }, state);
-  if (typeof rememberScheduleLoadedRange === "function") {
-    rememberScheduleLoadedRange(range);
-  }
+  return ensureVisibleScheduleLoaded({ startDate, endDate });
 }
 
 function buildAutoFillSchedulePreview(dates) {
@@ -6399,11 +6389,14 @@ async function generateAutoFillSchedulePreviewFromModal(button) {
   if (button) {
     button.disabled = true;
   }
+  const loadingState = state;
+  const groupId = groupFeatureState.currentGroupId;
   try {
     await Promise.all([
       ensureAutoFillScheduleRangeLoaded(startDate, endDate),
-      loadScheduleConditions(groupFeatureState.currentGroupId, true)
+      loadScheduleConditions(groupId, true)
     ]);
+    if (state !== loadingState || groupFeatureState.currentGroupId !== groupId) return;
     closeModal();
     autoSchedulePreview = buildAutoFillSchedulePreview(dates);
     renderAll();
@@ -14315,6 +14308,8 @@ function scrollScheduleByWeeks(weeks) {
   syncScheduleWeekNavigationButtons();
 }
 
+let schedulePeriodNavigation = null;
+
 async function changeSchedulePeriodWeeks(weeks) {
   if (Math.abs(Number(weeks) || 0) !== 8) {
     return;
@@ -14322,11 +14317,29 @@ async function changeSchedulePeriodWeeks(weeks) {
   const startDate = toDateObject(state.scheduleStartDate)
     ? state.scheduleStartDate
     : getEightWeekCycleStartForDate(getTodayDateString());
+  const navigation = {
+    state,
+    startDate: schedulePeriodNavigation?.state === state ? schedulePeriodNavigation.startDate : startDate
+  };
+  schedulePeriodNavigation = navigation;
   state.scheduleStartDate = addDaysToDateString(startDate, weeks * 7);
   syncVisibleDatePartsFromStart();
-  await ensureVisibleScheduleLoaded();
-  renderAll();
-  await forceSave();
+  try {
+    await ensureVisibleScheduleLoaded();
+    if (state !== navigation.state || schedulePeriodNavigation !== navigation) return;
+    renderAll();
+    schedulePeriodNavigation = null;
+    await forceSave();
+  } catch (error) {
+    if (state === navigation.state && schedulePeriodNavigation === navigation) {
+      state.scheduleStartDate = navigation.startDate;
+      syncVisibleDatePartsFromStart();
+      renderAll();
+      showInfoMessage(`讀取班表失敗：${error.message || "未知錯誤"}`);
+    }
+  } finally {
+    if (schedulePeriodNavigation === navigation) schedulePeriodNavigation = null;
+  }
 }
 
 function getSettingsExportPayload() {

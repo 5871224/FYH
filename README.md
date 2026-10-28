@@ -19,6 +19,7 @@ Supabase PostgreSQL
 - `src/renderer/app.css`、`src/renderer/app.js` 與 `docs/` 都是建置產生檔，不直接修改。
 - PostgreSQL、RLS、Trigger、RPC 與 Edge Function 共同負責正式資料與安全邊界。
 - 瀏覽器不直接 CRUD 核心資料表。
+- 班表按日期區間快取所有授權群組的完整資料，畫面再取出目前群組；八週導覽與自動補班共用載入流程。切換群組不丟棄其他群組班表，登入狀態重建後不接受舊請求回應。
 
 ## 單一正式版本原則
 

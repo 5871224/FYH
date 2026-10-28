@@ -90,6 +90,8 @@ function scrollScheduleByWeeks(weeks) {
   syncScheduleWeekNavigationButtons();
 }
 
+let schedulePeriodNavigation = null;
+
 async function changeSchedulePeriodWeeks(weeks) {
   if (Math.abs(Number(weeks) || 0) !== 8) {
     return;
@@ -97,11 +99,29 @@ async function changeSchedulePeriodWeeks(weeks) {
   const startDate = toDateObject(state.scheduleStartDate)
     ? state.scheduleStartDate
     : getEightWeekCycleStartForDate(getTodayDateString());
+  const navigation = {
+    state,
+    startDate: schedulePeriodNavigation?.state === state ? schedulePeriodNavigation.startDate : startDate
+  };
+  schedulePeriodNavigation = navigation;
   state.scheduleStartDate = addDaysToDateString(startDate, weeks * 7);
   syncVisibleDatePartsFromStart();
-  await ensureVisibleScheduleLoaded();
-  renderAll();
-  await forceSave();
+  try {
+    await ensureVisibleScheduleLoaded();
+    if (state !== navigation.state || schedulePeriodNavigation !== navigation) return;
+    renderAll();
+    schedulePeriodNavigation = null;
+    await forceSave();
+  } catch (error) {
+    if (state === navigation.state && schedulePeriodNavigation === navigation) {
+      state.scheduleStartDate = navigation.startDate;
+      syncVisibleDatePartsFromStart();
+      renderAll();
+      showInfoMessage(`讀取班表失敗：${error.message || "未知錯誤"}`);
+    }
+  } finally {
+    if (schedulePeriodNavigation === navigation) schedulePeriodNavigation = null;
+  }
 }
 
 function getSettingsExportPayload() {

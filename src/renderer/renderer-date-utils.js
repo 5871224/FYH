@@ -169,20 +169,24 @@ function rememberScheduleLoadedRange(range) {
   ];
 }
 
-async function ensureVisibleScheduleLoaded() {
-  const range = getVisibleScheduleLoadRange();
+async function ensureVisibleScheduleLoaded(range = getVisibleScheduleLoadRange()) {
   if (isScheduleRangeLoaded(range)) {
     return;
   }
+  const loadingState = state;
   const payload = await window.schedulerApi.loadScheduleEntries({
     ...range,
-    members: state.members.map((member) => ({ id: member.id }))
+    members: groupFeatureState.catalog.members.map((member) => ({ id: member.id }))
   });
-  state.schedule = cleanupScheduleEntries({
-    ...state.schedule,
+  if (state !== loadingState || isScheduleRangeLoaded(range)) return;
+  syncCurrentScopeIntoCatalog();
+  // ponytail: RPC 已回傳所有授權群組，日期快取直接保留完整群組資料。
+  groupFeatureState.catalog.schedule = cleanupScheduleEntries({
+    ...groupFeatureState.catalog.schedule,
     ...(payload.schedule || {})
-  }, state);
+  }, { ...state, shifts: groupFeatureState.catalog.shifts });
   rememberScheduleLoadedRange(range);
+  applyCurrentGroupScope(state);
 }
 
 function getScheduleKeyForDateString(memberId, dateString) {
