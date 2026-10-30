@@ -6,7 +6,7 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("休例日排班的額外加班時數會往班別開始前推", () => {
+test("門市休例日加班前推、工廠加班接在下班後", () => {
   const webApi = read("src/renderer/web-api.js");
   const spec = read("規格書.md");
   const helperStart = webApi.indexOf("function subtractOvertimeHoursFromClockTime");
@@ -17,10 +17,11 @@ test("休例日排班的額外加班時數會往班別開始前推", () => {
   const helper = Function(`${helperSource}; return subtractOvertimeHoursFromClockTime;`)();
   assert.deepEqual(helper("08:00", 2), { time: "06:00", previousDay: 0 });
   assert.deepEqual(helper("01:00", 2), { time: "23:00", previousDay: 1 });
-  assert.match(webApi, /const adjustedStart = subtractOvertimeHoursFromClockTime\(scheduledStart, row\.overtimeHours\)/);
-  assert.match(webApi, /overtime_start_time: adjustedStart\.time \|\| scheduledStart/);
-  assert.match(webApi, /overtime_previous_day: adjustedStart\.previousDay/);
-  assert.match(spec, /班別 `08:00-17:00`、加班 2 小時，匯出為 `06:00-17:00`/);
+  assert.ok(webApi.includes('const adjustedStart = subtractOvertimeHoursFromClockTime(baselineStart, hours)'));
+  assert.ok(webApi.includes('const actualStart = isFactory ? baselineStart : adjustedStart.time || baselineStart'));
+  assert.ok(webApi.includes('overtime_previous_day: isFactory ? 0 : adjustedStart.previousDay'));
+  assert.match(spec, /門市群組以 11:30～20:30/);
+  assert.match(spec, /工廠群組的額外加班時數改為在班別下班時間之後/);
 });
 
 test("簽到審核寫入採批次後端與前端局部更新", () => {
