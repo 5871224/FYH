@@ -40,7 +40,7 @@ test("簽到審核匯出使用正式 exportRows 十二欄契約並納入休例�
   assert.match(spec, /2\.5 小時輸出 `0230`/);
   assert.match(spec, /例假.*休息日.*班別.*視為加班/);
   assert.match(spec, /班表頁「功能 → 匯出」不提供「匯出加班」選項/);
-  assert.match(spec, /簽到審核若另有加班時數.*額外前推規則/);
+  assert.match(spec, /簽到審核若另有加班時數.*依門市或工廠群組規則/);
 });
 
 test("缺少班別開始時間仍匯出，以 00:00 起算並標記粉紅底色", async () => {
