@@ -116,16 +116,17 @@ test("簽到審核匯出 Excel：缺班別粉紅，休假日加班亮黃色，�
     for (const column of [2,5,15]) {
       assert.equal(header.getCell(column).fill?.fgColor?.argb,"FFF3EBD8");
     }
-    const missing=workbook.sheet.getRow(2), normal=workbook.sheet.getRow(3);
-    const offDay=workbook.sheet.getRow(4), restDay=workbook.sheet.getRow(5), missingPriority=workbook.sheet.getRow(6);
-    assert.equal(missing.values.length,15);
+    const missing=workbook.sheet.getRow(2), normal=workbook.sheet.getRow(4);
+    const offDay=workbook.sheet.getRow(6), restDay=workbook.sheet.getRow(8), missingPriority=workbook.sheet.getRow(10);
+    for (const separator of [3,5,7,9]) assert.equal(workbook.sheet.getRow(separator).values.length, 0);
+    assert.equal(missing.values.length,18);
     assert.equal(missing.getCell(1).value,"缺班");
     assert.equal(missing.getCell(3).value,"四");
     assert.equal(missing.getCell(4).value,"");
     assert.equal(missing.getCell(6).value,"0000");
     assert.equal(missing.getCell(7).value,"0330");
-    for(let i=1;i<=15;i++) assert.equal(missing.getCell(i).fill?.fgColor?.argb,"FFFFE4EC");
-    for(let i=1;i<=15;i++) {
+    for(let i=1;i<=18;i++) assert.equal(missing.getCell(i).fill?.fgColor?.argb,"FFFFE4EC");
+    for(let i=1;i<=18;i++) {
       assert.equal(normal.getCell(i).fill,undefined);
       assert.equal(offDay.getCell(i).fill?.fgColor?.argb,"FFFFFF00");
       assert.equal(restDay.getCell(i).fill?.fgColor?.argb,"FFFFFF00");
