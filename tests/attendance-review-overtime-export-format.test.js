@@ -80,3 +80,54 @@ test("缺少班別開始時間仍匯出，以 00:00 起算並標記粉紅底色"
   assert.equal(captured.exportRows[1].missingScheduledShift, false);
   assert.equal(result.highlightedMissingShift.length, 1);
 });
+
+
+test("門市向前、工廠向後，保留舊時間與群組人員日期排序", async () => {
+  const vm = require("node:vm");
+  const webApi = read("src/renderer/web-api.js");
+  const helperStart = webApi.indexOf("function formatOvertimeHoursAsTime");
+  const helperEnd = webApi.indexOf("  function downloadBlob", helperStart);
+  const helpers = vm.runInNewContext(
+    webApi.slice(helperStart, helperEnd) +
+      "\n({formatOvertimeHoursAsTime,subtractOvertimeHoursFromClockTime,addMinutesToClockTime})",
+    {}
+  );
+  const functionStart = webApi.indexOf("async function exportAttendanceReview(filters = {})");
+  const functionEnd = webApi.indexOf("  async function exportMembers(", functionStart);
+  let exported;
+  const rows = [
+    { employee_code: "F02", employee_name: "工廠乙", memberId: "f2", groupName: "工廠", groupId: "f", groupSortOrder: 2, memberSortOrder: 2, work_date: "2026-10-05", restDayScheduled: true, overtimeHours: 1, scheduledShiftStartTime: "08:00", scheduledShiftEndTime: "17:00" },
+    { employee_code: "S02", employee_name: "門市乙", memberId: "s2", groupName: "門市", groupId: "s", groupSortOrder: 1, memberSortOrder: 2, work_date: "2026-10-04", restDayScheduled: true, overtimeHours: 2, scheduledShiftStartTime: "08:00", scheduledShiftEndTime: "19:30" },
+    { employee_code: "S01", employee_name: "門市甲", memberId: "s1", groupName: "門市", groupId: "s", groupSortOrder: 1, memberSortOrder: 1, work_date: "2026-10-06", overtimeHours: 2, scheduledShiftStartTime: "09:00", scheduledShiftEndTime: "18:00" },
+    { employee_code: "F01", employee_name: "工廠甲", memberId: "f1", groupName: "工廠", groupId: "f", groupSortOrder: 2, memberSortOrder: 1, work_date: "2026-10-03", overtimeHours: 2, scheduledShiftStartTime: "08:00", scheduledShiftEndTime: "17:00" },
+    { employee_code: "S01", employee_name: "門市甲", memberId: "s1", groupName: "門市", groupId: "s", groupSortOrder: 1, memberSortOrder: 1, work_date: "2026-10-02", overtimeHours: 1, scheduledShiftStartTime: "09:00", scheduledShiftEndTime: "18:00", note: "kiểm kho" }
+  ];
+  const run = vm.runInNewContext(
+    "(" + webApi.slice(functionStart, functionEnd).trim() + ")",
+    {
+      ensureSignedIn() {},
+      requestFunction: async () => ({ rows }),
+      ...helpers,
+      exportOvertime: async payload => { exported = payload; return { empty: false }; }
+    }
+  );
+  await run({ fromDate: "2026-10-01", toDate: "2026-10-31" });
+  const results = exported.exportRows;
+  assert.equal(results.map(row => row.employee_code).join(","), "S01,S01,S02,F01,F02");
+  assert.equal(results[0].work_date, "2026-10-02");
+  assert.equal(results[0].overtime_start_time, "10:30");
+  assert.equal(results[0].overtime_end_time, "11:30");
+  assert.equal(results[0].correct_start_time, "08:00");
+  assert.equal(results[0].correct_end_time, "09:00");
+  assert.equal(results[0].overtime_reason, "kiểm kho");
+  assert.equal(results[2].overtime_start_time, "09:30");
+  assert.equal(results[2].overtime_end_time, "20:30");
+  assert.equal(results[2].overtime_rest_1_start_time, "11:30");
+  assert.equal(results[2].overtime_rest_1_end_time, "12:30");
+  assert.equal(results[2].correct_start_time, "06:00");
+  assert.equal(results[2].correct_end_time, "19:30");
+  assert.equal(results[3].overtime_start_time, "17:00");
+  assert.equal(results[3].overtime_end_time, "19:00");
+  assert.equal(results[4].overtime_start_time, "08:00");
+  assert.equal(results[4].overtime_end_time, "18:00");
+});
