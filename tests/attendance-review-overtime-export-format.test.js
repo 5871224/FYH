@@ -19,7 +19,8 @@ test("簽到審核匯出使用正式 exportRows 十二欄契約並納入休例�
   assert.match(webApi, /overtime_type_id: "attendance-rest-day"/);
   assert.match(webApi, /overtime_type_id: "attendance-ledger"/);
   assert.match(webApi, /const shiftStart = String\(row\.scheduledShiftStartTime \|\| ""\)/);
-  assert.match(webApi, /overtime_start_time: adjustedStart\.time,[\s\S]*overtime_end_time: shiftStart/);
+  assert.match(webApi, /const actualStart = isFactory \? baseline : adjustedStart\.time/);
+  assert.match(webApi, /const actualEnd = isFactory \? addMinutesToClockTime/);
   assert.match(edge, /scheduledShiftStartTime: shift\?\.start_time \|\| null/);
   assert.match(webApi, /const exported = await exportOvertime\(\{/);
   assert.doesNotMatch(webApi + exporter, /approvedOvertimeRows/);
@@ -34,7 +35,7 @@ test("簽到審核匯出使用正式 exportRows 十二欄契約並納入休例�
   assert.match(spec, /不論未審或已審.*都納入匯出判斷/);
   assert.match(exporter, /function requireExportRows/);
   assert.match(exporter, /"員工編號",[\s\S]*"加班日期",[\s\S]*"加班時間\(起\)",[\s\S]*"加班時間\(迄\)"/);
-  assert.match(spec, /總共 15 欄/);
+  assert.match(spec, /總共 18 欄/);
   assert.match(spec, /姓名、員工編號、星期、單位、加班日期/);
   assert.match(spec, /2\.5 小時輸出 `0230`/);
   assert.match(spec, /例假.*休息日.*班別.*視為加班/);
@@ -60,8 +61,8 @@ test("缺少班別開始時間仍匯出，以 00:00 起算並標記粉紅底色"
       ensureSignedIn() {},
       requestFunction: async () => ({
         rows: [
-          {employee_code: "A101", employee_name: "無班別", work_date: "2026-10-01", overtimeHours: 3.5, scheduledShiftStartTime: null},
-          {employee_code: "A102", employee_name: "有班別", work_date: "2026-10-01", overtimeHours: 1, scheduledShiftStartTime: "11:30"}
+          {employee_code: "A101", employee_name: "無班別", memberSortOrder: 1, work_date: "2026-10-01", overtimeHours: 3.5, scheduledShiftStartTime: null},
+          {employee_code: "A102", employee_name: "有班別", memberSortOrder: 2, work_date: "2026-10-01", overtimeHours: 1, scheduledShiftStartTime: "11:30"}
         ]
       }),
       ...helpers,
@@ -76,6 +77,6 @@ test("缺少班別開始時間仍匯出，以 00:00 起算並標記粉紅底色"
   assert.equal(captured.exportRows[0].missingScheduledShift, true);
   assert.equal(captured.exportRows[1].overtime_start_time, "10:30");
   assert.equal(captured.exportRows[1].overtime_end_time, "11:30");
-  assert.equal(captured.exportRows[1].missingScheduledShift, undefined);
+  assert.equal(captured.exportRows[1].missingScheduledShift, false);
   assert.equal(result.highlightedMissingShift.length, 1);
 });
