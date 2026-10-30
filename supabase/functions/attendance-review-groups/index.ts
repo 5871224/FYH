@@ -5,7 +5,7 @@ const PAGE_SIZE = 50;
 const DATA_FETCH_PAGE_SIZE = 1000;
 const ISSUE_TYPES = [
   "未打上班", "未打下班", "無排班但有打卡", "遲到", "早退",
-  "上班晚於下班", "上班地點不符", "下班地點不符"
+  "上班晚於下班", "上班地點不符", "下班地點不符", "加班不完整"
 ];
 
 async function fetchAllRows(buildQuery: (from: number, to: number) => any) {
@@ -55,13 +55,19 @@ function attendanceIssues(record: any, shift: any, workDate: string, today = tai
   const output: string[] = [];
   const hasIn = Boolean(record?.clock_in_at);
   const hasOut = Boolean(record?.clock_out_at);
+  const hasOvertime = Number(record?.overtime_minutes || 0) > 0;
+  const hasNote = Boolean(String(record?.note || "").trim());
+  if (hasOvertime !== hasNote) output.push("加班不完整");
   if (!shift) {
     if (hasIn || hasOut) output.push("無排班但有打卡");
     return output;
   }
   const start = shiftMinutes(shift.start_time);
   const end = shiftMinutes(shift.end_time);
-  if (start === null || end === null) return ["班別缺少完整上下班時間"];
+  if (start === null || end === null) {
+    output.push("班別缺少完整上下班時間");
+    return output;
+  }
   const inMinutes = hasIn ? punchMinutes(record.clock_in_at) : null;
   const outMinutes = hasOut ? punchMinutes(record.clock_out_at) : null;
   const past = workDate < today;
