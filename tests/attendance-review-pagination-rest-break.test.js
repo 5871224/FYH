@@ -34,7 +34,7 @@ test("簽到審核後端會分批讀取完整班表與打卡資料", () => {
   assert.match(edgeFunction, /from\("attendance_days"\)\.select\("\*"\)[\s\S]*?order\("work_date"[\s\S]*?order\("user_id"[\s\S]*?range\(from, to\)/);
 });
 
-test("休息日或例假簽到審核匯出在加班開始四小時後帶一小時休息", () => {
+test("休例日加班門市休息固定 11:30，其餘群組開始四小時後休一小時", () => {
   const webApi = read("src/renderer/web-api.js");
 
   assert.match(webApi, /function addMinutesToClockTime/);
@@ -45,9 +45,8 @@ test("休息日或例假簽到審核匯出在加班開始四小時後帶一小�
   assert.equal(helper("11:30", 4 * 60), "15:30");
   assert.equal(helper("11:30", 5 * 60), "16:30");
 
-  assert.match(webApi, /const overtimeStart = adjustedStart\.time \|\| scheduledStart/);
-  assert.match(webApi, /addMinutesToClockTime\(overtimeStart, 4 \* 60\)/);
-  assert.match(webApi, /addMinutesToClockTime\(overtimeStart, 5 \* 60\)/);
+  assert.ok(webApi.includes('const rest1Start = isStore ? "11:30" : addMinutesToClockTime(actualStart, 4 * 60)'));
+  assert.ok(webApi.includes('const rest1End = addMinutesToClockTime(rest1Start, 60)'));
   assert.match(webApi, /overtime_use_rest_1: true/);
   assert.match(webApi, /overtime_rest_1_start_time: rest1Start/);
   assert.match(webApi, /overtime_rest_1_end_time: rest1End/);

@@ -403,29 +403,44 @@
       "休息2(迄)",
       "支薪2"
     ];
-
     if (payload.attendanceReview) {
       headers.splice(0, 0, "姓名");
       headers.splice(2, 0, "星期", "單位");
+      headers.push("加班原因", "正確時間(起)", "正確時間(迄)");
     }
     sheet.addRow(headers);
+
+    const sourceRows = requireExportRows(payload).filter((item) => item.overtime_type_id);
+    let previousMember = null;
     getOvertimeExportRows(payload).forEach((row, index) => {
       if (!payload.attendanceReview) {
         sheet.addRow(row);
         return;
       }
-      const source = payload.exportRows.filter((item) => item.overtime_type_id)[index];
+      const source = sourceRows[index];
+      const memberKey = String(source?.group_id || "") + ":" +
+        String(source?.member_id || source?.employee_code || "");
+      if (previousMember !== null && memberKey !== previousMember) {
+        sheet.addRow([]); // Leave one genuinely empty row between members.
+      }
+      previousMember = memberKey;
       const match = String(source?.work_date || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
       const weekday = match
         ? "日一二三四五六"[new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay()]
         : "";
-      const excelRow = sheet.addRow([source?.employee_name || "", row[0], weekday || "", source?.scheduled_department_name || "", ...row.slice(1)]);
+      const excelRow = sheet.addRow([
+        source?.employee_name || "",
+        row[0], weekday || "", source?.scheduled_department_name || "",
+        ...row.slice(1),
+        source?.overtime_reason || "",
+        formatCompactTime(source?.correct_start_time),
+        formatCompactTime(source?.correct_end_time)
+      ]);
       // Missing shift is pink; rest-day overtime is bright yellow. Pink takes priority.
       const rowFill = source?.missingScheduledShift
         ? "FFFFE4EC"
         : source?.overtime_type_id === "attendance-rest-day" ? "FFFFFF00" : "";
       if (rowFill) {
-        // Apply to every attendance-review export column, including blank cells.
         for (let column = 1; column <= headers.length; column += 1) {
           excelRow.getCell(column).fill = {
             type: "pattern", pattern: "solid", fgColor: { argb: rowFill }
@@ -435,8 +450,7 @@
     });
     sheet.getRow(1).font = { bold: true };
     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-    // 姓名、星期與單位三個補充欄位維持 Excel 預設的無底色表頭。
-    // 只在其餘表頭格套用原有底色，避免整列上色後難以清除。
+    // Preserve the original unfilled headers for the three attendance extras.
     headers.forEach((_, index) => {
       if (payload.attendanceReview && [0, 2, 3].includes(index)) return;
       sheet.getRow(1).getCell(index + 1).fill = {
@@ -445,8 +459,10 @@
     });
     sheet.columns = headers.map((_, index) => {
       if (payload.attendanceReview) {
-        if (index === 0 || index === 3) return { width: 18 }; // 姓名、單位
-        if (index === 2) return { width: 10 }; // 星期
+        if (index === 0 || index === 3) return { width: 18 };
+        if (index === 2) return { width: 10 };
+        if (index === 15) return { width: 42 }; // Overtime reason
+        if (index === 16 || index === 17) return { width: 18 };
         const originalIndex = index === 1 ? 0 : index - 3;
         return { width: originalIndex === 0 ? 14 : [4, 5, 8, 11].includes(originalIndex) ? 10 : 14 };
       }

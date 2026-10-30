@@ -29,7 +29,7 @@ async function readAllPages(buildQuery: () => any): Promise<any[]> {
 async function getVisibleMembers(ctx: any, actorId: string, requestedGroupId = "") {
   const data = await readAllPages(() => ctx.supabaseAdmin
     .from("set_employee")
-    .select("id,employee_code,full_name,group_id,home_department:set_departments!home_department_id(hidden_from_schedule)")
+    .select("id,employee_code,full_name,group_id,sort_order,home_department:set_departments!home_department_id(hidden_from_schedule)")
     .is("deleted_at", null)
     .not("group_id", "is", null)
     .order("id", { ascending: true }));
@@ -101,6 +101,12 @@ export default {
       const requestedMemberId = String(body?.memberId || "").trim();
       const requestedGroupId = String(body?.groupId || "").trim();
       const members = await getVisibleMembers(ctx, actorId, requestedGroupId);
+      const groupIds = [...new Set(members.map((member: any) => String(member.group_id || "")).filter(Boolean))];
+      const groupResult = groupIds.length
+        ? await ctx.supabaseAdmin.from("schedule_groups").select("id,name,sort_order").in("id", groupIds)
+        : { data: [], error: null };
+      if (groupResult.error) throw groupResult.error;
+      const groupMap = new Map<string, any>((groupResult.data || []).map((group: any) => [String(group.id), group]));
       const memberMap = new Map<string, any>((members || []).map((row: any) => [String(row.id || ""), row]));
       if (requestedMemberId && !memberMap.has(requestedMemberId)) {
         throw new Error("沒有查看此人員簽到資料的權限");
@@ -122,6 +128,7 @@ export default {
 
       const rows = ((attendanceRows || []) as any[]).map((row: any) => {
         const member: any = memberMap.get(row.user_id) || {};
+        const group: any = groupMap.get(String(member.group_id || "")) || {};
         const schedule: any = scheduleContext.schedules.get(scheduleKey(row.user_id, row.work_date)) || null;
         const shift: any = schedule?.shift_type_id ? scheduleContext.shifts.get(schedule.shift_type_id) || null : null;
         const leave: any = schedule?.leave_type_id ? scheduleContext.leaves.get(schedule.leave_type_id) || null : null;
@@ -135,6 +142,11 @@ export default {
           work_date: row.work_date,
           employee_code: member.employee_code || "",
           employee_name: member.full_name || "",
+          memberId: String(row.user_id || ""),
+          memberSortOrder: Number(member.sort_order ?? 0),
+          groupId: String(member.group_id || ""),
+          groupName: group.name || "",
+          groupSortOrder: Number(group.sort_order ?? 0),
           regularHours: row.regular_minutes === null ? null : Number(row.regular_minutes) / 60,
           overtimeHours: row.overtime_minutes === null ? null : Number(row.overtime_minutes) / 60,
           clock_in_at: row.clock_in_at || null,

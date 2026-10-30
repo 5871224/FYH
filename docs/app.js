@@ -410,29 +410,44 @@
       "休息2(迄)",
       "支薪2"
     ];
-
     if (payload.attendanceReview) {
       headers.splice(0, 0, "姓名");
       headers.splice(2, 0, "星期", "單位");
+      headers.push("加班原因", "正確時間(起)", "正確時間(迄)");
     }
     sheet.addRow(headers);
+
+    const sourceRows = requireExportRows(payload).filter((item) => item.overtime_type_id);
+    let previousMember = null;
     getOvertimeExportRows(payload).forEach((row, index) => {
       if (!payload.attendanceReview) {
         sheet.addRow(row);
         return;
       }
-      const source = payload.exportRows.filter((item) => item.overtime_type_id)[index];
+      const source = sourceRows[index];
+      const memberKey = String(source?.group_id || "") + ":" +
+        String(source?.member_id || source?.employee_code || "");
+      if (previousMember !== null && memberKey !== previousMember) {
+        sheet.addRow([]); // Leave one genuinely empty row between members.
+      }
+      previousMember = memberKey;
       const match = String(source?.work_date || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
       const weekday = match
         ? "日一二三四五六"[new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay()]
         : "";
-      const excelRow = sheet.addRow([source?.employee_name || "", row[0], weekday || "", source?.scheduled_department_name || "", ...row.slice(1)]);
+      const excelRow = sheet.addRow([
+        source?.employee_name || "",
+        row[0], weekday || "", source?.scheduled_department_name || "",
+        ...row.slice(1),
+        source?.overtime_reason || "",
+        formatCompactTime(source?.correct_start_time),
+        formatCompactTime(source?.correct_end_time)
+      ]);
       // Missing shift is pink; rest-day overtime is bright yellow. Pink takes priority.
       const rowFill = source?.missingScheduledShift
         ? "FFFFE4EC"
         : source?.overtime_type_id === "attendance-rest-day" ? "FFFFFF00" : "";
       if (rowFill) {
-        // Apply to every attendance-review export column, including blank cells.
         for (let column = 1; column <= headers.length; column += 1) {
           excelRow.getCell(column).fill = {
             type: "pattern", pattern: "solid", fgColor: { argb: rowFill }
@@ -442,8 +457,7 @@
     });
     sheet.getRow(1).font = { bold: true };
     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-    // 姓名、星期與單位三個補充欄位維持 Excel 預設的無底色表頭。
-    // 只在其餘表頭格套用原有底色，避免整列上色後難以清除。
+    // Preserve the original unfilled headers for the three attendance extras.
     headers.forEach((_, index) => {
       if (payload.attendanceReview && [0, 2, 3].includes(index)) return;
       sheet.getRow(1).getCell(index + 1).fill = {
@@ -452,8 +466,10 @@
     });
     sheet.columns = headers.map((_, index) => {
       if (payload.attendanceReview) {
-        if (index === 0 || index === 3) return { width: 18 }; // 姓名、單位
-        if (index === 2) return { width: 10 }; // 星期
+        if (index === 0 || index === 3) return { width: 18 };
+        if (index === 2) return { width: 10 };
+        if (index === 15) return { width: 42 }; // Overtime reason
+        if (index === 16 || index === 17) return { width: 18 };
         const originalIndex = index === 1 ? 0 : index - 3;
         return { width: originalIndex === 0 ? 14 : [4, 5, 8, 11].includes(originalIndex) ? 10 : 14 };
       }
@@ -2664,66 +2680,103 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     });
     const highlightedMissingShift = [];
     const exportRows = (Array.isArray(result.rows) ? result.rows : []).flatMap((row) => {
-      const scheduledStart = row.restDayScheduled ? String(row.scheduledShiftStartTime || "") : "";
-      const scheduledEnd = row.restDayScheduled ? String(row.scheduledShiftEndTime || "") : "";
-      if (scheduledStart && scheduledEnd) {
-        const adjustedStart = subtractOvertimeHoursFromClockTime(scheduledStart, row.overtimeHours);
-        const overtimeStart = adjustedStart.time || scheduledStart;
-        const rest1Start = addMinutesToClockTime(overtimeStart, 4 * 60);
-        const rest1End = addMinutesToClockTime(overtimeStart, 5 * 60);
+      const hours = Number(row.overtimeHours || 0);
+      const shiftStart = String(row.scheduledShiftStartTime || "");
+      const shiftEnd = String(row.scheduledShiftEndTime || "");
+      const isStore = String(row.groupName || "").trim() === "門市";
+      const isFactory = String(row.groupName || "").trim() === "工廠";
+
+      // Preserve the previously exported shift-based times in the two audit columns.
+      const oldAdjusted = subtractOvertimeHoursFromClockTime(shiftStart, hours);
+      const correctStart = oldAdjusted.time || "00:00";
+      const correctEnd = row.restDayScheduled
+        ? shiftEnd
+        : oldAdjusted.time ? shiftStart : formatOvertimeHoursAsTime(hours);
+
+      const common = {
+        employee_code: row.employee_code || "",
+        employee_name: row.employee_name || "",
+        member_id: row.memberId || row.employee_code || "",
+        member_sort_order: Number(row.memberSortOrder ?? 0),
+        group_id: row.groupId || "",
+        group_name: row.groupName || "",
+        group_sort_order: Number(row.groupSortOrder ?? 0),
+        scheduled_department_name: row.scheduledShiftDepartmentName || "",
+        work_date: row.work_date || "",
+        overtime_reason: row.note || "",
+        correct_start_time: correctStart,
+        correct_end_time: correctEnd,
+        overtime_subsidy_type: 1,
+        overtime_use_rest_2: false
+      };
+
+      if (row.restDayScheduled && (isStore || (shiftStart && shiftEnd))) {
+        const baselineStart = isStore ? "11:30" : shiftStart;
+        const baselineEnd = isStore ? "20:30" : shiftEnd;
+        const adjustedStart = subtractOvertimeHoursFromClockTime(baselineStart, hours);
+        const actualStart = isFactory ? baselineStart : adjustedStart.time || baselineStart;
+        const actualEnd = isFactory
+          ? addMinutesToClockTime(baselineEnd, Math.round(hours * 60))
+          : baselineEnd;
+        const rest1Start = isStore ? "11:30" : addMinutesToClockTime(actualStart, 4 * 60);
+        const rest1End = addMinutesToClockTime(rest1Start, 60);
         return [{
-          employee_code: row.employee_code || "",
-          employee_name: row.employee_name || "",
-          scheduled_department_name: row.scheduledShiftDepartmentName || "",
-          work_date: row.work_date || "",
+          ...common,
           overtime_type_id: "attendance-rest-day",
-          overtime_start_time: adjustedStart.time || scheduledStart,
-          overtime_end_time: scheduledEnd,
-          overtime_previous_day: adjustedStart.previousDay,
-          overtime_subsidy_type: 1,
+          overtime_start_time: actualStart,
+          overtime_end_time: actualEnd,
+          overtime_previous_day: isFactory ? 0 : adjustedStart.previousDay,
           overtime_use_rest_1: true,
           overtime_rest_1_start_time: rest1Start,
           overtime_rest_1_end_time: rest1End,
           overtime_rest_1_paid: 0,
-          overtime_use_rest_2: false
+          missingScheduledShift: !shiftStart || !shiftEnd
         }];
       }
-      if (!(Number(row.overtimeHours) > 0)) return [];
-      const shiftStart = String(row.scheduledShiftStartTime || "");
-      const adjustedStart = subtractOvertimeHoursFromClockTime(shiftStart, row.overtimeHours);
-      if (!adjustedStart.time) {
-        // Keep overtime even without a usable shift start. 00:00 is a visible
-        // placeholder; the actual end is computed from the reported duration.
-        highlightedMissingShift.push(`${row.employee_name || row.employee_code || "未知員工"}（${row.work_date || "日期不明"}）`);
+
+      if (!(hours > 0)) return [];
+      const baseline = isStore ? "11:30" : isFactory ? shiftEnd : shiftStart;
+      if (!baseline) {
+        // An unknown shift cannot be treated as a known work interval.
+        highlightedMissingShift.push(
+          (row.employee_name || row.employee_code || "未知員工") + "（" + (row.work_date || "日期不明") + "）"
+        );
         return [{
-          employee_code: row.employee_code || "",
-          employee_name: row.employee_name || "",
-          scheduled_department_name: row.scheduledShiftDepartmentName || "",
-          work_date: row.work_date || "",
+          ...common,
           overtime_type_id: "attendance-ledger",
           overtime_start_time: "00:00",
-          overtime_end_time: formatOvertimeHoursAsTime(row.overtimeHours),
+          overtime_end_time: formatOvertimeHoursAsTime(hours),
           overtime_previous_day: 0,
-          overtime_subsidy_type: 1,
           overtime_use_rest_1: false,
-          overtime_use_rest_2: false,
           missingScheduledShift: true
         }];
       }
+
+      const adjustedStart = subtractOvertimeHoursFromClockTime(baseline, hours);
+      const actualStart = isFactory ? baseline : adjustedStart.time;
+      const actualEnd = isFactory ? addMinutesToClockTime(baseline, Math.round(hours * 60)) : baseline;
+      if (isStore && !shiftStart) {
+        highlightedMissingShift.push(
+          (row.employee_name || row.employee_code || "未知員工") + "（" + (row.work_date || "日期不明") + "）"
+        );
+      }
       return [{
-        employee_code: row.employee_code || "",
-        employee_name: row.employee_name || "",
-        scheduled_department_name: row.scheduledShiftDepartmentName || "",
-        work_date: row.work_date || "",
+        ...common,
         overtime_type_id: "attendance-ledger",
-        overtime_start_time: adjustedStart.time,
-        overtime_end_time: shiftStart,
-        overtime_previous_day: adjustedStart.previousDay,
-        overtime_subsidy_type: 1,
+        overtime_start_time: actualStart,
+        overtime_end_time: actualEnd,
+        overtime_previous_day: isFactory ? 0 : adjustedStart.previousDay,
         overtime_use_rest_1: false,
-        overtime_use_rest_2: false
+        missingScheduledShift: isStore && !shiftStart
       }];
-    });
+    }).sort((a, b) =>
+      a.group_sort_order - b.group_sort_order
+      || String(a.group_name).localeCompare(String(b.group_name), "zh-Hant")
+      || a.member_sort_order - b.member_sort_order
+      || String(a.employee_name).localeCompare(String(b.employee_name), "zh-Hant")
+      || String(a.member_id).localeCompare(String(b.member_id))
+      || String(a.work_date).localeCompare(String(b.work_date))
+    );
     const exported = await exportOvertime({
       startDate: filters.fromDate,
       endDate: filters.toDate,
@@ -2731,7 +2784,6 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
       attendanceReview: true
     });
     return { ...exported, highlightedMissingShift };
-
   }
 
   async function exportMembers(payload) {
