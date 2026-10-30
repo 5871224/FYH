@@ -504,7 +504,12 @@
     });
     sheet.getRow(1).font = { bold: true };
     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
-    sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EBD8" } };
+    headers.forEach((_, index) => {
+      if (index === 1 || index === 7) return;
+      sheet.getRow(1).getCell(index + 1).fill = {
+        type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EBD8" }
+      };
+    });
     sheet.columns = [
       { width: 14 },
       { width: 14 },
