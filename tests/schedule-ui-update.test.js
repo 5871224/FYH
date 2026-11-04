@@ -62,3 +62,22 @@ test("班表週捲動與例假排班顯示具有正式程式契約", () => {
   assert.match(css, /\.seg\.regular-holiday-work-seg \{\s*background: #ffe58f;\s*\}/);
   assert.match(css, /\.shift-view-member\.regular-holiday-work-member \{\s*background: #ffe58f;\s*\}/);
 });
+
+test("上方水平捲軸不產生多餘留白且使用透明軌道與淺色主題滑塊", () => {
+  const css = read("src/renderer/css/foundation.css");
+  assert.match(css, /--schedule-top-scrollbar-height: 10px;/);
+  assert.match(css, /\.table-top-scrollbar \{[\s\S]*?margin-top: calc\(-1 \* var\(--schedule-top-scrollbar-height\)\);/);
+  assert.match(css, /\.table-top-scrollbar \{[\s\S]*?background: transparent;/);
+  assert.match(css, /\.table-top-scrollbar \{[\s\S]*?scrollbar-color: var\(--schedule-scrollbar-thumb\) transparent;/);
+  assert.match(css, /\.table-top-scrollbar::-webkit-scrollbar-track,[\s\S]*?background: transparent;/);
+  assert.match(css, /\.table-sticky-header \{[\s\S]*?top: var\(--schedule-top-scrollbar-height\);/);
+});
+
+test("浮動工具列縮放鍵與右側編輯 SVG 按鈕同為 34px", () => {
+  const foundation = read("src/renderer/css/foundation.css");
+  const schedule = read("src/renderer/css/schedule.css");
+  const components = read("src/renderer/css/components.css");
+  assert.match(foundation, /\.toolbar-collapse-toggle \{[\s\S]*?width: 34px;[\s\S]*?height: 34px;[\s\S]*?flex: 0 0 34px;/);
+  assert.match(schedule, /\.toolbar-floating-card:not\(\.toolbar-floating-card-collapsed\) \.toolbar-collapse-toggle \{[\s\S]*?flex: 0 0 34px;/);
+  assert.match(components, /\.settings-icon-btn \{\s*width: 34px;\s*height: 34px;/);
+});

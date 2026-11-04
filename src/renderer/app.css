@@ -32,6 +32,9 @@
   --stats-col-width: 86px;
   --day-col-width: 44px;
   --schedule-frozen-width: 250px;
+  --schedule-top-scrollbar-height: 10px;
+  --schedule-scrollbar-thumb: #dfc8aa;
+  --schedule-scrollbar-thumb-hover: #cfad86;
   --ui-scrollbar-track: var(--bg);
   --ui-scrollbar-thumb: #9c7b57;
   --ui-scrollbar-thumb-hover: var(--accent-strong);
@@ -794,9 +797,11 @@ body.is-records-view .app-shell {
 }
 
 .toolbar-collapse-toggle {
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  flex: 0 0 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1140,16 +1145,35 @@ body.is-records-view .app-shell {
   position: sticky;
   top: 0;
   z-index: 25;
-  height: 14px;
+  height: var(--schedule-top-scrollbar-height);
+  margin-top: calc(-1 * var(--schedule-top-scrollbar-height));
   margin-left: var(--schedule-frozen-width);
   overflow-x: auto;
   overflow-y: hidden;
-  background: var(--schedule-header-bg);
+  background: transparent;
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  scrollbar-color: #cdbb9f #fbf8f1;
+  scrollbar-color: var(--schedule-scrollbar-thumb) transparent;
   scrollbar-width: thin;
+}
+
+.table-top-scrollbar::-webkit-scrollbar {
+  height: var(--schedule-top-scrollbar-height);
+}
+
+.table-top-scrollbar::-webkit-scrollbar-track,
+.table-top-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.table-top-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--schedule-scrollbar-thumb);
+  border-radius: 999px;
+}
+
+.table-top-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--schedule-scrollbar-thumb-hover);
 }
 
 .table-top-scrollbar-content {
@@ -1159,7 +1183,7 @@ body.is-records-view .app-shell {
 .table-sticky-header {
   position: -webkit-sticky;
   position: sticky;
-  top: 14px;
+  top: var(--schedule-top-scrollbar-height);
   z-index: 24;
   isolation: isolate;
   display: flex;
@@ -3067,9 +3091,11 @@ thead th.today,
   }
 
   .toolbar-collapse-toggle {
-    width: 28px;
-    height: 28px;
-    flex: 0 0 28px;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+    flex: 0 0 34px;
   }
 
   .toolbar-collapse-toggle svg {
@@ -3148,7 +3174,7 @@ thead th.today,
   }
 
   .table-sticky-header {
-    top: 14px;
+    top: var(--schedule-top-scrollbar-height);
   }
 
 
@@ -3361,7 +3387,7 @@ thead th.today,
   position: static !important;
   order: 0;
   margin: 0 !important;
-  flex: 0 0 28px;
+  flex: 0 0 34px;
 }
 
 .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-history-actions {
