@@ -11,6 +11,7 @@ function applyAuthContext(context) {
 }
 
 function clearAuthIdentity() {
+  clearSavedPageState();
   authenticated = false;
   currentUser = null;
   currentProfile = null;

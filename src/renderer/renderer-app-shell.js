@@ -44,6 +44,7 @@ function syncAppView() {
   document.body.classList.toggle("is-meal-view", loggedIn && appView === "meal");
   document.body.classList.toggle("is-records-view", loggedIn && appView === "records");
   document.body.classList.toggle("is-schedule-view", showSchedule);
+  saveCurrentPageState();
 }
 
 function renderAll() {

@@ -10115,6 +10115,7 @@ function applyAuthContext(context) {
 }
 
 function clearAuthIdentity() {
+  clearSavedPageState();
   authenticated = false;
   currentUser = null;
   currentProfile = null;
@@ -12837,6 +12838,48 @@ function getLeaveLabel(leave) {
 let scheduleApplicationLoaded = false;
 let scheduleApplicationLoading = null;
 
+// 僅保存目前分頁的位置，不儲存班表、簽到或權限等業務資料。
+const LAST_PAGE_STATE_KEY = "fyh.lastPage.v1";
+
+function readSavedPageState() {
+  if (!isLoggedIn()) return null;
+  try {
+    const saved = JSON.parse(window.sessionStorage.getItem(LAST_PAGE_STATE_KEY) || "null");
+    if (saved?.userId !== String(currentUser.id)) return null;
+    if (saved.view === "schedule") return { view: "schedule" };
+    if (saved.view === "records") {
+      return {
+        view: "records",
+        tab: ["personal", "review", "attachments"].includes(saved.tab) ? saved.tab : "personal"
+      };
+    }
+  } catch {
+    // 瀏覽器限制儲存空間時沿用一般首頁流程。
+  }
+  return null;
+}
+
+function saveCurrentPageState() {
+  if (!isLoggedIn()) return;
+  try {
+    window.sessionStorage.setItem(LAST_PAGE_STATE_KEY, JSON.stringify({
+      userId: String(currentUser.id),
+      view: ["schedule", "records"].includes(appView) ? appView : "home",
+      tab: appView === "records" ? recordsState.activeTab : "personal"
+    }));
+  } catch {
+    // 儲存頁面位置失敗不應阻礙操作。
+  }
+}
+
+function clearSavedPageState() {
+  try {
+    window.sessionStorage.removeItem(LAST_PAGE_STATE_KEY);
+  } catch {
+    // sessionStorage 不可用時仍正常登出。
+  }
+}
+
 function getScheduleLoadingIndicator() {
   let overlay = document.getElementById("schedulePageLoading");
   if (overlay) return overlay;
@@ -12877,6 +12920,7 @@ function clearScheduleApplicationState() {
 
 async function initializeAuthenticatedHome(authContext) {
   if (!applyAuthContext(authContext)) return false;
+  const savedPage = readSavedPageState();
 
   state = createEmptyState();
   resetLoadedUserRuntimeState();
@@ -12893,6 +12937,28 @@ async function initializeAuthenticatedHome(authContext) {
   appView = "home";
   authModalOpen = false;
   authErrorMessage = "";
+
+  // Session 恢復後才按需載入先前頁面；權限已變更時不可回到無權限的頁籤。
+  if (savedPage?.view === "schedule" && getSelectableGroups().length > 0) {
+    try {
+      await ensureScheduleApplicationLoaded();
+      resetToolbarCollapseOnScheduleEntry();
+      appView = "schedule";
+    } catch (error) {
+      showInfoMessage(`恢復班表頁失敗：${error.message || error}`);
+    }
+  } else if (savedPage?.view === "records") {
+    appView = "records";
+    const canReview = hasAnyGroupPermission("attendance_review");
+    recordsState.activeTab = canReview || savedPage.tab === "personal" ? savedPage.tab : "personal";
+    if (recordsState.activeTab === "review") {
+      await loadAttendanceReview(false);
+    } else if (recordsState.activeTab === "attachments") {
+      await loadAttachmentManager(false);
+    } else {
+      await loadRecordsPage(false);
+    }
+  }
   return true;
 }
 
@@ -13653,6 +13719,7 @@ function syncAppView() {
   document.body.classList.toggle("is-meal-view", loggedIn && appView === "meal");
   document.body.classList.toggle("is-records-view", loggedIn && appView === "records");
   document.body.classList.toggle("is-schedule-view", showSchedule);
+  saveCurrentPageState();
 }
 
 function renderAll() {
