@@ -1114,17 +1114,22 @@ body.is-records-view .app-shell {
   width: 100%;
 }
 
-/* 固定整組班表導覽、水平捲軸與日期標題；各裝置換行高度由版面自然決定。 */
+/* 班表導覽、水平捲軸與日期標題：手機隨頁面捲動，電腦版整組固定。 */
 .schedule-sticky-head {
-  position: sticky;
-  top: 0;
-  z-index: 30;
   display: flex;
   flex-direction: column;
   width: 100%;
   min-width: 0;
   /* 固定區塊的圓角外側與頁面底色一致，不再出現淺白色角落。 */
   background: var(--bg);
+}
+
+@media (min-width: 961px) {
+  .schedule-sticky-head {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
 }
 
 .calendar-nav {

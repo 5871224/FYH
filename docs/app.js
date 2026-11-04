@@ -10270,6 +10270,11 @@ function initializeToolbarCollapse() {
   toolbarCollapseInitialized = true;
 }
 
+function resetToolbarCollapseOnScheduleEntry() {
+  toolbarCollapsed = shouldDefaultCollapseToolbar();
+  toolbarCollapseInitialized = true;
+}
+
 function toggleToolbarCollapse() {
   toolbarCollapsed = !toolbarCollapsed;
   syncToolbarCollapseUi();
@@ -15859,6 +15864,7 @@ function bindDelegatedClickEvents() {
         if (firstLoad) await showScheduleLoadingIndicator();
         try {
           await ensureScheduleApplicationLoaded();
+          resetToolbarCollapseOnScheduleEntry();
           appView = "schedule";
           renderAll();
         } catch (error) {

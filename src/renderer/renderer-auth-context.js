@@ -166,6 +166,11 @@ function initializeToolbarCollapse() {
   toolbarCollapseInitialized = true;
 }
 
+function resetToolbarCollapseOnScheduleEntry() {
+  toolbarCollapsed = shouldDefaultCollapseToolbar();
+  toolbarCollapseInitialized = true;
+}
+
 function toggleToolbarCollapse() {
   toolbarCollapsed = !toolbarCollapsed;
   syncToolbarCollapseUi();

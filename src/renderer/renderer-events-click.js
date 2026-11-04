@@ -139,6 +139,7 @@ function bindDelegatedClickEvents() {
         if (firstLoad) await showScheduleLoadingIndicator();
         try {
           await ensureScheduleApplicationLoaded();
+          resetToolbarCollapseOnScheduleEntry();
           appView = "schedule";
           renderAll();
         } catch (error) {
