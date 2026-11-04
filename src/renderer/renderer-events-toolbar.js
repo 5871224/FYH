@@ -15,7 +15,7 @@ async function runFunctionMenuAction(action) {
   if (action === "auto-schedule-preview") return previewAutoSchedule();
   if (action === "auto-fill-schedule-preview") return openAutoFillSchedulePeriodModal();
   if (action === "print-schedule") return openSchedulePrintRangeDialog();
-  if (action === "export-schedule") return exportCurrentScheduleWorkbook();
+  if (action === "export-schedule") return openExportPeriodDialog("schedule");
   if (action === "export-workday") return openExportPeriodDialog("workday");
   if (action === "export-sap") return openExportPeriodDialog("sap");
   if (action === "export-leave") return openExportPeriodDialog("leave");

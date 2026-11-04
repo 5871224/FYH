@@ -122,3 +122,78 @@ test("休息日同時排班別時僅「休」改灰字，其餘狀況保留設�
     close();
   }
 });
+
+test("匯出班表重用日期區間，跨月載入未顯示日期且保護未公開資料", async () => {
+  const vm = require("node:vm");
+  const src = fs.readFileSync(path.resolve(__dirname, "../src/renderer/renderer-export-actions.js"), "utf8");
+  const evalSource = [
+    src.slice(src.indexOf("let scheduleExcelExportRunning = false;"), src.indexOf("function getSettingsExportPayload()")),
+    src.slice(src.indexOf("function parseExportDate("), src.indexOf("function getCurrentGroupExportMembers()")),
+    src.slice(src.indexOf("function openExportPeriodDialog("))
+  ].join("\n");
+  const result = { errors: [] };
+  const groupId = "g";
+  const member = { id: "A", deptId: "d", groupId, name: "甲" };
+  const state = {
+    tableView: "member", tableStatsVisible: true, tableDeptScopeFilter: "all",
+    departments: [{ id: "d", groupId, name: "門市" }, { id: "hidden", groupId, hiddenFromSchedule: true }],
+    members: [member], shifts: [{ id: "s", name: "早班" }],
+    leaves: [{ id: "r", code: "0047", name: "休" }], overtime: [], holidays: [], schedule: {}
+  };
+  const pickerValues = { exportPeriodStart: "2026-10-31", exportPeriodEnd: "2026-11-02" };
+  const button = { textContent: "匯出班表", disabled: false };
+  const ctx = {
+    state, groupFeatureState: { currentGroupId: groupId },
+    document: { getElementById: id => ({ value: pickerValues[id] }), querySelector: () => button },
+    requireCommonUiPermission: () => true, requireCurrentGroupUiPermission: () => true,
+    hasGroupPermission: () => true, getVisibleDateRange: () => ({ startDate: "2026-10-01", endDate: "2026-10-28" }),
+    openDateRangeActionModal: modal => result.modal = modal,
+    reportValidationError: msg => result.errors.push(msg), showInfoMessage: msg => result.errors.push(msg),
+    setSaveStatus: () => {}, closeModal: () => result.closed = true,
+    ensureVisibleScheduleLoaded: async range => {
+      result.loadedRange = range;
+      state.schedule = { A_2026_10_1: { shift: "s", leave: "r" }, A_2026_10_2: { shift: "s" } };
+    },
+    enumerateDateRange: (start, end) => {
+      const dates = [];
+      for (const d = new Date(start + "T12:00:00"); d <= new Date(end + "T12:00:00"); d.setDate(d.getDate() + 1)) {
+        dates.push(d.toISOString().slice(0, 10));
+      }
+      return dates;
+    },
+    getCurrentGroupExportMembers: () => [member],
+    doesDateRangeOverlapRange: (a,b,start,end) => (!a || a <= end) && (!b || b >= start),
+    isDepartmentVisibleInSchedule: dept => !dept.hiddenFromSchedule,
+    getMemberHomeDeptId: m => m.deptId, getLocalizedName: item => item.name,
+    isMemberActiveOnDateString: () => true, isScheduleDatePublished: date => date <= "2026-11-01",
+    getScheduleKeyForDateString: (id, date) => {
+      const d = new Date(date + "T12:00:00");
+      return id + "_" + d.getFullYear() + "_" + d.getMonth() + "_" + d.getDate();
+    },
+    getDisplayedSlot: (id, date) => {
+      const d = new Date(date + "T12:00:00");
+      return state.schedule[id + "_" + d.getFullYear() + "_" + d.getMonth() + "_" + d.getDate()] || null;
+    },
+    getItem: (type,id) => (type === "leave" ? state.leaves : state.shifts).find(x=>x.id === id),
+    getConfiguredWeekStart: () => 0, getConfiguredMonthStartDay: () => 1,
+    window: { schedulerBrowserExporter: { createScheduleWorkbook: async payload => { result.payload = payload; return {}; } } },
+    downloadScheduleWorkbook: async (_, filename) => result.filename = filename
+  };
+  vm.runInNewContext(evalSource,ctx);
+  vm.runInNewContext('openExportPeriodDialog("schedule")',ctx);
+  assert.equal(result.modal.title,"匯出班表期間");
+  assert.equal(result.modal.startDate,"2026-10-01");
+  assert.match(result.modal.actionButton,/data-run-period-export="schedule"/);
+  await vm.runInNewContext('runPeriodExport("schedule")',ctx);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.loadedRange)),{startDate:"2026-10-31",endDate:"2026-11-02"});
+  assert.deepEqual(Array.from(result.payload.dates),["2026-10-31","2026-11-01","2026-11-02"]);
+  assert.equal(result.payload.groups.length,1);
+  assert.equal(result.payload.state.schedule.A_2026_10_1.shift,"s");
+  assert.equal(result.payload.state.schedule.A_2026_10_2,undefined);
+  assert.equal(result.payload.statsByMember.A.restWork,1);
+  assert.equal(result.payload.statsByMember.A.unassigned,1);
+  assert.equal(result.filename,"匯出班表_20261031-20261102.xlsx");
+  assert.equal(result.closed,true);
+  assert.equal(button.disabled,false);
+  assert.deepEqual(result.errors,[]);
+});

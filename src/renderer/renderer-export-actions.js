@@ -126,20 +126,54 @@ async function changeSchedulePeriodWeeks(weeks) {
 
 let scheduleExcelExportRunning = false;
 
-async function exportCurrentScheduleWorkbook() {
+// 匯出名單使用使用者選取的日期區間，保留目前群組、單位篩選及班表排序。
+function getScheduleExportGroupsForDates(dates) {
+  const startDate = dates[0];
+  const endDate = dates[dates.length - 1];
+  const groupId = groupFeatureState.currentGroupId;
+  const scope = state.tableDeptScopeFilter || "all";
+  const members = getCurrentGroupExportMembers().filter((member) => (
+    !member.deleted && doesDateRangeOverlapRange(member.hireDate, member.leaveDate, startDate, endDate)
+  ));
+  const groups = state.departments
+    .filter((department) => (
+      !department.deleted && isDepartmentVisibleInSchedule(department)
+      && (!groupId || !department.groupId || department.groupId === groupId)
+      && doesDateRangeOverlapRange(department.startDate, department.endDate, startDate, endDate)
+    ))
+    .map((department) => ({
+      department,
+      members: members.filter((member) => (
+        getMemberHomeDeptId(member) === department.id
+        && (scope === "all" || dates.some((dateString) => {
+          if (!isMemberActiveOnDateString(member, dateString)) return false;
+          const slot = getDisplayedSlot(member.id, dateString);
+          const shift = getItem("shift", slot?.shift);
+          return Boolean(shift && shiftAllowsDepartment(shift, scope));
+        }))
+      ))
+    }));
+  return scope === "all" ? groups : groups.filter(({ members }) => members.length);
+}
+
+async function exportCurrentScheduleWorkbook(startDate, endDate) {
   if (scheduleExcelExportRunning || !requireCommonUiPermission("export", "匯出班表")) return;
   const groupId = groupFeatureState.currentGroupId;
-  if (!hasGroupPermission(groupId, "schedule_view")) return;
-  const button = document.getElementById("scheduleExcelExportMenuButton");
+  if (!requireCurrentGroupUiPermission("schedule_view", "匯出班表")) return;
+  const button = document.querySelector('[data-run-period-export="schedule"]');
   const originalLabel = button?.textContent || "匯出班表";
   scheduleExcelExportRunning = true;
   if (button) { button.disabled = true; button.textContent = "匯出中…"; }
   try {
-    await ensureVisibleScheduleLoaded();
-    if (groupId !== groupFeatureState.currentGroupId) throw new Error("群組已變更，請重新匯出");
-    const dates = getVisibleDates();
+    setSaveStatus("正在準備匯出資料...", true);
+    const dates = enumerateDateRange(startDate, endDate);
+    if (!dates.length) throw new Error("請選擇正確的開始日期與結束日期");
+    await ensureVisibleScheduleLoaded({ startDate, endDate });
+    if (groupId !== groupFeatureState.currentGroupId || !hasGroupPermission(groupId, "schedule_view")) {
+      throw new Error("群組或權限已變更，請重新匯出");
+    }
     const view = state.tableView === "shift" ? "shift" : "member";
-    const groups = getVisibleTableGroups().map(({ department, members }) => ({
+    const groups = getScheduleExportGroupsForDates(dates).map(({ department, members }) => ({
       department: { ...department, name: getLocalizedName(department) },
       members: members.map((member) => ({ ...member, name: getLocalizedName(member) }))
     }));
@@ -148,12 +182,20 @@ async function exportCurrentScheduleWorkbook() {
     if (view === "member") {
       for (const { members } of groups) {
         for (const member of members) {
-          if (state.tableStatsVisible) statsByMember[member.id] = getMemberEightWeekStats(member);
+          const stats = { regular: 0, rest: 0, restWork: 0, unassigned: 0 };
           for (const dateString of dates) {
-            if (!isScheduleDatePublished(dateString, groupId)) continue;
+            if (!isMemberActiveOnDateString(member, dateString) || !isScheduleDatePublished(dateString, groupId)) continue;
             const slot = getDisplayedSlot(member.id, dateString);
             if (slot) schedule[getScheduleKeyForDateString(member.id, dateString)] = slot;
+            const leaveCode = getItem("leave", slot?.leave)?.code;
+            if (leaveCode === "0036") stats.regular += 1;
+            if (leaveCode === "0047") {
+              if (slot?.shift) stats.restWork += 1;
+              else stats.rest += 1;
+            }
+            if (!slot?.shift && !slot?.leave) stats.unassigned += 1;
           }
+          if (state.tableStatsVisible) statsByMember[member.id] = stats;
         }
       }
     }
@@ -173,8 +215,9 @@ async function exportCurrentScheduleWorkbook() {
           };
         })
       })) : [];
+    const firstDate = parseExportDate(startDate);
     const workbook = await window.schedulerBrowserExporter.createScheduleWorkbook({
-      year: state.year, month: state.month, dates, view,
+      year: firstDate.getFullYear(), month: firstDate.getMonth(), dates, view,
       tableStatsVisible: state.tableStatsVisible,
       groups, shiftRows, statsByMember,
       state: {
@@ -188,10 +231,14 @@ async function exportCurrentScheduleWorkbook() {
       monthStartDay: getConfiguredMonthStartDay()
     });
     if (groupId !== groupFeatureState.currentGroupId) throw new Error("群組已變更，請重新匯出");
-    const filename = "匯出班表_" + dates[0].replaceAll("-", "") + "-" + dates[dates.length - 1].replaceAll("-", "") + ".xlsx";
+    const filename = "匯出班表_" + startDate.replaceAll("-", "") + "-" + endDate.replaceAll("-", "") + ".xlsx";
     await downloadScheduleWorkbook(workbook, filename);
+    closeModal();
+    setSaveStatus("");
   } catch (error) {
-    showInfoMessage("匯出班表失敗：" + (error?.message || error));
+    const message = "匯出班表失敗：" + (error?.message || error);
+    setSaveStatus(message);
+    showInfoMessage(message);
   } finally {
     scheduleExcelExportRunning = false;
     if (button) { button.disabled = false; button.textContent = originalLabel; }
@@ -794,6 +841,7 @@ function openExportPeriodDialog(type) {
   if (!requireCommonUiPermission("export", "匯出")) return;
   const defaults = getDefaultExportPeriod();
   const labels = {
+    schedule: { title: "匯出班表期間", action: "匯出班表" },
     workday: { title: "匯出上班日期間", action: "匯出上班日" },
     "workday-statistics": { title: "統計上班日", action: "統計上班日" },
     sap: { title: "匯出休例假期間", action: "匯出休例假" },
@@ -824,6 +872,10 @@ async function runPeriodExport(type) {
   }
   if (start > end) {
     reportValidationError("開始日期必須早於或等於結束日期");
+    return;
+  }
+  if (type === "schedule") {
+    await exportCurrentScheduleWorkbook(startDate, endDate);
     return;
   }
   if (type === "workday-statistics") {
