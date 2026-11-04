@@ -1048,9 +1048,6 @@ body.is-meal-view .meal-tabs ~ .records-section {
     display: none;
   }
 
-  .table-sticky-header {
-    top: 0;
-  }
 }
 
 /* Unified compact spacing for phone layouts. Keep touch heights, halve visual whitespace. */

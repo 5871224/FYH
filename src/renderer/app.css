@@ -1082,6 +1082,18 @@ body.is-records-view .app-shell {
   width: 100%;
 }
 
+/* 固定整組班表導覽、水平捲軸與日期標題；各裝置換行高度由版面自然決定。 */
+.schedule-sticky-head {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  background: var(--schedule-header-bg);
+}
+
 .calendar-nav {
   position: relative;
   width: 100%;
@@ -1141,9 +1153,7 @@ body.is-records-view .app-shell {
 
 /* Schedule table: wrappers draw the outer frame; cells draw only inner grid lines. */
 .table-top-scrollbar {
-  position: -webkit-sticky;
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 25;
   height: var(--schedule-top-scrollbar-height);
   margin-top: calc(-1 * var(--schedule-top-scrollbar-height));
@@ -1181,9 +1191,7 @@ body.is-records-view .app-shell {
 }
 
 .table-sticky-header {
-  position: -webkit-sticky;
-  position: sticky;
-  top: var(--schedule-top-scrollbar-height);
+  position: relative;
   z-index: 24;
   isolation: isolate;
   display: flex;
@@ -3173,10 +3181,6 @@ thead th.today,
     padding: 0 8px;
   }
 
-  .table-sticky-header {
-    top: var(--schedule-top-scrollbar-height);
-  }
-
 
   .month-title-wrap h2 {
     font-size: 19px;
@@ -4910,9 +4914,6 @@ body.is-meal-view .meal-tabs ~ .records-section {
     display: none;
   }
 
-  .table-sticky-header {
-    top: 0;
-  }
 }
 
 /* Unified compact spacing for phone layouts. Keep touch heights, halve visual whitespace. */

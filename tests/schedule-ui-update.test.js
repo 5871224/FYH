@@ -70,7 +70,7 @@ test("上方水平捲軸不產生多餘留白且使用透明軌道與淺色主�
   assert.match(css, /\.table-top-scrollbar \{[\s\S]*?background: transparent;/);
   assert.match(css, /\.table-top-scrollbar \{[\s\S]*?scrollbar-color: var\(--schedule-scrollbar-thumb\) transparent;/);
   assert.match(css, /\.table-top-scrollbar::-webkit-scrollbar-track,[\s\S]*?background: transparent;/);
-  assert.match(css, /\.table-sticky-header \{[\s\S]*?top: var\(--schedule-top-scrollbar-height\);/);
+  assert.match(css, /\.table-sticky-header \{\s*position: relative;/);
 });
 
 test("浮動工具列縮放鍵與右側編輯 SVG 按鈕同為 34px", () => {
@@ -80,4 +80,20 @@ test("浮動工具列縮放鍵與右側編輯 SVG 按鈕同為 34px", () => {
   assert.match(foundation, /\.toolbar-collapse-toggle \{[\s\S]*?width: 34px;[\s\S]*?height: 34px;[\s\S]*?flex: 0 0 34px;/);
   assert.match(schedule, /\.toolbar-floating-card:not\(\.toolbar-floating-card-collapsed\) \.toolbar-collapse-toggle \{[\s\S]*?flex: 0 0 34px;/);
   assert.match(components, /\.settings-icon-btn \{\s*width: 34px;\s*height: 34px;/);
+});
+
+test("班表導覽列、水平捲軸和日期欄一同固定，不需計算標題高度", () => {
+  const html = read("src/renderer/index.html");
+  const foundation = read("src/renderer/css/foundation.css");
+  const components = read("src/renderer/css/components.css");
+  const wrapper = html.indexOf('class="schedule-sticky-head"');
+  const nav = html.indexOf('class="calendar-nav"', wrapper);
+  const scroll = html.indexOf('id="tableTopScrollbar"', nav);
+  const dates = html.indexOf('id="tableStickyHeader"', scroll);
+  const table = html.indexOf('id="tableWrap"', dates);
+  assert.ok(wrapper > 0 && nav > wrapper && scroll > nav && dates > scroll && table > dates);
+  assert.match(foundation, /\.schedule-sticky-head \{\s*position: sticky;\s*top: 0;\s*z-index: 30;/);
+  assert.match(foundation, /\.table-top-scrollbar \{\s*position: relative;/);
+  assert.match(foundation, /\.table-sticky-header \{\s*position: relative;/);
+  assert.doesNotMatch(components, /\.table-sticky-header \{\s*top: 0;/);
 });
