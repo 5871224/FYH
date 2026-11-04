@@ -14,10 +14,16 @@ function attendanceReviewLocationOptions(row, location) {
   const review = ensureAttendanceReviewState();
   const groupId = String(row?.groupId || "").trim();
   const currentId = String(location?.departmentId || "").trim();
-  return (review.departments || [])
+  const departments = (review.departments || [])
     .filter((department) => groupId && String(department.group_id || department.groupId || "").trim() === groupId)
     .map((department) => ({ id: String(department.id || "").trim(), name: String(department.name || "").trim() }))
-    .filter((department) => department.id)
+    .filter((department) => department.id);
+  // 已不屬於現行班別的歷史地點保留為提示，避免儲存其他欄位時誤改地點。
+  const hasCurrentOption = departments.some((department) => department.id === currentId);
+  const oldName = String(location?.name || location?.address || currentId || "").trim();
+  const placeholder = hasCurrentOption ? ""
+    : `<option value="" selected>${escapeHtml(oldName ? `保留原地點：${oldName}` : "未指定地點")}</option>`;
+  return placeholder + departments
     .map((department) => `<option value="${escapeHtml(department.id)}" ${department.id === currentId ? "selected" : ""}>${escapeHtml(department.name || department.id)}</option>`)
     .join("");
 }
@@ -26,6 +32,7 @@ function openAttendanceReviewEditModal(token) {
   const row = findAttendanceReviewRow(token);
   openEntityListModal({
     title: "編輯簽到紀錄",
+    modalClass: "modal attendance-edit-modal",
     hideFooterClose: true,
     body: `<div class="form-grid two-col">
       <div class="form-row"><label>上班時間</label><input id="reviewClockInTime" type="time" value="${escapeHtml(timeValueFromIso(row.clock_in_at))}"></div>

@@ -4160,7 +4160,7 @@ body.is-meal-view .meal-tabs ~ .records-section {
 }
 
 .attendance-edit-modal {
-  width: min(560px, 100%);
+  width: min(430px, 100%);
 }
 
 .attendance-edit-modal .form-grid {

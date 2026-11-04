@@ -44,3 +44,29 @@ test("簽到修改歷程使用中文操作名稱並顯示時間與地點前後�
   assert.match(actions, /下班地點/);
   assert.match(actions, /變更內容/);
 });
+
+
+test("簽到審核地點選單只列出當前群組有效地點，並保留歷史地點", () => {
+  const actions = read("src/renderer/renderer-records-actions.js");
+  const edge = read("supabase/functions/attendance-review-groups/index.ts");
+  const source = actions.match(/function attendanceReviewLocationOptions\(row, location\) \{[\s\S]*?\n\}/)?.[0];
+  assert.ok(source, "找不到簽到地點選單函式");
+  const departments = [
+    { id: "active", name: "門市", group_id: "group-a" },
+    { id: "another", name: "另一門市", group_id: "group-a" },
+    { id: "unrelated", name: "其他群組", group_id: "group-b" }
+  ];
+  const options = new Function("ensureAttendanceReviewState", "escapeHtml",
+    `${source}\nreturn attendanceReviewLocationOptions;`
+  )(() => ({ departments }), (value) => String(value));
+  const selected = options({ groupId: "group-a" }, { departmentId: "active", name: "門市" });
+  assert.match(selected, /value="active" selected/);
+  assert.match(selected, /value="another"/);
+  assert.doesNotMatch(selected, /unrelated/);
+  const historical = options({ groupId: "group-a" }, { departmentId: "removed", name: "舊地點" });
+  assert.match(historical, /value="" selected>保留原地點：舊地點/);
+  assert.doesNotMatch(historical, /value="removed"/);
+  assert.match(edge, /from\("set_shift"\)\.select\("group_id,applicable_department_id"\)/);
+  assert.match(edge, /shiftDepartmentIds\.has\(String\(department\.id\)\)/);
+  assert.match(actions, /modalClass: "modal attendance-edit-modal"/);
+});
