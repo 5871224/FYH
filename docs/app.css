@@ -5612,6 +5612,11 @@ body:not(.is-authenticated) .toolbar-card {
 
 /* 手機版主頁面外層配置統一規格：首頁、打卡、訂餐、紀錄、班表共用。 */
 @media (max-width: 960px) {
+  /* 日期列吸頂時，功能下拉選單需位於日期表頭的上層。 */
+  body.is-schedule-view .calendar-nav {
+    z-index: 31;
+  }
+
   .app-shell {
     padding-top: 12px;
   }
@@ -5740,18 +5745,23 @@ body:not(.is-authenticated) .toolbar-card {
     padding-bottom: 7px;
   }
 
-  /* 四個週期切換固定同列；功能選單保留下一列的完整寬度。 */
-  body.is-schedule-view .nav-actions > .nav-btn {
+  /* 手機版僅保留前八週、後八週與功能三個同列按鈕。 */
+  body.is-schedule-view .nav-actions > #prevWeekButton,
+  body.is-schedule-view .nav-actions > #nextWeekButton {
+    display: none;
+  }
+
+  body.is-schedule-view .nav-actions > .nav-btn,
+  body.is-schedule-view .nav-actions > .core-actions-shell {
     flex: 1 1 0;
     min-width: 0;
+  }
+
+  body.is-schedule-view .nav-actions > .nav-btn {
     padding-right: 2px;
     padding-left: 2px;
     font-size: 12px;
     white-space: nowrap;
-  }
-
-  body.is-schedule-view .nav-actions > .core-actions-shell {
-    flex: 1 1 100%;
   }
 
   /* 打卡、訂餐與記錄頁的返回首頁按鈕對齊班表頁尺寸。 */
