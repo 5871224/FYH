@@ -47,6 +47,8 @@ function createHarness(storage, permissions = {}) {
     chooseCurrentGroupId() { return "group"; },
     getSelectableGroups() { return permissions.schedule ? [{ id: "group" }] : []; },
     hasAnyGroupPermission(permission) { return permission === "attendance_review" && Boolean(permissions.review); },
+    hasGroupPermission() { return false; },
+    hasCommonPermission() { return false; },
     resetToolbarCollapseOnScheduleEntry() { calls.push("toolbar"); },
     async loadRecordsPage() { calls.push("personal"); },
     async loadAttendanceReview() { calls.push("review"); },
