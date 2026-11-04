@@ -533,6 +533,81 @@
     return workbook;
   }
 
+  function addSpecialAttendanceHours(value, hours) {
+    const normalized = formatCompactTime(value);
+    if (!/^\d{4}$/.test(normalized)) return "";
+    const minutes = (Number(normalized.slice(0, 2)) * 60 + Number(normalized.slice(2)) + hours * 60) % 1440;
+    return `${String(Math.floor(minutes / 60)).padStart(2, "0")}${String(minutes % 60).padStart(2, "0")}`;
+  }
+
+  function formatSpecialAttendancePunch(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+    }).formatToParts(date);
+    const hour = parts.find((part) => part.type === "hour")?.value || "";
+    const minute = parts.find((part) => part.type === "minute")?.value || "";
+    return hour && minute ? `${hour}${minute}` : "";
+  }
+
+  function getSpecialAttendanceExportRows(rows, members = []) {
+    const memberNames = new Map((members || []).map((member) => [String(member.id), member.full_name || ""]));
+    return (Array.isArray(rows) ? rows : []).filter((row) => row?.shift).map((row) => {
+      const shiftStart = formatCompactTime(row.shift?.start_time);
+      const isRestDay = (row.scheduleSegments || []).some((segment) =>
+        segment.category === "leave" && (String(segment.code) === "0047" || segment.name === "休息日")
+      );
+      return {
+        restDay: isRestDay,
+        values: [
+          memberNames.get(String(row.user_id)) || row.employee_name || "",
+          String(row.employee_code || ""),
+          String(row.work_date || "").replace(/-/g, ""),
+          shiftStart,
+          shiftStart, // 依指定格式：結束時間同樣取班別上班時間。
+          "0001",
+          "1",
+          addSpecialAttendanceHours(row.shift?.start_time, 4),
+          addSpecialAttendanceHours(row.shift?.start_time, 5),
+          "",
+          "",
+          formatSpecialAttendancePunch(row.clock_in_at),
+          formatSpecialAttendancePunch(row.clock_out_at)
+        ]
+      };
+    });
+  }
+
+  async function createSpecialAttendanceWorkbook(rows, members = []) {
+    const entries = getSpecialAttendanceExportRows(rows, members);
+    if (!entries.length) return null;
+    await ensureExcelJS();
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("特殊出勤", { views: [{ state: "frozen", ySplit: 1 }] });
+    const headers = [
+      "姓名", "員工編號", "日期", "開始時間", "結束時間", "出勤類型", "補貼類型",
+      "休息1-開始", "休息1-結束", "休息2-開始", "休息2-結束", "上班打卡", "下班打卡"
+    ];
+    sheet.addRow(headers);
+    sheet.columns = headers.map((header, index) => ({ width: index === 0 ? 16 : Math.max(13, header.length * 2 + 3) }));
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle" };
+    entries.forEach(({ values, restDay }) => {
+      const excelRow = sheet.addRow(values);
+      for (let column = 1; column <= headers.length; column += 1) {
+        const cell = excelRow.getCell(column);
+        cell.numFmt = "@"; // 工號、日期與 HHNN 均以文字保留前置零。
+        if (restDay) {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFF00" } };
+        }
+      }
+    });
+    applySheetBorder(sheet);
+    return workbook;
+  }
+
   async function createOvertimeWorkbook(payload) {
     await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
@@ -1156,9 +1231,11 @@
     buildSapLeaveCsvContent,
     getSapLeaveExportRows,
     getOvertimeExportRows,
+    getSpecialAttendanceExportRows,
     getLeaveExportRows,
     createScheduleWorkbook,
     createOvertimeWorkbook,
+    createSpecialAttendanceWorkbook,
     createLeaveWorkbook,
     createMemberWorkbook,
     createDepartmentWorkbook,

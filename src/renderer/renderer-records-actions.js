@@ -318,6 +318,41 @@ async function openAttendanceHistoryModal(recordId) {
   }
 }
 
+async function exportSpecialAttendance() {
+  if (!hasAnyGroupPermission("attendance_review")) {
+    showInfoMessage("沒有簽到審核權限");
+    return;
+  }
+  const filters = { ...ensureAttendanceReviewState().filters, status: "all", issueType: "" };
+  if (!filters.fromDate || !filters.toDate || filters.fromDate > filters.toDate) {
+    showInfoMessage("請確認特殊出勤匯出的開始日期及結束日期");
+    return;
+  }
+  try {
+    setSaveStatus("正在準備特殊出勤資料...", true);
+    // 後端依群組權限篩選；匯出不受畫面分頁及審核狀態限制。
+    const first = await window.schedulerApi.getAttendanceReviewList({ ...filters, page: 1 });
+    const total = Math.max(0, Number(first.total || 0));
+    const pageSize = Math.max(1, Number(first.pageSize || 50));
+    const rows = Array.isArray(first.rows) ? [...first.rows] : [];
+    for (let page = 2; page <= Math.ceil(total / pageSize); page += 1) {
+      const pageResult = await window.schedulerApi.getAttendanceReviewList({ ...filters, page });
+      if (Array.isArray(pageResult.rows)) rows.push(...pageResult.rows);
+    }
+    const workbook = await window.schedulerBrowserExporter.createSpecialAttendanceWorkbook(rows.slice(0, total), first.members || []);
+    if (!workbook) {
+      showInfoMessage("所選期間沒有可匯出的特殊出勤班別");
+      return;
+    }
+    const fileName = `特殊出勤_${filters.fromDate.replaceAll("-", "")}-${filters.toDate.replaceAll("-", "")}.xlsx`;
+    await downloadScheduleWorkbook(workbook, fileName);
+  } catch (error) {
+    showInfoMessage(`匯出特殊出勤失敗：${error.message || error}`);
+  } finally {
+    setSaveStatus("");
+  }
+}
+
 async function exportAttendanceReview() {
   const filters = ensureAttendanceReviewState().filters;
   try {

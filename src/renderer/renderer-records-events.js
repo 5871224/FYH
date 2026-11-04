@@ -99,6 +99,7 @@ function bindRecordsEvents() {
     }
     if (target.dataset.attendanceCommonNotes !== undefined) { openAttendanceCommonNotesModal(); return; }
     if (target.dataset.saveAttendanceCommonNotes !== undefined) { void saveAttendanceCommonNotes(); return; }
+    if (target.dataset.exportSpecialAttendance !== undefined) { void exportSpecialAttendance(); return; }
     if (target.dataset.exportAttendanceReview !== undefined) { void exportAttendanceReview(); return; }
     if (target.dataset.printAttendanceReview !== undefined) { void printAttendanceReview(target); return; }
     if (target.dataset.attendanceReviewBatch) { void batchReviewAttendance(target.dataset.attendanceReviewBatch); return; }
