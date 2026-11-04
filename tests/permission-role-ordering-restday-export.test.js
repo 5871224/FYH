@@ -49,7 +49,7 @@ test("班表的匯出選單不再有加班，但簽到審核仍有匯出加班",
   );
   const items = categories.find(category => category.id === "export").items;
   assert.deepEqual(Array.from(items, item => item.label), [
-    "列印班表", "匯出上班日", "匯出休例假", "匯出請假",
+    "列印班表", "匯出班表", "匯出上班日", "匯出休例假", "匯出請假",
     "統計上班日", "統計人數"
   ]);
   assert.doesNotMatch(read("src/renderer/renderer-events-toolbar.js"), /action === "export-overtime"/);
