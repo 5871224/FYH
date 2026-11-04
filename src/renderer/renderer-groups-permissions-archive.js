@@ -303,6 +303,7 @@ function getFunctionMenuSections() {
       label: "匯出",
       items: [
         { id: "schedulePrintMenuButton", label: "列印班表", action: "print-schedule" },
+        { id: "scheduleExcelExportMenuButton", label: "匯出班表", action: "export-schedule" },
         { id: "exportScheduleButton", label: "匯出上班日", action: "export-workday" },
         { id: "exportSapButton", label: "匯出休例假", action: "export-sap" },
         { id: "exportLeaveButton", label: "匯出請假", action: "export-leave" },

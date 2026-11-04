@@ -280,108 +280,254 @@
   }
 
   async function createScheduleWorkbook(payload) {
-    await ensureExcelJS();
+    const ExcelJS = await ensureExcelJS();
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("排班表", {
-      views: [{ state: "frozen", xSplit: 2, ySplit: 2 }]
-    });
+    workbook.creator = "福圓號";
+
     const { state, year, month } = payload;
+    const dates = Array.isArray(payload.dates) && payload.dates.length
+      ? payload.dates
+      : Array.from({ length: daysInMonth(year, month) }, (_, index) => formatIsoDate(year, month, index + 1));
+    const shiftView = payload.view === "shift";
+    const includeStats = !shiftView && Boolean(payload.tableStatsVisible);
+    const fixedColumns = shiftView ? 2 : includeStats ? 3 : 2;
+    const lastColumn = fixedColumns + dates.length;
+    const sheet = workbook.addWorksheet("班表", {
+      views: [{ state: "frozen", xSplit: fixedColumns, ySplit: 2 }]
+    });
+    sheet.pageSetup = {
+      paperSize: 9,
+      orientation: "landscape",
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0
+    };
+    sheet.properties.defaultRowHeight = 34;
+
     const maps = {
-      departments: getItemMap(state.departments),
       shifts: getItemMap(state.shifts),
       leaves: getItemMap(state.leaves),
       overtime: getItemMap(state.overtime)
     };
-    const days = daysInMonth(year, month);
+    const holidayDates = new Set(payload.holidayDates || []);
+    const meetingDates = new Set(payload.meetingDates || []);
+    const weekStart = Number(payload.weekStart ?? 0);
+    const monthStartDay = Number(payload.monthStartDay ?? 1);
     const weekLabels = ["日", "一", "二", "三", "四", "五", "六"];
-
-    sheet.mergeCells(1, 1, 1, days + 2);
-    const titleCell = sheet.getCell(1, 1);
-    titleCell.value = `${year} 年 ${month + 1} 月`;
-    titleCell.font = { name: "Microsoft JhengHei UI", bold: true, size: 16 };
-    titleCell.alignment = { horizontal: "center", vertical: "middle" };
-    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EBD8" } };
-
-    const headerRow = sheet.getRow(2);
-    headerRow.font = { bold: true };
-    headerRow.alignment = { horizontal: "center", vertical: "middle" };
-    headerRow.getCell(1).value = "單位";
-    headerRow.getCell(2).value = "人員";
-    headerRow.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8F6F0" } };
-    headerRow.getCell(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8F6F0" } };
-
-    for (let day = 1; day <= days; day += 1) {
-      const weekday = new Date(year, month, day).getDay();
-      const cell = sheet.getCell(2, day + 2);
-      cell.value = `${day}\n${weekLabels[weekday]}`;
+    const fontName = "Microsoft JhengHei";
+    const inactiveColor = "#D7CBB9";
+    const borderColor = { argb: "FFD8D2C7" };
+    const cellBorder = () => ({
+      top: { style: "thin", color: borderColor },
+      bottom: { style: "thin", color: borderColor },
+      left: { style: "thin", color: borderColor },
+      right: { style: "thin", color: borderColor }
+    });
+    const paint = (cell, hex) => {
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: toArgb(hex) } };
+    };
+    const foreground = (item, background) => {
+      if (/^#[\da-f]{6}$/i.test(item?.textColor || "")) return toArgb(item.textColor);
+      const color = String(background || "#FFFFFF").replace("#", "");
+      const parts = [0, 2, 4].map((index) => Number.parseInt(color.slice(index, index + 2), 16));
+      const brightness = (parts[0] * 299 + parts[1] * 587 + parts[2] * 114) / 1000;
+      return brightness >= 150 ? "FF222222" : "FFFFFFFF";
+    };
+    const makeSegments = (slot) => {
+      const segments = [];
+      const shift = maps.shifts.get(slot?.shift);
+      const leave = maps.leaves.get(slot?.leave);
+      const overtime = maps.overtime.get(slot?.overtime);
+      if (shift) segments.push({ name: shift.name, item: shift, color: shift.color });
+      if (leave) segments.push({
+        name: slot?.leaveMeta?.displayName || leave.name,
+        item: leave,
+        color: leave.color
+      });
+      if (slot?.overtime) segments.push({
+        name: overtime?.name || slot?.overtimeMeta?.displayName || "加班",
+        item: overtime,
+        color: overtime?.color || "#D85A30"
+      });
+      return segments;
+    };
+    const setScheduleCell = (cell, segment, inactive = false) => {
       cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      cell.font = { name: fontName, size: 10 };
+      if (inactive) {
+        cell.value = "";
+        paint(cell, inactiveColor);
+      } else if (segment) {
+        cell.value = segment.name;
+        paint(cell, segment.color);
+        cell.font = { name: fontName, size: 10, bold: true, color: { argb: foreground(segment.item, segment.color) } };
+      }
+    };
+
+    sheet.mergeCells(1, 1, 1, lastColumn);
+    const title = sheet.getCell(1, 1);
+    title.value = payload.dates?.length ? `${dates[0]} ～ ${dates[dates.length - 1]}` : `${year} 年 ${month + 1} 月`;
+    title.font = { name: fontName, bold: true, size: 16 };
+    title.alignment = { horizontal: "center", vertical: "middle" };
+    paint(title, "#F3EBD8");
+    sheet.getRow(1).height = 30;
+
+    const header = sheet.getRow(2);
+    header.height = 34;
+    const fixedHeaders = shiftView
+      ? ["班別", "需求人數"]
+      : includeStats ? ["單位", "人員", "統計"] : ["單位", "人員"];
+    fixedHeaders.forEach((label, index) => { header.getCell(index + 1).value = label; });
+    dates.forEach((dateString, index) => {
+      const dayDate = new Date(dateString + "T12:00:00");
+      const weekday = dayDate.getDay();
+      const cell = header.getCell(fixedColumns + index + 1);
+      cell.value = String(dayDate.getDate()) + "\n" + weekLabels[weekday];
       cell.font = {
+        name: fontName,
         bold: true,
-        color: weekday === 0 ? { argb: "FFD64545" } : weekday === 6 ? { argb: "FF165DAB" } : undefined
+        size: 10,
+        color: { argb: meetingDates.has(dateString) ? "FF7E22CE"
+          : holidayDates.has(dateString) ? "FFC2416C"
+            : weekday === 0 ? "FFD64545"
+              : weekday === 6 ? "FF165DAB" : "FF333333" }
       };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8F6F0" } };
-    }
+      paint(cell, meetingDates.has(dateString) ? "#F3E8FF" : "#F8F6F0");
+    });
+    for (let index = 1; index <= fixedColumns; index += 1) paint(header.getCell(index), "#F8F6F0");
+    header.eachCell((cell) => {
+      cell.font = cell.font || { name: fontName, bold: true, size: 10 };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    });
 
     let rowIndex = 3;
-    for (const department of state.departments) {
-      const members = state.members.filter((member) => member.deptId === department.id);
-      if (!members.length) {
-        continue;
-      }
-      for (const member of members) {
-        const row = sheet.getRow(rowIndex);
-        row.getCell(1).value = maps.departments.get(member.deptId)?.name || "";
-        row.getCell(2).value = member.name;
-        row.getCell(1).alignment = { vertical: "middle", wrapText: true };
-        row.getCell(2).alignment = { vertical: "middle", wrapText: true };
-
-        for (let day = 1; day <= days; day += 1) {
-          const cell = row.getCell(day + 2);
-          if (!isMemberActiveOnDate(member, year, month, day)) {
-            cell.value = "";
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF9B9B9B" } };
-            cell.font = { color: { argb: "FFFFFFFF" }, size: 10 };
-            cell.alignment = { horizontal: "center", vertical: "middle" };
-            continue;
-          }
-
-          const slot = state.schedule[getScheduleKey(member.id, year, month, day)];
-          cell.value = getScheduleCellText(slot, maps);
+    if (shiftView) {
+      for (const entry of payload.shiftRows || []) {
+        const shift = entry.shift;
+        const row = sheet.getRow(rowIndex++);
+        [shift.name, shift.requiredStaffCount ?? 0].forEach((value, index) => {
+          const cell = row.getCell(index + 1);
+          cell.value = value;
+          cell.alignment = { horizontal: index === 0 ? "left" : "center", vertical: "middle", wrapText: true };
+          cell.font = { name: fontName, size: 10, bold: index === 0 };
+        });
+        dates.forEach((dateString, index) => {
+          const info = entry.days?.[index] || {};
+          const cell = row.getCell(fixedColumns + index + 1);
+          cell.value = (info.names || []).join("\n");
           cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+          cell.font = { name: fontName, size: 10 };
+          if (!info.isOperating) paint(cell, inactiveColor);
+          else if (info.isShortage) paint(cell, "#FDE5E8");
+          else if (info.isSurplus) paint(cell, "#FFF1CC");
+        });
+        row.height = Math.max(34, Math.min(84, 14 * Math.max(2, ...((entry.days || []).map((info) => (info.names || []).length)))));
+      }
+    } else {
+      for (const { department, members } of payload.groups || []) {
+        const groupMembers = members.length ? members : [null];
+        const startRow = rowIndex;
+        groupMembers.forEach((member) => {
+          const dayCells = dates.map((dateString) => {
+            if (!member) return { inactive: true, segments: [] };
+            const day = new Date(dateString + "T12:00:00");
+            if (!isMemberActiveOnDate(member, day.getFullYear(), day.getMonth(), day.getDate())) {
+              return { inactive: true, segments: [] };
+            }
+            const key = getScheduleKey(member.id, day.getFullYear(), day.getMonth(), day.getDate());
+            return { inactive: false, segments: makeSegments(state.schedule?.[key]) };
+          });
 
-          const colors = [];
-          if (slot?.shift && maps.shifts.has(slot.shift)) {
-            colors.push(maps.shifts.get(slot.shift).color);
+          // Excel 儲存格無法同時擁有不同背景色。僅在該人員有同日多個項目時，
+          // 將原本的一列分成 2～3 子列，讓班別、假別與加班保有各自的底色。
+          const subrowCount = Math.max(1, ...dayCells.map((dayCell) => dayCell.segments.length));
+          const memberStartRow = rowIndex;
+          const memberEndRow = memberStartRow + subrowCount - 1;
+          const subrowHeight = (includeStats ? 54 : 42) / subrowCount;
+          for (let rowNumber = memberStartRow; rowNumber <= memberEndRow; rowNumber += 1) {
+            sheet.getRow(rowNumber).height = subrowHeight;
           }
-          if (slot?.leave && maps.leaves.has(slot.leave)) {
-            colors.push(maps.leaves.get(slot.leave).color);
+          rowIndex = memberEndRow + 1;
+
+          if (member) {
+            if (subrowCount > 1) sheet.mergeCells(memberStartRow, 2, memberEndRow, 2);
+            const memberCell = sheet.getCell(memberStartRow, 2);
+            memberCell.value = member.name;
+            memberCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+            memberCell.font = { name: fontName, size: 10 };
           }
-          if (slot?.overtime && maps.overtime.has(slot.overtime)) {
-            colors.push(maps.overtime.get(slot.overtime).color);
+          if (includeStats && member) {
+            if (subrowCount > 1) sheet.mergeCells(memberStartRow, 3, memberEndRow, 3);
+            const stats = payload.statsByMember?.[member.id] || {};
+            const statsCell = sheet.getCell(memberStartRow, 3);
+            statsCell.value = [
+              "休:" + (stats.rest || 0), "灰休:" + (stats.restWork || 0),
+              "例:" + (stats.regular || 0), "未排:" + (stats.unassigned || 0)
+            ].join("\n");
+            statsCell.font = { name: fontName, size: 9 };
+            statsCell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
           }
 
-          if (colors.length === 1) {
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: toArgb(colors[0]) } };
-            cell.font = { color: { argb: "FFFFFFFF" }, size: 10 };
-          } else if (colors.length > 1) {
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF5EFE0" } };
-            cell.font = { size: 10 };
-          } else {
-            cell.font = { size: 10 };
-          }
-        }
+          dayCells.forEach(({ inactive, segments }, index) => {
+            const column = fixedColumns + index + 1;
+            if (inactive || segments.length === 0) {
+              if (subrowCount > 1) sheet.mergeCells(memberStartRow, column, memberEndRow, column);
+              setScheduleCell(sheet.getCell(memberStartRow, column), null, inactive);
+              return;
+            }
 
-        row.height = 42;
-        rowIndex += 1;
+            segments.forEach((segment, segmentIndex) => {
+              const topRow = memberStartRow + segmentIndex;
+              // 人員最多拆成三列；只有兩個項目的日期讓最後一項合併剩餘子列。
+              const bottomRow = segmentIndex === segments.length - 1 ? memberEndRow : topRow;
+              if (bottomRow > topRow) sheet.mergeCells(topRow, column, bottomRow, column);
+              setScheduleCell(sheet.getCell(topRow, column), segment);
+            });
+          });
+        });
+        const endRow = rowIndex - 1;
+        if (endRow > startRow) sheet.mergeCells(startRow, 1, endRow, 1);
+        const deptCell = sheet.getCell(startRow, 1);
+        deptCell.value = [department.code, department.name].filter(Boolean).join("\n");
+        deptCell.font = { name: fontName, size: 10, bold: true };
+        deptCell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+        paint(deptCell, "#F8F6F0");
       }
     }
 
-    sheet.columns = [
-      { width: 18 },
-      { width: 16 },
-      ...Array.from({ length: days }, () => ({ width: 12 }))
-    ];
-    applySheetBorder(sheet);
+    if (rowIndex === 3) {
+      sheet.getCell(3, 1).value = "目前沒有符合範圍的資料";
+      rowIndex += 1;
+    }
+
+    [shiftView ? 19 : 20, shiftView ? 12 : 17,
+      ...(shiftView ? [12, 12] : includeStats ? [14] : [])]
+      .forEach((width, index) => { sheet.getColumn(index + 1).width = width; });
+    for (let index = 0; index < dates.length; index += 1) {
+      sheet.getColumn(fixedColumns + index + 1).width = 10;
+    }
+
+    // 先設定共同格線，再疊加週、月分隔線，避免被一般框線覆蓋。
+    for (let row = 1; row < rowIndex; row += 1) {
+      for (let column = 1; column <= lastColumn; column += 1) {
+        const cell = sheet.getCell(row, column);
+        cell.border = cellBorder();
+      }
+    }
+    dates.forEach((dateString, index) => {
+      const date = new Date(dateString + "T12:00:00");
+      const isMonthStart = index !== 0 && date.getDate() === Math.min(monthStartDay, new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate());
+      const isWeekStart = index !== 0 && date.getDay() === weekStart;
+      if (!isMonthStart && !isWeekStart) return;
+      const border = {
+        style: "medium",
+        color: { argb: isMonthStart ? "FF337AB7" : "FFB39A75" }
+      };
+      for (let row = 2; row < rowIndex; row += 1) {
+        const cell = sheet.getCell(row, fixedColumns + index + 1);
+        cell.border = { ...cell.border, left: border };
+      }
+    });
     return workbook;
   }
 

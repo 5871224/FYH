@@ -124,6 +124,80 @@ async function changeSchedulePeriodWeeks(weeks) {
   }
 }
 
+let scheduleExcelExportRunning = false;
+
+async function exportCurrentScheduleWorkbook() {
+  if (scheduleExcelExportRunning || !requireCommonUiPermission("export", "匯出班表")) return;
+  const groupId = groupFeatureState.currentGroupId;
+  if (!hasGroupPermission(groupId, "schedule_view")) return;
+  const button = document.getElementById("scheduleExcelExportMenuButton");
+  const originalLabel = button?.textContent || "匯出班表";
+  scheduleExcelExportRunning = true;
+  if (button) { button.disabled = true; button.textContent = "匯出中…"; }
+  try {
+    await ensureVisibleScheduleLoaded();
+    if (groupId !== groupFeatureState.currentGroupId) throw new Error("群組已變更，請重新匯出");
+    const dates = getVisibleDates();
+    const view = state.tableView === "shift" ? "shift" : "member";
+    const groups = getVisibleTableGroups().map(({ department, members }) => ({
+      department: { ...department, name: getLocalizedName(department) },
+      members: members.map((member) => ({ ...member, name: getLocalizedName(member) }))
+    }));
+    const schedule = {};
+    const statsByMember = {};
+    if (view === "member") {
+      for (const { members } of groups) {
+        for (const member of members) {
+          if (state.tableStatsVisible) statsByMember[member.id] = getMemberEightWeekStats(member);
+          for (const dateString of dates) {
+            if (!isScheduleDatePublished(dateString, groupId)) continue;
+            const slot = getDisplayedSlot(member.id, dateString);
+            if (slot) schedule[getScheduleKeyForDateString(member.id, dateString)] = slot;
+          }
+        }
+      }
+    }
+    const shiftRows = view === "shift"
+      ? getVisibleShiftRows().map((shift) => ({
+        shift: { ...shift, name: getLocalizedName(shift) },
+        days: dates.map((dateString) => {
+          if (!isScheduleDatePublished(dateString, groupId)) {
+            return { names: [], isOperating: false, isShortage: false };
+          }
+          const cell = getShiftViewCellState(shift, dateString);
+          return {
+            names: cell.members.map((member) => getLocalizedName(member)),
+            isOperating: cell.isOperating,
+            isShortage: cell.isShortage,
+            isSurplus: false
+          };
+        })
+      })) : [];
+    const workbook = await window.schedulerBrowserExporter.createScheduleWorkbook({
+      year: state.year, month: state.month, dates, view,
+      tableStatsVisible: state.tableStatsVisible,
+      groups, shiftRows, statsByMember,
+      state: {
+        shifts: state.shifts.map((item) => ({ ...item, name: getLocalizedName(item) })),
+        leaves: state.leaves.map((item) => ({ ...item, name: getLocalizedName(item) })),
+        overtime: state.overtime, schedule
+      },
+      holidayDates: dates.filter((dateString) => state.holidays.some((holiday) => holiday.date === dateString)),
+      meetingDates: [],
+      weekStart: getConfiguredWeekStart(),
+      monthStartDay: getConfiguredMonthStartDay()
+    });
+    if (groupId !== groupFeatureState.currentGroupId) throw new Error("群組已變更，請重新匯出");
+    const filename = "匯出班表_" + dates[0].replaceAll("-", "") + "-" + dates[dates.length - 1].replaceAll("-", "") + ".xlsx";
+    await downloadScheduleWorkbook(workbook, filename);
+  } catch (error) {
+    showInfoMessage("匯出班表失敗：" + (error?.message || error));
+  } finally {
+    scheduleExcelExportRunning = false;
+    if (button) { button.disabled = false; button.textContent = originalLabel; }
+  }
+}
+
 function getSettingsExportPayload() {
   return {
     state,
