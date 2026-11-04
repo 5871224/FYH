@@ -97,3 +97,12 @@ test("班表導覽列、水平捲軸和日期欄一同固定，不需計算標�
   assert.match(foundation, /\.table-sticky-header \{\s*position: relative;/);
   assert.doesNotMatch(components, /\.table-sticky-header \{\s*top: 0;/);
 });
+
+test("固定標題區圓角外側使用頁面底色，不出現淺白色直角", () => {
+  const css = read("src/renderer/css/foundation.css");
+  const match = css.match(/\.schedule-sticky-head \{([^}]+)\}/);
+  assert.ok(match, "找不到固定標題區 CSS");
+  assert.match(match[1], /background: var\(--bg\);/);
+  assert.doesNotMatch(match[1], /background: var\(--schedule-header-bg\);/);
+  assert.match(css, /\.calendar-nav \{[\s\S]*?border-radius: var\(--schedule-radius\) var\(--schedule-radius\) 0 0;/);
+});

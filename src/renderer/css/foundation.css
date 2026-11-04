@@ -1085,7 +1085,8 @@ body.is-records-view .app-shell {
   flex-direction: column;
   width: 100%;
   min-width: 0;
-  background: var(--schedule-header-bg);
+  /* 固定區塊的圓角外側與頁面底色一致，不再出現淺白色角落。 */
+  background: var(--bg);
 }
 
 .calendar-nav {
