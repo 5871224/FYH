@@ -594,6 +594,13 @@
     sheet.columns = headers.map((header, index) => ({ width: index === 0 ? 16 : Math.max(13, header.length * 2 + 3) }));
     sheet.getRow(1).font = { bold: true };
     sheet.getRow(1).alignment = { horizontal: "center", vertical: "middle" };
+    // Match the other attendance Excel exports: only import-format columns have a beige header.
+    headers.forEach((_, index) => {
+      if ([0, 11, 12].includes(index)) return; // 姓名、上班打卡、下班打卡保持無底色。
+      sheet.getRow(1).getCell(index + 1).fill = {
+        type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EBD8" }
+      };
+    });
     entries.forEach(({ values, restDay }) => {
       const excelRow = sheet.addRow(values);
       for (let column = 1; column <= headers.length; column += 1) {

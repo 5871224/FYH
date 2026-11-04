@@ -73,6 +73,14 @@ test("特殊出勤 Excel 只將休息日整列上亮黃底色，所有欄均保�
     ]);
     assert.equal(book.sheet.getRow(2).values.length, 13);
     for (let column = 1; column <= 13; column += 1) {
+      const headerFill = book.sheet.getRow(1).getCell(column).fill;
+      if ([1, 12, 13].includes(column)) {
+        assert.equal(headerFill, undefined, `第 ${column} 欄標題應無底色`);
+      } else {
+        assert.equal(headerFill?.fgColor?.argb, "FFF3EBD8", `第 ${column} 欄標題應為原有匯出米色`);
+      }
+    }
+    for (let column = 1; column <= 13; column += 1) {
       assert.equal(book.sheet.getRow(2).getCell(column).fill?.fgColor?.argb, "FFFFFF00");
       assert.equal(book.sheet.getRow(2).getCell(column).numFmt, "@");
       assert.equal(book.sheet.getRow(3).getCell(column).fill, undefined);
