@@ -32,6 +32,7 @@ function makeContext() {
     toDateObject: (value) => new Date(value),
     deepClone: (value) => JSON.parse(JSON.stringify(value)),
     getVisibleDates: () => [],
+    canEditSchedule: () => true,
     getTodayDateString: () => "2026-07-12",
     promptManagerAccess: () => true,
     getVisibleDateRange: () => ({ startDate: "2026-07-01", endDate: "2026-07-31" }),

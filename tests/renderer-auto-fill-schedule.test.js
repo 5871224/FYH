@@ -74,6 +74,7 @@ test("套用自動補班應建立復原點並只儲存變更格", async () => {
       }
     },
     requireCurrentGroupUiPermission: () => true,
+    canEditSchedule: () => true,
     confirmAction: async () => true,
     parseScheduleKeyParts: (key) => ({ memberId: key.split("_")[0], dateString: key.slice(3) }),
     rememberScheduleUndoSnapshot: () => { undoCount += 1; },
@@ -99,6 +100,7 @@ test("共用套用與取消按鈕應依預覽類型分流", async () => {
   const context = {
     autoSchedulePreview: { previewType: "auto-fill-schedule" },
     isAutoFillSchedulePreview: () => true,
+    canEditSchedule: () => true,
     applyAutoFillSchedulePreview: async () => { applied += 1; },
     cancelAutoFillSchedulePreview: () => { canceled += 1; }
   };
