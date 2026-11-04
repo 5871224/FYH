@@ -1268,7 +1268,7 @@ body.is-meal-view .meal-tabs ~ .records-section {
 
   .calendar-nav {
     gap: var(--ui-mobile-gap-tight);
-    margin-bottom: 7px;
+    margin-bottom: 0;
   }
 
   .nav-actions,

@@ -1245,6 +1245,20 @@ body.is-records-view .app-shell {
   box-shadow: 0 8px 18px rgba(72, 52, 31, 0.08);
 }
 
+/* 手機和平板只有日期／單位／人員欄表頭吸附在視窗頂端；
+   讓原本整組標題的包裝不再限制日期列的 sticky 捲動範圍。 */
+@media (max-width: 960px) {
+  .schedule-sticky-head {
+    display: contents;
+  }
+
+  .table-sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+}
+
 .table-sticky-header-left {
   position: -webkit-sticky;
   position: sticky;
