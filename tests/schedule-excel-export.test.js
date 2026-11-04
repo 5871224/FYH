@@ -51,6 +51,8 @@ test("人員檢視可匯出八週、統計欄、多色子列及凍結欄", async
     });
     const sheet=wb.worksheets[0];
     assert.equal(sheet.getCell(1,1).value,"2026-10-01 ～ 2026-10-02");
+    assert.equal(sheet.getCell(2,4).value,"10/1\n四");
+    assert.equal(sheet.getCell(2,5).value,"10/2\n五");
     assert.deepEqual(sheet.options.views,[{state:"frozen",xSplit:3,ySplit:2}]);
     assert.match(sheet.getCell(3,3).value,/灰休:2/);
     assert.equal(sheet.getCell(3,4).fill.fgColor.argb,"FFD7CBB9");
@@ -73,6 +75,8 @@ test("班別檢視輸出需求人數與缺人底色",async()=>{
     });
     const sh=wb.worksheets[0];
     assert.equal(sh.getCell(2,2).value,"需求人數");
+    assert.equal(sh.getCell(2,3).value,"10/1\n四");
+    assert.equal(sh.getCell(2,4).value,"10/2\n五");
     assert.equal(sh.getCell(3,2).value,2);
     assert.equal(sh.getCell(3,3).value,"甲");
     assert.equal(sh.getCell(3,3).fill.fgColor.argb,"FFFDE5E8");
@@ -196,4 +200,21 @@ test("匯出班表重用日期區間，跨月載入未顯示日期且保護未�
   assert.equal(result.closed,true);
   assert.equal(button.disabled,false);
   assert.deepEqual(result.errors,[]);
+});
+
+
+test("跨月及跨年度匯出班表的日期表頭都包含月日與星期", async () => {
+  const { api, close } = openExporter();
+  try {
+    const wb = await api.createScheduleWorkbook({
+      year: 2026, month: 11, dates: ["2026-12-31", "2027-01-01"], view: "member",
+      groups: [{ department: { name: "門市" }, members: [{ id: "A", name: "甲" }] }],
+      state: { shifts: [], leaves: [], overtime: [], schedule: {} }
+    });
+    const sheet = wb.worksheets[0];
+    assert.equal(sheet.getCell(2, 3).value, "12/31\n四");
+    assert.equal(sheet.getCell(2, 4).value, "1/1\n五");
+  } finally {
+    close();
+  }
 });

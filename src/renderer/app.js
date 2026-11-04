@@ -391,7 +391,7 @@
       const dayDate = new Date(dateString + "T12:00:00");
       const weekday = dayDate.getDay();
       const cell = header.getCell(fixedColumns + index + 1);
-      cell.value = String(dayDate.getDate()) + "\n" + weekLabels[weekday];
+      cell.value = (dayDate.getMonth() + 1) + "/" + dayDate.getDate() + "\n" + weekLabels[weekday];
       cell.font = {
         name: fontName,
         bold: true,
