@@ -77,7 +77,7 @@ test("重新整理班表仍回到班表，且只載入班表資料", async () =>
   const refreshed = createHarness(storage, { schedule: true });
   await refreshed.signIn("member-a");
   assert.equal(refreshed.context.appView, "schedule");
-  assert.deepEqual(refreshed.calls, ["schedule", "toolbar"]);
+  assert.deepEqual(refreshed.calls, ["schedule"]);
 });
 
 test("重新整理簽到審核保留頁籤，只載入目前頁籤資料", async () => {
