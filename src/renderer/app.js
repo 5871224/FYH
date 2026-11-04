@@ -10827,12 +10827,15 @@ function renderHomeDashboard() {
     </div>
     <div class="home-action-grid home-action-grid-three">
       <button class="home-action-card" type="button" data-home-action="schedule">
+        <span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2.5"></rect><path d="M7 3v4M17 3v4M3 10h18"></path><circle cx="8" cy="14" r=".7"></circle><circle cx="12" cy="14" r=".7"></circle><circle cx="16" cy="14" r=".7"></circle><circle cx="8" cy="18" r=".7"></circle><circle cx="12" cy="18" r=".7"></circle><circle cx="16" cy="18" r=".7"></circle></svg></span>
         <span class="home-action-title">班表</span>
       </button>
       ${showMeal ? `<button class="home-action-card" type="button" data-home-action="meal">
+        <span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><g transform="rotate(-40 12 12)"><ellipse cx="7" cy="5.5" rx="3" ry="4.25"></ellipse><path d="M7 9.7V21"></path></g><g transform="rotate(40 12 12)"><path d="M14 2v7c0 2 1.3 3 3 3s3-1 3-3V2M17 2v19"></path></g></svg></span>
         <span class="home-action-title">訂餐</span>
       </button>` : ""}
       <button class="home-action-card" type="button" data-home-action="records">
+        <span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 6.5V12l4.5 2.7"></path></svg></span>
         <span class="home-action-title">簽到簿</span>
       </button>
     </div>

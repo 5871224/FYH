@@ -236,14 +236,40 @@ button {
 }
 
 .home-action-card {
-  min-height: 104px;
-  padding: 16px;
-  border: 1px solid rgba(156, 107, 47, 0.22);
-  border-radius: 24px;
-  background: rgba(255, 253, 248, 0.86);
-  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 200px;
+  padding: 20px 14px;
+  border: 2px solid #e7d7c1;
+  border-radius: 28px;
+  background: #fffdf8;
+  color: #52361f;
   text-align: center;
   box-shadow: 0 12px 24px rgba(72, 52, 31, 0.06);
+}
+
+.home-action-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 82px;
+  height: 82px;
+  border-radius: 22px;
+  background: #f8eddd;
+  color: #927044;
+}
+
+.home-action-icon svg {
+  width: 49px;
+  height: 49px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .home-action-title,
@@ -252,9 +278,9 @@ button {
 }
 
 .home-action-title {
-  font-size: 23px;
+  font-size: 26px;
   font-weight: 900;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.05em;
   margin-bottom: 0;
 }
 
@@ -299,9 +325,21 @@ body.is-home-view .app-shell {
   margin: 0 auto;
   padding: clamp(18px, 2.2vw, 26px);
   border-radius: 28px;
-  background: linear-gradient(150deg, #fffdf8 0%, #f4ecdf 100%);
-  border: 1px solid rgba(166, 143, 111, 0.24);
+  background: #fffdf8;
+  border: 1px solid #d7c6ae;
   box-shadow: var(--shadow);
+  --fyh-records-tab-band: #dcc4a7;
+  --fyh-records-tab-border: #d9c8ae;
+  --fyh-records-tab-active: #fffaf3;
+  --fyh-records-section-bg: #fdfaf4;
+  --fyh-records-section-border: #d9c7b0;
+  --fyh-records-filter-bg: #e9d8c1;
+  --fyh-records-filter-border: #d5bfa6;
+  --fyh-records-table-border: #d5c2a9;
+  --fyh-records-table-head-bg: #d8bd9c;
+  --fyh-records-table-head-text: #503720;
+  --fyh-records-table-head-border: #d2b99a;
+  --fyh-records-table-cell-bg: #fffdf8;
 }
 
 .clock-page-header {
@@ -3011,8 +3049,19 @@ thead th.today,
   }
 
   .home-action-card {
-    min-height: 84px;
+    min-height: 150px;
     padding: 14px;
+  }
+
+  .home-action-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+  }
+
+  .home-action-icon svg {
+    width: 39px;
+    height: 39px;
   }
 
   .home-action-title {
