@@ -95,6 +95,7 @@ function getMissingAutoScheduleLeaveLabels() {
 }
 
 async function previewAutoSchedule() {
+  if (!canEditSchedule()) { showInfoMessage("請先啟用班表編輯"); return; }
   if (!requireCurrentGroupUiPermission("schedule_manage", "自動排班")) {
     return;
   }
@@ -150,7 +151,27 @@ async function generateAutoSchedulePreviewFromModal() {
   showInfoMessage(`已產生自動排班預覽：${startDate} ～ ${endDate}，${changeCount} 格預排${warningCount ? `，${warningCount} 則提醒` : ""}`);
 }
 
+function positionSchedulePreviewActions() {
+  const actions = document.getElementById("schedulePreviewActions");
+  const toolbar = document.querySelector(".toolbar-floating-card");
+  const card = document.getElementById("scheduleCard");
+  if (!actions || actions.hidden || !toolbar || !card) return;
+  actions.style.bottom = `${Math.max(10, Math.ceil(window.innerHeight - toolbar.getBoundingClientRect().top) + 8)}px`;
+  actions.style.right = `${Math.max(0, document.documentElement.clientWidth - card.getBoundingClientRect().right)}px`;
+}
+function bindSchedulePreviewActions() {
+  const toolbar = document.querySelector(".toolbar-floating-card");
+  if (toolbar && window.ResizeObserver) new window.ResizeObserver(positionSchedulePreviewActions).observe(toolbar);
+  window.addEventListener("resize", positionSchedulePreviewActions);
+}
+function syncSchedulePreviewActions() {
+  const actions = document.getElementById("schedulePreviewActions");
+  if (!actions) return;
+  actions.hidden = appView !== "schedule" || !canEditSchedule() || !Object.keys(autoSchedulePreview?.slots || {}).length;
+  positionSchedulePreviewActions();
+}
 async function applyAutoSchedulePreview() {
+  if (!canEditSchedule()) return;
   if (isAutoFillSchedulePreview()) {
     await applyAutoFillSchedulePreview();
     return;

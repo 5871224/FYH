@@ -133,6 +133,7 @@ function createMealOrderState() {
 }
 
 function resetLoadedUserRuntimeState() {
+  scheduleEditEnabled = false;
   currentMember = null;
   attendanceState = createAttendanceState();
   mealOrderState = createMealOrderState();

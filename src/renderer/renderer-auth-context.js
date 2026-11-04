@@ -39,12 +39,14 @@ function canManagePermissions() {
   return hasCommonPermission("settings");
 }
 
-function canEditSchedule() {
+function canManageSchedule() {
   return hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage");
 }
-
+function canEditSchedule() {
+  return scheduleEditEnabled && canManageSchedule();
+}
 function canUseScheduleToolbar() {
-  return canEditSchedule() || hasCommonPermission("leave_settings");
+  return canManageSchedule() || hasCommonPermission("leave_settings");
 }
 
 function requireCommonUiPermission(permission, label = "此功能") {
@@ -183,6 +185,7 @@ function syncRoleUi() {
     element.classList.toggle("chips-readonly", !canEditSchedule());
   });
   syncPermissionUi();
+  syncScheduleEditModeUi();
 }
 
 function renderAuthBar() {

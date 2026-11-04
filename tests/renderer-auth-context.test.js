@@ -35,15 +35,19 @@ test("各管理介面應由自己的共用或群組權限決定", () => {
     authenticated: true,
     currentUser: { id: "U1" },
     groupFeatureState: { currentGroupId: "G1" },
+    scheduleEditEnabled: false,
     hasCommonPermission: (permission) => commonPermissions.includes(permission),
     hasGroupPermission: (groupId, permission) => (actor.groupPermissions[groupId] || []).includes(permission)
   };
-  const api = vm.runInNewContext(authContext.slice(start, end) + "\n;({ canManagePermissions, canEditSchedule, canUseScheduleToolbar })", context);
+  const api = vm.runInNewContext(authContext.slice(start, end) + "\n;({ canManagePermissions, canManageSchedule, canEditSchedule, canUseScheduleToolbar })", context);
   assert.equal(api.canManagePermissions(), false);
   assert.equal(api.canEditSchedule(), false);
   assert.equal(api.canUseScheduleToolbar(), false);
 
   actor.groupPermissions.G1 = ["schedule_view", "schedule_manage"];
+  assert.equal(api.canManageSchedule(), true);
+  assert.equal(api.canEditSchedule(), false, "預設應為檢視模式");
+  context.scheduleEditEnabled = true;
   assert.equal(api.canEditSchedule(), true);
   assert.equal(api.canUseScheduleToolbar(), true);
 

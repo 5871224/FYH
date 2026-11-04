@@ -1,5 +1,6 @@
 :root {
   color-scheme: light;
+  scrollbar-color: var(--ui-scrollbar-thumb) var(--ui-scrollbar-track);
   --bg: #efe9dd;
   --panel: #fffdf8;
   --panel-strong: #f8f3e7;
@@ -15,13 +16,24 @@
   --today-text: #204f73;
   --today-border: #62a7d8;
   --week-alt: #ede1cc;
+  --week-divider-color: #b39a75;
+  --ui-button-bg: #f8f3e9;
+  --ui-field-bg: #ffffff;
+  --ui-field-disabled-bg: #f2eee7;
   --shadow: 0 16px 34px rgba(72, 52, 31, 0.08);
   --dept-col-width: 72px;
   --person-col-width: 92px;
   --stats-col-width: 86px;
   --day-col-width: 44px;
   --schedule-frozen-width: 250px;
+  --ui-scrollbar-track: var(--bg);
+  --ui-scrollbar-thumb: #9c7b57;
+  --ui-scrollbar-thumb-hover: var(--accent-strong);
   --schedule-radius: 18px;
+  --schedule-outline: #b79a79;
+  --schedule-outline-width: 2px;
+  --schedule-floating-bg: #e7d8c4;
+  --schedule-inactive-bg: #d7cbb9;
   --schedule-grid-line: #ebe3d8;
   --schedule-header-bg: #fbf8f1;
 }
@@ -30,6 +42,9 @@
   box-sizing: border-box;
 }
 
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: var(--ui-scrollbar-track); }
+::-webkit-scrollbar-thumb { border-radius: 999px; background: var(--ui-scrollbar-thumb); }
+::-webkit-scrollbar-thumb:hover { background: var(--ui-scrollbar-thumb-hover); }
 [hidden] {
   display: none !important;
 }
@@ -40,9 +55,7 @@ body {
   min-height: 100%;
   font-family: "Microsoft JhengHei UI", "PingFang TC", sans-serif;
   color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.8), transparent 28%),
-    linear-gradient(180deg, #f5f1e7 0%, var(--bg) 100%);
+  background: var(--bg);
 }
 
 /* 只有語系層確認為越文的文字才使用 Be Vietnam Pro；數字、英文與資料內容維持原本字體。 */
@@ -83,7 +96,6 @@ button {
 
 .toolbar-card,
 .ops-card,
-.calendar-card,
 .modal {
   background: var(--panel);
   border: 1px solid rgba(166, 143, 111, 0.22);
@@ -176,8 +188,7 @@ button {
 }
 
 .toolbar-card,
-.ops-card,
-.calendar-card {
+.ops-card {
   border-radius: 24px;
   padding: 18px;
 }
@@ -699,25 +710,6 @@ body.is-records-view .app-shell {
   color: var(--muted);
 }
 
-.toolbar-floating-card {
-  position: fixed;
-  left: 20px;
-  right: 20px;
-  bottom: 20px;
-  z-index: 35;
-  max-height: min(42vh, 320px);
-  overflow: visible;
-  backdrop-filter: blur(10px);
-  background: rgba(244, 236, 220, 0.98);
-}
-
-.toolbar-floating-card.toolbar-floating-card-collapsed {
-  left: 20px;
-  right: auto;
-  width: auto;
-  max-height: none;
-  padding: 8px;
-}
 
 .toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row {
   position: static;
@@ -1077,8 +1069,6 @@ body.is-records-view .app-shell {
   min-height: 0;
   min-width: 0;
   width: 100%;
-  padding-left: 12px;
-  padding-right: 12px;
 }
 
 .calendar-nav {
@@ -1089,7 +1079,12 @@ body.is-records-view .app-shell {
   justify-content: space-between;
   align-self: flex-start;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 0;
+  padding: 12px;
+  border: var(--schedule-outline-width) solid var(--schedule-outline);
+  border-bottom: 0;
+  border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;
+  background: #cbb295;
 }
 
 .calendar-nav-left {
@@ -1165,9 +1160,10 @@ body.is-records-view .app-shell {
   align-items: stretch;
   width: 100%;
   min-width: 0;
-  border: 1px solid var(--line);
+  border: var(--schedule-outline-width) solid var(--schedule-outline);
+  border-top: 1px solid var(--line);
   border-bottom: 0;
-  border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;
+  border-radius: 0;
   background: var(--schedule-header-bg);
   overflow: hidden;
   box-shadow: 0 8px 18px rgba(72, 52, 31, 0.08);
@@ -1409,9 +1405,9 @@ body.is-records-view .app-shell {
   width: 100%;
   min-width: 0;
   border: 0;
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  border-left: 1px solid var(--line);
+  border-right: var(--schedule-outline-width) solid var(--schedule-outline);
+  border-bottom: var(--schedule-outline-width) solid var(--schedule-outline);
+  border-left: var(--schedule-outline-width) solid var(--schedule-outline);
   border-radius: 0 0 var(--schedule-radius) var(--schedule-radius);
   background: #fff;
   scrollbar-width: none;
@@ -1666,16 +1662,16 @@ thead th.today,
 }
 
 .cell.inactive-cell {
-  background: #9b9b9b;
+  background: var(--schedule-inactive-bg);
   cursor: cell;
 }
 
 .cell.inactive-cell:hover {
-  background: #9b9b9b;
+  background: var(--schedule-inactive-bg);
 }
 
 .cell.inactive-cell .cell-inner {
-  background: #9b9b9b;
+  background: var(--schedule-inactive-bg);
 }
 
 .shift-view-cell {
@@ -3032,20 +3028,6 @@ thead th.today,
     flex-direction: column;
   }
 
-  .toolbar-floating-card {
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
-    max-height: min(34dvh, 240px);
-    padding: 12px;
-  }
-
-  .toolbar-floating-card.toolbar-floating-card-collapsed {
-    left: 12px;
-    right: auto;
-    padding-top: 10px;
-    padding-bottom: 10px;
-  }
 
   .toolbar-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3163,10 +3145,6 @@ thead th.today,
     top: 14px;
   }
 
-  .calendar-card {
-    padding-left: 8px;
-    padding-right: 8px;
-  }
 
   .month-title-wrap h2 {
     font-size: 19px;

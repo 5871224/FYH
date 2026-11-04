@@ -56,6 +56,7 @@ function renderAll() {
   renderTable();
   syncPermissionUi();
   syncAppView();
+  syncSchedulePreviewActions();
   renderAuthGate();
   refreshLocalization(document.body);
 }

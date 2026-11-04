@@ -248,6 +248,8 @@ function getScheduleRedoButtons() {
 }
 
 function syncScheduleHistoryButtons() {
+  const editToggle = document.getElementById("scheduleEditToggle");
+  if (editToggle) editToggle.disabled = scheduleHistoryBusy;
   const editable = typeof canEditSchedule === "function" && canEditSchedule();
   getScheduleUndoButtons().forEach((button) => {
     button.disabled = scheduleHistoryBusy || !editable || scheduleUndoStack.length === 0;

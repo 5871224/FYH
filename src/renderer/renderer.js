@@ -45,6 +45,7 @@ let dragMealProductIndex = "";
 let toolbarCollapsed = false;
 let toolbarCollapseInitialized = false;
 let measureTextContext = null;
+let scheduleEditEnabled = false;
 let scheduleRangeSelection = null;
 let scheduleDragSelecting = false;
 let scheduleHeaderDragSelection = null;

@@ -24,7 +24,7 @@ function pruneEmptySchedule() {
 
 
 function queueSave() {
-  if (!canEditSchedule()) {
+  if (!canManageSchedule()) {
     return;
   }
   if (saveTimer) {
@@ -35,7 +35,7 @@ function queueSave() {
 }
 
 async function forceSave() {
-  if (!canEditSchedule()) return false;
+  if (!canManageSchedule()) return false;
   if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = null;
@@ -48,4 +48,3 @@ async function forceSave() {
     return false;
   }
 }
-

@@ -6,6 +6,7 @@
 /* ===== Foundation and structural layout: foundation.css ===== */
 :root {
   color-scheme: light;
+  scrollbar-color: var(--ui-scrollbar-thumb) var(--ui-scrollbar-track);
   --bg: #efe9dd;
   --panel: #fffdf8;
   --panel-strong: #f8f3e7;
@@ -21,13 +22,24 @@
   --today-text: #204f73;
   --today-border: #62a7d8;
   --week-alt: #ede1cc;
+  --week-divider-color: #b39a75;
+  --ui-button-bg: #f8f3e9;
+  --ui-field-bg: #ffffff;
+  --ui-field-disabled-bg: #f2eee7;
   --shadow: 0 16px 34px rgba(72, 52, 31, 0.08);
   --dept-col-width: 72px;
   --person-col-width: 92px;
   --stats-col-width: 86px;
   --day-col-width: 44px;
   --schedule-frozen-width: 250px;
+  --ui-scrollbar-track: var(--bg);
+  --ui-scrollbar-thumb: #9c7b57;
+  --ui-scrollbar-thumb-hover: var(--accent-strong);
   --schedule-radius: 18px;
+  --schedule-outline: #b79a79;
+  --schedule-outline-width: 2px;
+  --schedule-floating-bg: #e7d8c4;
+  --schedule-inactive-bg: #d7cbb9;
   --schedule-grid-line: #ebe3d8;
   --schedule-header-bg: #fbf8f1;
 }
@@ -36,6 +48,9 @@
   box-sizing: border-box;
 }
 
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: var(--ui-scrollbar-track); }
+::-webkit-scrollbar-thumb { border-radius: 999px; background: var(--ui-scrollbar-thumb); }
+::-webkit-scrollbar-thumb:hover { background: var(--ui-scrollbar-thumb-hover); }
 [hidden] {
   display: none !important;
 }
@@ -46,9 +61,7 @@ body {
   min-height: 100%;
   font-family: "Microsoft JhengHei UI", "PingFang TC", sans-serif;
   color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.8), transparent 28%),
-    linear-gradient(180deg, #f5f1e7 0%, var(--bg) 100%);
+  background: var(--bg);
 }
 
 /* 只有語系層確認為越文的文字才使用 Be Vietnam Pro；數字、英文與資料內容維持原本字體。 */
@@ -89,7 +102,6 @@ button {
 
 .toolbar-card,
 .ops-card,
-.calendar-card,
 .modal {
   background: var(--panel);
   border: 1px solid rgba(166, 143, 111, 0.22);
@@ -182,8 +194,7 @@ button {
 }
 
 .toolbar-card,
-.ops-card,
-.calendar-card {
+.ops-card {
   border-radius: 24px;
   padding: 18px;
 }
@@ -705,25 +716,6 @@ body.is-records-view .app-shell {
   color: var(--muted);
 }
 
-.toolbar-floating-card {
-  position: fixed;
-  left: 20px;
-  right: 20px;
-  bottom: 20px;
-  z-index: 35;
-  max-height: min(42vh, 320px);
-  overflow: visible;
-  backdrop-filter: blur(10px);
-  background: rgba(244, 236, 220, 0.98);
-}
-
-.toolbar-floating-card.toolbar-floating-card-collapsed {
-  left: 20px;
-  right: auto;
-  width: auto;
-  max-height: none;
-  padding: 8px;
-}
 
 .toolbar-floating-card.toolbar-floating-card-collapsed .toolbar-top-row {
   position: static;
@@ -1083,8 +1075,6 @@ body.is-records-view .app-shell {
   min-height: 0;
   min-width: 0;
   width: 100%;
-  padding-left: 12px;
-  padding-right: 12px;
 }
 
 .calendar-nav {
@@ -1095,7 +1085,12 @@ body.is-records-view .app-shell {
   justify-content: space-between;
   align-self: flex-start;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 0;
+  padding: 12px;
+  border: var(--schedule-outline-width) solid var(--schedule-outline);
+  border-bottom: 0;
+  border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;
+  background: #cbb295;
 }
 
 .calendar-nav-left {
@@ -1171,9 +1166,10 @@ body.is-records-view .app-shell {
   align-items: stretch;
   width: 100%;
   min-width: 0;
-  border: 1px solid var(--line);
+  border: var(--schedule-outline-width) solid var(--schedule-outline);
+  border-top: 1px solid var(--line);
   border-bottom: 0;
-  border-radius: var(--schedule-radius) var(--schedule-radius) 0 0;
+  border-radius: 0;
   background: var(--schedule-header-bg);
   overflow: hidden;
   box-shadow: 0 8px 18px rgba(72, 52, 31, 0.08);
@@ -1415,9 +1411,9 @@ body.is-records-view .app-shell {
   width: 100%;
   min-width: 0;
   border: 0;
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  border-left: 1px solid var(--line);
+  border-right: var(--schedule-outline-width) solid var(--schedule-outline);
+  border-bottom: var(--schedule-outline-width) solid var(--schedule-outline);
+  border-left: var(--schedule-outline-width) solid var(--schedule-outline);
   border-radius: 0 0 var(--schedule-radius) var(--schedule-radius);
   background: #fff;
   scrollbar-width: none;
@@ -1672,16 +1668,16 @@ thead th.today,
 }
 
 .cell.inactive-cell {
-  background: #9b9b9b;
+  background: var(--schedule-inactive-bg);
   cursor: cell;
 }
 
 .cell.inactive-cell:hover {
-  background: #9b9b9b;
+  background: var(--schedule-inactive-bg);
 }
 
 .cell.inactive-cell .cell-inner {
-  background: #9b9b9b;
+  background: var(--schedule-inactive-bg);
 }
 
 .shift-view-cell {
@@ -3038,20 +3034,6 @@ thead th.today,
     flex-direction: column;
   }
 
-  .toolbar-floating-card {
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
-    max-height: min(34dvh, 240px);
-    padding: 12px;
-  }
-
-  .toolbar-floating-card.toolbar-floating-card-collapsed {
-    left: 12px;
-    right: auto;
-    padding-top: 10px;
-    padding-bottom: 10px;
-  }
 
   .toolbar-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3169,10 +3151,6 @@ thead th.today,
     top: 14px;
   }
 
-  .calendar-card {
-    padding-left: 8px;
-    padding-right: 8px;
-  }
 
   .month-title-wrap h2 {
     font-size: 19px;
@@ -3413,7 +3391,7 @@ thead th.today,
   height: 32px;
   min-height: 32px;
   padding: 0;
-  border-radius: 50%;
+  border-radius: 6px;
 }
 
 .toolbar-history-btn svg {
@@ -3553,6 +3531,290 @@ thead th.today,
   background: #f0f0f0;
   cursor: default;
 }
+/* 浮動工具列直接採用英達班表最新排列（福圓號保留八週導覽）。 */
+.toolbar-floating-card {
+  --toolbar-item-height: 30px;
+  position: fixed;
+  left: 20px;
+  right: 20px;
+  z-index: 35;
+  overflow: visible;
+  background: var(--schedule-floating-bg);
+  border: var(--schedule-outline-width) solid var(--schedule-outline);
+
+  display: grid;
+  bottom: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto;
+  align-items: start;
+  gap: 4px 8px;
+  max-height: min(38vh, 280px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 6px 8px;
+  border-radius: var(--ui-page-radius) var(--ui-page-radius) 0 0;
+}
+
+.toolbar-control-stack {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.toolbar-control-primary,
+.toolbar-control-history {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-control-stack #toolbarCollapseToggle {
+  border-color: var(--ui-accent-strong);
+  background: var(--ui-accent-strong);
+  color: #fff;
+}
+
+.toolbar-floating-card > .toolbar-grid {
+  grid-column: 2;
+  grid-row: 1;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.toolbar-category-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: 100%;
+  min-width: 0;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.toolbar-category-group > .toolbar-section-combined,
+.toolbar-category-group > .toolbar-section-leave,
+.toolbar-category-group > .toolbar-section-overtime {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 5px;
+  min-width: 0;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.toolbar-category-group > .toolbar-section-combined {
+  grid-column: 1 / -1;
+}
+
+.toolbar-category-group > .toolbar-section-leave,
+.toolbar-category-group > .toolbar-section-overtime {
+  margin-top: 0;
+  border-top: 1px solid var(--schedule-grid-line, var(--line));
+}
+
+.toolbar-category-group > .toolbar-section-overtime {
+  justify-self: end;
+  justify-content: flex-end;
+  padding-left: 12px;
+}
+
+.toolbar-category-group > .toolbar-section-overtime .toolbar-title-row {
+  justify-content: flex-end;
+}
+
+.toolbar-floating-card #overtimeChips {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  align-content: flex-start;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+  padding: 3px;
+}
+
+.toolbar-floating-card #overtimeChips .chip {
+  flex: 0 0 auto;
+  height: var(--toolbar-item-height);
+  min-height: var(--toolbar-item-height);
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.1;
+}
+
+.toolbar-floating-card .toolbar-title-row,
+.toolbar-floating-card .toolbar-title-row-combined {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  min-width: max-content;
+  min-height: 30px;
+  margin: 0;
+}
+
+.toolbar-floating-card .toolbar-title {
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.toolbar-floating-card .toolbar-settings-btn {
+  width: var(--toolbar-item-height);
+  min-width: var(--toolbar-item-height);
+  height: var(--toolbar-item-height);
+  min-height: var(--toolbar-item-height);
+  flex-basis: var(--toolbar-item-height);
+  padding: 6px;
+}
+
+.toolbar-floating-card #deptFilter {
+  width: 104px;
+  min-width: 104px;
+  max-width: 104px;
+  height: var(--toolbar-item-height);
+  min-height: var(--toolbar-item-height);
+  padding: 4px 25px 4px 9px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.toolbar-floating-card #shiftChips,
+.toolbar-floating-card #leaveChips {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  align-content: flex-start;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+  padding: 3px;
+  scrollbar-width: none;
+}
+
+.toolbar-floating-card #shiftChips::-webkit-scrollbar,
+.toolbar-floating-card #leaveChips::-webkit-scrollbar {
+  display: none;
+}
+
+.toolbar-floating-card #shiftChips .chip,
+.toolbar-floating-card #leaveChips .chip {
+  flex: 0 0 auto;
+  height: var(--toolbar-item-height);
+  min-height: var(--toolbar-item-height);
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.1;
+}
+
+.toolbar-floating-card #shiftChips .chip.active,
+.toolbar-floating-card #leaveChips .chip.active,
+.toolbar-floating-card #overtimeChips .chip.active {
+  position: relative;
+  z-index: 1;
+  border-color: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.92),
+    0 0 0 2px #3f2d1d;
+  transform: none;
+}
+
+.toolbar-floating-card.toolbar-floating-card-collapsed {
+  left: 20px;
+  right: auto;
+  width: auto;
+  max-height: none;
+  bottom: 0;
+  grid-template-columns: auto;
+  grid-template-rows: auto;
+  padding: 5px;
+}
+
+.toolbar-floating-card.toolbar-floating-card-collapsed > .toolbar-grid {
+  display: none;
+}
+
+@media (max-width: 768px) {
+
+  .toolbar-category-group > .toolbar-section-combined > #shiftChips,
+  .toolbar-category-group > .toolbar-section-leave > #leaveChips {
+    display: contents;
+  }
+
+  .toolbar-category-group > .toolbar-section-combined,
+  .toolbar-category-group > .toolbar-section-leave {
+    flex-wrap: wrap;
+
+    gap: 4px;
+  }
+
+  .toolbar-floating-card #shiftChips .chip,
+  .toolbar-floating-card #leaveChips .chip {
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+}
+
+@media (max-width: 768px) {
+  .toolbar-floating-card {
+    --toolbar-item-height: 28px;
+    bottom: 0;
+    max-height: min(44dvh, 300px);
+    padding: 5px 6px;
+  }
+
+  .toolbar-floating-card > .toolbar-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+}
+
+@media (max-width: 640px) {
+  .toolbar-floating-card {
+    right: var(--ui-mobile-page-gutter);
+    left: var(--ui-mobile-page-gutter);
+  }
+
+  .toolbar-floating-card.toolbar-floating-card-collapsed {
+    left: var(--ui-mobile-page-gutter);
+  }
+}
+.toolbar-control-stack #scheduleEditToggle[aria-pressed="true"] { background: var(--ui-accent-strong); border-color: var(--ui-accent-strong); color: #fff; }
+.schedule-preview-actions {
+  position: fixed; right: 20px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+  display: flex; gap: 8px; padding: 8px;
+  border: var(--schedule-outline-width) solid var(--schedule-outline); border-radius: var(--ui-page-radius);
+  background: var(--schedule-floating-bg); box-shadow: var(--shadow);
+}
+.schedule-preview-actions[hidden] { display: none; }
+.calendar-nav :where(.nav-btn, .ghost-btn, .primary-btn),
+.schedule-preview-actions :where(.ghost-btn, .primary-btn) {
+  background: var(--ui-button-bg); border-color: var(--ui-border); color: var(--ui-text);
+}
+.table-week-jump { display: none; }
+.calendar-nav-left .schedule-nav-history-actions { position: static; display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; margin: 0; }
+.calendar-nav-left .schedule-nav-history-actions .toolbar-history-btn { width: var(--schedule-nav-control-height); min-width: var(--schedule-nav-control-height); height: var(--schedule-nav-control-height); min-height: var(--schedule-nav-control-height); padding: 0; border-radius: 12px; }
+.table-sticky-cell-day.sun:not(.today), .table-sticky-cell-day.sat:not(.today),
+.table-sticky-cell-day.sun:not(.today) span, .table-sticky-cell-day.sat:not(.today) span { color: var(--text); }
+.seg.regular-holiday-work-seg { background: #ffe58f; }
+.shift-view-member.regular-holiday-work-member { background: #ffe58f; }
 
 /* ===== Schedule print layout: schedule-print.css ===== */
 #schedulePrintPreview{position:fixed;inset:0;z-index:1200;overflow:auto;background:#e9e5dd;color:var(--text)}
@@ -3565,7 +3827,7 @@ thead th.today,
 .schedule-print-table th,.schedule-print-table td{border:1px solid var(--schedule-grid-line,#ebe3d8);vertical-align:middle}.schedule-print-table th{height:var(--schedule-print-header-height,7.5mm);padding:calc(.6mm * var(--schedule-print-font-scale,1));background:var(--schedule-header-bg,#fbf8f1);text-align:center;font-weight:900;line-height:1.05}.schedule-print-table th span{display:block;font-size:calc(7px * var(--schedule-print-font-scale,1));color:#76695b}
 .schedule-print-table .dept-col,.schedule-print-table .person-col{position:static!important;min-width:0!important;width:auto!important;max-width:none!important;padding:.55mm .3mm;background:#fffdf8;text-align:center;font-size:calc(8px * var(--schedule-print-font-scale,1));line-height:1.1;overflow:hidden}.schedule-print-table .dept-col{font-weight:900}.schedule-print-table .person-col{font-weight:800}
 .schedule-print-table .cell{min-width:0!important;width:auto!important;max-width:none!important;height:var(--schedule-print-row-height,5.7mm);padding:var(--schedule-print-cell-padding,.3mm);cursor:default;background:#fff}.schedule-print-table .cell-inner{min-height:var(--schedule-print-inner-height,5.1mm);height:var(--schedule-print-inner-height,5.1mm);border-radius:1.2mm;overflow:hidden}.schedule-print-table .seg{min-height:0}.schedule-print-table .seg-label{font-size:calc(7px * var(--schedule-print-font-scale,1));line-height:1.02}
-.schedule-print-table .inactive-cell,.schedule-print-table .inactive-cell .cell-inner{background:#9b9b9b!important}.schedule-print-weekend,.schedule-print-holiday{background:#f5e9e3!important}
+.schedule-print-table .inactive-cell,.schedule-print-table .inactive-cell .cell-inner{background:var(--schedule-inactive-bg)!important}.schedule-print-weekend,.schedule-print-holiday{background:#f5e9e3!important}
 @media(max-width:760px){.schedule-print-preview-toolbar{align-items:flex-start;flex-direction:column}.schedule-print-pages{padding:10px}.schedule-print-page{margin-left:0;margin-right:0}}
 @media print{html,body{background:#fff!important}body.schedule-printing>*:not(#schedulePrintPreview){display:none!important}body.schedule-printing #schedulePrintPreview{position:static;overflow:visible;background:#fff}body.schedule-printing .schedule-print-preview-toolbar{display:none!important}body.schedule-printing .schedule-print-pages{padding:0}body.schedule-printing .schedule-print-page{margin:0;box-shadow:none;break-after:page;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact}body.schedule-printing .schedule-print-page:last-child{break-after:auto;page-break-after:auto}}
 .schedule-print-paper-size{font-weight:800}
@@ -5320,7 +5582,7 @@ body:not(.is-authenticated) .toolbar-card {
 
   /* 讓班表最後一列可捲到浮動工具列上方，底部空間隨工具列最大高度調整。 */
   body.is-schedule-view .app-shell {
-    padding-bottom: calc(min(42vh, 300px) + 12px);
+    padding-bottom: calc(min(44vh, 300px) + 12px);
   }
 
   .home-card,
@@ -5646,367 +5908,6 @@ body:not(.is-authenticated) .toolbar-card {
   }
 }
 
-
-/* ===== 班表頁操作列與例假排班提示 ===== */
-.toolbar-selected-preview {
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border: 1px solid transparent;
-  font-weight: 800;
-  line-height: 1.08;
-  text-align: center;
-  user-select: none;
-}
-
-.toolbar-selected-preview-label {
-  display: -webkit-box;
-  max-width: 100%;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
-.toolbar-floating-card {
-  display: grid;
-  bottom: 0 !important;
-  grid-template-columns: auto minmax(0, 1fr) !important;
-  grid-template-rows: auto !important;
-  align-items: start !important;
-  gap: 4px 8px !important;
-  max-height: min(38vh, 280px) !important;
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-  padding: 6px 8px !important;
-  border-bottom-left-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
-}
-
-.toolbar-control-stack {
-  grid-column: 1;
-  grid-row: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-  min-width: 80px;
-}
-
-.toolbar-control-primary,
-.toolbar-control-history {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.toolbar-control-stack #toolbarCollapseToggle,
-.toolbar-control-stack #scheduleUndoButton,
-.toolbar-control-stack #scheduleRedoButton {
-  position: static !important;
-  box-sizing: border-box;
-  width: 38px;
-  min-width: 38px;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-.toolbar-control-stack #toolbarCollapseToggle {
-  height: 38px;
-  min-height: 38px;
-  border: 1px solid var(--ui-accent-strong);
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--ui-accent) 0%, var(--ui-accent-strong) 100%);
-  color: #fff;
-  box-shadow: 0 5px 12px rgba(72, 52, 31, 0.18);
-}
-
-.toolbar-control-stack #scheduleUndoButton,
-.toolbar-control-stack #scheduleRedoButton {
-  height: 32px;
-  min-height: 32px;
-  border-radius: 8px;
-  background: rgba(255, 253, 248, 0.96);
-}
-
-.toolbar-control-primary .toolbar-selected-preview {
-  flex: 0 0 38px;
-  width: 38px;
-  min-width: 38px;
-  height: 38px;
-  min-height: 38px;
-  padding: 3px;
-  border-radius: 7px;
-  font-size: 10px;
-}
-
-.toolbar-floating-card > .toolbar-grid {
-  grid-column: 2;
-  grid-row: 1 !important;
-  display: block !important;
-  width: 100%;
-  min-width: 0;
-}
-
-.toolbar-category-group {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  min-width: 0;
-  padding: 3px 6px 0;
-  border: 1px solid rgba(156, 107, 47, 0.16);
-  border-radius: 12px;
-  background: var(--panel-strong);
-}
-
-.toolbar-category-group > .toolbar-section-combined,
-.toolbar-category-group > .toolbar-section-leave {
-  display: flex !important;
-  align-items: flex-start !important;
-  flex-wrap: nowrap !important;
-  gap: 5px !important;
-  min-width: 0;
-  padding: 4px 0 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-}
-
-.toolbar-category-group > .toolbar-section-leave {
-  margin-top: 0;
-  padding-top: 6px !important;
-  border-top: 1px solid var(--schedule-grid-line, var(--line)) !important;
-}
-
-.toolbar-floating-card .toolbar-title-row,
-.toolbar-floating-card .toolbar-title-row-combined {
-  display: flex !important;
-  flex: 0 0 auto;
-  align-items: center !important;
-  flex-wrap: nowrap !important;
-  gap: 4px !important;
-  min-width: max-content;
-  min-height: 30px;
-}
-
-.toolbar-floating-card .toolbar-title {
-  font-size: 13px;
-  line-height: 1.1;
-}
-
-.toolbar-floating-card .toolbar-settings-btn {
-  width: 26px;
-  min-width: 26px;
-  height: 26px;
-  min-height: 26px;
-  flex-basis: 26px;
-}
-
-.toolbar-floating-card #deptFilter {
-  width: 104px;
-  min-width: 104px;
-  max-width: 104px;
-  height: 30px;
-  padding: 4px 25px 4px 9px;
-  border-radius: 9px;
-  font-size: 12px;
-}
-
-.toolbar-floating-card #restComplianceButton {
-  min-height: 28px;
-  padding: 0 8px;
-  border-radius: 8px;
-  font-size: 12px;
-}
-
-.toolbar-floating-card #shiftChips,
-.toolbar-floating-card #leaveChips {
-  display: flex !important;
-  flex: 1 1 auto;
-  align-items: center;
-  align-content: flex-start;
-  flex-wrap: wrap !important;
-  gap: 4px !important;
-  min-width: 0;
-  min-height: 0;
-  overflow: visible !important;
-  padding: 3px;
-  scrollbar-width: none;
-}
-
-.toolbar-floating-card #shiftChips::-webkit-scrollbar,
-.toolbar-floating-card #leaveChips::-webkit-scrollbar {
-  display: none;
-}
-
-.toolbar-floating-card #shiftChips .chip,
-.toolbar-floating-card #leaveChips .chip {
-  flex: 0 0 auto;
-  height: 30px;
-  min-height: 30px;
-  padding: 0 8px !important;
-  border-radius: 6px !important;
-  font-size: 12px;
-  line-height: 1.1;
-}
-
-.toolbar-floating-card #shiftChips .chip.active,
-.toolbar-floating-card #leaveChips .chip.active {
-  position: relative;
-  z-index: 1;
-  border-color: rgba(255, 255, 255, 0.96) !important;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.92),
-    0 0 0 2px #3f2d1d !important;
-  transform: none !important;
-}
-
-.toolbar-floating-card.toolbar-floating-card-collapsed {
-  bottom: 0 !important;
-  grid-template-columns: auto !important;
-  grid-template-rows: auto !important;
-  padding: 5px !important;
-  border-bottom-left-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
-}
-
-.toolbar-floating-card.toolbar-floating-card-collapsed > .toolbar-grid {
-  display: none !important;
-}
-
-@media (max-width: 768px) {
-  .toolbar-floating-card {
-    bottom: 0 !important;
-    max-height: min(44dvh, 300px) !important;
-    padding: 5px 6px !important;
-  }
-
-  .toolbar-control-stack {
-    min-width: 76px;
-  }
-
-  .toolbar-control-stack #toolbarCollapseToggle,
-  .toolbar-control-stack #scheduleUndoButton,
-  .toolbar-control-stack #scheduleRedoButton,
-  .toolbar-control-primary .toolbar-selected-preview {
-    width: 36px;
-    min-width: 36px;
-  }
-
-  .toolbar-control-stack #toolbarCollapseToggle,
-  .toolbar-control-primary .toolbar-selected-preview {
-    height: 36px;
-    min-height: 36px;
-  }
-
-  .toolbar-control-stack #scheduleUndoButton,
-  .toolbar-control-stack #scheduleRedoButton {
-    height: 30px;
-    min-height: 30px;
-  }
-
-  .toolbar-category-group > .toolbar-section-combined,
-  .toolbar-category-group > .toolbar-section-leave {
-    flex-wrap: wrap !important;
-  }
-
-  .toolbar-category-group > .toolbar-section-combined > #shiftChips,
-  .toolbar-category-group > .toolbar-section-leave > #leaveChips {
-    display: contents !important;
-  }
-
-  .toolbar-category-group > .toolbar-section-combined,
-  .toolbar-category-group > .toolbar-section-leave {
-    gap: 4px !important;
-  }
-
-  .toolbar-floating-card #shiftChips .chip,
-  .toolbar-floating-card #leaveChips .chip {
-    height: 28px;
-    min-height: 28px;
-    padding-right: 7px !important;
-    padding-left: 7px !important;
-  }
-}
-
-#toolbarCollapseToggle:not(:disabled):hover {
-  background: linear-gradient(135deg, #ad7938 0%, #704718 100%);
-  color: #fff;
-  transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(72, 52, 31, 0.26);
-}
-
-#toolbarCollapseToggle svg {
-  width: 24px;
-  height: 24px;
-  stroke-width: 2.6;
-}
-
-.table-sticky-cell-day.sun:not(.today),
-.table-sticky-cell-day.sat:not(.today),
-.table-sticky-cell-day.sun:not(.today) span,
-.table-sticky-cell-day.sat:not(.today) span {
-  color: var(--text);
-}
-
-.table-week-jump {
-  display: none !important;
-}
-
-.calendar-nav-left .schedule-nav-history-actions {
-  position: static;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex: 0 0 auto;
-  margin: 0;
-}
-
-.calendar-nav-left .schedule-nav-history-actions .toolbar-history-btn {
-  width: var(--schedule-nav-control-height);
-  min-width: var(--schedule-nav-control-height);
-  height: var(--schedule-nav-control-height);
-  min-height: var(--schedule-nav-control-height);
-  padding: 0;
-  border-radius: 12px;
-}
-
-.seg.regular-holiday-work-seg {
-  background: #ffe58f !important;
-}
-
-.shift-view-member.regular-holiday-work-member {
-  background: #ffe58f;
-}
-
-@media (max-width: 768px) {
-  .toolbar-floating-card {
-    grid-template-columns: 42px minmax(0, 1fr);
-    gap: 8px;
-  }
-
-  .toolbar-floating-card > #toolbarCollapseToggle,
-  .toolbar-floating-card > #scheduleUndoButton,
-  .toolbar-floating-card > #scheduleRedoButton {
-    width: 42px;
-    min-width: 42px;
-  }
-
-  .toolbar-floating-card > #toolbarCollapseToggle {
-    height: 42px;
-    min-height: 42px;
-  }
-
-  .toolbar-floating-card > .toolbar-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .toolbar-floating-card.toolbar-floating-card-collapsed {
-    grid-template-columns: 42px;
-  }
-}
 
 /* ===== 打卡管理班表圖示與設定表格視窗寬度 ===== */
 .attendance-admin-table .attendance-schedule-icon-col {

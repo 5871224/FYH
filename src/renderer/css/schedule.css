@@ -1,7 +1,5 @@
 
 
-
-
 /* Expanded toolbar: keep the control row outside normal flow, preserving the original height. */
 .toolbar-floating-card:not(.toolbar-floating-card-collapsed) .toolbar-top-row {
   position: absolute;
@@ -51,7 +49,7 @@
   height: 32px;
   min-height: 32px;
   padding: 0;
-  border-radius: 50%;
+  border-radius: 6px;
 }
 
 .toolbar-history-btn svg {
@@ -191,3 +189,287 @@
   background: #f0f0f0;
   cursor: default;
 }
+/* 浮動工具列直接採用英達班表最新排列（福圓號保留八週導覽）。 */
+.toolbar-floating-card {
+  --toolbar-item-height: 30px;
+  position: fixed;
+  left: 20px;
+  right: 20px;
+  z-index: 35;
+  overflow: visible;
+  background: var(--schedule-floating-bg);
+  border: var(--schedule-outline-width) solid var(--schedule-outline);
+
+  display: grid;
+  bottom: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto;
+  align-items: start;
+  gap: 4px 8px;
+  max-height: min(38vh, 280px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 6px 8px;
+  border-radius: var(--ui-page-radius) var(--ui-page-radius) 0 0;
+}
+
+.toolbar-control-stack {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.toolbar-control-primary,
+.toolbar-control-history {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-control-stack #toolbarCollapseToggle {
+  border-color: var(--ui-accent-strong);
+  background: var(--ui-accent-strong);
+  color: #fff;
+}
+
+.toolbar-floating-card > .toolbar-grid {
+  grid-column: 2;
+  grid-row: 1;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.toolbar-category-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: 100%;
+  min-width: 0;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.toolbar-category-group > .toolbar-section-combined,
+.toolbar-category-group > .toolbar-section-leave,
+.toolbar-category-group > .toolbar-section-overtime {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 5px;
+  min-width: 0;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.toolbar-category-group > .toolbar-section-combined {
+  grid-column: 1 / -1;
+}
+
+.toolbar-category-group > .toolbar-section-leave,
+.toolbar-category-group > .toolbar-section-overtime {
+  margin-top: 0;
+  border-top: 1px solid var(--schedule-grid-line, var(--line));
+}
+
+.toolbar-category-group > .toolbar-section-overtime {
+  justify-self: end;
+  justify-content: flex-end;
+  padding-left: 12px;
+}
+
+.toolbar-category-group > .toolbar-section-overtime .toolbar-title-row {
+  justify-content: flex-end;
+}
+
+.toolbar-floating-card #overtimeChips {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  align-content: flex-start;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+  padding: 3px;
+}
+
+.toolbar-floating-card #overtimeChips .chip {
+  flex: 0 0 auto;
+  height: var(--toolbar-item-height);
+  min-height: var(--toolbar-item-height);
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.1;
+}
+
+.toolbar-floating-card .toolbar-title-row,
+.toolbar-floating-card .toolbar-title-row-combined {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  min-width: max-content;
+  min-height: 30px;
+  margin: 0;
+}
+
+.toolbar-floating-card .toolbar-title {
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.toolbar-floating-card .toolbar-settings-btn {
+  width: var(--toolbar-item-height);
+  min-width: var(--toolbar-item-height);
+  height: var(--toolbar-item-height);
+  min-height: var(--toolbar-item-height);
+  flex-basis: var(--toolbar-item-height);
+  padding: 6px;
+}
+
+.toolbar-floating-card #deptFilter {
+  width: 104px;
+  min-width: 104px;
+  max-width: 104px;
+  height: var(--toolbar-item-height);
+  min-height: var(--toolbar-item-height);
+  padding: 4px 25px 4px 9px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.toolbar-floating-card #shiftChips,
+.toolbar-floating-card #leaveChips {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  align-content: flex-start;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+  padding: 3px;
+  scrollbar-width: none;
+}
+
+.toolbar-floating-card #shiftChips::-webkit-scrollbar,
+.toolbar-floating-card #leaveChips::-webkit-scrollbar {
+  display: none;
+}
+
+.toolbar-floating-card #shiftChips .chip,
+.toolbar-floating-card #leaveChips .chip {
+  flex: 0 0 auto;
+  height: var(--toolbar-item-height);
+  min-height: var(--toolbar-item-height);
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.1;
+}
+
+.toolbar-floating-card #shiftChips .chip.active,
+.toolbar-floating-card #leaveChips .chip.active,
+.toolbar-floating-card #overtimeChips .chip.active {
+  position: relative;
+  z-index: 1;
+  border-color: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.92),
+    0 0 0 2px #3f2d1d;
+  transform: none;
+}
+
+.toolbar-floating-card.toolbar-floating-card-collapsed {
+  left: 20px;
+  right: auto;
+  width: auto;
+  max-height: none;
+  bottom: 0;
+  grid-template-columns: auto;
+  grid-template-rows: auto;
+  padding: 5px;
+}
+
+.toolbar-floating-card.toolbar-floating-card-collapsed > .toolbar-grid {
+  display: none;
+}
+
+@media (max-width: 768px) {
+
+  .toolbar-category-group > .toolbar-section-combined > #shiftChips,
+  .toolbar-category-group > .toolbar-section-leave > #leaveChips {
+    display: contents;
+  }
+
+  .toolbar-category-group > .toolbar-section-combined,
+  .toolbar-category-group > .toolbar-section-leave {
+    flex-wrap: wrap;
+
+    gap: 4px;
+  }
+
+  .toolbar-floating-card #shiftChips .chip,
+  .toolbar-floating-card #leaveChips .chip {
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+}
+
+@media (max-width: 768px) {
+  .toolbar-floating-card {
+    --toolbar-item-height: 28px;
+    bottom: 0;
+    max-height: min(44dvh, 300px);
+    padding: 5px 6px;
+  }
+
+  .toolbar-floating-card > .toolbar-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+}
+
+@media (max-width: 640px) {
+  .toolbar-floating-card {
+    right: var(--ui-mobile-page-gutter);
+    left: var(--ui-mobile-page-gutter);
+  }
+
+  .toolbar-floating-card.toolbar-floating-card-collapsed {
+    left: var(--ui-mobile-page-gutter);
+  }
+}
+.toolbar-control-stack #scheduleEditToggle[aria-pressed="true"] { background: var(--ui-accent-strong); border-color: var(--ui-accent-strong); color: #fff; }
+.schedule-preview-actions {
+  position: fixed; right: 20px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+  display: flex; gap: 8px; padding: 8px;
+  border: var(--schedule-outline-width) solid var(--schedule-outline); border-radius: var(--ui-page-radius);
+  background: var(--schedule-floating-bg); box-shadow: var(--shadow);
+}
+.schedule-preview-actions[hidden] { display: none; }
+.calendar-nav :where(.nav-btn, .ghost-btn, .primary-btn),
+.schedule-preview-actions :where(.ghost-btn, .primary-btn) {
+  background: var(--ui-button-bg); border-color: var(--ui-border); color: var(--ui-text);
+}
+.table-week-jump { display: none; }
+.calendar-nav-left .schedule-nav-history-actions { position: static; display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; margin: 0; }
+.calendar-nav-left .schedule-nav-history-actions .toolbar-history-btn { width: var(--schedule-nav-control-height); min-width: var(--schedule-nav-control-height); height: var(--schedule-nav-control-height); min-height: var(--schedule-nav-control-height); padding: 0; border-radius: 12px; }
+.table-sticky-cell-day.sun:not(.today), .table-sticky-cell-day.sat:not(.today),
+.table-sticky-cell-day.sun:not(.today) span, .table-sticky-cell-day.sat:not(.today) span { color: var(--text); }
+.seg.regular-holiday-work-seg { background: #ffe58f; }
+.shift-view-member.regular-holiday-work-member { background: #ffe58f; }

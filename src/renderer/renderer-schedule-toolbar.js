@@ -16,7 +16,6 @@ function getSelectedToolbarCancelLabel() {
 }
 
 
-
 let selectedScheduleItemPointerPreview = null;
 
 function getSelectedScheduleItemPointerPreview() {
@@ -110,34 +109,31 @@ function updateSelectedScheduleItemPointerPreview(event) {
   preview.style.top = `${Math.round(Math.max(margin, top))}px`;
 }
 
-function syncSelectedToolbarPreview() {
-  const preview = document.getElementById("toolbarSelectedPreview");
-  if (!preview) return;
-  const selected = getSelectedToolbarItem();
-  if (!selected) {
-    preview.hidden = true;
-    preview.textContent = "";
-    preview.removeAttribute("title");
-    preview.removeAttribute("aria-label");
-    preview.style.backgroundColor = "";
-    preview.style.color = "";
-    preview.style.borderColor = "";
-    return;
-  }
-  const { type, item } = selected;
-  const categoryLabel = type === "shift" ? "班別" : "假別";
-  const color = item.color || "#888780";
-  const name = getLocalizedName(item);
-  preview.hidden = false;
-  preview.style.backgroundColor = color;
-  preview.style.color = getItemTextColor(item, color);
-  preview.style.borderColor = color;
-  preview.title = `已選擇${categoryLabel}：${name}`;
-  preview.setAttribute("aria-label", preview.title);
-  preview.replaceChildren(Object.assign(document.createElement("span"), {
-    className: "toolbar-selected-preview-label",
-    textContent: name
-  }));
+function syncScheduleEditModeUi() {
+  const allowed = canManageSchedule();
+  if (!allowed) scheduleEditEnabled = false;
+  const button = document.getElementById("scheduleEditToggle");
+  if (!button) return;
+  const editing = canEditSchedule();
+  button.hidden = !allowed;
+  button.disabled = scheduleHistoryBusy;
+  button.setAttribute("aria-pressed", String(editing));
+  const label = editing ? "編輯中，點擊切回檢視" : "啟用班表編輯";
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  button.innerHTML = actionIcon("edit");
+  syncScheduleHistoryButtons();
+}
+function toggleScheduleEditMode() {
+  if (!canManageSchedule() || scheduleHistoryBusy) return false;
+  scheduleEditEnabled = !scheduleEditEnabled;
+  state.selected = { type: null, id: null };
+  scheduleClipboard = null;
+  autoSchedulePreview = null;
+  endScheduleRangeSelection();
+  clearScheduleRangeSelection();
+  renderAll();
+  return true;
 }
 
 function renderDeptFilter() {
@@ -185,11 +181,11 @@ function renderChips(containerId, category, items) {
     const active = state.selected.type === category && state.selected.id === item.id;
     const foreground = getItemTextColor(item, item.color);
     const style = `color:${foreground};background:${item.color};border-color:${item.color};`;
-    return `<button class="chip ${active ? "active" : ""}" style="${style}" type="button" data-chip-type="${category}" data-chip-id="${item.id}">${escapeHtml(getLocalizedName(item))}</button>`;
+    return `<button class="chip ${active ? "active" : ""}" style="${style}" type="button" data-chip-type="${category}" data-chip-id="${item.id}" ${canEditSchedule() ? "" : "disabled"}>${escapeHtml(getLocalizedName(item))}</button>`;
   });
   const cancelType = `cancel-${category}`;
   const cancelActive = state.selected.type === cancelType;
-  chips.push(`<button class="chip cancel ${cancelActive ? "active" : ""}" type="button" data-chip-type="${cancelType}" data-chip-id="">取消</button>`);
+  chips.push(`<button class="chip cancel ${cancelActive ? "active" : ""}" type="button" data-chip-type="${cancelType}" data-chip-id="" ${canEditSchedule() ? "" : "disabled"}>取消</button>`);
   container.innerHTML = chips.join("");
 }
 
@@ -204,7 +200,6 @@ function renderToolbar() {
   renderChips("leaveChips", "leave", state.leaves.filter((item) => !item.hiddenFromToolbar));
   renderChips("overtimeChips", "overtime", state.overtime.filter((item) => !item.hiddenFromToolbar));
   syncRoleUi();
-  syncSelectedToolbarPreview();
   syncSelectedScheduleItemCursor();
   refreshLocalization(document.querySelector(".toolbar-card"));
 }

@@ -14,8 +14,6 @@ async function runFunctionMenuAction(action) {
   if (action === "week-start-settings") return openWeekStartSettingModal();
   if (action === "auto-schedule-preview") return previewAutoSchedule();
   if (action === "auto-fill-schedule-preview") return openAutoFillSchedulePeriodModal();
-  if (action === "auto-schedule-apply") return applyAutoSchedulePreview();
-  if (action === "auto-schedule-cancel") return cancelAutoSchedulePreview();
   if (action === "print-schedule") return openSchedulePrintRangeDialog();
   if (action === "export-workday") return openExportPeriodDialog("workday");
   if (action === "export-sap") return openExportPeriodDialog("sap");
@@ -65,6 +63,7 @@ function bindStaticToolbarEvents() {
   };
 
   bindScheduleHistoryControls();
+  bindSchedulePreviewActions();
   bindAutoFillScheduleControls();
   bindCoreActionsMenuEvents();
 
@@ -79,7 +78,14 @@ function bindStaticToolbarEvents() {
   bindClick("toolbarCollapseToggle", (event) => {
     event.stopPropagation();
     toggleToolbarCollapse();
+    positionSchedulePreviewActions();
   });
+  bindClick("scheduleEditToggle", (event) => {
+    event.stopPropagation();
+    toggleScheduleEditMode();
+  });
+  bindClick("autoScheduleApplyButton", async () => await applyAutoSchedulePreview());
+  bindClick("autoScheduleCancelButton", () => cancelAutoSchedulePreview());
   bindClick("prevPeriodButton", async () => changeSchedulePeriodWeeks(-8));
   bindClick("prevWeekButton", () => scrollScheduleByWeeks(-1));
   bindClick("nextWeekButton", () => scrollScheduleByWeeks(1));
@@ -121,6 +127,7 @@ function bindScheduleViewportEvents() {
       initializeToolbarCollapse();
     }
     syncToolbarCollapseUi();
+    positionSchedulePreviewActions();
   });
 }
 

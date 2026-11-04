@@ -7,23 +7,23 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./app.css?v=ff6067224031">
+  <link rel="stylesheet" href="./app.css?v=c3d75bf04a2d">
 </head>
 <body>
   <div class="app-shell">
     <section class="toolbar-card toolbar-floating-card">
       <div class="toolbar-control-stack">
         <div class="toolbar-control-primary">
-          <button class="ghost-btn toolbar-collapse-toggle" id="toolbarCollapseToggle" type="button" aria-expanded="true" aria-label="收合工具列" title="收合工具列">
+          <button class="settings-icon-btn toolbar-collapse-toggle" id="toolbarCollapseToggle" type="button" aria-expanded="true" aria-label="收合工具列" title="收合工具列">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
           </button>
-          <div class="toolbar-selected-preview" id="toolbarSelectedPreview" role="img" hidden aria-live="polite"></div>
+          <button class="settings-icon-btn" id="scheduleEditToggle" type="button" aria-pressed="false" aria-label="啟用班表編輯" title="啟用班表編輯" hidden></button>
         </div>
         <div class="toolbar-control-history" aria-label="班表操作歷程">
-          <button class="ghost-btn toolbar-history-btn" id="scheduleUndoButton" type="button" aria-label="上一步（Ctrl+Z）" title="上一步（Ctrl+Z）" disabled>
+          <button class="settings-icon-btn toolbar-history-btn" id="scheduleUndoButton" type="button" aria-label="上一步（Ctrl+Z）" title="上一步（Ctrl+Z）" disabled>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7l-5 5 5 5"></path><path d="M5 12h8a6 6 0 0 1 6 6"></path></svg>
           </button>
-          <button class="ghost-btn toolbar-history-btn" id="scheduleRedoButton" type="button" aria-label="下一步（Ctrl+Y）" title="下一步（Ctrl+Y）" disabled>
+          <button class="settings-icon-btn toolbar-history-btn" id="scheduleRedoButton" type="button" aria-label="下一步（Ctrl+Y）" title="下一步（Ctrl+Y）" disabled>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7l5 5-5 5"></path><path d="M19 12h-8a6 6 0 0 0-6 6"></path></svg>
           </button>
         </div>
@@ -102,6 +102,10 @@
     </section>
   </div>
 
+  <div class="schedule-preview-actions" id="schedulePreviewActions" role="group" aria-label="排班預覽操作" hidden>
+    <button class="primary-btn" id="autoScheduleApplyButton" type="button">套用預覽</button>
+    <button class="ghost-btn" id="autoScheduleCancelButton" type="button">取消預覽</button>
+  </div>
   <div id="modalRoot"></div>
   <div id="authRoot"></div>
 
@@ -227,7 +231,7 @@
       });
     })();
   </script>
-  <script src="./app.js?v=3719d2d95f46"></script>
+  <script src="./app.js?v=630f707de295"></script>
   <script>
     (() => {
       const exporter = window.schedulerBrowserExporter;

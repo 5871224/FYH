@@ -3732,6 +3732,7 @@ function createMealOrderState() {
 }
 
 function resetLoadedUserRuntimeState() {
+  scheduleEditEnabled = false;
   currentMember = null;
   attendanceState = createAttendanceState();
   mealOrderState = createMealOrderState();
@@ -5263,6 +5264,8 @@ function getScheduleRedoButtons() {
 }
 
 function syncScheduleHistoryButtons() {
+  const editToggle = document.getElementById("scheduleEditToggle");
+  if (editToggle) editToggle.disabled = scheduleHistoryBusy;
   const editable = typeof canEditSchedule === "function" && canEditSchedule();
   getScheduleUndoButtons().forEach((button) => {
     button.disabled = scheduleHistoryBusy || !editable || scheduleUndoStack.length === 0;
@@ -6404,6 +6407,7 @@ function buildAutoFillSchedulePreview(dates) {
 }
 
 function openAutoFillSchedulePeriodModal() {
+  if (!canEditSchedule()) { showInfoMessage("請先啟用班表編輯"); return; }
   if (!requireCurrentGroupUiPermission("schedule_manage", "自動補班")) {
     return;
   }
@@ -6474,6 +6478,7 @@ async function generateAutoFillSchedulePreviewFromModal(button) {
 }
 
 async function applyAutoFillSchedulePreview() {
+  if (!canEditSchedule()) return;
   if (!requireCurrentGroupUiPermission("schedule_manage", "套用自動補班")) {
     return;
   }
@@ -6606,6 +6611,7 @@ function getMissingAutoScheduleLeaveLabels() {
 }
 
 async function previewAutoSchedule() {
+  if (!canEditSchedule()) { showInfoMessage("請先啟用班表編輯"); return; }
   if (!requireCurrentGroupUiPermission("schedule_manage", "自動排班")) {
     return;
   }
@@ -6661,7 +6667,27 @@ async function generateAutoSchedulePreviewFromModal() {
   showInfoMessage(`已產生自動排班預覽：${startDate} ～ ${endDate}，${changeCount} 格預排${warningCount ? `，${warningCount} 則提醒` : ""}`);
 }
 
+function positionSchedulePreviewActions() {
+  const actions = document.getElementById("schedulePreviewActions");
+  const toolbar = document.querySelector(".toolbar-floating-card");
+  const card = document.getElementById("scheduleCard");
+  if (!actions || actions.hidden || !toolbar || !card) return;
+  actions.style.bottom = `${Math.max(10, Math.ceil(window.innerHeight - toolbar.getBoundingClientRect().top) + 8)}px`;
+  actions.style.right = `${Math.max(0, document.documentElement.clientWidth - card.getBoundingClientRect().right)}px`;
+}
+function bindSchedulePreviewActions() {
+  const toolbar = document.querySelector(".toolbar-floating-card");
+  if (toolbar && window.ResizeObserver) new window.ResizeObserver(positionSchedulePreviewActions).observe(toolbar);
+  window.addEventListener("resize", positionSchedulePreviewActions);
+}
+function syncSchedulePreviewActions() {
+  const actions = document.getElementById("schedulePreviewActions");
+  if (!actions) return;
+  actions.hidden = appView !== "schedule" || !canEditSchedule() || !Object.keys(autoSchedulePreview?.slots || {}).length;
+  positionSchedulePreviewActions();
+}
 async function applyAutoSchedulePreview() {
+  if (!canEditSchedule()) return;
   if (isAutoFillSchedulePreview()) {
     await applyAutoFillSchedulePreview();
     return;
@@ -6810,34 +6836,31 @@ function updateSelectedScheduleItemPointerPreview(event) {
   preview.style.top = `${Math.round(Math.max(margin, top))}px`;
 }
 
-function syncSelectedToolbarPreview() {
-  const preview = document.getElementById("toolbarSelectedPreview");
-  if (!preview) return;
-  const selected = getSelectedToolbarItem();
-  if (!selected) {
-    preview.hidden = true;
-    preview.textContent = "";
-    preview.removeAttribute("title");
-    preview.removeAttribute("aria-label");
-    preview.style.backgroundColor = "";
-    preview.style.color = "";
-    preview.style.borderColor = "";
-    return;
-  }
-  const { type, item } = selected;
-  const categoryLabel = type === "shift" ? "班別" : "假別";
-  const color = item.color || "#888780";
-  const name = getLocalizedName(item);
-  preview.hidden = false;
-  preview.style.backgroundColor = color;
-  preview.style.color = getItemTextColor(item, color);
-  preview.style.borderColor = color;
-  preview.title = `已選擇${categoryLabel}：${name}`;
-  preview.setAttribute("aria-label", preview.title);
-  preview.replaceChildren(Object.assign(document.createElement("span"), {
-    className: "toolbar-selected-preview-label",
-    textContent: name
-  }));
+function syncScheduleEditModeUi() {
+  const allowed = canManageSchedule();
+  if (!allowed) scheduleEditEnabled = false;
+  const button = document.getElementById("scheduleEditToggle");
+  if (!button) return;
+  const editing = canEditSchedule();
+  button.hidden = !allowed;
+  button.disabled = scheduleHistoryBusy;
+  button.setAttribute("aria-pressed", String(editing));
+  const label = editing ? "編輯中，點擊切回檢視" : "啟用班表編輯";
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  button.innerHTML = actionIcon("edit");
+  syncScheduleHistoryButtons();
+}
+function toggleScheduleEditMode() {
+  if (!canManageSchedule() || scheduleHistoryBusy) return false;
+  scheduleEditEnabled = !scheduleEditEnabled;
+  state.selected = { type: null, id: null };
+  scheduleClipboard = null;
+  autoSchedulePreview = null;
+  endScheduleRangeSelection();
+  clearScheduleRangeSelection();
+  renderAll();
+  return true;
 }
 
 function renderDeptFilter() {
@@ -6885,11 +6908,11 @@ function renderChips(containerId, category, items) {
     const active = state.selected.type === category && state.selected.id === item.id;
     const foreground = getItemTextColor(item, item.color);
     const style = `color:${foreground};background:${item.color};border-color:${item.color};`;
-    return `<button class="chip ${active ? "active" : ""}" style="${style}" type="button" data-chip-type="${category}" data-chip-id="${item.id}">${escapeHtml(getLocalizedName(item))}</button>`;
+    return `<button class="chip ${active ? "active" : ""}" style="${style}" type="button" data-chip-type="${category}" data-chip-id="${item.id}" ${canEditSchedule() ? "" : "disabled"}>${escapeHtml(getLocalizedName(item))}</button>`;
   });
   const cancelType = `cancel-${category}`;
   const cancelActive = state.selected.type === cancelType;
-  chips.push(`<button class="chip cancel ${cancelActive ? "active" : ""}" type="button" data-chip-type="${cancelType}" data-chip-id="">取消</button>`);
+  chips.push(`<button class="chip cancel ${cancelActive ? "active" : ""}" type="button" data-chip-type="${cancelType}" data-chip-id="" ${canEditSchedule() ? "" : "disabled"}>取消</button>`);
   container.innerHTML = chips.join("");
 }
 
@@ -6904,7 +6927,6 @@ function renderToolbar() {
   renderChips("leaveChips", "leave", state.leaves.filter((item) => !item.hiddenFromToolbar));
   renderChips("overtimeChips", "overtime", state.overtime.filter((item) => !item.hiddenFromToolbar));
   syncRoleUi();
-  syncSelectedToolbarPreview();
   syncSelectedScheduleItemCursor();
   refreshLocalization(document.querySelector(".toolbar-card"));
 }
@@ -9111,6 +9133,7 @@ function applyCurrentGroupScope(targetState = state) {
 }
 
 function resetGroupInteractionState() {
+  scheduleEditEnabled = false;
   state.selected = { type: null, id: null };
   state.deptFilter = "all";
   state.tableDeptScopeFilter = "all";
@@ -9211,9 +9234,7 @@ function getFunctionMenuSections() {
         { id: "schedulePublicationMenuButton", label: "公開日期", groupAction: "schedule-publication" },
         { id: "scheduleConditionsMenuButton", label: "排班條件", groupAction: "schedule-conditions" },
         { id: "autoSchedulePreviewButton", label: "自動排班預覽", action: "auto-schedule-preview" },
-        { id: "autoFillSchedulePreviewButton", label: "自動補班預覽", action: "auto-fill-schedule-preview" },
-        { id: "autoScheduleApplyButton", label: "套用預覽", action: "auto-schedule-apply" },
-        { id: "autoScheduleCancelButton", label: "取消預覽", action: "auto-schedule-cancel" }
+        { id: "autoFillSchedulePreviewButton", label: "自動補班預覽", action: "auto-fill-schedule-preview" }
       ]
     });
   }
@@ -9889,12 +9910,14 @@ function canManagePermissions() {
   return hasCommonPermission("settings");
 }
 
-function canEditSchedule() {
+function canManageSchedule() {
   return hasGroupPermission(groupFeatureState.currentGroupId, "schedule_manage");
 }
-
+function canEditSchedule() {
+  return scheduleEditEnabled && canManageSchedule();
+}
 function canUseScheduleToolbar() {
-  return canEditSchedule() || hasCommonPermission("leave_settings");
+  return canManageSchedule() || hasCommonPermission("leave_settings");
 }
 
 function requireCommonUiPermission(permission, label = "此功能") {
@@ -10033,6 +10056,7 @@ function syncRoleUi() {
     element.classList.toggle("chips-readonly", !canEditSchedule());
   });
   syncPermissionUi();
+  syncScheduleEditModeUi();
 }
 
 function renderAuthBar() {
@@ -13356,6 +13380,7 @@ function renderAll() {
   renderTable();
   syncPermissionUi();
   syncAppView();
+  syncSchedulePreviewActions();
   renderAuthGate();
   refreshLocalization(document.body);
 }
@@ -13388,7 +13413,7 @@ function pruneEmptySchedule() {
 
 
 function queueSave() {
-  if (!canEditSchedule()) {
+  if (!canManageSchedule()) {
     return;
   }
   if (saveTimer) {
@@ -13399,7 +13424,7 @@ function queueSave() {
 }
 
 async function forceSave() {
-  if (!canEditSchedule()) return false;
+  if (!canManageSchedule()) return false;
   if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = null;
@@ -15093,8 +15118,6 @@ async function runFunctionMenuAction(action) {
   if (action === "week-start-settings") return openWeekStartSettingModal();
   if (action === "auto-schedule-preview") return previewAutoSchedule();
   if (action === "auto-fill-schedule-preview") return openAutoFillSchedulePeriodModal();
-  if (action === "auto-schedule-apply") return applyAutoSchedulePreview();
-  if (action === "auto-schedule-cancel") return cancelAutoSchedulePreview();
   if (action === "print-schedule") return openSchedulePrintRangeDialog();
   if (action === "export-workday") return openExportPeriodDialog("workday");
   if (action === "export-sap") return openExportPeriodDialog("sap");
@@ -15144,6 +15167,7 @@ function bindStaticToolbarEvents() {
   };
 
   bindScheduleHistoryControls();
+  bindSchedulePreviewActions();
   bindAutoFillScheduleControls();
   bindCoreActionsMenuEvents();
 
@@ -15158,7 +15182,14 @@ function bindStaticToolbarEvents() {
   bindClick("toolbarCollapseToggle", (event) => {
     event.stopPropagation();
     toggleToolbarCollapse();
+    positionSchedulePreviewActions();
   });
+  bindClick("scheduleEditToggle", (event) => {
+    event.stopPropagation();
+    toggleScheduleEditMode();
+  });
+  bindClick("autoScheduleApplyButton", async () => await applyAutoSchedulePreview());
+  bindClick("autoScheduleCancelButton", () => cancelAutoSchedulePreview());
   bindClick("prevPeriodButton", async () => changeSchedulePeriodWeeks(-8));
   bindClick("prevWeekButton", () => scrollScheduleByWeeks(-1));
   bindClick("nextWeekButton", () => scrollScheduleByWeeks(1));
@@ -15200,6 +15231,7 @@ function bindScheduleViewportEvents() {
       initializeToolbarCollapse();
     }
     syncToolbarCollapseUi();
+    positionSchedulePreviewActions();
   });
 }
 
@@ -16446,6 +16478,7 @@ let dragMealProductIndex = "";
 let toolbarCollapsed = false;
 let toolbarCollapseInitialized = false;
 let measureTextContext = null;
+let scheduleEditEnabled = false;
 let scheduleRangeSelection = null;
 let scheduleDragSelecting = false;
 let scheduleHeaderDragSelection = null;

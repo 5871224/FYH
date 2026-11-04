@@ -86,6 +86,7 @@ function buildAutoFillSchedulePreview(dates) {
 }
 
 function openAutoFillSchedulePeriodModal() {
+  if (!canEditSchedule()) { showInfoMessage("請先啟用班表編輯"); return; }
   if (!requireCurrentGroupUiPermission("schedule_manage", "自動補班")) {
     return;
   }
@@ -156,6 +157,7 @@ async function generateAutoFillSchedulePreviewFromModal(button) {
 }
 
 async function applyAutoFillSchedulePreview() {
+  if (!canEditSchedule()) return;
   if (!requireCurrentGroupUiPermission("schedule_manage", "套用自動補班")) {
     return;
   }

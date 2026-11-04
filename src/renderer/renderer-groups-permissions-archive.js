@@ -192,6 +192,7 @@ function applyCurrentGroupScope(targetState = state) {
 }
 
 function resetGroupInteractionState() {
+  scheduleEditEnabled = false;
   state.selected = { type: null, id: null };
   state.deptFilter = "all";
   state.tableDeptScopeFilter = "all";
@@ -292,9 +293,7 @@ function getFunctionMenuSections() {
         { id: "schedulePublicationMenuButton", label: "公開日期", groupAction: "schedule-publication" },
         { id: "scheduleConditionsMenuButton", label: "排班條件", groupAction: "schedule-conditions" },
         { id: "autoSchedulePreviewButton", label: "自動排班預覽", action: "auto-schedule-preview" },
-        { id: "autoFillSchedulePreviewButton", label: "自動補班預覽", action: "auto-fill-schedule-preview" },
-        { id: "autoScheduleApplyButton", label: "套用預覽", action: "auto-schedule-apply" },
-        { id: "autoScheduleCancelButton", label: "取消預覽", action: "auto-schedule-cancel" }
+        { id: "autoFillSchedulePreviewButton", label: "自動補班預覽", action: "auto-fill-schedule-preview" }
       ]
     });
   }
