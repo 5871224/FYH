@@ -349,7 +349,9 @@
       if (leave) segments.push({
         name: slot?.leaveMeta?.displayName || leave.name,
         item: leave,
-        color: leave.color
+        color: leave.color,
+        // 與班表畫面一致：排班別遇到休息日（0047）時，「休」改用灰字。
+        fontArgb: leave.code === "0047" && slot?.shift ? "FF707070" : ""
       });
       if (slot?.overtime) segments.push({
         name: overtime?.name || slot?.overtimeMeta?.displayName || "加班",
@@ -367,7 +369,7 @@
       } else if (segment) {
         cell.value = segment.name;
         paint(cell, segment.color);
-        cell.font = { name: fontName, size: 10, bold: true, color: { argb: foreground(segment.item, segment.color) } };
+        cell.font = { name: fontName, size: 10, bold: true, color: { argb: segment.fontArgb || foreground(segment.item, segment.color) } };
       }
     };
 

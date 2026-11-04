@@ -80,3 +80,45 @@ test("班別檢視輸出需求人數與缺人底色",async()=>{
     assert.equal(sh.options.views[0].xSplit,2);
   }finally{close();}
 });
+
+test("休息日同時排班別時僅「休」改灰字，其餘狀況保留設定文字顏色", async () => {
+  const { api, close } = openExporter();
+  try {
+    const shifts = [{ id: "s", name: "早班", color: "#378ADD", textColor: "#FFFFFF" }];
+    const leaves = [
+      { id: "rest", code: "0047", name: "休", color: "#FCE8C7", textColor: "#FFFFFF" },
+      { id: "regular", code: "0036", name: "例", color: "#FFCC88", textColor: "#123456" },
+      { id: "annual", code: "0010", name: "特休", color: "#FFEEDD", textColor: "#654321" }
+    ];
+    const examples = [
+      { leave: "rest", shift: "s", expected: "FF707070", row: 4 },
+      { leave: "rest", shift: null, expected: "FFFFFFFF", row: 3 },
+      { leave: "regular", shift: "s", expected: "FF123456", row: 4 },
+      { leave: "annual", shift: "s", expected: "FF654321", row: 4 }
+    ];
+    for (const example of examples) {
+      const slot = { leave: example.leave };
+      if (example.shift) slot.shift = example.shift;
+      const workbook = await api.createScheduleWorkbook({
+        year: 2026, month: 9, dates: ["2026-10-02"], view: "member",
+        state: {
+          shifts, leaves, overtime: [],
+          schedule: { A_2026_9_2: slot }
+        },
+        groups: [{ department: { name: "門市" }, members: [{ id: "A", name: "甲" }] }]
+      });
+      const sheet = workbook.worksheets[0];
+      const leaveCell = sheet.getCell(example.row, 3);
+      const leave = leaves.find(item => item.id === example.leave);
+      assert.equal(leaveCell.value, leave.name, example.leave + " 名稱");
+      assert.equal(leaveCell.font.color.argb, example.expected, example.leave + " 字色");
+      assert.equal(leaveCell.fill.fgColor.argb, "FF" + leave.color.slice(1), example.leave + " 底色");
+      if (example.shift) {
+        assert.equal(sheet.getCell(3, 3).value, "早班");
+        assert.equal(sheet.getCell(3, 3).font.color.argb, "FFFFFFFF", "班別字色不應受影響");
+      }
+    }
+  } finally {
+    close();
+  }
+});
