@@ -42,7 +42,7 @@ assert(renderer.includes('[hidden]') || styles.includes("[hidden]"), "hidden sec
 assert(styles.includes("@media (max-width: 640px)") && styles.includes(".calendar-nav {\n    flex-wrap: wrap;") && styles.includes(".nav-actions {\n    justify-content: flex-start;"), "mobile schedule navigation should wrap instead of forcing one row");
 assert(renderer.includes('toggle.textContent = "功能"'), "schedule top-right menu should be labelled function");
 assert(index.includes('id="coreHomeButton"') && !index.includes('data-home-action="home">首頁</button>\n              <button'), "schedule home button should sit outside the function menu");
-assert(renderer.includes("home-password-btn") && !index.includes('data-open-change-password="true">修改密碼</button>'), "change password should live on the home dashboard");
+assert(renderer.includes('class="home-account-menu"') && renderer.includes('data-open-change-password="true"') && renderer.includes('id="homeSignOutButton"') && !index.includes('data-open-change-password="true">修改密碼</button>'), "home account menu should contain password and sign-out actions");
 assert(renderer.includes("const showToolbar = showSchedule && canUseScheduleToolbar()"), "schedule floating toolbar should respect its exact schedule/leave capability");
 assert(!renderer.includes("hasManagementAccess") && !renderer.includes("promptManagerAccess"), "UI must not restore generic management capability guards");
 
