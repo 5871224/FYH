@@ -5083,10 +5083,15 @@ body.is-meal-view .meal-tabs ~ .records-section {
     margin-bottom: 7px;
   }
 
-  .meal-tabs,
-  .record-tabs {
+  .meal-tabs {
     gap: var(--ui-mobile-gap-tight);
     margin: 5px 0 8px;
+    padding: 2px;
+  }
+
+  .record-tabs {
+    gap: var(--ui-mobile-gap-tight);
+    margin: 5px 0 0;
     padding: 2px;
   }
 
@@ -6378,8 +6383,16 @@ body:not(.is-authenticated) .toolbar-card {
   }
 
   .attendance-review-actions {
-    flex-wrap: wrap;
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .attendance-review-actions > button {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 }
 

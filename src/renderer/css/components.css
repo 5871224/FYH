@@ -1152,10 +1152,15 @@ body.is-meal-view .meal-tabs ~ .records-section {
     margin-bottom: 7px;
   }
 
-  .meal-tabs,
-  .record-tabs {
+  .meal-tabs {
     gap: var(--ui-mobile-gap-tight);
     margin: 5px 0 8px;
+    padding: 2px;
+  }
+
+  .record-tabs {
+    gap: var(--ui-mobile-gap-tight);
+    margin: 5px 0 0;
     padding: 2px;
   }
 

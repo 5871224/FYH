@@ -185,6 +185,7 @@ const fyhLocalization = (() => {
     "匯出休例假": "Xuất ngày nghỉ",
     "匯出請假": "Xuất nghỉ phép",
     "匯出加班": "Xuất tăng ca",
+    "特殊出勤": "Chấm công đặc biệt",
     "列印班表": "In lịch làm việc",
     "班表列印預覽": "Xem trước lịch in",
     "列印": "In",
