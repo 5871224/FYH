@@ -190,7 +190,7 @@
   cursor: default;
 }
 /* 浮動工具列直接採用英達班表最新排列（福圓號保留八週導覽）。 */
-.toolbar-floating-card {
+.toolbar-card.toolbar-floating-card {
   --toolbar-item-height: 30px;
   position: fixed;
   left: 20px;
@@ -210,7 +210,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding: 6px 8px;
-  border-radius: var(--ui-page-radius) var(--ui-page-radius) 0 0;
+  border-radius: var(--schedule-radius);
 }
 
 .toolbar-control-stack {
@@ -382,6 +382,10 @@
   line-height: 1.1;
 }
 
+.toolbar-floating-card .chips-readonly .chip:not(:disabled) {
+  cursor: pointer;
+}
+
 .toolbar-floating-card #shiftChips .chip.active,
 .toolbar-floating-card #leaveChips .chip.active,
 .toolbar-floating-card #overtimeChips .chip.active {
@@ -458,7 +462,7 @@
 .schedule-preview-actions {
   position: fixed; right: 20px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 40;
   display: flex; gap: 8px; padding: 8px;
-  border: var(--schedule-outline-width) solid var(--schedule-outline); border-radius: var(--ui-page-radius);
+  border: var(--schedule-outline-width) solid var(--schedule-outline); border-radius: var(--schedule-radius);
   background: var(--schedule-floating-bg); box-shadow: var(--shadow);
 }
 .schedule-preview-actions[hidden] { display: none; }

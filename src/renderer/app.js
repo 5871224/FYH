@@ -7171,17 +7171,25 @@ function renderTableViewSelect() {
   select.value = state.tableView === "shift" ? "shift" : state.tableStatsVisible ? "member-stats" : "member";
 }
 
+function canEditToolbarCatalogItem(category) {
+  if (category === "shift") return canManageSchedule();
+  if (category === "leave") return hasCommonPermission("leave_settings");
+  return false;
+}
+
 function renderChips(containerId, category, items) {
   const container = document.getElementById(containerId);
+  const canSelect = canEditSchedule();
+  const canOpenEditor = canEditToolbarCatalogItem(category);
   const chips = items.map((item) => {
     const active = state.selected.type === category && state.selected.id === item.id;
     const foreground = getItemTextColor(item, item.color);
     const style = `color:${foreground};background:${item.color};border-color:${item.color};`;
-    return `<button class="chip ${active ? "active" : ""}" style="${style}" type="button" data-chip-type="${category}" data-chip-id="${item.id}" ${canEditSchedule() ? "" : "disabled"}>${escapeHtml(getLocalizedName(item))}</button>`;
+    return `<button class="chip ${active ? "active" : ""}" style="${style}" type="button" data-chip-type="${category}" data-chip-id="${item.id}" ${canSelect || canOpenEditor ? "" : "disabled"}>${escapeHtml(getLocalizedName(item))}</button>`;
   });
   const cancelType = `cancel-${category}`;
   const cancelActive = state.selected.type === cancelType;
-  chips.push(`<button class="chip cancel ${cancelActive ? "active" : ""}" type="button" data-chip-type="${cancelType}" data-chip-id="" ${canEditSchedule() ? "" : "disabled"}>取消</button>`);
+  chips.push(`<button class="chip cancel ${cancelActive ? "active" : ""}" type="button" data-chip-type="${cancelType}" data-chip-id="" ${canSelect ? "" : "disabled"}>取消</button>`);
   container.innerHTML = chips.join("");
 }
 
@@ -15884,18 +15892,13 @@ let toolbarRapidEditOpenedAt = 0;
 
 function openToolbarChipEditor(type, id) {
   if (!id || (type !== "shift" && type !== "leave")) return false;
-  if (type === "shift" && !canEditSchedule()) {
-    requireCurrentGroupUiPermission("schedule_manage", "修改班別");
-    return true;
-  }
-  if (type === "leave" && !hasCommonPermission("leave_settings")) {
-    requireCommonUiPermission("leave_settings", "修改假別");
-    return true;
-  }
+  if (!canEditToolbarCatalogItem(type)) return false;
   toolbarRapidEditOpenedAt = Date.now();
-  state.selected = { type, id };
-  renderToolbar();
-  renderTable();
+  if (canEditSchedule()) {
+    state.selected = { type, id };
+    renderToolbar();
+    renderTable();
+  }
   if (type === "shift") openShiftFormModal("edit", id);
   else openNamedColorFormModal("leave", "edit", id);
   return true;
@@ -16181,7 +16184,7 @@ function bindDelegatedClickEvents() {
       const chipType = target.dataset.chipType || "";
       const chipId = target.dataset.chipId || "";
       if (handleToolbarChipClick(chipType, chipId)) return;
-      selectChip(chipType, chipId || null);
+      if (canEditSchedule()) selectChip(chipType, chipId || null);
       return;
     }
     if (target.dataset.openItemColor) {

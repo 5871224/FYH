@@ -8,18 +8,13 @@ let toolbarRapidEditOpenedAt = 0;
 
 function openToolbarChipEditor(type, id) {
   if (!id || (type !== "shift" && type !== "leave")) return false;
-  if (type === "shift" && !canEditSchedule()) {
-    requireCurrentGroupUiPermission("schedule_manage", "修改班別");
-    return true;
-  }
-  if (type === "leave" && !hasCommonPermission("leave_settings")) {
-    requireCommonUiPermission("leave_settings", "修改假別");
-    return true;
-  }
+  if (!canEditToolbarCatalogItem(type)) return false;
   toolbarRapidEditOpenedAt = Date.now();
-  state.selected = { type, id };
-  renderToolbar();
-  renderTable();
+  if (canEditSchedule()) {
+    state.selected = { type, id };
+    renderToolbar();
+    renderTable();
+  }
   if (type === "shift") openShiftFormModal("edit", id);
   else openNamedColorFormModal("leave", "edit", id);
   return true;
@@ -305,7 +300,7 @@ function bindDelegatedClickEvents() {
       const chipType = target.dataset.chipType || "";
       const chipId = target.dataset.chipId || "";
       if (handleToolbarChipClick(chipType, chipId)) return;
-      selectChip(chipType, chipId || null);
+      if (canEditSchedule()) selectChip(chipType, chipId || null);
       return;
     }
     if (target.dataset.openItemColor) {

@@ -175,17 +175,25 @@ function renderTableViewSelect() {
   select.value = state.tableView === "shift" ? "shift" : state.tableStatsVisible ? "member-stats" : "member";
 }
 
+function canEditToolbarCatalogItem(category) {
+  if (category === "shift") return canManageSchedule();
+  if (category === "leave") return hasCommonPermission("leave_settings");
+  return false;
+}
+
 function renderChips(containerId, category, items) {
   const container = document.getElementById(containerId);
+  const canSelect = canEditSchedule();
+  const canOpenEditor = canEditToolbarCatalogItem(category);
   const chips = items.map((item) => {
     const active = state.selected.type === category && state.selected.id === item.id;
     const foreground = getItemTextColor(item, item.color);
     const style = `color:${foreground};background:${item.color};border-color:${item.color};`;
-    return `<button class="chip ${active ? "active" : ""}" style="${style}" type="button" data-chip-type="${category}" data-chip-id="${item.id}" ${canEditSchedule() ? "" : "disabled"}>${escapeHtml(getLocalizedName(item))}</button>`;
+    return `<button class="chip ${active ? "active" : ""}" style="${style}" type="button" data-chip-type="${category}" data-chip-id="${item.id}" ${canSelect || canOpenEditor ? "" : "disabled"}>${escapeHtml(getLocalizedName(item))}</button>`;
   });
   const cancelType = `cancel-${category}`;
   const cancelActive = state.selected.type === cancelType;
-  chips.push(`<button class="chip cancel ${cancelActive ? "active" : ""}" type="button" data-chip-type="${cancelType}" data-chip-id="" ${canEditSchedule() ? "" : "disabled"}>取消</button>`);
+  chips.push(`<button class="chip cancel ${cancelActive ? "active" : ""}" type="button" data-chip-type="${cancelType}" data-chip-id="" ${canSelect ? "" : "disabled"}>取消</button>`);
   container.innerHTML = chips.join("");
 }
 
