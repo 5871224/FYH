@@ -14,7 +14,7 @@ function renderHomeDashboard() {
   homeCard.innerHTML = `
     <div class="clock-page-header">
       <div>
-        <p class="home-eyebrow">福圓號</p>
+        <div class="home-brand-mark"><img class="home-brand-logo" src="https://www.fyh1971.com/archive/image/weblogo/LOGO-3.png" alt="福圓號 SINCE1971" referrerpolicy="no-referrer"></div>
         <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
       </div>
       <div class="home-header-actions">
