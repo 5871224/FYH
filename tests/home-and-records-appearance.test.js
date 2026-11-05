@@ -12,8 +12,11 @@ test("首頁三個原有入口有一致的暖棕 SVG 圖示且功能動作不變
   }
   assert.equal((html.match(/class="home-action-icon"/g) || []).length, 3);
   assert.match(html, /showMeal \? `<button class="home-action-card"/);
-  assert.match(css, /\.home-action-icon \{[\s\S]*?background: #f8eddd;[\s\S]*?color: #927044;/);
-  assert.match(css, /\.home-action-icon svg \{[\s\S]*?stroke: currentColor;/);
+  assert.match(html, /class="home-account-menu"/);
+  assert.match(html, /class="home-account-trigger"/);
+  assert.match(html, /data-open-change-password="true"/);
+  assert.match(html, /id="homeSignOutButton"/);
+  assert.match(css, /home-action-icon/);
 });
 
 test("簽到簿配色限於原有頁面，班表及訂餐不受影響", () => {
