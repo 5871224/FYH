@@ -203,74 +203,218 @@ button {
 }
 
 .home-card {
-  width: min(920px, 100%);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  width: min(1050px, 100%);
+  min-height: min(720px, calc(100dvh - 32px));
   margin: 0 auto;
-  padding: clamp(18px, 4vw, 36px);
+  padding: 0 0 54px;
+  overflow: visible;
+  border: 1px solid #e1cbb7;
   border-radius: 28px;
   background:
-    radial-gradient(circle at top right, rgba(156, 107, 47, 0.16), transparent 34%),
-    linear-gradient(145deg, #fffdf8 0%, #f5eddd 100%);
-  border: 1px solid rgba(166, 143, 111, 0.24);
-  box-shadow: var(--shadow);
+    radial-gradient(ellipse at 50% 32%, #fffaf6 0%, transparent 68%),
+    linear-gradient(150deg, #fdf6f0 0%, #f5e8df 100%);
+  box-shadow: 0 20px 42px rgba(72, 46, 33, 0.12);
 }
 
-.home-header-actions {
+.home-card::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 125px;
+  border-radius: 0 0 27px 27px;
+  background: linear-gradient(172deg, transparent 25%, rgba(218, 182, 152, .22) 26%, rgba(218, 182, 152, .22) 62%, rgba(203, 155, 117, .16) 63%);
+  pointer-events: none;
+}
+
+body.is-home-view .home-topbar {
+  position: relative;
+  z-index: 2;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 126px;
+  padding: 18px clamp(20px, 5vw, 52px);
+  border-radius: 27px 27px 0 0;
+  background: linear-gradient(125deg, #65402e 0%, #80563a 60%, #6e4933 100%);
+}
+
+body.is-home-view .home-brand-mark {
+  display: flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+body.is-home-view .home-brand-logo {
+  display: block;
+  width: 195px;
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  background: #fffaf5;
+}
+
+body.is-home-view .home-header-actions {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
-}
-
-.home-eyebrow {
-  margin: 0 0 8px;
-  color: var(--accent-strong);
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-}
-
-.home-subtitle {
-  margin: 10px 0 0;
-  color: var(--muted);
-  line-height: 1.6;
-}
-
-.home-action-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex-wrap: wrap;
   gap: 12px;
+  margin: 0;
+  min-width: 0;
 }
 
-.home-action-card {
+body.is-home-view .home-header-actions select {
+  max-width: 180px;
+  min-height: 44px;
+  border: 1px solid #ead1b7;
+  border-radius: 14px;
+  background-color: #fff8f1;
+}
+
+body.is-home-view .home-account-menu {
+  position: relative;
+  min-width: 0;
+  color: #4d2e1e;
+}
+
+body.is-home-view .home-account-trigger {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 45px;
+  padding: 8px 14px;
+  border: 1px solid #d7ae88;
+  border-radius: 999px;
+  background: #fff5e9;
+  box-shadow: 0 3px 10px rgba(35, 21, 11, .12);
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+}
+
+body.is-home-view .home-account-trigger::-webkit-details-marker { display: none; }
+
+body.is-home-view .home-account-trigger svg,
+body.is-home-view .home-account-options svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body.is-home-view .home-account-name {
+  max-width: 185px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.is-home-view .home-account-chevron { transition: transform .2s ease; }
+body.is-home-view .home-account-menu[open] .home-account-chevron { transform: rotate(180deg); }
+
+body.is-home-view .home-account-options {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max(100%, 195px);
+  padding: 7px;
+  border: 1px solid #e4c9ae;
+  border-radius: 17px;
+  background: #fffaf5;
+  box-shadow: 0 14px 26px rgba(53, 31, 17, .2);
+}
+
+body.is-home-view .home-account-options button {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  padding: 12px 13px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #513322;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+body.is-home-view .home-account-options button + button { border-top: 1px solid #eadbcf; border-radius: 0 0 10px 10px; }
+body.is-home-view .home-account-options button:hover,
+body.is-home-view .home-account-options button:focus-visible { background: #f4e6d8; }
+body.is-home-view .home-account-trigger:focus-visible,
+body.is-home-view .home-action-card:focus-visible { outline: 3px solid #c88c49; outline-offset: 3px; }
+
+body.is-home-view .home-action-grid {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+  margin: clamp(78px, 12vh, 145px) clamp(28px, 6.4vw, 72px) 0;
+}
+
+body.is-home-view .home-action-grid:has(.home-action-card:nth-child(3)) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+body.is-home-view .home-action-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  min-height: 200px;
-  padding: 20px 14px;
-  border: 2px solid #e7d7c1;
-  border-radius: 28px;
-  background: #fffdf8;
-  color: #52361f;
+  gap: 15px;
+  min-height: 245px;
+  padding: 22px 12px;
+  border: 1px solid #e8cfb9;
+  border-radius: 25px;
+  background: linear-gradient(148deg, #fffefa 0%, #fff8f2 70%, #f8eadd 100%);
+  box-shadow: 0 12px 20px rgba(77, 49, 30, .12);
+  color: #513323;
   text-align: center;
-  box-shadow: 0 12px 24px rgba(72, 52, 31, 0.06);
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+body.is-home-view .home-action-card::after {
+  content: "";
+  width: 50px;
+  height: 4px;
+  border-radius: 5px;
+  background: #dfb58e;
+}
+body.is-home-view .home-action-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 17px 27px rgba(77, 49, 30, .15);
 }
 
-.home-action-icon {
+body.is-home-view .home-action-icon {
   display: grid;
   place-items: center;
-  flex: 0 0 auto;
-  width: 82px;
-  height: 82px;
-  border-radius: 22px;
-  background: #f8eddd;
-  color: #927044;
+  width: 89px;
+  height: 89px;
+  border-radius: 24px;
+  background: #f9e9da;
+  color: #96612d;
 }
 
-.home-action-icon svg {
-  width: 49px;
-  height: 49px;
+body.is-home-view .home-action-icon svg {
+  width: 52px;
+  height: 52px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.9;
@@ -278,27 +422,10 @@ button {
   stroke-linejoin: round;
 }
 
-.home-action-title,
-.home-action-text {
-  display: block;
-}
-
-.home-action-title {
-  font-size: 26px;
-  font-weight: 900;
-  letter-spacing: 0.05em;
-  margin-bottom: 0;
-}
-
-.home-action-text {
-  color: inherit;
-  opacity: 0.78;
-  line-height: 1.5;
-}
-
-.home-action-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 28px rgba(72, 52, 31, 0.11);
+body.is-home-view .home-action-title {
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: .05em;
 }
 
 body.is-home-view .app-shell {
@@ -5691,7 +5818,6 @@ body:not(.is-authenticated) .toolbar-card {
     padding-bottom: calc(min(44vh, 300px) + 12px);
   }
 
-  .home-card,
   .clock-card,
   .meal-card,
   .records-card,
@@ -5707,25 +5833,73 @@ body:not(.is-authenticated) .toolbar-card {
     box-shadow: none !important;
   }
 
-  /* 首頁依可用高度自動分配四個入口，避免短內容在底部留下大面積空白。 */
+
+  /* 首頁使用獨立響應式版面，不受其他頁面透明化卡片規則影響。 */
   body.is-home-view .home-card {
-    min-height: calc(100dvh - 12px) !important;
+    min-height: calc(100dvh - 12px);
+    padding-bottom: 30px;
+    border-radius: 20px;
   }
 
-  body.is-home-view .clock-page-header {
-    margin-bottom: clamp(20px, 3vh, 28px);
+  body.is-home-view .home-card::before { border-radius: 0 0 19px 19px; }
+
+  body.is-home-view .home-topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    min-height: 0;
+    padding: 16px 12px 19px;
+    border-radius: 19px 19px 0 0;
   }
 
-  body.is-home-view .home-action-grid {
-    flex: 1;
-    grid-template-rows: repeat(4, minmax(92px, 1fr));
-    gap: clamp(14px, 2.6vh, 22px);
+  body.is-home-view .home-brand-mark { justify-content: center; }
+  body.is-home-view .home-brand-logo { width: 152px; }
+
+  body.is-home-view .home-header-actions {
+    flex-wrap: nowrap;
+    align-self: stretch;
+    justify-content: space-between;
+    gap: 6px;
   }
 
+  body.is-home-view .home-header-actions select {
+    flex: 0 1 126px;
+    min-width: 0;
+    max-width: 126px;
+    min-height: 40px;
+    font-size: 12px;
+  }
+
+  body.is-home-view .home-account-trigger {
+    gap: 5px;
+    min-height: 40px;
+    padding: 7px 9px;
+    font-size: 13px;
+  }
+  body.is-home-view .home-account-name { max-width: min(35vw, 140px); }
+  body.is-home-view .home-account-trigger svg { width: 17px; height: 17px; }
+  body.is-home-view .home-account-options { width: 190px; }
+
+  body.is-home-view .home-action-grid,
+  body.is-home-view .home-action-grid:has(.home-action-card:nth-child(3)) {
+    flex: 0 0 auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    gap: 16px;
+    margin: clamp(48px, 8vh, 95px) 14px 0;
+  }
   body.is-home-view .home-action-card {
-    min-height: 92px;
-    padding: 14px 16px;
+    min-height: 145px;
+    padding: 15px;
+    border-radius: 22px;
   }
+  body.is-home-view .home-action-icon {
+    width: 66px;
+    height: 66px;
+    border-radius: 19px;
+  }
+  body.is-home-view .home-action-icon svg { width: 40px; height: 40px; }
+  body.is-home-view .home-action-title { font-size: 22px; }
 
   /* 班表手機版控制項字級統一：頂部檢視／範圍選單與浮動工具列選單皆不得使用過小字級。 */
   body.is-schedule-view .calendar-nav-left select,
@@ -6689,31 +6863,6 @@ html[lang="vi"] .attendance-ledger-table .attendance-clock-buttons [data-persona
 .attachment-file-description{overflow-wrap:anywhere;white-space:pre-wrap}
 .attachment-preview{max-height:75vh;overflow:auto;text-align:center}
 .attachment-preview img{max-width:100%;height:auto}
-
-/* 首頁使用官網正式商標，桌機與手機共用一個品牌來源。 */
-body.is-home-view .home-brand-mark {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-body.is-home-view .home-brand-logo {
-  display: block;
-  width: 220px;
-  max-width: 100%;
-  height: auto;
-  mix-blend-mode: multiply;
-}
-
-@media (max-width: 640px) {
-  body.is-home-view .home-brand-mark {
-    margin-bottom: 8px;
-  }
-
-  body.is-home-view .home-brand-logo {
-    width: 164px;
-  }
-}
 
 /* ===== Renderer shell styles: app-shell.css ===== */
 /* Renderer shell styles extracted from index.html.

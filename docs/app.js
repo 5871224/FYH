@@ -10864,17 +10864,31 @@ function renderHomeDashboard() {
   const actorGroup = getActorGroup();
   const showMeal = actorGroup?.mealEnabled && actorGroup?.status === "active";
   homeCard.innerHTML = `
-    <div class="clock-page-header">
-      <div>
-        <div class="home-brand-mark"><img class="home-brand-logo" src="https://www.fyh1971.com/archive/image/weblogo/LOGO-3.png" alt="福圓號 SINCE1971" referrerpolicy="no-referrer"></div>
-        <h1>${escapeHtml(getCurrentProfileName() || "使用者")}</h1>
+    <header class="home-topbar">
+      <div class="home-brand-mark">
+        <img class="home-brand-logo" src="https://www.fyh1971.com/archive/image/weblogo/LOGO-3.png" alt="福圓號 SINCE1971" referrerpolicy="no-referrer">
       </div>
       <div class="home-header-actions">
         ${renderLanguageControl()}
-        <button class="ghost-btn home-password-btn" type="button" data-open-change-password="true">修改密碼</button>
-        <button class="ghost-btn home-signout-btn" type="button" id="homeSignOutButton">登出</button>
+        <details class="home-account-menu">
+          <summary class="home-account-trigger" aria-label="帳號選單">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21v-2a7.5 7.5 0 0 1 15 0v2"></path></svg>
+            <span class="home-account-name">${escapeHtml(getCurrentProfileName() || "使用者")}</span>
+            <svg class="home-account-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+          </summary>
+          <div class="home-account-options">
+            <button type="button" data-open-change-password="true">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="16" r="3"></circle><path d="m10 14 10-10 2 2-2 2 1 1-3 3-2-2-4 4"></path></svg>
+              修改密碼
+            </button>
+            <button type="button" id="homeSignOutButton">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H5v16h6M14 8l4 4-4 4M9 12h9"></path></svg>
+              登出
+            </button>
+          </div>
+        </details>
       </div>
-    </div>
+    </header>
     <div class="home-action-grid home-action-grid-three">
       <button class="home-action-card" type="button" data-home-action="schedule">
         <span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2.5"></rect><path d="M7 3v4M17 3v4M3 10h18"></path><circle cx="8" cy="14" r=".7"></circle><circle cx="12" cy="14" r=".7"></circle><circle cx="16" cy="14" r=".7"></circle><circle cx="8" cy="18" r=".7"></circle><circle cx="12" cy="18" r=".7"></circle><circle cx="16" cy="18" r=".7"></circle></svg></span>
