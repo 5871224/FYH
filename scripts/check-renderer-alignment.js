@@ -38,7 +38,7 @@ assert(!renderer.includes('data-home-action="clock"'), "Home must not expose ret
 assert(renderer.includes('window.addEventListener("popstate", handleAppBackNavigation)'), "Back navigation handler is missing");
 assert(renderer.includes("function hasClosableModal"), "Closable modal helper is missing");
 assert(renderer.includes('toggle.textContent = "功能"'), "Schedule function menu label is missing");
-assert(renderer.includes("home-password-btn"), "Home password action is missing");
+assert(renderer.includes('class="home-account-menu"') && renderer.includes('data-open-change-password="true"') && renderer.includes('id="homeSignOutButton"'), "Home account menu must expose password and sign-out actions");
 
 assert(styles.includes("@media (max-width: 640px)"), "Mobile breakpoint is missing");
 assert(styles.includes(".calendar-nav"), "Calendar navigation styles are missing");
