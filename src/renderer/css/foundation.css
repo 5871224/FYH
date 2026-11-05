@@ -358,10 +358,10 @@ body.is-home-view .home-main {
   z-index: 1;
   display: flex;
   flex: 1 0 auto;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   min-height: 445px;
-  padding: 45px clamp(22px, 7.2vw, 85px) 92px;
+  padding: 45px clamp(22px, 7.2vw, 85px) 118px;
 }
 body.is-home-view .home-action-grid {
   display: grid;

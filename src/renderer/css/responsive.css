@@ -181,7 +181,7 @@ body:not(.is-authenticated) .toolbar-card {
   body.is-home-view .home-main {
     flex: 1 0 auto;
     min-height: 390px;
-    padding: 46px 14px 80px;
+    padding: 46px 14px 95px;
   }
   body.is-home-view .home-action-grid,
   body.is-home-view .home-action-grid-with-meal {
