@@ -226,10 +226,6 @@
 
 
 /* ===== 簽到簿 ===== */
-.home-action-grid-three {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
-
 .attendance-ledger-table th,
 .attendance-ledger-table td,
 .attendance-review-table th,
@@ -681,9 +677,6 @@
 }
 
 @media (max-width: 768px) {
-  .home-action-grid-three {
-    grid-template-columns: 1fr;
-  }
   .attendance-hours-input {
     width: 68px;
   }

@@ -133,72 +133,77 @@ body:not(.is-authenticated) .toolbar-card {
   }
 
 
-  /* 首頁使用獨立響應式版面，不受其他頁面透明化卡片規則影響。 */
+
+  /* 手機首頁保留與桌機相同的完整卡片和深棕頁首。 */
   body.is-home-view .home-card {
     min-height: calc(100dvh - 12px);
-    padding-bottom: 30px;
     border-radius: 20px;
   }
-
-  body.is-home-view .home-card::before { border-radius: 0 0 19px 19px; }
-
   body.is-home-view .home-topbar {
     flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
+    align-items: center;
+    gap: 4px;
     min-height: 0;
-    padding: 16px 12px 19px;
+    padding: 12px 10px 17px;
     border-radius: 19px 19px 0 0;
   }
-
-  body.is-home-view .home-brand-mark { justify-content: center; }
-  body.is-home-view .home-brand-logo { width: 152px; }
-
+  body.is-home-view .home-brand-mark {
+    flex: 0 0 auto;
+    width: 166px;
+    height: 75px;
+    border-right: 0;
+  }
+  body.is-home-view .home-brand-logo { top: -33px; width: 166px; }
   body.is-home-view .home-header-actions {
-    flex-wrap: nowrap;
     align-self: stretch;
     justify-content: space-between;
     gap: 6px;
   }
-
-  body.is-home-view .home-header-actions select {
-    flex: 0 1 126px;
+  body.is-home-view .home-language-control { flex: 0 1 130px; }
+  body.is-home-view .home-language-control .fyh-language-switch select {
     min-width: 0;
-    max-width: 126px;
-    min-height: 40px;
+    width: 100%;
+    max-width: 130px;
+    min-height: 38px;
+    padding: 7px 20px 7px 8px;
+    border-radius: 12px;
     font-size: 12px;
   }
-
   body.is-home-view .home-account-trigger {
-    gap: 5px;
-    min-height: 40px;
-    padding: 7px 9px;
+    gap: 6px;
+    min-height: 38px;
+    padding: 6px 8px;
     font-size: 13px;
   }
-  body.is-home-view .home-account-name { max-width: min(35vw, 140px); }
   body.is-home-view .home-account-trigger svg { width: 17px; height: 17px; }
-  body.is-home-view .home-account-options { width: 190px; }
-
+  body.is-home-view .home-account-name { max-width: min(35vw, 140px); font-size: 13px; }
+  body.is-home-view .home-account-options { min-width: 178px; }
+  body.is-home-view .home-main {
+    flex: 1 0 auto;
+    min-height: 390px;
+    padding: 46px 14px 80px;
+  }
   body.is-home-view .home-action-grid,
-  body.is-home-view .home-action-grid:has(.home-action-card:nth-child(3)) {
-    flex: 0 0 auto;
+  body.is-home-view .home-action-grid-with-meal {
     grid-template-columns: 1fr;
-    grid-template-rows: none;
-    gap: 16px;
-    margin: clamp(48px, 8vh, 95px) 14px 0;
+    gap: 15px;
+    margin: 0;
   }
   body.is-home-view .home-action-card {
-    min-height: 145px;
-    padding: 15px;
-    border-radius: 22px;
+    min-height: 135px;
+    gap: 6px;
+    padding: 12px;
+    border-radius: 20px;
   }
   body.is-home-view .home-action-icon {
-    width: 66px;
-    height: 66px;
-    border-radius: 19px;
+    width: 64px;
+    height: 64px;
+    border-radius: 17px;
   }
   body.is-home-view .home-action-icon svg { width: 40px; height: 40px; }
   body.is-home-view .home-action-title { font-size: 22px; }
+  body.is-home-view .home-action-card::after { width: 40px; height: 3px; }
+  body.is-home-view .home-bottom-waves { height: 88px; border-radius: 0 0 19px 19px; }
 
   /* 班表手機版控制項字級統一：頂部檢視／範圍選單與浮動工具列選單皆不得使用過小字級。 */
   body.is-schedule-view .calendar-nav-left select,

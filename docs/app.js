@@ -10866,10 +10866,11 @@ function renderHomeDashboard() {
   homeCard.innerHTML = `
     <header class="home-topbar">
       <div class="home-brand-mark">
+        <svg class="home-brand-filter" width="0" height="0" aria-hidden="true" focusable="false"><defs><filter id="homeBrandContrast" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="-0.11745 0.11186 0 0 1.00559  -1.14613 1.13484 0 0 1.01128  -1.06833 1.12569 0 0 0.94265  0 0 0 1 0"/></filter></defs></svg>
         <img class="home-brand-logo" src="https://www.fyh1971.com/archive/image/weblogo/LOGO-3.png" alt="福圓號 SINCE1971" referrerpolicy="no-referrer">
       </div>
       <div class="home-header-actions">
-        ${renderLanguageControl()}
+        <div class="home-language-control">${renderLanguageControl()}</div>
         <details class="home-account-menu">
           <summary class="home-account-trigger" aria-label="帳號選單">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21v-2a7.5 7.5 0 0 1 15 0v2"></path></svg>
@@ -10889,7 +10890,8 @@ function renderHomeDashboard() {
         </details>
       </div>
     </header>
-    <div class="home-action-grid home-action-grid-three">
+    <main class="home-main">
+      <div class="home-action-grid${showMeal ? " home-action-grid-with-meal" : ""}">
       <button class="home-action-card" type="button" data-home-action="schedule">
         <span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2.5"></rect><path d="M7 3v4M17 3v4M3 10h18"></path><circle cx="8" cy="14" r=".7"></circle><circle cx="12" cy="14" r=".7"></circle><circle cx="16" cy="14" r=".7"></circle><circle cx="8" cy="18" r=".7"></circle><circle cx="12" cy="18" r=".7"></circle><circle cx="16" cy="18" r=".7"></circle></svg></span>
         <span class="home-action-title">班表</span>
@@ -10903,6 +10905,12 @@ function renderHomeDashboard() {
         <span class="home-action-title">簽到簿</span>
       </button>
     </div>
+    </main>
+    <svg class="home-bottom-waves" aria-hidden="true" viewBox="0 0 1000 160" preserveAspectRatio="none">
+      <path d="M0 92 C210 17 353 153 552 120 C738 91 830 32 1000 0 V160 H0Z" fill="#f2dfd0"/>
+      <path d="M0 124 C205 60 337 166 554 151 C735 139 895 66 1000 47 V160 H0Z" fill="#e9d1bd" opacity=".73"/>
+      <path d="M0 147 C190 113 345 172 577 157 C746 145 887 111 1000 80 V160 H0Z" fill="#dcc0a9" opacity=".27"/>
+    </svg>
   `;
 }
 

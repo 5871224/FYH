@@ -202,112 +202,113 @@ button {
   padding: 18px;
 }
 
-.home-card {
+/* 首頁暖棕正式版：官方標誌僅位於上方，功能卡片按容器高度自然置中。 */
+body.is-home-view {
+  background: radial-gradient(ellipse at 45% 12%, #faf4ef, #f0e7df 70%, #e8dbd0);
+}
+
+body.is-home-view .home-card {
   position: relative;
   isolation: isolate;
   display: flex;
   flex-direction: column;
-  width: min(1050px, 100%);
-  min-height: min(720px, calc(100dvh - 32px));
+  width: min(1100px, 100%);
+  min-height: max(620px, calc(100dvh - 40px));
   margin: 0 auto;
-  padding: 0 0 54px;
+  padding: 0;
   overflow: visible;
-  border: 1px solid #e1cbb7;
-  border-radius: 28px;
-  background:
-    radial-gradient(ellipse at 50% 32%, #fffaf6 0%, transparent 68%),
-    linear-gradient(150deg, #fdf6f0 0%, #f5e8df 100%);
-  box-shadow: 0 20px 42px rgba(72, 46, 33, 0.12);
+  border: 1px solid rgba(203, 161, 130, .43);
+  border-radius: 26px;
+  background: radial-gradient(ellipse at 48% 40%, #fff8f3, #f8eee8 67%, #f4e5da);
+  box-shadow: 0 20px 43px rgba(76, 48, 34, .14);
 }
-
-.home-card::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 125px;
-  border-radius: 0 0 27px 27px;
-  background: linear-gradient(172deg, transparent 25%, rgba(218, 182, 152, .22) 26%, rgba(218, 182, 152, .22) 62%, rgba(203, 155, 117, .16) 63%);
-  pointer-events: none;
-}
-
 body.is-home-view .home-topbar {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  min-height: 126px;
-  padding: 18px clamp(20px, 5vw, 52px);
-  border-radius: 27px 27px 0 0;
-  background: linear-gradient(125deg, #65402e 0%, #80563a 60%, #6e4933 100%);
+  flex: 0 0 auto;
+  gap: 25px;
+  min-height: 120px;
+  padding: 12px clamp(22px, 5vw, 62px);
+  border-radius: 25px 25px 0 0;
+  background: radial-gradient(ellipse at 92% 5%, rgba(196, 146, 103, .16), transparent 58%), linear-gradient(110deg, #62402d, #754b33 58%, #83573d);
+}
+body.is-home-view .home-topbar::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 22px;
+  background: linear-gradient(176deg, transparent 49%, rgba(187, 137, 102, .28) 50%, rgba(187, 137, 102, .28) 72%, transparent 73%);
+  pointer-events: none;
 }
 
+/* 官網 LOGO 的原圖有大片透明邊：在固定框中裁切顯示，不增加白色底板。 */
 body.is-home-view .home-brand-mark {
-  display: flex;
-  align-items: center;
-  flex: 0 1 auto;
-  min-width: 0;
-  margin: 0;
+  position: relative;
+  flex: 0 0 237px;
+  width: 237px;
+  height: 97px;
+  overflow: hidden;
+  border-right: 1px solid rgba(255, 242, 230, .47);
 }
-
+body.is-home-view .home-brand-filter { position: absolute; width: 0; height: 0; }
 body.is-home-view .home-brand-logo {
+  position: absolute;
+  top: -43px;
+  left: 0;
   display: block;
-  width: 195px;
-  max-width: 100%;
+  width: 215px;
+  max-width: none;
   height: auto;
-  border-radius: 10px;
-  background: #fffaf5;
+  background: transparent;
+  filter: url(#homeBrandContrast);
 }
-
 body.is-home-view .home-header-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 12px;
+  flex-wrap: nowrap;
+  flex: 0 1 auto;
+  gap: 17px;
+  min-width: 0;
   margin: 0;
-  min-width: 0;
 }
-
-body.is-home-view .home-header-actions select {
-  max-width: 180px;
-  min-height: 44px;
-  border: 1px solid #ead1b7;
-  border-radius: 14px;
-  background-color: #fff8f1;
+body.is-home-view .home-language-control { min-width: 0; }
+body.is-home-view .home-language-control .fyh-language-switch select {
+  min-width: 160px;
+  max-width: 190px;
+  min-height: 49px;
+  padding: 10px 34px 10px 16px;
+  border: 1px solid #e7d0bb;
+  border-radius: 17px;
+  background-color: #fff9f3;
+  color: #3e271b;
+  box-shadow: 0 5px 12px rgba(38, 24, 15, .13);
+  font-weight: 700;
 }
-
-body.is-home-view .home-account-menu {
-  position: relative;
-  min-width: 0;
-  color: #4d2e1e;
-}
-
+body.is-home-view .home-account-menu { position: relative; min-width: 0; color: #4d2e1e; }
 body.is-home-view .home-account-trigger {
   display: flex;
   align-items: center;
-  gap: 9px;
-  min-height: 45px;
-  padding: 8px 14px;
-  border: 1px solid #d7ae88;
+  gap: 11px;
+  min-height: 50px;
+  padding: 9px 15px;
+  border: 1px solid #d9b48e;
   border-radius: 999px;
-  background: #fff5e9;
-  box-shadow: 0 3px 10px rgba(35, 21, 11, .12);
+  background: linear-gradient(135deg, #fff6e9, #f8e3cb);
+  box-shadow: 0 5px 13px rgba(35, 21, 11, .18);
   cursor: pointer;
   list-style: none;
-  font-weight: 700;
+  font-weight: 750;
 }
-
 body.is-home-view .home-account-trigger::-webkit-details-marker { display: none; }
-
 body.is-home-view .home-account-trigger svg,
 body.is-home-view .home-account-options svg {
-  width: 20px;
-  height: 20px;
+  display: block;
+  width: 22px;
+  height: 22px;
   flex: 0 0 auto;
   fill: none;
   stroke: currentColor;
@@ -315,36 +316,35 @@ body.is-home-view .home-account-options svg {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-
 body.is-home-view .home-account-name {
-  max-width: 185px;
+  display: block;
+  max-width: 190px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 17px;
 }
-
 body.is-home-view .home-account-chevron { transition: transform .2s ease; }
 body.is-home-view .home-account-menu[open] .home-account-chevron { transform: rotate(180deg); }
-
 body.is-home-view .home-account-options {
   position: absolute;
-  z-index: 10;
+  z-index: 5;
   top: calc(100% + 8px);
   right: 0;
-  width: max(100%, 195px);
+  min-width: max(100%, 200px);
   padding: 7px;
   border: 1px solid #e4c9ae;
   border-radius: 17px;
   background: #fffaf5;
-  box-shadow: 0 14px 26px rgba(53, 31, 17, .2);
+  box-shadow: 0 15px 28px rgba(53, 31, 17, .23);
 }
-
 body.is-home-view .home-account-options button {
   display: flex;
   align-items: center;
   gap: 13px;
   width: 100%;
-  padding: 12px 13px;
+  min-height: 47px;
+  padding: 11px 13px;
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -359,79 +359,115 @@ body.is-home-view .home-account-options button:focus-visible { background: #f4e6
 body.is-home-view .home-account-trigger:focus-visible,
 body.is-home-view .home-action-card:focus-visible { outline: 3px solid #c88c49; outline-offset: 3px; }
 
+body.is-home-view .home-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 445px;
+  padding: 45px clamp(22px, 7.2vw, 85px) 92px;
+}
 body.is-home-view .home-action-grid {
   display: grid;
-  flex: 0 0 auto;
+  width: 100%;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 28px;
-  margin: clamp(78px, 12vh, 145px) clamp(28px, 6.4vw, 72px) 0;
+  gap: 30px;
+  margin: 0;
 }
-
-body.is-home-view .home-action-grid:has(.home-action-card:nth-child(3)) {
+body.is-home-view .home-action-grid-with-meal {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
-
 body.is-home-view .home-action-card {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 15px;
-  min-height: 245px;
-  padding: 22px 12px;
-  border: 1px solid #e8cfb9;
-  border-radius: 25px;
-  background: linear-gradient(148deg, #fffefa 0%, #fff8f2 70%, #f8eadd 100%);
-  box-shadow: 0 12px 20px rgba(77, 49, 30, .12);
-  color: #513323;
+  gap: 14px;
+  min-height: 270px;
+  padding: 22px 14px;
+  overflow: hidden;
+  border: 1.5px solid #e4cbb7;
+  border-radius: 26px;
+  background: linear-gradient(145deg, #fffefd 0%, #fffaf6 58%, #f8eadf 100%);
+  box-shadow: 0 11px 20px rgba(73, 44, 27, .16), inset 0 1px 0 #fff;
+  color: #4d2c1c;
   text-align: center;
   cursor: pointer;
   transition: transform .18s ease, box-shadow .18s ease;
 }
+body.is-home-view .home-action-card::before {
+  content: "";
+  position: absolute;
+  right: -8px;
+  bottom: -12px;
+  width: 42%;
+  height: 54%;
+  border-radius: 100% 0 0 0;
+  background: linear-gradient(135deg, rgba(243, 213, 187, 0) 22%, rgba(232, 195, 168, .48));
+  pointer-events: none;
+}
 body.is-home-view .home-action-card::after {
   content: "";
-  width: 50px;
+  position: relative;
+  z-index: 1;
+  width: 54px;
   height: 4px;
-  border-radius: 5px;
-  background: #dfb58e;
+  border-radius: 6px;
+  background: #deb38a;
 }
 body.is-home-view .home-action-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 17px 27px rgba(77, 49, 30, .15);
+  box-shadow: 0 16px 26px rgba(73, 44, 27, .19);
 }
-
 body.is-home-view .home-action-icon {
+  position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
-  width: 89px;
-  height: 89px;
+  flex: 0 0 auto;
+  width: 94px;
+  height: 94px;
   border-radius: 24px;
-  background: #f9e9da;
-  color: #96612d;
+  background: #f7e8d9;
+  color: #9a652f;
 }
-
 body.is-home-view .home-action-icon svg {
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.9;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-
 body.is-home-view .home-action-title {
-  font-size: 27px;
+  position: relative;
+  z-index: 1;
+  font-size: 31px;
   font-weight: 800;
-  letter-spacing: .05em;
+  letter-spacing: .04em;
 }
-
-body.is-home-view .app-shell {
-  justify-content: flex-start;
-  padding-bottom: 20px;
+body.is-home-view .home-bottom-waves {
+  position: absolute;
+  z-index: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: block;
+  width: 100%;
+  height: 165px;
+  overflow: hidden;
+  border-radius: 0 0 25px 25px;
+  pointer-events: none;
 }
+.home-eyebrow { margin: 0 0 8px; color: var(--accent-strong); font-size: 13px; font-weight: 800; letter-spacing: .12em; }
+.home-subtitle { margin: 10px 0 0; color: var(--muted); line-height: 1.6; }
+.home-action-text { color: inherit; opacity: .78; line-height: 1.5; }
+body.is-home-view .app-shell { justify-content: flex-start; padding-bottom: 20px; }
 
 .clock-card {
   width: min(820px, 100%);
@@ -3182,44 +3218,6 @@ thead th.today,
     padding: 12px;
   }
 
-  .home-card {
-    min-height: calc(100dvh - 24px);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    border-radius: 24px;
-  }
-
-  .home-header-actions {
-    align-self: flex-start;
-    justify-content: flex-end;
-    margin-left: auto;
-  }
-
-  .home-action-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .home-action-card {
-    min-height: 150px;
-    padding: 14px;
-  }
-
-  .home-action-icon {
-    width: 64px;
-    height: 64px;
-    border-radius: 18px;
-  }
-
-  .home-action-icon svg {
-    width: 39px;
-    height: 39px;
-  }
-
-  .home-action-title {
-    font-size: 22px;
-  }
-
   .clock-card {
     min-height: calc(100dvh - 24px);
     display: flex;
@@ -5834,72 +5832,77 @@ body:not(.is-authenticated) .toolbar-card {
   }
 
 
-  /* 首頁使用獨立響應式版面，不受其他頁面透明化卡片規則影響。 */
+
+  /* 手機首頁保留與桌機相同的完整卡片和深棕頁首。 */
   body.is-home-view .home-card {
     min-height: calc(100dvh - 12px);
-    padding-bottom: 30px;
     border-radius: 20px;
   }
-
-  body.is-home-view .home-card::before { border-radius: 0 0 19px 19px; }
-
   body.is-home-view .home-topbar {
     flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
+    align-items: center;
+    gap: 4px;
     min-height: 0;
-    padding: 16px 12px 19px;
+    padding: 12px 10px 17px;
     border-radius: 19px 19px 0 0;
   }
-
-  body.is-home-view .home-brand-mark { justify-content: center; }
-  body.is-home-view .home-brand-logo { width: 152px; }
-
+  body.is-home-view .home-brand-mark {
+    flex: 0 0 auto;
+    width: 166px;
+    height: 75px;
+    border-right: 0;
+  }
+  body.is-home-view .home-brand-logo { top: -33px; width: 166px; }
   body.is-home-view .home-header-actions {
-    flex-wrap: nowrap;
     align-self: stretch;
     justify-content: space-between;
     gap: 6px;
   }
-
-  body.is-home-view .home-header-actions select {
-    flex: 0 1 126px;
+  body.is-home-view .home-language-control { flex: 0 1 130px; }
+  body.is-home-view .home-language-control .fyh-language-switch select {
     min-width: 0;
-    max-width: 126px;
-    min-height: 40px;
+    width: 100%;
+    max-width: 130px;
+    min-height: 38px;
+    padding: 7px 20px 7px 8px;
+    border-radius: 12px;
     font-size: 12px;
   }
-
   body.is-home-view .home-account-trigger {
-    gap: 5px;
-    min-height: 40px;
-    padding: 7px 9px;
+    gap: 6px;
+    min-height: 38px;
+    padding: 6px 8px;
     font-size: 13px;
   }
-  body.is-home-view .home-account-name { max-width: min(35vw, 140px); }
   body.is-home-view .home-account-trigger svg { width: 17px; height: 17px; }
-  body.is-home-view .home-account-options { width: 190px; }
-
+  body.is-home-view .home-account-name { max-width: min(35vw, 140px); font-size: 13px; }
+  body.is-home-view .home-account-options { min-width: 178px; }
+  body.is-home-view .home-main {
+    flex: 1 0 auto;
+    min-height: 390px;
+    padding: 46px 14px 80px;
+  }
   body.is-home-view .home-action-grid,
-  body.is-home-view .home-action-grid:has(.home-action-card:nth-child(3)) {
-    flex: 0 0 auto;
+  body.is-home-view .home-action-grid-with-meal {
     grid-template-columns: 1fr;
-    grid-template-rows: none;
-    gap: 16px;
-    margin: clamp(48px, 8vh, 95px) 14px 0;
+    gap: 15px;
+    margin: 0;
   }
   body.is-home-view .home-action-card {
-    min-height: 145px;
-    padding: 15px;
-    border-radius: 22px;
+    min-height: 135px;
+    gap: 6px;
+    padding: 12px;
+    border-radius: 20px;
   }
   body.is-home-view .home-action-icon {
-    width: 66px;
-    height: 66px;
-    border-radius: 19px;
+    width: 64px;
+    height: 64px;
+    border-radius: 17px;
   }
   body.is-home-view .home-action-icon svg { width: 40px; height: 40px; }
   body.is-home-view .home-action-title { font-size: 22px; }
+  body.is-home-view .home-action-card::after { width: 40px; height: 3px; }
+  body.is-home-view .home-bottom-waves { height: 88px; border-radius: 0 0 19px 19px; }
 
   /* 班表手機版控制項字級統一：頂部檢視／範圍選單與浮動工具列選單皆不得使用過小字級。 */
   body.is-schedule-view .calendar-nav-left select,
@@ -6266,10 +6269,6 @@ body:not(.is-authenticated) .toolbar-card {
 
 
 /* ===== 簽到簿 ===== */
-.home-action-grid-three {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
-
 .attendance-ledger-table th,
 .attendance-ledger-table td,
 .attendance-review-table th,
@@ -6721,9 +6720,6 @@ body:not(.is-authenticated) .toolbar-card {
 }
 
 @media (max-width: 768px) {
-  .home-action-grid-three {
-    grid-template-columns: 1fr;
-  }
   .attendance-hours-input {
     width: 68px;
   }
