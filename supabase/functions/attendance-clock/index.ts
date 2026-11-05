@@ -205,12 +205,19 @@ async function resolveClockLocation(
     };
   }
 
+  const hasConfiguredIp = departments.some((department: any) => String(department.public_ip || "").trim());
+  const ipFailure = !clientIp
+    ? "無法辨識目前連線的對外 IP，請檢查網路後重試"
+    : !hasConfiguredIp
+      ? "所屬群組尚未設定可打卡單位的固定對外 IP，請洽管理員"
+      : "目前網路的對外 IP 不符合允許打卡的單位設定，請連接公司網路或洽管理員";
+  const reason = allowGps && gpsFailure ? gpsFailure + "；" + ipFailure : ipFailure;
   console.warn("attendance-location-rejected", {
     groupId,
     reason: gpsFailure || "IP_NOT_ALLOWED",
     hasClientIp: Boolean(clientIp)
   });
-  throw new Error("目前位置或網路不符合所屬群組的打卡條件，請確認定位權限或洽管理員");
+  throw new Error(reason);
 }
 
 async function clock(ctx: any, req: Request, body: any, kind: "clock_in" | "clock_out") {

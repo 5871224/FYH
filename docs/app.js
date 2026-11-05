@@ -3247,6 +3247,24 @@ const fyhLocalization = (() => {
   const fixedVi = new Map(Object.entries({
     "首頁": "Trang chủ",
     "打卡": "Chấm công",
+    "手機定位權限未開啟，請允許瀏覽器定位後再打卡": "Chưa cấp quyền vị trí. Vui lòng cho phép trình duyệt truy cập vị trí rồi chấm công lại",
+    "手機定位逾時，請到空曠處或重新開啟定位後再打卡": "Hết thời gian xác định vị trí. Hãy ra chỗ thoáng hoặc bật lại định vị rồi thử lại",
+    "手機無法取得 GPS 定位，請確認定位服務已開啟": "Không lấy được vị trí GPS. Hãy kiểm tra dịch vụ định vị",
+    "手機瀏覽器無法使用定位，請開啟定位服務或改用支援定位的瀏覽器": "Trình duyệt điện thoại không thể dùng định vị. Hãy bật định vị hoặc dùng trình duyệt khác",
+    "手機沒有提供 GPS 定位，請允許瀏覽器定位後再打卡": "Điện thoại không cung cấp vị trí GPS. Hãy cho phép trình duyệt truy cập vị trí rồi thử lại",
+    "所屬群組已啟用打卡的單位尚未設定經緯度": "Các bộ phận cho phép chấm công trong nhóm chưa cài đặt tọa độ GPS",
+    "所屬群組目前沒有啟用打卡的單位，請洽管理員確認打卡設定": "Nhóm của bạn không có bộ phận được phép chấm công. Hãy liên hệ quản trị viên",
+    "所屬群組尚未設定可打卡單位的固定對外 IP，請洽管理員": "Nhóm chưa cài đặt địa chỉ IP công cộng cố định để chấm công. Hãy liên hệ quản trị viên",
+    "目前網路的對外 IP 不符合允許打卡的單位設定，請連接公司網路或洽管理員": "IP công cộng của mạng hiện tại không được phép chấm công. Hãy dùng mạng công ty hoặc liên hệ quản trị viên",
+    "無法辨識目前連線的對外 IP，請檢查網路後重試": "Không xác định được IP công cộng hiện tại. Hãy kiểm tra mạng rồi thử lại",
+    "無法連線到打卡服務，請檢查網路後重試": "Không kết nối được dịch vụ chấm công. Hãy kiểm tra mạng rồi thử lại",
+    "登入狀態已失效，請重新登入": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại",
+    "打卡請求過於頻繁，請稍後再試": "Yêu cầu chấm công quá thường xuyên. Hãy thử lại sau",
+    "無法取得失敗原因，請重新嘗試或洽管理員": "Không xác định được nguyên nhân thất bại. Hãy thử lại hoặc liên hệ quản trị viên",
+    "打卡服務未接受本次打卡": "Dịch vụ không chấp nhận lần chấm công này",
+    "帳號不在有效任職期間或尚未設定群組，無法打卡": "Tài khoản không còn trong thời gian làm việc hợp lệ hoặc chưa được gán nhóm",
+    "只能在今天的紀錄列打卡": "Chỉ có thể chấm công ở dòng hôm nay",
+    "請先登入": "Vui lòng đăng nhập trước",
     "訂餐": "Đặt cơm",
     "紀錄": "Lịch sử",
     "簽到簿": "Sổ chấm công",
@@ -3671,6 +3689,24 @@ const fyhLocalization = (() => {
   }
 
   function translateDynamic(text, entityMap) {
+    const punchFailure = text.match(/^(上班|下班)打卡失敗：(.+)$/);
+    if (punchFailure) {
+      const prefix = punchFailure[1] === "上班" ? "Chấm công vào ca" : "Chấm công tan ca";
+      const reason = punchFailure[2].split("；")
+        .map((part) => fixedVi.get(part) || translateDynamic(part, entityMap) || part)
+        .join("; ");
+      return prefix + " thất bại: " + reason;
+    }
+    const distanceFailure = text.match(/^目前距離最近可打卡單位約 (\d+) 公尺，需在 (\d+) 公尺內$/);
+    if (distanceFailure) {
+      return "Cách bộ phận chấm công gần nhất khoảng " + distanceFailure[1]
+        + " m; yêu cầu trong phạm vi " + distanceFailure[2] + " m";
+    }
+    const punchRefresh = text.match(/^(上班|下班)打卡已完成，但畫面更新失敗，請重新整理確認紀錄$/);
+    if (punchRefresh) {
+      return "Đã chấm công " + (punchRefresh[1] === "上班" ? "vào ca" : "tan ca")
+        + " nhưng không cập nhật được màn hình. Hãy tải lại trang để kiểm tra";
+    }
     // 附件各頁的日期、檔名及進度狀態，統一由語系模組翻譯。
     const attTitle = text.match(/^(上傳附件|附檔)｜(\d{4}-\d{2}-\d{2})$/);
     if (attTitle) return `${attTitle[1] === "上傳附件" ? "Tải tệp lên" : "Tệp đính kèm"} | ${attTitle[2]}`;
@@ -11877,7 +11913,10 @@ function getBrowserPosition() {
     && Math.min(window.screen?.width || window.innerWidth, window.screen?.height || window.innerHeight) <= 820;
   const isPhone = Boolean(navigator.userAgentData?.mobile || narrowTouch
     || (!isTablet && /Android|iPhone|iPod|Windows Phone|Mobi|Mobile/i.test(userAgent)));
-  if (!isPhone || !navigator.geolocation) return Promise.resolve({});
+  if (!isPhone) return Promise.resolve({});
+  if (!navigator.geolocation) {
+    return Promise.resolve({ geolocationError: "手機瀏覽器無法使用定位，請開啟定位服務或改用支援定位的瀏覽器" });
+  }
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (position) => resolve({
@@ -11898,6 +11937,19 @@ function getBrowserPosition() {
   });
 }
 
+function attendanceClockFailureReason(error) {
+  const message = String(error?.message || error || "").trim();
+  if (!message) return "無法取得失敗原因，請重新嘗試或洽管理員";
+  if (/Failed to fetch|NetworkError|Load failed|Network request failed|fetch failed|ERR_CONNECTION_RESET|HTTP 50[234]/i.test(message)) {
+    return "無法連線到打卡服務，請檢查網路後重試";
+  }
+  if (/HTTP 40[13]|Invalid JWT|JWT expired|Unauthorized/i.test(message)) {
+    return "登入狀態已失效，請重新登入";
+  }
+  if (/HTTP 429/i.test(message)) return "打卡請求過於頻繁，請稍後再試";
+  return message;
+}
+
 async function submitAttendanceClock(action, workDate) {
   if (!isLoggedIn()) {
     openSignInDialog();
@@ -11909,19 +11961,28 @@ async function submitAttendanceClock(action, workDate) {
   }
   if (attendanceState.saving) return;
   const label = action === "clock_in" ? "上班" : "下班";
-  const confirmed = await confirmAction(`確定要${label}打卡嗎？`);
+  const confirmed = await confirmAction("確定要" + label + "打卡嗎？");
   if (!confirmed) return;
   attendanceState = { saving: true, error: "" };
   renderAll();
   try {
     const position = await getBrowserPosition();
-    await window.schedulerApi.clockAttendance(action, position);
-    attendanceState = { saving: false, error: "" };
-    await loadRecordsPage();
-    showInfoMessage(`${label}打卡完成`);
+    const response = await window.schedulerApi.clockAttendance(action, position);
+    if (response?.ok === false) {
+      throw new Error(response.message || "打卡服務未接受本次打卡");
+    }
   } catch (error) {
-    attendanceState = { saving: false, error: error.message || "打卡失敗" };
-    showInfoMessage(attendanceState.error);
+    attendanceState = { saving: false, error: attendanceClockFailureReason(error) };
+    showInfoMessage(label + "打卡失敗：" + attendanceState.error);
+    renderAll();
+    return;
+  }
+  attendanceState = { saving: false, error: "" };
+  try {
+    await loadRecordsPage();
+    showInfoMessage(label + "打卡完成");
+  } catch (error) {
+    showInfoMessage(label + "打卡已完成，但畫面更新失敗，請重新整理確認紀錄");
     renderAll();
   }
 }
