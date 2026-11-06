@@ -10,12 +10,19 @@ async function exercise({ confirmed = true, failure = null } = {}) {
   const button = { dataset: { deleteAttendanceHistory: "log-42", historyRecordId: "day-17" }, disabled: false };
   const sandbox = {
     button,
-    window: { schedulerApi: { deleteAttendanceHistory: async (recordId, logId) => {
-      calls.push(["delete", recordId, logId]);
-      if (failure) throw new Error(failure);
-    } } },
+    window: { schedulerApi: {
+      deleteAttendanceHistory: async (recordId, logId) => {
+        calls.push(["delete", recordId, logId]);
+        if (failure) throw new Error(failure);
+      },
+      getAttendanceHistory: async (recordId) => {
+        calls.push(["reload", recordId]);
+        return { logs: [] };
+      }
+    } },
     confirmAction: async () => { calls.push(["confirm"]); return confirmed; },
-    openAttendanceHistoryModal: async (recordId) => { calls.push(["reload", recordId]); },
+    openEntityListModal: () => {},
+    setSaveStatus: (message) => { calls.push(["status", message]); },
     showInfoMessage: (message) => { calls.push(["error", message]); }
   };
   await vm.runInNewContext(source + "\n deleteAttendanceHistoryLog(button)", sandbox);
