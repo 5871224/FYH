@@ -293,11 +293,17 @@ function renderAttendanceReviewSection() {
       </div>
       <div class="records-admin-actions overtime-review-actions attendance-review-actions">
         <button class="ghost-btn compact-btn" type="button" data-attendance-common-notes="true">常用備註</button>
-        <button class="ghost-btn compact-btn" type="button" data-export-special-attendance="true">特殊出勤</button>
-        <button class="ghost-btn compact-btn" type="button" data-export-attendance-review="true">匯出加班</button>
-        <button class="ghost-btn compact-btn" type="button" data-print-attendance-review="true">列印</button>
         <button class="primary-btn compact-btn" type="button" data-attendance-review-batch="reviewed">批次審核</button>
         <button class="ghost-btn compact-btn" type="button" data-attendance-review-batch="returned">批次退回</button>
+        <details class="attendance-review-export-menu">
+          <summary class="ghost-btn compact-btn">匯出</summary>
+          <div class="attendance-review-export-options">
+            <button class="ghost-btn compact-btn" type="button" data-export-special-attendance="true">特殊出勤</button>
+            <button class="ghost-btn compact-btn" type="button" data-export-attendance-review="true">匯出加班</button>
+            <button class="ghost-btn compact-btn" type="button" data-export-attendance-ledger="true">匯出簽到簿</button>
+            <button class="ghost-btn compact-btn" type="button" data-print-attendance-review="true">列印簽到簿</button>
+          </div>
+        </details>
       </div>
     </div>
     ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}

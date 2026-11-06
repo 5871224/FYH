@@ -353,6 +353,36 @@ async function exportSpecialAttendance() {
   }
 }
 
+async function exportAttendanceLedger() {
+  if (!hasAnyGroupPermission("attendance_review")) {
+    showInfoMessage("沒有簽到審核權限");
+    return;
+  }
+  const review = ensureAttendanceReviewState();
+  if (review.loading) {
+    showInfoMessage("簽到審核資料仍在載入中");
+    return;
+  }
+  const filters = { ...review.filters };
+  try {
+    setSaveStatus("正在準備簽到簿資料...", true);
+    // 與列印簽到簿共用同一組篩選、排序與完整分頁資料。
+    const rows = await loadAllAttendanceReviewPrintRows(filters);
+    if (!rows.length) {
+      showInfoMessage("目前篩選條件沒有可匯出的簽到簿資料");
+      return;
+    }
+    const workbook = await window.schedulerBrowserExporter.createAttendanceReviewWorkbook(rows);
+    const filename = "簽到簿_" + String(filters.fromDate || "").replaceAll("-", "")
+      + "-" + String(filters.toDate || "").replaceAll("-", "") + ".xlsx";
+    await downloadScheduleWorkbook(workbook, filename);
+  } catch (error) {
+    showInfoMessage("匯出簽到簿失敗：" + (error?.message || error));
+  } finally {
+    setSaveStatus("");
+  }
+}
+
 async function exportAttendanceReview() {
   const filters = ensureAttendanceReviewState().filters;
   try {

@@ -10,7 +10,9 @@ test("簽到審核列印 A4 直式且可設定每頁筆數", () => {
   const events = read("src/renderer/renderer-records-events.js");
   const actions = read("src/renderer/renderer-records-actions.js");
   const spec = read("規格書.md");
-  assert.match(views, /data-print-attendance-review="true">列印<\/button>/);
+  assert.match(views, /data-print-attendance-review="true">列印簽到簿<\/button>/);
+  assert.match(views, /<summary class="ghost-btn compact-btn">匯出<\/summary>/);
+  assert.match(views, /data-export-attendance-ledger="true">匯出簽到簿<\/button>/);
   assert.match(events, /dataset\.printAttendanceReview[\s\S]*printAttendanceReview\(target\)/);
   assert.match(actions, /ATTENDANCE_REVIEW_PRINT_DEFAULT_PAGE_SIZE = 40/);
   assert.match(actions, /data-attendance-review-print-page-size/);

@@ -580,6 +580,78 @@
     });
   }
 
+  function getAttendanceReviewWorkbookRows(rows) {
+    const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+    const clockText = (value) => {
+      const time = formatSpecialAttendancePunch(value);
+      return time ? time.slice(0, 2) + ":" + time.slice(2) : "-";
+    };
+    const locationText = (value) => {
+      if (!value || typeof value !== "object") return "";
+      return String(value.name || value.address || value.source || "");
+    };
+    const punchText = (label, time, location) => {
+      const name = locationText(location);
+      return label + " " + clockText(time) + (name ? "（" + name + "）" : "");
+    };
+    return (rows || []).map((row) => {
+      const date = String(row.work_date || "");
+      const parts = date.split("-").map(Number);
+      const validDate = parts.length === 3 && parts[0] > 0 && parts[1] >= 1 && parts[1] <= 12 && parts[2] >= 1 && parts[2] <= 31;
+      const weekday = validDate ? weekdays[new Date(Date.UTC(parts[0], parts[1] - 1, parts[2])).getUTCDay()] : "";
+      const segments = Array.isArray(row.scheduleSegments) && row.scheduleSegments.length
+        ? row.scheduleSegments.slice(0, 3)
+        : row.shiftName ? [{ name: row.shiftName }] : [];
+      const icons = segments.map((segment) => String(segment.name || segment.code || "")).filter(Boolean).join(" / ");
+      return [
+        date + (weekday ? "\n" + weekday : ""),
+        String(row.employee_name || ""),
+        icons,
+        String(row.shiftName || "-") + (row.shiftTime ? "\n" + row.shiftTime : ""),
+        punchText("上班", row.clock_in_at, row.clock_in_location) + "\n"
+          + punchText("下班", row.clock_out_at, row.clock_out_location),
+        row.regularHours === null || row.regularHours === undefined ? "" : Number(row.regularHours),
+        row.overtimeHours === null || row.overtimeHours === undefined ? "" : Number(row.overtimeHours),
+        String(row.note || ""),
+        (row.issues || []).join("、"),
+        row.reviewed ? "已審" : "未審"
+      ];
+    });
+  }
+
+  async function createAttendanceReviewWorkbook(rows) {
+    await ensureExcelJS();
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "福圓號";
+    const sheet = workbook.addWorksheet("簽到簿", { views: [{ state: "frozen", ySplit: 1 }] });
+    const headers = ["日期", "員工", "圖示", "班別", "打卡時間", "上班時數", "加班時數", "備註", "異常", "狀態"];
+    const widths = [17, 17, 24, 24, 34, 13, 13, 38, 33, 12];
+    sheet.addRow(headers);
+    sheet.columns = widths.map((width) => ({ width }));
+    sheet.autoFilter = { from: "A1", to: "J1" };
+    sheet.pageSetup = { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    const header = sheet.getRow(1);
+    header.font = { name: "Microsoft JhengHei", bold: true };
+    header.height = 27;
+    header.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    for (let column = 1; column <= headers.length; column += 1) {
+      header.getCell(column).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EBD8" } };
+    }
+    getAttendanceReviewWorkbookRows(rows).forEach((values) => {
+      const row = sheet.addRow(values);
+      const maxLines = Math.max(2, ...values.map((value) => String(value).split("\n").length));
+      row.height = Math.min(90, Math.max(34, maxLines * 17));
+      row.alignment = { vertical: "middle", wrapText: true };
+      row.eachCell((cell, index) => {
+        cell.font = { name: "Microsoft JhengHei", size: 10 };
+        cell.alignment = { vertical: "middle", horizontal: [6, 7, 10].includes(index) ? "center" : "left", wrapText: true };
+        if ([1, 2, 3, 4, 5, 8, 9, 10].includes(index)) cell.numFmt = "@";
+      });
+    });
+    applySheetBorder(sheet);
+    return workbook;
+  }
+
   async function createSpecialAttendanceWorkbook(rows, members = []) {
     const entries = getSpecialAttendanceExportRows(rows, members);
     if (!entries.length) return null;
@@ -1243,6 +1315,8 @@
     createScheduleWorkbook,
     createOvertimeWorkbook,
     createSpecialAttendanceWorkbook,
+    getAttendanceReviewWorkbookRows,
+    createAttendanceReviewWorkbook,
     createLeaveWorkbook,
     createMemberWorkbook,
     createDepartmentWorkbook,

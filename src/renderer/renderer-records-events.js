@@ -64,8 +64,12 @@ function bindRecordsEvents() {
   });
 
   document.addEventListener("click", (event) => {
+    const openMenu = document.querySelector(".attendance-review-export-menu[open]");
+    if (openMenu && !openMenu.contains(event.target)) openMenu.open = false;
     const target = event.target.closest("button");
     if (!target) return;
+    const selectedExportMenu = target.closest(".attendance-review-export-menu");
+    if (selectedExportMenu) selectedExportMenu.open = false;
     if (target.dataset.recordDateSort === "personal") {
       ensureRecordsState();
       recordsState.personalFilters.sortDirection = recordsState.personalFilters.sortDirection === "asc" ? "desc" : "asc";
@@ -101,6 +105,7 @@ function bindRecordsEvents() {
     if (target.dataset.saveAttendanceCommonNotes !== undefined) { void saveAttendanceCommonNotes(); return; }
     if (target.dataset.exportSpecialAttendance !== undefined) { void exportSpecialAttendance(); return; }
     if (target.dataset.exportAttendanceReview !== undefined) { void exportAttendanceReview(); return; }
+    if (target.dataset.exportAttendanceLedger !== undefined) { void exportAttendanceLedger(); return; }
     if (target.dataset.printAttendanceReview !== undefined) { void printAttendanceReview(target); return; }
     if (target.dataset.attendanceReviewBatch) { void batchReviewAttendance(target.dataset.attendanceReviewBatch); return; }
     if (target.dataset.cancelRecordMeal) { void cancelMealFromRecords(); }

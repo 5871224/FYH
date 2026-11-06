@@ -93,3 +93,24 @@ test("特殊出勤 Excel 只將休息日整列上亮黃底色，所有欄均保�
     else global.window = oldWindow;
   }
 });
+
+test("簽到簿 Excel 與列印使用相同十欄、星期、班別、打卡地點及狀態", () => {
+  const rows = loadExporter().getAttendanceReviewWorkbookRows([
+    {
+      work_date: "2026-11-04", employee_name: "王小明",
+      scheduleSegments: [{ name: "休息日" }, { name: "早班" }],
+      shiftName: "早班", shiftTime: "08:30～17:30",
+      clock_in_at: "2026-11-04T00:25:00Z",
+      clock_out_at: "2026-11-04T09:32:00Z",
+      clock_in_location: { name: "門市" }, clock_out_location: { name: "門市" },
+      regularHours: 8, overtimeHours: 1.5, note: "支援", issues: ["遲到"],
+      reviewed: true
+    }
+  ]);
+  assert.equal(rows.length, 1);
+  assert.deepEqual(rows[0], [
+    "2026-11-04\n三", "王小明", "休息日 / 早班", "早班\n08:30～17:30",
+    "上班 08:25（門市）\n下班 17:32（門市）",
+    8, 1.5, "支援", "遲到", "已審"
+  ]);
+});

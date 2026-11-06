@@ -587,6 +587,78 @@
     });
   }
 
+  function getAttendanceReviewWorkbookRows(rows) {
+    const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+    const clockText = (value) => {
+      const time = formatSpecialAttendancePunch(value);
+      return time ? time.slice(0, 2) + ":" + time.slice(2) : "-";
+    };
+    const locationText = (value) => {
+      if (!value || typeof value !== "object") return "";
+      return String(value.name || value.address || value.source || "");
+    };
+    const punchText = (label, time, location) => {
+      const name = locationText(location);
+      return label + " " + clockText(time) + (name ? "（" + name + "）" : "");
+    };
+    return (rows || []).map((row) => {
+      const date = String(row.work_date || "");
+      const parts = date.split("-").map(Number);
+      const validDate = parts.length === 3 && parts[0] > 0 && parts[1] >= 1 && parts[1] <= 12 && parts[2] >= 1 && parts[2] <= 31;
+      const weekday = validDate ? weekdays[new Date(Date.UTC(parts[0], parts[1] - 1, parts[2])).getUTCDay()] : "";
+      const segments = Array.isArray(row.scheduleSegments) && row.scheduleSegments.length
+        ? row.scheduleSegments.slice(0, 3)
+        : row.shiftName ? [{ name: row.shiftName }] : [];
+      const icons = segments.map((segment) => String(segment.name || segment.code || "")).filter(Boolean).join(" / ");
+      return [
+        date + (weekday ? "\n" + weekday : ""),
+        String(row.employee_name || ""),
+        icons,
+        String(row.shiftName || "-") + (row.shiftTime ? "\n" + row.shiftTime : ""),
+        punchText("上班", row.clock_in_at, row.clock_in_location) + "\n"
+          + punchText("下班", row.clock_out_at, row.clock_out_location),
+        row.regularHours === null || row.regularHours === undefined ? "" : Number(row.regularHours),
+        row.overtimeHours === null || row.overtimeHours === undefined ? "" : Number(row.overtimeHours),
+        String(row.note || ""),
+        (row.issues || []).join("、"),
+        row.reviewed ? "已審" : "未審"
+      ];
+    });
+  }
+
+  async function createAttendanceReviewWorkbook(rows) {
+    await ensureExcelJS();
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "福圓號";
+    const sheet = workbook.addWorksheet("簽到簿", { views: [{ state: "frozen", ySplit: 1 }] });
+    const headers = ["日期", "員工", "圖示", "班別", "打卡時間", "上班時數", "加班時數", "備註", "異常", "狀態"];
+    const widths = [17, 17, 24, 24, 34, 13, 13, 38, 33, 12];
+    sheet.addRow(headers);
+    sheet.columns = widths.map((width) => ({ width }));
+    sheet.autoFilter = { from: "A1", to: "J1" };
+    sheet.pageSetup = { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    const header = sheet.getRow(1);
+    header.font = { name: "Microsoft JhengHei", bold: true };
+    header.height = 27;
+    header.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    for (let column = 1; column <= headers.length; column += 1) {
+      header.getCell(column).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3EBD8" } };
+    }
+    getAttendanceReviewWorkbookRows(rows).forEach((values) => {
+      const row = sheet.addRow(values);
+      const maxLines = Math.max(2, ...values.map((value) => String(value).split("\n").length));
+      row.height = Math.min(90, Math.max(34, maxLines * 17));
+      row.alignment = { vertical: "middle", wrapText: true };
+      row.eachCell((cell, index) => {
+        cell.font = { name: "Microsoft JhengHei", size: 10 };
+        cell.alignment = { vertical: "middle", horizontal: [6, 7, 10].includes(index) ? "center" : "left", wrapText: true };
+        if ([1, 2, 3, 4, 5, 8, 9, 10].includes(index)) cell.numFmt = "@";
+      });
+    });
+    applySheetBorder(sheet);
+    return workbook;
+  }
+
   async function createSpecialAttendanceWorkbook(rows, members = []) {
     const entries = getSpecialAttendanceExportRows(rows, members);
     if (!entries.length) return null;
@@ -1250,6 +1322,8 @@
     createScheduleWorkbook,
     createOvertimeWorkbook,
     createSpecialAttendanceWorkbook,
+    getAttendanceReviewWorkbookRows,
+    createAttendanceReviewWorkbook,
     createLeaveWorkbook,
     createMemberWorkbook,
     createDepartmentWorkbook,
@@ -3419,6 +3493,10 @@ const fyhLocalization = (() => {
     "匯出請假": "Xuất nghỉ phép",
     "匯出加班": "Xuất tăng ca",
     "特殊出勤": "Chấm công đặc biệt",
+    "匯出簽到簿": "Xuất sổ chấm công",
+    "列印簽到簿": "In sổ chấm công",
+    "正在準備簽到簿資料...": "Đang chuẩn bị dữ liệu sổ chấm công...",
+    "目前篩選條件沒有可匯出的簽到簿資料": "Không có dữ liệu sổ chấm công phù hợp để xuất",
     "列印班表": "In lịch làm việc",
     "班表列印預覽": "Xem trước lịch in",
     "列印": "In",
@@ -11297,11 +11375,17 @@ function renderAttendanceReviewSection() {
       </div>
       <div class="records-admin-actions overtime-review-actions attendance-review-actions">
         <button class="ghost-btn compact-btn" type="button" data-attendance-common-notes="true">常用備註</button>
-        <button class="ghost-btn compact-btn" type="button" data-export-special-attendance="true">特殊出勤</button>
-        <button class="ghost-btn compact-btn" type="button" data-export-attendance-review="true">匯出加班</button>
-        <button class="ghost-btn compact-btn" type="button" data-print-attendance-review="true">列印</button>
         <button class="primary-btn compact-btn" type="button" data-attendance-review-batch="reviewed">批次審核</button>
         <button class="ghost-btn compact-btn" type="button" data-attendance-review-batch="returned">批次退回</button>
+        <details class="attendance-review-export-menu">
+          <summary class="ghost-btn compact-btn">匯出</summary>
+          <div class="attendance-review-export-options">
+            <button class="ghost-btn compact-btn" type="button" data-export-special-attendance="true">特殊出勤</button>
+            <button class="ghost-btn compact-btn" type="button" data-export-attendance-review="true">匯出加班</button>
+            <button class="ghost-btn compact-btn" type="button" data-export-attendance-ledger="true">匯出簽到簿</button>
+            <button class="ghost-btn compact-btn" type="button" data-print-attendance-review="true">列印簽到簿</button>
+          </div>
+        </details>
       </div>
     </div>
     ${review.error ? `<div class="auth-error">${escapeHtml(review.error)}</div>` : ""}
@@ -12765,8 +12849,12 @@ function bindRecordsEvents() {
   });
 
   document.addEventListener("click", (event) => {
+    const openMenu = document.querySelector(".attendance-review-export-menu[open]");
+    if (openMenu && !openMenu.contains(event.target)) openMenu.open = false;
     const target = event.target.closest("button");
     if (!target) return;
+    const selectedExportMenu = target.closest(".attendance-review-export-menu");
+    if (selectedExportMenu) selectedExportMenu.open = false;
     if (target.dataset.recordDateSort === "personal") {
       ensureRecordsState();
       recordsState.personalFilters.sortDirection = recordsState.personalFilters.sortDirection === "asc" ? "desc" : "asc";
@@ -12802,6 +12890,7 @@ function bindRecordsEvents() {
     if (target.dataset.saveAttendanceCommonNotes !== undefined) { void saveAttendanceCommonNotes(); return; }
     if (target.dataset.exportSpecialAttendance !== undefined) { void exportSpecialAttendance(); return; }
     if (target.dataset.exportAttendanceReview !== undefined) { void exportAttendanceReview(); return; }
+    if (target.dataset.exportAttendanceLedger !== undefined) { void exportAttendanceLedger(); return; }
     if (target.dataset.printAttendanceReview !== undefined) { void printAttendanceReview(target); return; }
     if (target.dataset.attendanceReviewBatch) { void batchReviewAttendance(target.dataset.attendanceReviewBatch); return; }
     if (target.dataset.cancelRecordMeal) { void cancelMealFromRecords(); }
@@ -13431,6 +13520,36 @@ async function exportSpecialAttendance() {
     await downloadScheduleWorkbook(workbook, fileName);
   } catch (error) {
     showInfoMessage(`匯出特殊出勤失敗：${error.message || error}`);
+  } finally {
+    setSaveStatus("");
+  }
+}
+
+async function exportAttendanceLedger() {
+  if (!hasAnyGroupPermission("attendance_review")) {
+    showInfoMessage("沒有簽到審核權限");
+    return;
+  }
+  const review = ensureAttendanceReviewState();
+  if (review.loading) {
+    showInfoMessage("簽到審核資料仍在載入中");
+    return;
+  }
+  const filters = { ...review.filters };
+  try {
+    setSaveStatus("正在準備簽到簿資料...", true);
+    // 與列印簽到簿共用同一組篩選、排序與完整分頁資料。
+    const rows = await loadAllAttendanceReviewPrintRows(filters);
+    if (!rows.length) {
+      showInfoMessage("目前篩選條件沒有可匯出的簽到簿資料");
+      return;
+    }
+    const workbook = await window.schedulerBrowserExporter.createAttendanceReviewWorkbook(rows);
+    const filename = "簽到簿_" + String(filters.fromDate || "").replaceAll("-", "")
+      + "-" + String(filters.toDate || "").replaceAll("-", "") + ".xlsx";
+    await downloadScheduleWorkbook(workbook, filename);
+  } catch (error) {
+    showInfoMessage("匯出簽到簿失敗：" + (error?.message || error));
   } finally {
     setSaveStatus("");
   }
