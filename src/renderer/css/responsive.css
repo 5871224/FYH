@@ -108,6 +108,7 @@ body:not(.is-authenticated) .toolbar-card {
   body.is-schedule-view .app-shell {
     justify-content: flex-start !important;
     align-items: stretch;
+    min-height: 100dvh;
     padding: 8px 8px 4px;
     gap: var(--ui-mobile-gap);
   }
@@ -134,9 +135,10 @@ body:not(.is-authenticated) .toolbar-card {
 
 
 
-  /* 手機首頁保留與桌機相同的完整卡片和深棕頁首。 */
+  /* 手機首頁使用瀏覽器實際可視高度，極短畫面保留自然捲動。 */
   body.is-home-view .home-card {
-    min-height: calc(100dvh - 12px);
+    height: calc(100dvh - 12px);
+    min-height: 420px;
     border-radius: 20px;
   }
   body.is-home-view .home-topbar {
@@ -159,7 +161,7 @@ body:not(.is-authenticated) .toolbar-card {
     justify-content: space-between;
     gap: 6px;
   }
-  body.is-home-view .home-language-control { flex: 0 1 130px; }
+  body.is-home-view .home-language-control { flex: 0 1 120px; }
   body.is-home-view .home-language-control .fyh-language-switch select {
     min-width: 0;
     width: 100%;
@@ -170,40 +172,52 @@ body:not(.is-authenticated) .toolbar-card {
     font-size: 12px;
   }
   body.is-home-view .home-account-trigger {
-    gap: 6px;
+    gap: 4px;
     min-height: 38px;
     padding: 6px 8px;
     font-size: 13px;
   }
   body.is-home-view .home-account-trigger svg { width: 17px; height: 17px; }
-  body.is-home-view .home-account-name { max-width: min(35vw, 140px); font-size: 13px; }
+  body.is-home-view .home-account-name { max-width: min(30vw, 130px); font-size: 13px; }
   body.is-home-view .home-account-options { min-width: 178px; }
   body.is-home-view .home-main {
-    flex: 1 0 auto;
-    min-height: 390px;
-    padding: 46px 14px 95px;
+    flex: 1 1 auto;
+    align-items: center;
+    min-height: 0;
+    padding: clamp(8px, 2dvh, 24px) 14px clamp(24px, 6dvh, 60px);
   }
   body.is-home-view .home-action-grid,
   body.is-home-view .home-action-grid-with-meal {
     grid-template-columns: 1fr;
-    gap: 15px;
+    grid-auto-rows: minmax(0, 1fr);
+    height: min(100%, 320px);
+    gap: clamp(6px, 1.2dvh, 15px);
     margin: 0;
   }
+  body.is-home-view .home-action-grid-with-meal {
+    height: min(100%, 480px);
+  }
   body.is-home-view .home-action-card {
-    min-height: 135px;
-    gap: 6px;
-    padding: 12px;
+    min-height: 0;
+    gap: clamp(4px, 1dvh, 8px);
+    padding: clamp(4px, 1.1dvh, 12px);
     border-radius: 20px;
   }
   body.is-home-view .home-action-icon {
-    width: 64px;
-    height: 64px;
+    width: clamp(34px, 8dvh, 64px);
+    height: clamp(34px, 8dvh, 64px);
     border-radius: 17px;
   }
-  body.is-home-view .home-action-icon svg { width: 40px; height: 40px; }
-  body.is-home-view .home-action-title { font-size: 22px; }
+  body.is-home-view .home-action-icon svg {
+    width: clamp(27px, 5dvh, 40px);
+    height: clamp(27px, 5dvh, 40px);
+  }
+  body.is-home-view .home-action-title { font-size: clamp(16px, 2.9dvh, 22px); }
   body.is-home-view .home-action-card::after { width: 40px; height: 3px; }
-  body.is-home-view .home-bottom-waves { height: 88px; border-radius: 0 0 19px 19px; }
+  body.is-home-view .home-bottom-waves {
+    height: clamp(42px, 9dvh, 76px);
+    border-radius: 0 0 19px 19px;
+  }
 
   /* 班表手機版控制項字級統一：頂部檢視／範圍選單與浮動工具列選單皆不得使用過小字級。 */
   body.is-schedule-view .calendar-nav-left select,
@@ -339,4 +353,51 @@ body:not(.is-authenticated) .toolbar-card {
     width: 100%;
     min-width: 0;
   }
+}
+
+/* 手機橫向與窄視窗短高度：維持橫向入口，縮減固定高度。 */
+@media (min-width: 641px) and (max-width: 960px) and (max-height: 540px) {
+  body.is-home-view .app-shell {
+    min-height: 100dvh;
+    padding: 6px 8px;
+  }
+  body.is-home-view .home-card {
+    height: calc(100dvh - 12px);
+    min-height: 320px;
+  }
+  body.is-home-view .home-topbar {
+    min-height: 72px;
+    gap: 8px;
+    padding: 4px 18px;
+  }
+  body.is-home-view .home-brand-mark {
+    flex-basis: 150px;
+    width: 150px;
+    height: 58px;
+  }
+  body.is-home-view .home-brand-logo { top: -29px; width: 145px; }
+  body.is-home-view .home-language-control .fyh-language-switch select { min-height: 38px; }
+  body.is-home-view .home-account-trigger { min-height: 38px; padding: 6px 10px; }
+  body.is-home-view .home-main {
+    flex: 1 1 auto;
+    align-items: center;
+    min-height: 0;
+    padding: 10px 20px 32px;
+  }
+  body.is-home-view .home-action-grid,
+  body.is-home-view .home-action-grid-with-meal {
+    grid-auto-rows: minmax(0, 1fr);
+    height: min(100%, 205px);
+    gap: 12px;
+  }
+  body.is-home-view .home-action-card {
+    min-height: 0;
+    gap: 6px;
+    padding: 8px;
+    border-radius: 18px;
+  }
+  body.is-home-view .home-action-icon { width: 50px; height: 50px; border-radius: 14px; }
+  body.is-home-view .home-action-icon svg { width: 32px; height: 32px; }
+  body.is-home-view .home-action-title { font-size: 22px; }
+  body.is-home-view .home-bottom-waves { height: 54px; }
 }
