@@ -17,36 +17,24 @@ function shiftMinutes(value: string) {
   return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 ? hour * 60 + minute : null;
 }
 
-function punchMinutes(value: string) {
+// Taiwan attendance operates in UTC+08:00 without daylight saving time.
+// Calculate clock minutes directly to avoid per-row Intl.DateTimeFormat allocations.
+function punchMinutes(value: string | Date) {
   if (!value) return null;
-  const date = new Date(value);
+  const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Taipei",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).formatToParts(date);
-  return Number(parts.find((part) => part.type === "hour")?.value || 0) * 60
-    + Number(parts.find((part) => part.type === "minute")?.value || 0);
+  return ((date.getUTCHours() + 8) % 24) * 60 + date.getUTCMinutes();
 }
 
 function nowMinutes() {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Taipei",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).formatToParts(new Date());
-  return Number(parts.find((part) => part.type === "hour")?.value || 0) * 60
-    + Number(parts.find((part) => part.type === "minute")?.value || 0);
+  return punchMinutes(new Date()) ?? 0;
 }
 
 function locationValue(location: any, key: string) {
   return location && typeof location === "object" ? String(location[key] || "") : "";
 }
 
-function attendanceIssues(record: any, shift: any, workDate: string, today = taipeiDate()) {
+function attendanceIssues(record: any, shift: any, workDate: string, today: string, currentMinutes: number) {
   const output: string[] = [];
   const hasIn = Boolean(record?.clock_in_at);
   const hasOut = Boolean(record?.clock_out_at);
@@ -62,7 +50,7 @@ function attendanceIssues(record: any, shift: any, workDate: string, today = tai
   if ((hasIn && inMinutes === null) || (hasOut && outMinutes === null)) output.push("打卡時間不完整或格式異常");
   const past = workDate < today;
   const sameDay = workDate === today;
-  const now = nowMinutes();
+  const now = currentMinutes;
   if (!hasIn && (past || (sameDay && now >= start + 1))) output.push("未打上班");
   if (!hasOut && (past || (sameDay && now >= end + 1))) output.push("未打下班");
   if (inMinutes !== null && inMinutes >= start + 6) output.push("遲到");
@@ -177,6 +165,7 @@ async function getCommonNotes(ctx: any) {
 
 async function personalList(ctx: any, body: any, actor: any) {
   const today = taipeiDate();
+  const currentMinutes = nowMinutes();
   const toDate = validDate(body?.toDate, today);
   const fromDate = validDate(body?.fromDate, addDays(today, -49));
   const page = pageNumber(body?.page);
@@ -227,7 +216,7 @@ async function personalList(ctx: any, body: any, actor: any) {
         note: row?.note || "",
         reviewed: Boolean(row?.reviewed_at),
         reviewedAt: row?.reviewed_at || null,
-        issues: attendanceIssues(row || { work_date: date }, schedule.shift, date, today),
+        issues: attendanceIssues(row || { work_date: date }, schedule.shift, date, today, currentMinutes),
         editable: !row?.reviewed_at,
         mealText: mealRows.map((meal) => `${meal.product_name_snapshot}×${meal.quantity}`).join("、"),
         mealOrderId: mealRows[0]?.order_id || "",
