@@ -549,6 +549,25 @@ async function history(ctx: any, body: any, actor: any) {
   return { ok: true, logs: (result.data || []).map((log: any) => ({ ...log, operator_name: log.set_employee?.full_name || "" })) };
 }
 
+async function deleteHistory(ctx: any, body: any, actor: any) {
+  const recordId = String(body?.recordId || "").trim();
+  const logId = String(body?.logId || "").trim();
+  if (!recordId || !logId) throw new Error("缺少簽到或歷程識別碼");
+
+  const attendanceResult = await ctx.supabaseAdmin.from("attendance_days")
+    .select("user_id").eq("id", recordId).maybeSingle();
+  if (attendanceResult.error) throw attendanceResult.error;
+  if (!attendanceResult.data) throw new Error("找不到簽到紀錄");
+  await ensureTargetAllowed(ctx, actor, attendanceResult.data.user_id);
+
+  const result = await ctx.supabaseAdmin.from("attendance_audit_logs")
+    .delete().eq("id", logId).eq("attendance_day_id", recordId)
+    .select("id").maybeSingle();
+  if (result.error) throw result.error;
+  if (!result.data) throw new Error("歷程紀錄不存在或已刪除");
+  return { ok: true, deletedId: result.data.id };
+}
+
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
     if (req.method !== "POST") return Response.json({ message: "Method Not Allowed" }, { status: 405 });
@@ -560,6 +579,7 @@ export default {
       if (body?.action === "review_save") return Response.json(await reviewSave(ctx, body, actor));
       if (body?.action === "review_set") return Response.json(await reviewSet(ctx, body, actor));
       if (body?.action === "history") return Response.json(await history(ctx, body, actor));
+      if (body?.action === "history_delete") return Response.json(await deleteHistory(ctx, body, actor));
       if (body?.action === "common_notes_save") return Response.json(await saveCommonNotes(ctx, body));
       return Response.json({ message: "不支援的簽到審核操作" }, { status: 400 });
     } catch (error) {

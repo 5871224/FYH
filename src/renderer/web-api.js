@@ -836,6 +836,11 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     return requestFunction("attendance-review-groups", { action: "history", recordId });
   }
 
+  async function deleteAttendanceHistory(recordId, logId) {
+    ensureSignedIn();
+    return requestFunction("attendance-review-groups", { action: "history_delete", recordId, logId });
+  }
+
       async function getTodayMealOrder() {
     ensureSignedIn();
     return requestFunction("meal-order", {
@@ -1645,6 +1650,7 @@ function subtractOvertimeHoursFromClockTime(value, hours) {
     saveAttendanceReviewRecord,
     setAttendanceReviewed,
     getAttendanceHistory,
+    deleteAttendanceHistory,
     getMealStatsReport,
     getMealAdminSettings,
     saveMealAdminSettings,

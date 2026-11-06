@@ -228,6 +228,10 @@ function bindDelegatedClickEvents() {
       await openAttendanceHistoryModal(target.dataset.viewAttendanceHistory);
       return;
     }
+    if (target.dataset.deleteAttendanceHistory) {
+      await deleteAttendanceHistoryLog(target);
+      return;
+    }
     if (target.dataset.addMealProduct) {
       recordsState.mealAdmin.products = [...recordsState.mealAdmin.products, { id: "", name: "", price: 0, is_active: true }];
       renderAll();

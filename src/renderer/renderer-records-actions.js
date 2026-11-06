@@ -311,10 +311,25 @@ async function openAttendanceHistoryModal(recordId) {
     const result = await window.schedulerApi.getAttendanceHistory(recordId);
     openEntityListModal({
       title: "簽到修改歷程",
-      body: `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>時間</th><th>操作</th><th>變更內容</th><th>原因</th><th>操作人</th></tr></thead><tbody>${(result.logs || []).map((log) => `<tr><td>${formatRecordDateTime(log.created_at)}</td><td>${escapeHtml(attendanceHistoryActionLabel(log.action))}</td><td>${escapeHtml(attendanceHistoryChangeSummary(log))}</td><td>${escapeHtml(log.reason || "")}</td><td>${escapeHtml(log.operator_name || "")}</td></tr>`).join("") || '<tr><td colspan="5">沒有歷程</td></tr>'}</tbody></table></div>`
+      body: `<div class="records-table-wrap"><table class="records-table"><thead><tr><th>時間</th><th>異動類型</th><th>變更內容</th><th>原因</th><th>操作人</th><th>操作</th></tr></thead><tbody>${(result.logs || []).map((log) => `<tr><td>${formatRecordDateTime(log.created_at)}</td><td>${escapeHtml(attendanceHistoryActionLabel(log.action))}</td><td>${escapeHtml(attendanceHistoryChangeSummary(log))}</td><td>${escapeHtml(log.reason || "")}</td><td>${escapeHtml(log.operator_name || "")}</td><td><button class="settings-icon-btn settings-icon-btn-danger" type="button" data-delete-attendance-history="${escapeHtml(log.id)}" data-history-record-id="${escapeHtml(recordId)}" aria-label="刪除歷程" title="刪除歷程"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M6 6l1 14h10l1-14"></path><path d="M10 10v7"></path><path d="M14 10v7"></path></svg></button></td></tr>`).join("") || '<tr><td colspan="6">沒有歷程</td></tr>'}</tbody></table></div>`
     });
   } catch (error) {
     setSaveStatus(`讀取歷程失敗：${error.message}`);
+  }
+}
+
+async function deleteAttendanceHistoryLog(button) {
+  const logId = String(button?.dataset.deleteAttendanceHistory || "");
+  const recordId = String(button?.dataset.historyRecordId || "");
+  if (!logId || !recordId || button.disabled) return;
+  if (!await confirmAction("確定刪除此筆簽到修改歷程？刪除後無法復原。")) return;
+  button.disabled = true;
+  try {
+    await window.schedulerApi.deleteAttendanceHistory(recordId, logId);
+    await openAttendanceHistoryModal(recordId);
+  } catch (error) {
+    button.disabled = false;
+    showInfoMessage(error.message || "刪除簽到歷程失敗");
   }
 }
 
