@@ -28,30 +28,24 @@ function shiftMinutes(value: string) {
   return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 ? hour * 60 + minute : null;
 }
 
-function punchMinutes(value: string) {
+// Modern Taiwan attendance dates use UTC+08:00 with no daylight saving time.
+// Avoid constructing Intl.DateTimeFormat for each record in the review loops.
+function punchMinutes(value: string | Date) {
   if (!value) return null;
-  const date = new Date(value);
+  const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit", hour12: false
-  }).formatToParts(date);
-  return Number(parts.find((part) => part.type === "hour")?.value || 0) * 60
-    + Number(parts.find((part) => part.type === "minute")?.value || 0);
+  return ((date.getUTCHours() + 8) % 24) * 60 + date.getUTCMinutes();
 }
 
 function nowMinutes() {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit", hour12: false
-  }).formatToParts(new Date());
-  return Number(parts.find((part) => part.type === "hour")?.value || 0) * 60
-    + Number(parts.find((part) => part.type === "minute")?.value || 0);
+  return punchMinutes(new Date()) ?? 0;
 }
 
 function locationValue(location: any, key: string) {
   return location && typeof location === "object" ? String(location[key] || "") : "";
 }
 
-function attendanceIssues(record: any, shift: any, workDate: string, today = taipeiDate()) {
+function attendanceIssues(record: any, shift: any, workDate: string, today: string, currentMinutes: number) {
   const output: string[] = [];
   const hasIn = Boolean(record?.clock_in_at);
   const hasOut = Boolean(record?.clock_out_at);
@@ -72,7 +66,7 @@ function attendanceIssues(record: any, shift: any, workDate: string, today = tai
   const outMinutes = hasOut ? punchMinutes(record.clock_out_at) : null;
   const past = workDate < today;
   const sameDay = workDate === today;
-  const now = nowMinutes();
+  const now = currentMinutes;
   if (!hasIn && (past || (sameDay && now >= start + 1))) output.push("未打上班");
   if (!hasOut && (past || (sameDay && now >= end + 1))) output.push("未打下班");
   if (inMinutes !== null && inMinutes >= start + 6) output.push("遲到");
@@ -246,6 +240,7 @@ async function ensureTargetAllowed(ctx: any, actor: any, userId: string) {
 
 async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = false) {
   const today = taipeiDate();
+  const currentMinutes = nowMinutes();
   const fromDate = validDate(body?.fromDate, addDays(today, -30));
   const toDate = validDate(body?.toDate, today);
   const requestedGroupId = String(body?.groupId || "");
@@ -292,7 +287,7 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
       const schedule = scheduleDisplay(scheduleContext, member.id, date);
       if (!current && !schedule.schedule) continue;
       availableMemberIds.add(String(member.id));
-      for (const currentIssue of attendanceIssues(current || { work_date: date }, schedule.shift, date, today)) {
+      for (const currentIssue of attendanceIssues(current || { work_date: date }, schedule.shift, date, today, currentMinutes)) {
         if (ISSUE_TYPES.includes(currentIssue)) availableIssueTypeSet.add(currentIssue);
       }
     }
@@ -330,7 +325,7 @@ async function buildReviewRows(ctx: any, body: any, actor: any, exportOnly = fal
       if (status === "reviewed" && !reviewed) continue;
       if (status === "unreviewed" && reviewed) continue;
       const schedule = scheduleDisplay(scheduleContext, member.id, date);
-      const currentIssues = attendanceIssues(current || { work_date: date }, schedule.shift, date, today);
+      const currentIssues = attendanceIssues(current || { work_date: date }, schedule.shift, date, today, currentMinutes);
       if (effectiveIssueType && effectiveIssueType !== "__all__" && !currentIssues.includes(effectiveIssueType)) continue;
       const departmentId = schedule.schedule?.support_department_id || member.home_department_id || "";
       const groupName = current?.group_name_snapshot || groupNames.get(member.group_id) || "";
